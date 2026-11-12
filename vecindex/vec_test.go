@@ -347,7 +347,10 @@ func TestVec005_Recall(t *testing.T) {
 	const k = 10
 	base, qs := siftLike(5, vecCorpusSize(), 200, 128).generate()
 	truth := groundTruth(t, L2, base, qs, k)
-	seg, _ := buildTestSegment(t, base, SegmentConfig{Metric: L2, PQ: PQConfig{M: 16}}, 9)
+	// Spec build parameters (R 64, L_build 100, alpha 1.2), built in
+	// deterministic batches of 64 on four workers to keep -race runs short.
+	build := VamanaParams{Batch: 64, Workers: 4}
+	seg, _ := buildTestSegment(t, base, SegmentConfig{Metric: L2, Graph: build, PQ: PQConfig{M: 16}}, 9)
 	got := make([][]core.UUID, len(qs))
 	reads := 0
 	for i, q := range qs {
@@ -366,7 +369,7 @@ func TestVec005_Recall(t *testing.T) {
 		t.Fatalf("segment recall@10 = %.4f < 0.95", r)
 	}
 
-	g, err := BuildGraph(base, L2, VamanaParams{}, core.NewSplitMix64(9))
+	g, err := BuildGraph(base, L2, build, core.NewSplitMix64(9))
 	if err != nil {
 		t.Fatal(err)
 	}

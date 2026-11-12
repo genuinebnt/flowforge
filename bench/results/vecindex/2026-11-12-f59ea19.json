@@ -1,0 +1,398 @@
+{
+  "module": "vecindex",
+  "date": "2026-11-12",
+  "commit": "f59ea19",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=128/l2/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 0.8108,
+        "MB/s": 810.77,
+        "allocs/op": 0,
+        "ns/op": 1263
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=128/l2/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 0.87,
+        "MB/s": 870.01,
+        "allocs/op": 0,
+        "ns/op": 1177
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=128/ip/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 2.646,
+        "MB/s": 2645.99,
+        "allocs/op": 0,
+        "ns/op": 387
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=128/ip/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 2.354,
+        "MB/s": 2354.02,
+        "allocs/op": 0,
+        "ns/op": 435
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=384/l2/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 6.796,
+        "MB/s": 6796.46,
+        "allocs/op": 0,
+        "ns/op": 452
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=384/l2/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 12.39,
+        "MB/s": 12387.1,
+        "allocs/op": 0,
+        "ns/op": 248
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=384/ip/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 3.048,
+        "MB/s": 3047.62,
+        "allocs/op": 0,
+        "ns/op": 1008
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=384/ip/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 2.154,
+        "MB/s": 2154.28,
+        "allocs/op": 0,
+        "ns/op": 1426
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=768/l2/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 2.122,
+        "MB/s": 2122.28,
+        "allocs/op": 0,
+        "ns/op": 2895
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=768/l2/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 4.578,
+        "MB/s": 4578.24,
+        "allocs/op": 0,
+        "ns/op": 1342
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=768/ip/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 4.842,
+        "MB/s": 4841.61,
+        "allocs/op": 0,
+        "ns/op": 1269
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=768/ip/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 7.178,
+        "MB/s": 7177.57,
+        "allocs/op": 0,
+        "ns/op": 856
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=960/l2/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 8.033,
+        "MB/s": 8033.47,
+        "allocs/op": 0,
+        "ns/op": 956
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=960/l2/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 6.963,
+        "MB/s": 6962.83,
+        "allocs/op": 0,
+        "ns/op": 1103
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=960/ip/scalar",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 7.245,
+        "MB/s": 7245.28,
+        "allocs/op": 0,
+        "ns/op": 1060
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec01_Distance/dim=960/ip/unrolled",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 5.42,
+        "MB/s": 5419.9,
+        "allocs/op": 0,
+        "ns/op": 1417
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec02_Build/sequential",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 280613096,
+        "allocs/op": 1113828,
+        "ns/op": 8389469419,
+        "vectors/s": 2384
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec02_Build/batch=256/workers=1",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 282003784,
+        "allocs/op": 620614,
+        "ns/op": 7818878460,
+        "vectors/s": 2558
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec02_Build/batch=256/workers=4",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 282793544,
+        "allocs/op": 624058,
+        "ns/op": 3682362649,
+        "vectors/s": 5431
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec02_Build/batch=256/workers=8",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 283440120,
+        "allocs/op": 626778,
+        "ns/op": 3967543477,
+        "vectors/s": 5041
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec03_Search/L=10/W=4",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 354352,
+        "QPS": 20672,
+        "allocs/op": 1423,
+        "ns/op": 9675091,
+        "p50-us": 46,
+        "p99-us": 84,
+        "reads/query": 20.12,
+        "recall@10": 0.504
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec03_Search/L=50/W=4",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 255368,
+        "QPS": 8100,
+        "allocs/op": 1405,
+        "ns/op": 24691341,
+        "p50-us": 126,
+        "p99-us": 246,
+        "reads/query": 59.76,
+        "recall@10": 0.8975
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec03_Search/L=100/W=4",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 369328,
+        "QPS": 7410,
+        "allocs/op": 1428,
+        "ns/op": 26989572,
+        "p50-us": 127,
+        "p99-us": 220,
+        "reads/query": 111.6,
+        "recall@10": 0.9745
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec03_Search/L=200/W=4",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 269576,
+        "QPS": 4781,
+        "allocs/op": 1404,
+        "ns/op": 41836492,
+        "p50-us": 198,
+        "p99-us": 352,
+        "reads/query": 214,
+        "recall@10": 1
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec03_Search/L=100/W=1",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 250120,
+        "QPS": 7993,
+        "allocs/op": 1402,
+        "ns/op": 25021837,
+        "p50-us": 111,
+        "p99-us": 240,
+        "reads/query": 112.2,
+        "recall@10": 0.9795
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec03_Search/L=100/W=8",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 369360,
+        "QPS": 7290,
+        "allocs/op": 1429,
+        "ns/op": 27435896,
+        "p50-us": 128,
+        "p99-us": 253,
+        "reads/query": 114.7,
+        "recall@10": 0.9895
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec04_Memory/m=16",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 61161920,
+        "RAM-B/vector": 66.24,
+        "RAM-B/vector-excl-codebook": 40,
+        "allocs/op": 148411,
+        "disk-B/vector": 886.6,
+        "ns/op": 931408536
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec04_Memory/m=32",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 62259824,
+        "RAM-B/vector": 82.27,
+        "RAM-B/vector-excl-codebook": 56,
+        "allocs/op": 148520,
+        "disk-B/vector": 903,
+        "ns/op": 1723905206
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec04_Memory/m=64",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 64538768,
+        "RAM-B/vector": 114.3,
+        "RAM-B/vector-excl-codebook": 88,
+        "allocs/op": 148751,
+        "disk-B/vector": 935,
+        "ns/op": 1980152180
+      }
+    },
+    {
+      "bench_id": "BenchmarkVec05_Streaming",
+      "package": "github.com/genuinebnt/flowforge/vecindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 146057232,
+        "allocs/op": 419769,
+        "merges": 5,
+        "ns/op": 4892158402,
+        "recall-drift-points": 0,
+        "segments": 6,
+        "slowest-write-ms": 346,
+        "static-recall@10": 1,
+        "streaming-recall@10": 1
+      }
+    }
+  ]
+}

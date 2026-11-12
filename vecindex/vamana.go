@@ -12,9 +12,12 @@ import (
 
 // Vamana defaults (spec 22.4).
 const (
-	DefaultR      = 64
+	// DefaultR is the maximum out-degree.
+	DefaultR = 64
+	// DefaultLBuild is the construction search list size.
 	DefaultLBuild = 100
-	DefaultAlpha  = 1.2
+	// DefaultAlpha is the pruning factor of the second pass.
+	DefaultAlpha = 1.2
 	// MaxR bounds the out-degree a segment file may declare.
 	MaxR = 1024
 )

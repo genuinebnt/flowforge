@@ -29,7 +29,8 @@ func (k Key) validate() error {
 
 // Registry maps keys to indexes. Every search names its full key, so a
 // query in one tenant can never reach another tenant's index, even when
-// both hold identical vectors (vec_008). It is safe for concurrent use.
+// both hold identical vectors (vec_008). The zero value is an empty
+// registry. It is safe for concurrent use.
 type Registry struct {
 	mu sync.RWMutex
 	m  map[Key]Index
@@ -48,6 +49,9 @@ func (r *Registry) Register(k Key, idx Index) error {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.m == nil {
+		r.m = make(map[Key]Index)
+	}
 	if _, ok := r.m[k]; ok {
 		return fmt.Errorf("%w: %s/%s/%s", ErrIndexExists, k.Tenant, k.Program, k.Model)
 	}

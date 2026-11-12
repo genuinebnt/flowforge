@@ -14,10 +14,10 @@ import (
 const (
 	// DefaultMinHashPermutations is the signature length.
 	DefaultMinHashPermutations = 128
-	// DefaultLSHBands and DefaultLSHRows split a 128-value signature into
-	// 32 bands of 4 rows.
+	// DefaultLSHBands is the number of LSH bands of a 128-value signature.
 	DefaultLSHBands = 32
-	DefaultLSHRows  = 4
+	// DefaultLSHRows is the number of signature values per band.
+	DefaultLSHRows = 4
 	// DefaultMinHashSeed seeds the permutation coefficients of
 	// DefaultMinHasher. It is part of the conformance contract: changing it
 	// changes every signature.

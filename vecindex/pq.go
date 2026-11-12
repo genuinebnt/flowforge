@@ -2,6 +2,7 @@ package vecindex
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 	"sync"
 
@@ -253,13 +254,16 @@ func (pq *PQ) fillTable(q []float32, metric Metric, t *DistanceTable) {
 }
 
 // Distance returns the approximate distance from the table's query to the
-// vector encoded by code (len m). Sub-codes at or above k are treated as
-// the last centroid; segments validate codes when they open.
+// vector encoded by code. A code whose length is not m gives +Inf;
+// sub-codes at or above k are treated as the last centroid (segments
+// validate codes when they open).
 func (t *DistanceTable) Distance(code []byte) float32 {
+	if len(code) != t.m {
+		return float32(math.Inf(1))
+	}
 	s := t.bias
 	lut := t.lut
 	k := t.k
-	code = code[:t.m]
 	for i, c := range code {
 		s += lut[i*k+min(int(c), k-1)]
 	}
