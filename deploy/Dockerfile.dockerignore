@@ -1,0 +1,12 @@
+# BuildKit reads <Dockerfile>.dockerignore for `docker build -f deploy/Dockerfile .`
+.git
+.github
+**/.terraform
+infra
+deploy/docker-compose.yml
+bench/results
+coverage*
+*.test
+*.out
+/bin
+/tmp

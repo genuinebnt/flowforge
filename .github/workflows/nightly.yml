@@ -1,0 +1,164 @@
+# Nightly stage of spec 25.11 adapted to Go: property tests at 100,000 cases,
+# 30-minute fuzzing per target, race detector and AddressSanitizer runs, the
+# full benchmark suite compared with the last recorded baseline, coverage.
+name: nightly
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  GOTOOLCHAIN: local
+  GOFLAGS: -mod=readonly
+
+jobs:
+  modules:
+    runs-on: ubuntu-latest
+    outputs:
+      names: ${{ steps.list.outputs.names }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - id: list
+        run: echo "names=$(go run ./cmd/xtask list | awk '{print $1}' | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+
+  proptest:
+    name: property tests (100,000 cases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      FF_PROPTEST_CASES: "100000"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: property tests
+        run: go test -count=1 -timeout 320m -run 'Prop_' ./...
+
+  sanitizers:
+    name: race and address sanitizers
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: race detector (repeated, shuffled)
+        run: go test -race -count=3 -shuffle=on ./...
+      - name: AddressSanitizer
+        env:
+          CGO_ENABLED: "1"
+        run: go test -asan -count=1 ./...
+
+  fuzz:
+    name: fuzz ${{ matrix.module }} (30 min per target)
+    needs: modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.modules.outputs.names) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: fuzz
+        run: go run ./cmd/xtask fuzz-smoke -fuzztime 30m "${{ matrix.module }}"
+      - name: upload crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers-${{ matrix.module }}
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: ignore
+
+  bench:
+    name: benchmarks
+    needs: modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: bench every module and compare with the last baseline
+        run: |
+          status=0
+          for m in $(go run ./cmd/xtask list | awk '{print $1}'); do
+            base="$(find "bench/results/$m" -name '*.json' 2>/dev/null | sort | tail -1 || true)"
+            if ! go run ./cmd/xtask bench-module "$m"; then
+              echo "::warning::bench-module $m produced no results"
+              continue
+            fi
+            new="$(find "bench/results/$m" -name '*.json' | sort | tail -1)"
+            {
+              echo "### $m"
+              echo '```'
+              if [ -n "$base" ] && [ "$base" != "$new" ]; then
+                go run ./cmd/xtask bench-compare "$base" "$new" || status=1
+              else
+                echo "no baseline; recorded $new"
+              fi
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+          exit $status
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: bench/results/
+          if-no-files-found: ignore
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: coverage
+        run: |
+          go test -count=1 -covermode=atomic -coverprofile=coverage.out ./...
+          go tool cover -html=coverage.out -o coverage.html
+          {
+            echo '### Coverage'
+            echo '```'
+            go tool cover -func=coverage.out | tail -1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            coverage.html

@@ -1,0 +1,248 @@
+# Build and deploy by digest (spec 17.6):
+#   push to main  -> dev
+#   tag v*        -> prod, gated by the protected "prod" GitHub environment
+#                    (required reviewers = manual approval)
+# Order: build and push every image to Artifact Registry (vulnerability
+# scanning on push), run the migrations job, roll out the internal services,
+# roll out the gateway last; each service gets 10 % then 100 % of traffic.
+#
+# Each GitHub environment (dev, prod) defines the variables GCP_PROJECT,
+# GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOY_SA (sa-ci) and FF_API_DOMAIN.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'dev') }}
+  cancel-in-progress: false
+
+jobs:
+  target:
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.env.outputs.env }}
+    steps:
+      - id: env
+        env:
+          DISPATCH_ENV: ${{ inputs.environment }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then env="$DISPATCH_ENV"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then env=prod
+          else env=dev; fi
+          if [ "$env" = prod ] && [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::prod deploys only from a v* tag"; exit 1
+          fi
+          echo "env=$env" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build ${{ matrix.service }}
+    needs: target
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ needs.target.outputs.env }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [gateway, engine, scope, graph, notifier, similarity, tool-runner, egress-proxy, migrate]
+    env:
+      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/flowforge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          token_format: access_token
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          build-args: |
+            SERVICE=${{ matrix.service }}
+            VERSION=${{ github.ref_name }}-${{ github.sha }}
+          # Tags are immutable in the repository; the digest is what deploys.
+          tags: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          push: true
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: record digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p digests
+          echo "${REGISTRY}/${{ matrix.service }}@${DIGEST}" > "digests/${{ matrix.service }}"
+          cat "digests/${{ matrix.service }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.service }}
+          path: digests/${{ matrix.service }}
+          retention-days: 30
+
+  migrate:
+    name: migrations job
+    needs: [target, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ needs.target.outputs.env }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_REGION: ${{ vars.GCP_REGION }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: update and execute ff-migrate
+        run: |
+          image="$(cat digests/migrate)"
+          gcloud run jobs update ff-migrate --image "$image" --region "$GCP_REGION" --quiet
+          gcloud run jobs execute ff-migrate --region "$GCP_REGION" --wait --quiet
+
+  services:
+    name: roll out ${{ matrix.service }}
+    needs: [target, migrate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ needs.target.outputs.env }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [scope, graph, similarity, tool-runner, egress-proxy, notifier, engine]
+    env:
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      CANARY_SOAK_SECONDS: ${{ needs.target.outputs.env == 'prod' && '300' || '60' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: 10 % then 100 %
+        run: .github/scripts/rollout.sh "${{ matrix.service }}" "$(cat "digests/${{ matrix.service }}")"
+
+  gateway:
+    name: roll out gateway (last)
+    needs: [target, services]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ needs.target.outputs.env }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      CANARY_SOAK_SECONDS: ${{ needs.target.outputs.env == 'prod' && '300' || '60' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: 10 % then 100 %
+        run: .github/scripts/rollout.sh gateway "$(cat digests/gateway)"
+
+  smoke:
+    name: smoke tests
+    needs: [target, gateway]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ needs.target.outputs.env }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: /readyz through the load balancer
+        env:
+          FF_API_DOMAIN: ${{ vars.FF_API_DOMAIN }}
+        run: |
+          for _ in $(seq 1 30); do
+            curl -fsS --max-time 5 "https://${FF_API_DOMAIN}/readyz" && exit 0
+            sleep 5
+          done
+          echo "::error::https://${FF_API_DOMAIN}/readyz did not become ready"
+          exit 1
+
+      - name: canned run against the mock target
+        if: needs.target.outputs.env == 'dev'
+        env:
+          FF_API_DOMAIN: ${{ vars.FF_API_DOMAIN }}
+          FF_SMOKE_API_KEY: ${{ secrets.FF_SMOKE_API_KEY }}
+        run: |
+          if [ -x scripts/smoke.sh ]; then
+            scripts/smoke.sh "https://${FF_API_DOMAIN}"
+          else
+            echo "::warning::scripts/smoke.sh not present; skipping the canned run"
+          fi

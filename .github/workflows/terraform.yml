@@ -1,0 +1,242 @@
+# Infrastructure pipeline (spec 17.4, 17.6):
+#   PR            fmt, validate, conftest policy unit tests, plan for dev and
+#                 prod with the policy check on the plan JSON
+#   push to main  plan + policy + apply to dev
+#   tag v*        plan + policy + apply to prod, gated by the protected "prod"
+#                 GitHub environment (required reviewers = manual approval)
+#
+# Each GitHub environment (dev-plan, prod-plan, dev, prod) defines the
+# variables GCP_WIF_PROVIDER and GCP_TERRAFORM_SA (see infra/README.md).
+name: terraform
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform.yml"
+  # No path filter on push: GitHub ignores tag pushes when paths are set, and
+  # a plan without changes is a cheap no-op.
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.16.7"
+  CONFTEST_VERSION: "v0.71.1"
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+
+jobs:
+  static:
+    name: fmt, validate, policy tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: install conftest
+        run: go install "github.com/open-policy-agent/conftest@${CONFTEST_VERSION}"
+
+      - name: terraform fmt
+        run: terraform fmt -recursive -check -diff infra
+
+      - name: dev and prod roots are identical
+        run: |
+          for f in main.tf variables.tf; do
+            diff -u "infra/envs/dev/$f" "infra/envs/prod/$f"
+          done
+
+      - name: terraform validate
+        run: |
+          for env in dev prod; do
+            terraform -chdir="infra/envs/$env" init -backend=false
+            terraform -chdir="infra/envs/$env" validate
+          done
+
+      - name: policy unit tests
+        run: conftest verify --policy infra/policy
+
+  plan:
+    name: plan ${{ matrix.env }}
+    if: github.event_name == 'pull_request'
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, prod]
+    environment: ${{ matrix.env }}-plan
+    concurrency:
+      group: terraform-${{ matrix.env }}-plan-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: infra/envs/${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: install conftest
+        run: go install "github.com/open-policy-agent/conftest@${CONFTEST_VERSION}"
+
+      - name: init
+        run: terraform init
+
+      - name: plan
+        run: terraform plan -lock=false -out=tfplan
+
+      - name: policy check
+        run: |
+          terraform show -json tfplan > plan.json
+          conftest test --policy "$GITHUB_WORKSPACE/infra/policy" plan.json
+
+      - name: summary
+        if: always()
+        run: |
+          {
+            echo "### terraform plan (${{ matrix.env }})"
+            echo '```'
+            terraform show -no-color tfplan | tail -n 60
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply-dev:
+    name: apply dev
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    environment: dev
+    concurrency:
+      group: terraform-dev
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: install conftest
+        run: go install "github.com/open-policy-agent/conftest@${CONFTEST_VERSION}"
+
+      - name: plan
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+
+      - name: policy check
+        run: |
+          terraform show -json tfplan > plan.json
+          conftest test --policy "$GITHUB_WORKSPACE/infra/policy" plan.json
+
+      - name: apply
+        run: terraform apply -auto-approve tfplan
+
+  apply-prod:
+    name: apply prod
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    # Protected environment: required reviewers give the manual approval step.
+    environment: prod
+    concurrency:
+      group: terraform-prod
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/envs/prod
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: install conftest
+        run: go install "github.com/open-policy-agent/conftest@${CONFTEST_VERSION}"
+
+      - name: plan
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+
+      - name: policy check
+        run: |
+          terraform show -json tfplan > plan.json
+          conftest test --policy "$GITHUB_WORKSPACE/infra/policy" plan.json
+
+      - name: apply
+        run: terraform apply -auto-approve tfplan

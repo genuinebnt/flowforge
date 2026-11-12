@@ -1,0 +1,72 @@
+# Local dependency stack for integration tests (spec 25.11 integration stage).
+#
+#   docker compose -f deploy/docker-compose.yml up -d --wait
+#   export FF_TEST_PG_DSN='postgres://postgres:postgres@127.0.0.1:5432/flowforge?sslmode=disable'
+#   export FF_TEST_REDIS_ADDR='127.0.0.1:6379'
+#   export PUBSUB_EMULATOR_HOST='127.0.0.1:8085' FF_PUBSUB_PROJECT=ff-local FF_TOPIC_PREFIX=ff.
+#   go test -race -count=1 ./...
+#   docker compose -f deploy/docker-compose.yml down -v
+#
+# Set FF_PG_IMAGE=pgvector/pgvector:pg16 to get the vector extension for the
+# similarity adapter tests; plain postgres:16 skips it.
+
+name: flowforge
+
+services:
+  postgres:
+    image: ${FF_PG_IMAGE:-postgres:16}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flowforge
+    ports:
+      - "127.0.0.1:${FF_PG_PORT:-5432}:5432"
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    command: ["postgres", "-c", "max_connections=200", "-c", "fsync=off", "-c", "synchronous_commit=off"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flowforge"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${FF_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--host-port=0.0.0.0:8085", "--project=ff-local"]
+    ports:
+      - "127.0.0.1:${FF_PUBSUB_PORT:-8085}:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8085/ >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # Creates the spec 11.7 topics and one subscription per consumer in the emulator.
+  pubsub-init:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      pubsub:
+        condition: service_healthy
+    environment:
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+      FF_PUBSUB_PROJECT: ff-local
+      FF_TOPIC_PREFIX: ff.
+    volumes:
+      - ./pubsub-init.sh:/pubsub-init.sh:ro
+    entrypoint: ["/bin/sh", "/pubsub-init.sh"]
+    restart: "no"
+
+volumes:
+  pgdata:
