@@ -1,0 +1,28 @@
+{
+  "module": "sim",
+  "date": "2026-11-12",
+  "commit": "99b0032",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkSim_Chaos",
+      "package": "github.com/genuinebnt/flowforge/sim",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 19739605,
+        "allocs/op": 257251,
+        "ns/op": 68101155,
+        "scenarios/s": 14.68
+      }
+    }
+  ]
+}

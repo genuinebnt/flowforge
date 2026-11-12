@@ -180,3 +180,12 @@ dir = "graphstore"
 depends = ["core", "oam", "scope", "csr"]
 tests = { prefix = "Graph", required = [] }
 bench = ["BenchmarkSys01"]
+
+[module.sim]
+layer = 5
+spec = ["23.8", "25.7"]
+dir = "sim"
+depends = ["core", "eventstore", "engine", "compiler", "vm", "scope", "limiter", "oam", "graphstore", "alerts"]
+tests = { prefix = "Inv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11"] }
+conformance = ["sim"]
+bench = ["BenchmarkSim"]

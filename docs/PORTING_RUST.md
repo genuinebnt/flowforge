@@ -5,10 +5,8 @@ section 20, "reference targets: Go, then Rust"). The Go code in this
 repository is the reference. The Rust port must produce the same observable
 behaviour, checked by the same conformance data, not the same code.
 
-Status: written while the Go implementation is being built. Sections marked
-**pending** describe modules whose Go reference is not finished yet; they
-list the contracts that are already fixed by the spec and will be completed
-when the Go module lands.
+Status: every Go module referenced here is implemented. The agent step
+(spec 16) is deferred in both implementations (`docs/DECISIONS.md` D1).
 
 ---
 
@@ -51,13 +49,15 @@ the Go package that is the reference for it.
 | `ff-auth` | `auth` | |
 | `ff-alerts` | `alerts` | |
 | `ff-vecindex` | `vecindex` | |
-| `ff-dsl` | `dsl` | **pending** |
-| `ff-bytecode` | `bytecode` | **pending** |
-| `ff-vm` | `vm` | **pending** |
+| `ff-dsl` | `dsl` | front end only |
+| `ff-bytecode` | `bytecode` | |
+| `ff-vm` | `vm` | |
+| `ff-compiler` | `compiler`, `compiler/treewalk` | spec 24.2 puts compile() in ff-dsl; Go split it out because dsl and bytecode share a layer |
 | `ff-eventstore` | `eventstore`, `eventstore/storetest`, `eventstore/pgstore` | Postgres impl behind a feature; the conformance suite as a `pub fn run_suite` in a `testing` module or a separate `ff-eventstore-testkit` crate |
-| `ff-engine` | `engine` | **pending** |
-| `ff-sim` | `sim` | **pending** |
-| `services/*` | `services/*`, `cmd/*` | **pending** |
+| `ff-engine` | `engine`, `engine/enginetest`, `engine/pgrepo` | |
+| `ff-graphstore` | `graphstore`, `graphstore/pg` | graph service domain logic (not a spec crate; Go needed one layer between oam and the service) |
+| `ff-sim` | `sim` | |
+| `services/*` | `services/*`, `cmd/*` | tonic + axum; `services/devstack` and `cmd/flowforge dev` have no spec counterpart |
 | `xtask` | `cmd/xtask` | same commands: `verify-module`, `test-module`, `bench-module`, `bench-compare`, `fuzz-smoke` |
 
 Shared, language-neutral assets used by both implementations without
@@ -177,9 +177,9 @@ crate's distributions where Go output is compared.
 | Placement hash | `placement` (OPEN_QUESTIONS #1) | FNV-1a 64 over `u64_le(len(key)) ‖ key ‖ worker`, then MurmurHash3 `fmix64`; vnode `i` of worker `w` at `hash(u64_le(i), w)`, key position `hash(key, "")`; ties by worker id. Vectors: `conformance/placement/hash64.json` |
 | CSR snapshot file "FFCS" | `csr` (OPEN_QUESTIONS) | byte-identical output for the same graph (csr_009 compares SHA-256 **across languages**): u64 offsets, u32 `in_edge`, 64-byte aligned sections, CRC32C (Castagnoli) per section, u16 length-prefixed label strings (≤ 256 labels), `created_at` in Unix **milliseconds**, SHA-256 footer verified before anything else |
 | Vector segment "FFDA" | `vecindex` (OPEN_QUESTIONS, segment format) | 4096-byte sectors; records never straddle a sector unless larger than one (dim 960 records start on a sector boundary and span sectors); per-section CRC32C plus whole-file checksum |
-| Bytecode module "FFBC" | `bytecode` | **pending** — module hash = SHA-256 of the encoded bytes is stored with every run, so Go-compiled modules must load and run in the Rust VM and vice versa |
-| VM snapshot | `vm` | **pending** — deterministic CBOR (RFC 8949 §4.2). In Rust use `ciborium` with sorted map keys and shortest float/int encodings, or write a small canonical encoder; verify against Go-produced snapshots |
-| Effect `args_hash` | `vm`/`engine` | **pending** — SHA-256 of the canonical args encoding; a mismatch on replay is `nondeterminism_detected`, so the two implementations must agree byte for byte if they ever share an event log |
+| Bytecode module "FFBC" | `bytecode` (OPEN_QUESTIONS 1, 2, 11) | the module hash (SHA-256 of the encoded bytes) is stored with every run, so Go-compiled modules must load and run in the Rust VM and vice versa. Section details the spec leaves open are fixed in section 5.11 |
+| Value encoding (args hash, recorded results) | `vm/codec.go` | deterministic CBOR (RFC 8949 §4.2, fxamacker `CoreDetEncOptions`: shortest ints and floats, definite lengths, sorted map keys) of a structural tree — see section 5.11. `args_hash = sha256(EncodeArgs(args))`; a mismatch on replay is `nondeterminism_detected`, so both implementations must agree byte for byte if they ever share an event log |
+| VM snapshot | `vm/snapshot.go` | a fixed 19-field canonical CBOR array; Restore re-encodes and rejects non-canonical input. Snapshots are a cache, so cross-language snapshot compatibility is optional — but if you share event stores, either match it or drop foreign snapshots and replay |
 | Alert dedupe key | `alerts` | `sha256(rule_id ‖ 0x00 ‖ canonical JSON of the group_by values)` |
 | Webhook signature | `alerts` | `v1=hex(HMAC-SHA256(secret, timestamp + "." + raw_body))`, reject when `|now − ts| > 300 s` |
 | Password hashes | `auth` | Argon2id PHC strings (`$argon2id$v=19$m=…,t=…,p=…$salt$hash`, unpadded standard base64). The `argon2` crate's `PasswordHash` format is compatible; verify with a Go-generated hash in conformance |
@@ -392,33 +392,218 @@ monotonic clock. Duplicates in the live set are ignored.
   shifts stored lease/wake timestamps back by `d` for Postgres, so no test
   sleeps. Port the suite as a generic `run_suite<H: Harness>()`.
 
-### 5.11 `ff-dsl`, `ff-bytecode`, `ff-vm` — pending
+### 5.11 `ff-dsl`
 
-Fixed by the spec regardless of the Go details:
-
-* The bytecode module format (8.3) and opcode numbering (8.4) are a
-  cross-language contract: a module compiled by Go must load, verify and run
-  in the Rust VM with identical results and effect traces. Add a
-  `conformance/vm/run` case runner to both implementations that executes
-  **both** `.ff` sources and pre-compiled `.ffbc` modules.
-* Fuel costs (8.7), limits, failure code names, and effect path numbering
-  (`seq` and `parent/task/child` for `par_map`) must match exactly; they
-  appear in event logs.
+* Read `dsl/OPEN_QUESTIONS.md` (34 decisions) before writing the checker.
+  The ones with visible effects:
+  * record literals accept `field: expr` **and** `field = expr` (the spec's
+    own `Budget { tokens = 20000 }` example);
+  * `inferred_effects` contains only the eight effect kinds of 7.5; scope
+    checks, approvals, alerts, `log` and `execute` are tracked as runtime
+    ops, so `POST /workflows:check` reports `["passive","active"]` like spec
+    12.6;
+  * a `fn` without `!` is pure; function types written in source are pure;
+    higher-order builtins carry their argument closures' effects;
+  * E0402/E0403 are only checked when the program policy is known;
+  * `?` inside a lambda always fails the run;
+  * extra codes inside the spec's ranges (E0305–E0314, E0404/E0405,
+    E0490 for agent effects rejected by the engine, E0502–E0507,
+    E0603/E0604, W0601) — reuse the same numbers;
+  * the REST E0301 example's span is the argument's own span
+    (`col 51 / offset 50` to `col 71 / offset 70`), not the spec's
+    two-bytes-earlier start;
+  * prelude records the spec only names (Product, Budget, GraphSummary,
+    TaskError, ...) have the fields listed in `dsl/prelude.go`; the
+    built-in records the VM constructs are pinned in bytecode
+    OPEN_QUESTIONS 9: ScopeDenied `{target, reason, rule_id, decision_id}`,
+    Approval `{id, role, decided_by, decided_at}`, Denied `{id, role,
+    reason}`, PlanError/TaskError `{code, message}`, Budget `{tokens,
+    tool_calls, iterations}`.
+* `conformance/dsl/parse` stores ASTs in the canonical JSON form documented
+  in `conformance/dsl/README.md`; port the AST-to-JSON printer exactly, or
+  the parse goldens are useless. Diagnostics goldens compare codes, spans
+  and messages.
+* Known gaps you may close (both implementations together): `Format` drops
+  comments; `-9223372036854775808` cannot be written as a literal; the
+  22.9 `is InScope(_)` syntax is unsupported; a lambda created before an
+  approval and called after it is rejected (fails closed).
 * The AST is a good fit for arenas (`la-arena`, `id-arena`) with
-  index-based nodes (spec 20.2); insta snapshots for diagnostics.
+  index-based nodes (spec 20.2); use `insta` for diagnostics snapshots.
 
-This section will list the Go decisions (builtin id table, local/loop
-allocation rules for the verifier, args encoding, value JSON form) when the
-packages land.
+### 5.12 `ff-bytecode`
 
-### 5.12 Engine, simulation, services — pending
+The binary format is a cross-language contract. Beyond spec 8.3/8.4:
 
-Will be filled in when the Go engine and services exist. Fixed by the spec:
-the event types and payloads (9.3), idempotency key
-`hex(sha256(run_id || "/" || path))`, retry delay formula with full jitter,
-submit idempotency (9.10), error mapping (11.8), REST shapes (12).
+* FUNCS has an explicit `nspans u32` before the span table; META strings
+  are `u32 len + bytes`; TYPES entries are `kind u8, name u32` then record
+  fields `(name u32, type u32)`, enum variants `(name u32, arity u8,
+  type u32*)` or a signature `(func u16, params, result u32)`; type
+  references are String constants holding DSL type text, `0xFFFFFFFF` for
+  none. Constant tags: 1 Int, 2 Float (finite only), 3 String (≤ 1 MiB),
+  4 Duration (ns), 5 Time (Unix ns).
+* Reserved type ids: Option 0, Result 1, Host 2, Severity 3, Tuple 4, ...;
+  user types start at 32 (`bytecode/types.go`).
+* **Option variant numbering:** the VM numbers `None = 0, Some = 1`, while
+  the DSL declares `Some | None`. The compiler maps them
+  (`compiler/internal/abi.VariantIndex`); every other enum keeps
+  declaration order. A Rust compiler targeting Go-compatible bytecode must
+  do the same.
+* Effect mask bits (u16): read, passive, active, intrusive, write,
+  financial_write, llm, time, then scope, approval, alert, plan (bits
+  8–11). now/sleep count as time, agent_call/embed as llm,
+  similarity_query as read, par_map as nothing.
+* Tool calls: inputs, then `CONST <tool name>`, then `EFFECT 1` with
+  `argc = inputs + 1`; that EFFECT must not be a jump target. The VM moves
+  the name to `args[0]` of the suspension.
+* Verifier: no per-function max-stack field exists; the verifier computes
+  it and requires `nlocals + max_depth ≤ 65,536`. "Each local assigned
+  once" is per path and per iteration: a LOOP back edge contributes no
+  local definitions, a local written before a loop cannot be written in
+  it, and loop state (index, list, accumulator) lives on the stack. A Rust
+  verifier must accept and reject exactly the modules in
+  `conformance/bytecode/verify` (49 cases, one stable rule id each).
+* Failure code 16 `type_mismatch` exists beyond the spec's table.
+* Optional ANNOTS section (flag bit 1) between META and entry, carrying
+  workflow-level `#[timeout]`, `#[effects(max)]`, `#[on_unknown(retry)]`,
+  `#[idempotent]` and per-EFFECT-site `#[timeout]`/`#[retry]` keyed by
+  (function, code offset). Without the flag, the layout is exactly 8.3.
+* Builtins never call closures: `sort_by`/`group_by` take precomputed key
+  lists; `first(xs)` is `list_get_opt(xs, 0)`. The 40 builtin ids in
+  `bytecode/builtins.go` are part of the format.
 
----
+### 5.13 `ff-vm`
+
+* Effect sequence numbers start at **0**; par_map task `t` of effect `P`
+  numbers its effects `P/t/0`, `P/t/1`, ...
+* Fuel: per-instruction costs from 8.7; fuel is checked before an
+  instruction runs; unused fuel of a slice that ended in `OutOfFuel`
+  carries over; `range` is charged for the elements it produces.
+* Heap limit: allocations are counted and the live heap is measured
+  exactly only when the counter would exceed the limit, re-measuring after
+  1/8 of the limit — the effective limit is 7/8 to 1× (fail closed). Both
+  counters are in the snapshot so the decision replays identically.
+* Floats are always finite: NaN → `arith_nan`, ±Inf → `arith_overflow`,
+  float division by zero → `div_zero`.
+* EQ/NE are structural across kinds (different kinds are unequal); LT..GE
+  require the same kind and use the total order of `vm.Compare`, which
+  `sort` also uses.
+* A failed TRY in the workflow body fails with `approval_denied` if the Err
+  carries the built-in `Denied` record, otherwise `unwrap_failed`; in
+  par_map tasks and compensations it returns from the closure.
+* par_map `Join`: with `on_error = fail` the first failing task in input
+  order is reported; with `collect` each element is `Ok(v)` or
+  `Err(TaskError{code, message})`; a task failing with
+  `nondeterminism_detected` fails the par_map with that code in both modes.
+* `scope.allows` is the `scope_allows` builtin over the run's pinned scope
+  snapshot, which is the one VM input besides the module and recorded
+  effects (the engine must pass the same snapshot on replay).
+* **Value encoding (args hashes and recorded results)** — deterministic
+  CBOR of this tree, which a Rust VM must produce byte for byte:
+
+  ```text
+  Unit [0]   Bool [1, b]   Int [2, i]   Duration [3, ns]   Time [4, ns]
+  Float [5, f] (shortest exact float)   String [6, s]
+  List/Stream [7, 0|1, [elems]]   Map [8, [k1, v1, k2, v2, ...]] (insertion order)
+  Record [9, type_id, [fields]]   Enum [10, type_id, variant, [payload]]
+  Closure [11, fn, [captures]]    Fqdn [12, s]  IpAddress [13, s]
+  Netblock [14, s]  Asn [15, s]  Url [16, s]  ScopeProof [17, target, decision_id]
+  EntityRef [18, s]
+  ```
+
+  Encode with RFC 8949 §4.2 core deterministic rules (shortest integer
+  heads, shortest float that round-trips, definite lengths). `ciborium`
+  needs care here: write values through an explicit canonical writer
+  rather than relying on serde's defaults, and test against hashes taken
+  from Go-recorded event logs.
+* JSON forms (inputs, outputs, tool I/O): Option is `null` or the payload;
+  Result is `{"ok": v}` / `{"err": e}`; other enums `{"variant": name,
+  "values": [...]}`; maps with string-like keys are objects (sorted keys),
+  others `[[k, v], ...]`; Time is RFC 3339 UTC; **Duration is Go duration
+  text** (`time.Duration.String()`, e.g. `1h30m0s`, `250ms`) — Rust has no
+  equivalent, so port Go's formatting algorithm exactly. ScopeProofs are
+  rejected in outputs.
+* Display (string interpolation, `to_string`): strings raw at top level and
+  quoted inside collections; floats always show a decimal point; Duration
+  as Go duration text. These strings flow into effect args (e.g. alert
+  messages), so they affect args hashes.
+
+### 5.14 `ff-compiler` and the tree-walker
+
+* Lowering follows `bytecode/doc.go`: stack-carried loops, inlined lambda
+  literals for map/filter/etc., captures by value, `compensate` as a
+  closure binding `it`, `require approval` as EFFECT approval plus TRY.
+  `?` uses TRY only where the VM's TRY semantics match the checker's mode;
+  elsewhere explicit TEST_VARIANT/UNPACK + FAIL or RET.
+* An omitted approval timeout is passed as Duration 0 ("engine default").
+* Annotations reach the engine through ANNOTS (section 5.12). A known gap:
+  effects inside fns called by an annotated let are not annotated.
+* `conformance/vm/run` (54 cases: `.ff` + scripted effects + expected value
+  and effect trace with args hashes) and `conformance/vm/replay` (6 cases,
+  two tampered logs) are the main cross-language check for the whole
+  language stack. vm_008 compares the tree-walker with the VM on every
+  case; keep that differential test in Rust too.
+
+### 5.15 `ff-engine`
+
+Read `engine/OPEN_QUESTIONS.md` (21 decisions). The event-log shape is a
+cross-language contract if Go and Rust workers ever share a store:
+
+* Only the lease holder appends. Cancel, unknown-outcome resolution and
+  scope changes are queued as run requests and applied at the next effect
+  boundary.
+* `effect_completed` carries both `result` (human JSON) and `value`
+  (base64 canonical CBOR from the value encoding above), which replay feeds
+  to the VM. `effect_failed` carries `final` and `fail_code`; a retryable
+  failure is followed by `effect_retry_scheduled` in the same append.
+* Instant effects (now, log, emit_alert, scope_check) record
+  `effect_scheduled` and their result in one atomic append; only tool calls
+  have `effect_started` and attempts.
+* Concurrent tool calls (par_map children) record results in task order in
+  one append, so logs never depend on timing.
+* Before every tool call the engine re-decides each proof target with the
+  tool's own class and records it (`purpose: recheck`).
+* Approvals, timers, scope decisions and outbox events have ids derived
+  from (run, path), so a re-run after a crash produces the same rows.
+* Kill switches fail closed and cancel every run in reach; compensations
+  run to the end (cancel and deadlines do not interrupt them);
+  nondeterminism skips compensation and marks the outcome `failed`.
+* A run whose outbox watermark is below its head stays schedulable until
+  every event is published (found by the simulator).
+* Retry: `#[retry(max = n, ...)]` means n attempts, multiplier 2; jitter
+  comes from the injected seeded Rng so tests reproduce.
+* Registration rejects agent effects with `E0490` and requires an entry
+  signature in the module.
+* The engine-level conformance golden is
+  `conformance/engine/eng_001_recon.golden.json` (timestamps normalized).
+
+### 5.16 `ff-sim`
+
+`sim` is the strongest cross-implementation check after conformance data:
+port the invariant checker (inv_01–inv_11) first and run it over event logs
+exported from either implementation. Seeds in
+`conformance/sim/regress_seeds.json` reproduced three real engine bugs;
+their scenarios (workload + fault profile) are worth porting as Rust
+regression tests even though seeds won't produce identical schedules in a
+different scheduler.
+
+### 5.17 Services and gateway
+
+* Internal calls carry `authorization: Bearer <internal JWT>` (aud
+  `flowforge-internal`, 60 s), `x-tenant-id` (`ten_...`), `x-actor`,
+  `x-request-id`, `traceparent` and optional `idempotency-key`. **The actor
+  is `user:<uuid>` / `apikey:<uuid>` / `service:<name>` / `schedule:<id>`
+  in both the token subject and `x-actor`**; services reject a mismatch.
+  REST responses render actors as public ids (`usr_...`, `key_...`).
+* Error mapping 11.8 uses `google.rpc.ErrorInfo` (reason) and `RetryInfo`;
+  REST errors are `{"error": {code, status, message, details,
+  request_id}}` with `code` the lower-cased reason. Gateway-local reasons
+  `CSRF_FAILED` (403) and `PRECONDITION_FAILED` (412) exist; bad login
+  credentials are `401 token_invalid`.
+* `conformance/api` (14 transcripts, 272 steps) is the REST contract; run
+  it against an axum gateway with fake backends exactly as the Go test
+  does (`services/gateway/conformance_test.go`).
+* Topics, outbox and inbox follow spec 11.7/23.7; the Go in-process bus is
+  a stand-in for Pub/Sub and has no wire format to match.
 
 ## 6. Shared infrastructure
 
@@ -488,8 +673,8 @@ Follow spec 24.7, which is also the order the Go reference was built in:
 1. workspace, `ff-core` (with netnorm), `ff-testkit`, `xtask`, CI;
 2. `ff-limiter`, `ff-scope`, `ff-oam`, `ff-csr`, `ff-placement`, `ff-auth`,
    `ff-alerts` — pure and fully covered by conformance data today;
-3. `ff-dsl`, `ff-bytecode`, `ff-vm` (prove cross-loading of Go-compiled
-   modules early);
+3. `ff-dsl`, `ff-bytecode`, `ff-vm`, `ff-compiler` (prove cross-loading of
+   Go-compiled modules and identical args hashes early);
 4. `ff-eventstore` (memory, then Postgres against the shared schema),
    `ff-engine`;
 5. `ff-placement` in multi-worker mode, `ff-sim`;
