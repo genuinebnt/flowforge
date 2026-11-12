@@ -1,0 +1,41 @@
+{
+  "name": "append_basic",
+  "spec": "23.4 property (1) and (3); es_001",
+  "description": "Appends with the correct expected_seq and fence return the new head; reads observe them in order; the next append must name the new head.",
+  "steps": [
+    {"op": "create", "run": "r1", "events": [{"type": "run_submitted", "actor": "engine", "payload": {"idempotency_key": "k1", "input": {}}}]},
+    {"op": "get_run", "run": "r1", "expect": {"head": 1, "status": "pending", "owner": ""}},
+    {"op": "acquire", "run": "r1", "worker": "w1", "as": "L1"},
+    {"op": "get_run", "run": "r1", "expect": {"owner": "w1"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 1,
+     "events": [
+       {"type": "run_started", "actor": "engine", "payload": {"module_sha256": "ab12", "fuel_limit": 1000000}},
+       {"type": "effect_scheduled", "actor": "vm", "payload": {"path": "1", "kind": "tool_call", "args_hash": "ff", "args": {"b": 2, "a": [1, 2.5, "x", null, true]}}}
+     ],
+     "expect": {"head": 3}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 3,
+     "events": [{"seq": 4, "type": "effect_completed", "actor": "tool:httpx", "payload": {"path": "1", "result": {"status": 200}, "duration_ms": 12}}],
+     "expect": {"head": 4}},
+    {"op": "read", "run": "r1", "expect": {"events": [
+      {"seq": 1, "type": "run_submitted", "actor": "engine", "payload": {"idempotency_key": "k1", "input": {}}},
+      {"seq": 2, "type": "run_started", "actor": "engine", "payload": {"fuel_limit": 1000000, "module_sha256": "ab12"}},
+      {"seq": 3, "type": "effect_scheduled", "actor": "vm", "payload": {"args": {"a": [1, 2.5, "x", null, true], "b": 2}, "args_hash": "ff", "kind": "tool_call", "path": "1"}},
+      {"seq": 4, "type": "effect_completed", "actor": "tool:httpx", "payload": {"duration_ms": 12, "path": "1", "result": {"status": 200}}}
+    ]}},
+    {"op": "read", "run": "r1", "from": 2, "limit": 2, "expect": {"events": [
+      {"seq": 2, "type": "run_started", "actor": "engine", "payload": {"fuel_limit": 1000000, "module_sha256": "ab12"}},
+      {"seq": 3, "type": "effect_scheduled", "actor": "vm", "payload": {"args": {"a": [1, 2.5, "x", null, true], "b": 2}, "args_hash": "ff", "kind": "tool_call", "path": "1"}}
+    ]}},
+    {"op": "read", "run": "r1", "from": 0, "limit": 1, "expect": {"count": 1}},
+    {"op": "read", "run": "r1", "from": 5, "expect": {"count": 0}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 3,
+     "events": [{"type": "log", "actor": "engine", "payload": {"level": "info", "message": "late"}}],
+     "expect": {"error": "seq_conflict"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 4, "events": [], "expect": {"head": 4}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 4,
+     "events": [{"type": "log", "actor": "engine"}],
+     "expect": {"head": 5}},
+    {"op": "read", "run": "r1", "from": 5, "expect": {"events": [{"seq": 5, "type": "log", "actor": "engine", "payload": {}}]}},
+    {"op": "get_run", "run": "r1", "expect": {"head": 5}}
+  ]
+}

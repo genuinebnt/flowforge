@@ -1,0 +1,37 @@
+{
+  "name": "append_conflict",
+  "spec": "23.4 Append; es_002",
+  "description": "Stale or future expected_seq fails with seq_conflict and writes nothing; malformed batches fail with invalid and write nothing; unknown runs are not_found.",
+  "steps": [
+    {"op": "create", "run": "r1"},
+    {"op": "acquire", "run": "r1", "worker": "w1", "as": "L1"},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 0,
+     "events": [{"type": "log", "actor": "engine", "payload": {"n": 1}}, {"type": "log", "actor": "engine", "payload": {"n": 2}}],
+     "expect": {"head": 2}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 0,
+     "events": [{"type": "log", "actor": "engine", "payload": {"n": 3}}], "expect": {"error": "seq_conflict"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 1,
+     "events": [{"type": "log", "actor": "engine", "payload": {"n": 3}}], "expect": {"error": "seq_conflict"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 3,
+     "events": [{"type": "log", "actor": "engine", "payload": {"n": 3}}], "expect": {"error": "seq_conflict"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 2,
+     "events": [{"seq": 4, "type": "log", "actor": "engine"}], "expect": {"error": "invalid"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 2,
+     "events": [{"type": "log", "actor": "engine", "payload": {"ok": true}}, {"type": "", "actor": "engine"}], "expect": {"error": "invalid"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 2,
+     "events": [{"type": "log", "actor": ""}], "expect": {"error": "invalid"}},
+    {"op": "read", "run": "r1", "expect": {"events": [
+      {"seq": 1, "type": "log", "actor": "engine", "payload": {"n": 1}},
+      {"seq": 2, "type": "log", "actor": "engine", "payload": {"n": 2}}
+    ]}},
+    {"op": "get_run", "run": "r1", "expect": {"head": 2}},
+    {"op": "append", "run": "ghost", "fence": {"term": 0, "counter": 1}, "expected_seq": 0,
+     "events": [{"type": "log", "actor": "engine"}], "expect": {"error": "not_found"}},
+    {"op": "read", "run": "ghost", "expect": {"error": "not_found"}},
+    {"op": "get_run", "run": "ghost", "expect": {"error": "not_found"}},
+    {"op": "create", "run": "r1", "expect": {"error": "exists"}},
+    {"op": "create", "run": "r2", "idempotency_key": "idem-r1", "expect": {"error": "exists"}},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 2,
+     "events": [{"type": "log", "actor": "engine", "payload": {"n": 3}}], "expect": {"head": 3}}
+  ]
+}

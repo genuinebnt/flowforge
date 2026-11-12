@@ -1,0 +1,31 @@
+{
+  "name": "ready",
+  "spec": "23.4 list_ready; 9.4 scheduling loop",
+  "description": "ListReady returns unleased or expired, due, schedulable runs ordered by priority then next wake time; ClaimReady leases them; terminal runs are never listed.",
+  "steps": [
+    {"op": "create", "run": "a"},
+    {"op": "create", "run": "b", "priority": 5},
+    {"op": "create", "run": "c", "wake_in_ms": 60000},
+    {"op": "list_ready", "expect": {"runs": ["b", "a"]}},
+    {"op": "list_ready", "limit": 1, "expect": {"runs": ["b"]}},
+    {"op": "claim_ready", "worker": "w1", "limit": 1, "ttl_ms": 30000, "as": "C1", "expect": {"runs": ["b"]}},
+    {"op": "list_ready", "expect": {"runs": ["a"]}},
+    {"op": "claim_ready", "worker": "w2", "as": "C2", "expect": {"runs": ["a"]}},
+    {"op": "claim_ready", "worker": "w3", "as": "C3", "expect": {"runs": []}},
+    {"op": "elapse", "ms": 61000},
+    {"op": "list_ready", "expect": {"runs": ["b", "a", "c"]}},
+    {"op": "release", "run": "b", "lease": "C1:b", "status": "succeeded"},
+    {"op": "get_run", "run": "b", "expect": {"status": "succeeded", "owner": ""}},
+    {"op": "list_ready", "expect": {"runs": ["a", "c"]}},
+    {"op": "wake", "run": "b"},
+    {"op": "list_ready", "expect": {"runs": ["a", "c"]}},
+    {"op": "acquire", "run": "c", "worker": "w4", "as": "L4"},
+    {"op": "release", "run": "c", "lease": "L4", "status": "paused"},
+    {"op": "list_ready", "expect": {"runs": ["a"]}},
+    {"op": "claim_ready", "worker": "w4", "as": "C4", "expect": {"runs": ["a"]}},
+    {"op": "append", "run": "a", "lease": "C2:a", "expected_seq": 0,
+     "events": [{"type": "log", "actor": "engine"}], "expect": {"error": "fenced"}},
+    {"op": "append", "run": "a", "lease": "C4:a", "expected_seq": 0,
+     "events": [{"type": "log", "actor": "engine"}], "expect": {"head": 1}}
+  ]
+}

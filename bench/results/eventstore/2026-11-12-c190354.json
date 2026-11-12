@@ -1,0 +1,186 @@
+{
+  "module": "eventstore",
+  "date": "2026-11-12",
+  "commit": "c190354",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "100x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkES01_Append/runs=1/batch=1",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 2220,
+        "allocs/op": 25,
+        "events/s": 34505,
+        "ns/append": 28981,
+        "ns/op": 3460,
+        "p50-ns": 1652,
+        "p99-ns": 14622
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=1/batch=10",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 20684,
+        "allocs/op": 242,
+        "events/s": 320635,
+        "ns/append": 31188,
+        "ns/op": 29597,
+        "p50-ns": 22840,
+        "p99-ns": 60301
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=1/batch=100",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 226267,
+        "allocs/op": 2478,
+        "events/s": 353813,
+        "ns/append": 282635,
+        "ns/op": 280233,
+        "p50-ns": 207339,
+        "p99-ns": 1079182
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=16/batch=1",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 1981,
+        "allocs/op": 24,
+        "events/s": 314613,
+        "ns/append": 3179,
+        "ns/op": 1555,
+        "p50-ns": 3008,
+        "p99-ns": 96995
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=16/batch=10",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 18429,
+        "allocs/op": 213,
+        "events/s": 854104,
+        "ns/append": 11708,
+        "ns/op": 7770,
+        "p50-ns": 24645,
+        "p99-ns": 199628
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=16/batch=100",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 204044,
+        "allocs/op": 2478,
+        "events/s": 387326,
+        "ns/append": 258180,
+        "ns/op": 183683,
+        "p50-ns": 1330224,
+        "p99-ns": 12147760
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=256/batch=1",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 322,
+        "allocs/op": 3,
+        "events/s": 171977,
+        "ns/append": 5815,
+        "ns/op": 871.9,
+        "p50-ns": 5310,
+        "p99-ns": 213852
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=256/batch=10",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 426,
+        "allocs/op": 5,
+        "events/s": 437402,
+        "ns/append": 22862,
+        "ns/op": 71.62,
+        "p50-ns": 27866,
+        "p99-ns": 708054
+      }
+    },
+    {
+      "bench_id": "BenchmarkES01_Append/runs=256/batch=100",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 1279,
+        "allocs/op": 15,
+        "events/s": 477226,
+        "ns/append": 209544,
+        "ns/op": 48.83,
+        "p50-ns": 12138007,
+        "p99-ns": 18292166
+      }
+    },
+    {
+      "bench_id": "BenchmarkES02_LeaseClaim/runs=100000/workers=1",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 290,
+        "allocs/op": 6,
+        "claims/s": 100.7,
+        "fairness": 1,
+        "ns/claim": 9930235,
+        "ns/op": 9798097,
+        "p50-ns": 9286866,
+        "p99-ns": 20546906
+      }
+    },
+    {
+      "bench_id": "BenchmarkES02_LeaseClaim/runs=100000/workers=16",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 272,
+        "allocs/op": 6,
+        "claims/s": 78.05,
+        "ns/claim": 12812762,
+        "ns/op": 12187952,
+        "p50-ns": 202158344,
+        "p99-ns": 250322110
+      }
+    },
+    {
+      "bench_id": "BenchmarkES02_LeaseClaim/runs=100000/workers=1000",
+      "package": "github.com/genuinebnt/flowforge/eventstore",
+      "iterations": 100,
+      "metrics": {
+        "B/op": 80,
+        "allocs/op": 1,
+        "claims/s": 75.48,
+        "ns/claim": 13249152,
+        "ns/op": 1152,
+        "p50-ns": 587559540,
+        "p99-ns": 1302808141
+      }
+    }
+  ]
+}

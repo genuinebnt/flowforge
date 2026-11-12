@@ -1,0 +1,32 @@
+{
+  "name": "wake",
+  "spec": "9.4 wakeups; 9.7 approvals; 9.8 cancellation",
+  "description": "A parked run becomes ready at its wake time or when woken; a wake that arrives while a worker holds the lease is not lost when that worker parks the run with a later wake time.",
+  "steps": [
+    {"op": "create", "run": "r1"},
+    {"op": "acquire", "run": "r1", "worker": "w1", "as": "L1"},
+    {"op": "release", "run": "r1", "lease": "L1", "status": "waiting", "wake_in_ms": 600000},
+    {"op": "list_ready", "expect": {"runs": []}},
+    {"op": "elapse", "ms": 599000},
+    {"op": "list_ready", "expect": {"runs": []}},
+    {"op": "elapse", "ms": 2000},
+    {"op": "list_ready", "expect": {"runs": ["r1"]}},
+    {"op": "acquire", "run": "r1", "worker": "w1", "as": "L2"},
+    {"op": "release", "run": "r1", "lease": "L2", "status": "waiting", "wake_in_ms": 600000},
+    {"op": "list_ready", "expect": {"runs": []}},
+    {"op": "wake", "run": "r1"},
+    {"op": "list_ready", "expect": {"runs": ["r1"]}},
+    {"op": "elapse", "ms": 1000},
+    {"op": "acquire", "run": "r1", "worker": "w2", "as": "L3"},
+    {"op": "wake", "run": "r1"},
+    {"op": "list_ready", "expect": {"runs": []}},
+    {"op": "release", "run": "r1", "lease": "L3", "status": "waiting", "wake_in_ms": 600000},
+    {"op": "list_ready", "expect": {"runs": ["r1"]}},
+    {"op": "elapse", "ms": 1000},
+    {"op": "acquire", "run": "r1", "worker": "w2", "as": "L4"},
+    {"op": "release", "run": "r1", "lease": "L4", "status": "waiting", "wake_in_ms": 600000},
+    {"op": "list_ready", "expect": {"runs": []}},
+    {"op": "wake", "run": "ghost", "expect": {"error": "not_found"}},
+    {"op": "release", "run": "r1", "lease": "L4", "expect": {"error": "fenced"}}
+  ]
+}

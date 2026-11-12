@@ -1,0 +1,27 @@
+{
+  "name": "snapshots",
+  "spec": "9.1 snapshots; 9.9 crash recovery; 10.7 retention (keep the last 3)",
+  "description": "LoadSnapshot returns the newest snapshot; only the newest three are kept; a snapshot cannot be ahead of the log; a repeated at_seq keeps the first.",
+  "steps": [
+    {"op": "create", "run": "r1"},
+    {"op": "load_snapshot", "run": "r1", "expect": {"found": false}},
+    {"op": "acquire", "run": "r1", "worker": "w1", "as": "L1"},
+    {"op": "append", "run": "r1", "lease": "L1", "expected_seq": 0, "events": [
+      {"type": "log", "actor": "engine"}, {"type": "log", "actor": "engine"}, {"type": "log", "actor": "engine"},
+      {"type": "log", "actor": "engine"}, {"type": "log", "actor": "engine"}
+    ], "expect": {"head": 5}},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 6, "state": "too far", "expect": {"error": "invalid"}},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 1, "state": "s1"},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 3, "state": "s3"},
+    {"op": "load_snapshot", "run": "r1", "expect": {"found": true, "at_seq": 3, "state": "s3"}},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 2, "state": "s2"},
+    {"op": "load_snapshot", "run": "r1", "expect": {"found": true, "at_seq": 3, "state": "s3"}},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 5, "state": "s5"},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 5, "state": "s5-again"},
+    {"op": "load_snapshot", "run": "r1", "expect": {"found": true, "at_seq": 5, "state": "s5"}},
+    {"op": "save_snapshot", "run": "r1", "at_seq": 4, "state": "s4"},
+    {"op": "load_snapshot", "run": "r1", "expect": {"found": true, "at_seq": 5, "state": "s5"}},
+    {"op": "load_snapshot", "run": "ghost", "expect": {"error": "not_found"}},
+    {"op": "save_snapshot", "run": "ghost", "at_seq": 0, "expect": {"error": "not_found"}}
+  ]
+}
