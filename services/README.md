@@ -48,7 +48,7 @@ separately and talks to these over gRPC.
 ## Running
 
 ```sh
-go run ./cmd/flowforge dev                       # everything, in-memory, random loopback ports
+go run ./cmd/flowforge dev                       # gateway on 127.0.0.1:8080 + every service, in-memory
 go run ./cmd/flowforge dev -base-port 7100       # scope 7100, engine 7101, tool-runner 7102,
                                                  # egress-proxy 7103, graph 7104, similarity 7105, notifier 7106
 eval "$(scripts/devpg.sh start)"
@@ -58,8 +58,10 @@ go run ./cmd/flowforge dev -db "$FF_TEST_PG_DSN" # Postgres (migrations are appl
 `flowforge dev` prints every address. Each gRPC service also serves
 `GET /healthz`, `/readyz` and `/metrics` (Prometheus text) on the same
 port (h2c, Cloud Run's HTTP/2 mode); the egress proxy serves them on its
-port for non-proxy requests. Tokens are signed by an ephemeral key, so in
-dev use `devstack.Start` (which exposes `Stack.Tokens`) to call services.
+port for non-proxy requests. The internal services trust the gateway's
+signing keys (`devstack.Options.TrustKeys`), so the REST API on the gateway
+works end to end; to call a service directly in tests, use
+`devstack.Start` (which exposes `Stack.Tokens`).
 
 The per-service binaries (`cmd/scope`, `cmd/engine`, `cmd/tool-runner`,
 `cmd/egress-proxy`, `cmd/graph`, `cmd/similarity`, `cmd/notifier`) are what

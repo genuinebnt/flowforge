@@ -78,7 +78,7 @@ func TestGatewayDevStackEndToEnd(t *testing.T) {
 	backends := map[string]string{
 		"FF_SCOPE_ADDR": st.Addrs[devstack.ScopeName], "FF_ENGINE_ADDR": st.Addrs[devstack.EngineName],
 		"FF_GRAPH_ADDR": st.Addrs[devstack.GraphName], "FF_NOTIFIER_ADDR": st.Addrs[devstack.NotifierName],
-		"FF_TOOLRUNNER_ADDR": st.Addrs[devstack.ToolRunnerName], "FF_SIMILARITY_ADDR": st.Addrs[devstack.SimilarityName],
+		"FF_TOOL_RUNNER_ADDR": st.Addrs[devstack.ToolRunnerName], "FF_SIMILARITY_ADDR": st.Addrs[devstack.SimilarityName],
 	}
 	served := make(chan error, 1)
 	go func() { served <- gw.Serve(ctx, backends) }()

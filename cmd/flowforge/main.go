@@ -41,7 +41,7 @@ var backendVar = map[string]string{
 	devstack.EngineName:     "FF_ENGINE_ADDR",
 	devstack.GraphName:      "FF_GRAPH_ADDR",
 	devstack.NotifierName:   "FF_NOTIFIER_ADDR",
-	devstack.ToolRunnerName: "FF_TOOLRUNNER_ADDR",
+	devstack.ToolRunnerName: "FF_TOOL_RUNNER_ADDR",
 	devstack.SimilarityName: "FF_SIMILARITY_ADDR",
 }
 

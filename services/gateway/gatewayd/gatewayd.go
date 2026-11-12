@@ -53,7 +53,7 @@ type Config struct {
 }
 
 // BackendVars are the environment variables naming the internal services.
-var BackendVars = []string{"FF_SCOPE_ADDR", "FF_ENGINE_ADDR", "FF_GRAPH_ADDR", "FF_NOTIFIER_ADDR", "FF_TOOLRUNNER_ADDR", "FF_SIMILARITY_ADDR"}
+var BackendVars = []string{"FF_SCOPE_ADDR", "FF_ENGINE_ADDR", "FF_GRAPH_ADDR", "FF_NOTIFIER_ADDR", "FF_TOOL_RUNNER_ADDR", "FF_SIMILARITY_ADDR"}
 
 func boolEnv(v string) bool {
 	b, _ := strconv.ParseBool(v)
@@ -223,7 +223,7 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 		}
 	}
 	be := gateway.BackendsFromConns(conns["FF_SCOPE_ADDR"], conns["FF_ENGINE_ADDR"], conns["FF_GRAPH_ADDR"],
-		conns["FF_NOTIFIER_ADDR"], conns["FF_TOOLRUNNER_ADDR"], conns["FF_SIMILARITY_ADDR"])
+		conns["FF_NOTIFIER_ADDR"], conns["FF_TOOL_RUNNER_ADDR"], conns["FF_SIMILARITY_ADDR"])
 
 	srv, err := gateway.New(gateway.Config{
 		Identity: g.svc, Revocations: g.revocations, Limiter: g.lim, Backends: be, Clock: g.clock, IDs: core.SystemRng{},
