@@ -1,0 +1,146 @@
+{
+  "module": "vm",
+  "date": "2026-11-12",
+  "commit": "bb5fd50",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkVM01_Fib30",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 7384,
+        "allocs/op": 15,
+        "ns/instr": 4.765,
+        "ns/op": 128295974
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM01_Loop",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 1712,
+        "allocs/op": 10,
+        "iter/s": 15146864,
+        "ns/fuel": 3.144,
+        "ns/op": 66020265
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM01_ListMapFilter",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 87859432,
+        "allocs/op": 49,
+        "ns/fuel": 6.511,
+        "ns/op": 193552753
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM01_StringBuilding",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 2122714,
+        "allocs/op": 38934,
+        "ns/op": 11509835
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM02_Snapshot/snapshot/10",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 2586,
+        "allocs/op": 55,
+        "bytes": 140,
+        "ns/op": 11365
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM02_Snapshot/restore_resume/10",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 4402,
+        "allocs/op": 71,
+        "ns/op": 13327
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM02_Snapshot/snapshot/1000",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 99690,
+        "allocs/op": 2783,
+        "bytes": 9695,
+        "ns/op": 85933
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM02_Snapshot/restore_resume/1000",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 129266,
+        "allocs/op": 2795,
+        "ns/op": 116296
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM02_Snapshot/snapshot/100000",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 12351909,
+        "allocs/op": 299802,
+        "bytes": 1257632,
+        "ns/op": 14270124
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM02_Snapshot/restore_resume/100000",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 16252754,
+        "allocs/op": 299818,
+        "ns/op": 18849519
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM03_Replay/replay/10000",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 13466826,
+        "allocs/op": 269364,
+        "effects/s": 410820,
+        "ns/op": 24341539
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM03_Replay/replay/100000",
+      "package": "github.com/genuinebnt/flowforge/vm",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 139340501,
+        "allocs/op": 2699599,
+        "effects/s": 424365,
+        "ns/op": 235646377
+      }
+    }
+  ]
+}
