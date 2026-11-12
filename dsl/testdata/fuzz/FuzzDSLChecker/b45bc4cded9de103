@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("fn A0{if 0{\"\"}else 0")
