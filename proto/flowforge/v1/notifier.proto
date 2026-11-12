@@ -1,0 +1,38 @@
+// Spec section 11.7 (first half): notifier admin service.
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/common.proto";
+import "flowforge/v1/graph.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+service NotifierService {                                        // admin API behind the gateway
+  rpc PutRule(PutRuleRequest) returns (AlertRule);               // compiles and validates the rule source (section 15)
+  rpc GetRule(GetRuleRequest) returns (AlertRule);
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  rpc DeleteRule(DeleteRuleRequest) returns (DeleteRuleResponse);
+  rpc TestRule(TestRuleRequest) returns (TestRuleResponse);      // evaluate against a sample or historical event
+  rpc PutChannel(PutChannelRequest) returns (Channel);
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc ListAlertEvents(ListAlertEventsRequest) returns (ListAlertEventsResponse);
+}
+message AlertRule { string id = 1; string program_id = 2; string name = 3; string source = 4; bool enabled = 5; int32 version = 6; repeated Diagnostic diagnostics = 7; }
+message PutRuleRequest { string id = 1; string program_id = 2; string name = 3; string source = 4; bool enabled = 5; }
+message GetRuleRequest { string id = 1; }
+message ListRulesRequest { PageRequest page = 1; }
+message ListRulesResponse { repeated AlertRule rules = 1; PageResponse page = 2; }
+message DeleteRuleRequest { string id = 1; }
+message DeleteRuleResponse {}
+message TestRuleRequest { string source = 1; oneof sample { ChangeEvent change = 2; string historical_event_id = 3; } }
+message TestRuleResponse { repeated Diagnostic diagnostics = 1; bool matched = 2; google.protobuf.Struct rendered_payload = 3; }
+message Channel { string id = 1; string kind = 2; string name = 3; google.protobuf.Struct config = 4; bool enabled = 5; }
+message PutChannelRequest { string id = 1; string kind = 2; string name = 3; google.protobuf.Struct config = 4; bool enabled = 5; }
+message ListChannelsRequest {}
+message ListChannelsResponse { repeated Channel channels = 1; }
+message ListAlertEventsRequest { PageRequest page = 1; string rule_id = 2; string status = 3; }
+message AlertEvent { string id = 1; string rule_id = 2; string status = 3; google.protobuf.Struct payload = 4; google.protobuf.Timestamp created_at = 5; }
+message ListAlertEventsResponse { repeated AlertEvent events = 1; PageResponse page = 2; }

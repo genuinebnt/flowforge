@@ -1,0 +1,36 @@
+// Spec section 11.7 (second half): Pub/Sub envelope. One envelope type for all topics.
+//
+// | Topic           | Producer | Ordering key | Attributes              | Consumers                                   |
+// |-----------------|----------|--------------|-------------------------|---------------------------------------------|
+// | run.events      | engine   | run_id       | tenant_id, type         | notifier, gateway (SSE fan-out)             |
+// | approval.events | engine   | approval_id  | tenant_id, role, status | notifier                                    |
+// | graph.changes   | graph    | program_id   | tenant_id, type         | notifier, engine (event triggers)           |
+// | scope.events    | scope    | program_id   | tenant_id, type         | engine, tool-runner, egress proxy           |
+// | auth.events     | gateway  | user_id      | tenant_id, type         | notifier (security alerts)                  |
+// | *.dead-letter   | Pub/Sub  |              |                         | operators; messages kept 14 days            |
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/graph.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+message EventEnvelope {
+  string event_id = 1;                       // UUIDv7; consumers de-duplicate on it
+  string type = 2;                           // e.g. graph.entity_added, run.run_succeeded, approval.requested
+  int32  schema_version = 3;
+  string tenant_id = 4; string program_id = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+  string traceparent = 7;
+  oneof payload {
+    ChangeEvent graph_change = 10;
+    RunEventPayload run_event = 11;
+    ApprovalEventPayload approval_event = 12;
+    google.protobuf.Struct generic = 13;     // scope.* and auth.* events
+  }
+}
+message RunEventPayload { string run_id = 1; int64 seq = 2; string type = 3; google.protobuf.Struct payload = 4; }
+message ApprovalEventPayload { string approval_id = 1; string run_id = 2; string role = 3; string status = 4; string reason = 5; google.protobuf.Timestamp expires_at = 6; }

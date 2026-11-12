@@ -1,0 +1,67 @@
+// Spec section 22.9: vector similarity service.
+syntax = "proto3";
+
+package flowforge.similarity.v1;
+
+import "google/protobuf/timestamp.proto"; // missing from the spec text; Filter.last_seen_after needs it
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/similarity/v1;similarityv1";
+
+service Similarity {
+  rpc Upsert(UpsertRequest)                 returns (UpsertResponse);     // idempotent per (entity_id, model)
+  rpc Delete(DeleteRequest)                 returns (DeleteResponse);
+  rpc SearchByVector(SearchByVectorRequest) returns (SearchResponse);
+  rpc SearchByEntity(SearchByEntityRequest) returns (SearchResponse);
+  rpc SearchByText(SearchByTextRequest)     returns (SearchResponse);     // embeds via the embed effect, then searches
+  rpc HybridSearch(HybridSearchRequest)     returns (SearchResponse);
+  rpc GetIndexInfo(GetIndexInfoRequest)     returns (IndexInfo);
+}
+
+// The spec text names the values L2, COSINE and INNER_PRODUCT; they carry the
+// enum-name prefix here (proto convention, spec 11.1).
+enum Metric {
+  METRIC_UNSPECIFIED = 0;
+  METRIC_L2 = 1;
+  METRIC_COSINE = 2;
+  METRIC_INNER_PRODUCT = 3;
+}
+
+message Scope { string tenant_id = 1; string program_id = 2; }            // cross-checked with the token
+
+message UpsertRequest {
+  Scope scope = 1;
+  string entity_id = 2;
+  string model_id = 3;
+  string model_version = 4;
+  repeated float vector = 5;              // length == dimension of the model
+  string content_hash = 6;                // sha256 of the embedded text; unchanged hash means no-op
+  uint64 source_seq = 7;                  // graph change_events seq, for ordering
+}
+message UpsertResponse { bool applied = 1; }
+message DeleteRequest  { Scope scope = 1; string entity_id = 2; string model_id = 3; uint64 source_seq = 4; }
+message DeleteResponse {}
+
+message Filter { repeated string asset_types = 1; repeated string tags = 2; google.protobuf.Timestamp last_seen_after = 3; }
+message SearchParams {
+  uint32 k = 1;                           // 1..100
+  uint32 search_list_size = 2;            // L; default 100; must be >= k
+  Filter filter = 3;
+  bool   include_out_of_scope = 4;        // default false; true requires role analyst or above and marks results
+}
+message SearchByVectorRequest { Scope scope = 1; string model_id = 2; repeated float vector = 3; SearchParams params = 4; }
+message SearchByEntityRequest { Scope scope = 1; string entity_id = 2; string model_id = 3; SearchParams params = 4; }
+message SearchByTextRequest   { Scope scope = 1; string text = 2; string model_id = 3; SearchParams params = 4; }
+message HybridSearchRequest   { Scope scope = 1; string text = 2; string model_id = 3; SearchParams params = 4; uint32 rrf_k = 5; }
+
+message Hit { string entity_id = 1; float distance = 2; float score = 3; bool in_scope = 4; }
+message SearchResponse {
+  repeated Hit hits = 1;
+  uint64 index_watermark_seq = 2;         // newest graph change reflected in the index
+  uint32 segments_searched = 3;
+}
+message GetIndexInfoRequest { Scope scope = 1; string model_id = 2; }
+message IndexInfo {
+  string model_id = 1; string model_version = 2; uint32 dimension = 3; Metric metric = 4;
+  uint64 vectors = 5; uint64 tombstones = 6; uint32 segments = 7; uint64 memtable_vectors = 8;
+  uint64 ram_bytes = 9; uint64 disk_bytes = 10; uint64 watermark_seq = 11;
+}

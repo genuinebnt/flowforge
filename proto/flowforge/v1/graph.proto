@@ -1,0 +1,72 @@
+// Spec section 11.6: asset graph service.
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/common.proto";
+import "flowforge/v1/toolrunner.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+service GraphService {
+  rpc IngestObservations(IngestRequest) returns (IngestResponse);           // idempotent per observation_id
+  rpc GetEntity(GetEntityRequest) returns (Entity);
+  rpc FindEntities(FindEntitiesRequest) returns (FindEntitiesResponse);
+  rpc Neighbors(NeighborsRequest) returns (Subgraph);
+  rpc FindPath(FindPathRequest) returns (PathResponse);
+  rpc Diff(DiffRequest) returns (DiffResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc WatchChanges(WatchChangesRequest) returns (stream ChangeEvent);       // resumable by after_seq
+  rpc AddTag(AddTagRequest) returns (Tag);
+  rpc SetStale(SetStaleRequest) returns (SetStaleResponse);                 // used after covering runs
+}
+
+message Entity {
+  string id = 1; string program_id = 2; string asset_type = 3; string key = 4; google.protobuf.Struct content = 5;
+  string scope_status = 6; double confidence = 7; string state = 8;
+  google.protobuf.Timestamp created_at = 9; google.protobuf.Timestamp last_seen = 10;
+  string first_seen_run = 11; string last_seen_run = 12; repeated Tag tags = 13;
+}
+message Edge {
+  string id = 1; string relation_type = 2; string label = 3; string discriminator = 4; google.protobuf.Struct content = 5;
+  string from_entity_id = 6; string to_entity_id = 7; double confidence = 8; string state = 9;
+  google.protobuf.Timestamp created_at = 10; google.protobuf.Timestamp last_seen = 11; repeated Tag tags = 12;
+}
+message Tag { string id = 1; string target_kind = 2; string target_id = 3; string property_type = 4; string name = 5; google.protobuf.Struct content = 6; google.protobuf.Timestamp last_seen = 7; }
+message Subgraph { repeated Entity entities = 1; repeated Edge edges = 2; bool truncated = 3; }
+
+message IngestRequest { string program_id = 1; string run_id = 2; string effect_path = 3; string tool_name = 4; string tool_version = 5; Observation observation = 6; }
+message IngestResponse { int32 entities_created = 1; int32 entities_updated = 2; int32 edges_created = 3; int32 edges_updated = 4; repeated ChangeEvent changes = 5; map<string, string> ref_to_entity_id = 6; }
+
+message GetEntityRequest { string entity_id = 1; bool include_tags = 2; }
+message FindEntitiesRequest {
+  string program_id = 1; repeated string asset_types = 2; string scope_status = 3; string state = 4;
+  google.protobuf.Timestamp seen_after = 5; string key_prefix = 6; PageRequest page = 7;
+}
+message FindEntitiesResponse { repeated Entity entities = 1; PageResponse page = 2; }
+
+enum Direction { DIRECTION_UNSPECIFIED = 0; DIRECTION_OUT = 1; DIRECTION_IN = 2; DIRECTION_BOTH = 3; }
+message NeighborsRequest { string entity_id = 1; repeated string labels = 2; Direction direction = 3; int32 depth = 4; google.protobuf.Timestamp since = 5; int32 max_nodes = 6; }
+message FindPathRequest { string from_entity_id = 1; string to_entity_id = 2; double max_cost = 3; repeated string labels = 4; }
+message PathResponse { repeated string entity_ids = 1; repeated Edge edges = 2; double total_cost = 3; double combined_confidence = 4; }
+
+message DiffRequest { string program_id = 1; oneof from { google.protobuf.Timestamp since = 2; string run_id_a = 3; } string run_id_b = 4; PageRequest page = 5; }
+message DiffResponse { repeated ChangeEvent changes = 1; PageResponse page = 2; }
+
+message SearchRequest { string program_id = 1; string query = 2; repeated string asset_types = 3; int32 limit = 4; bool fuzzy = 5; }
+message SearchHit { Entity entity = 1; double score = 2; repeated string matched_trigrams = 3; }
+message SearchResponse { repeated SearchHit hits = 1; }
+
+message ChangeEvent {
+  string id = 1; int64 seq = 2; string program_id = 3;
+  string type = 4;                       // entity_added | entity_changed | entity_stale | entity_reactivated | edge_added | edge_removed | scope_status_changed
+  string entity_id = 5; string edge_id = 6; string run_id = 7; google.protobuf.Struct patch = 8;
+  Entity entity = 9;                     // denormalized snapshot for alert evaluation
+  google.protobuf.Timestamp at = 10;
+}
+message WatchChangesRequest { string program_id = 1; int64 after_seq = 2; repeated string types = 3; }
+message AddTagRequest { string target_kind = 1; string target_id = 2; string property_type = 3; string name = 4; google.protobuf.Struct content = 5; }
+message SetStaleRequest { string program_id = 1; string run_id = 2; string tool_name = 3; repeated string asset_types = 4; int32 stale_after_runs = 5; }
+message SetStaleResponse { int32 entities_marked = 1; int32 edges_marked = 2; }

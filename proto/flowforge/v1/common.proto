@@ -1,0 +1,35 @@
+// Spec section 11.2: shared enums and messages.
+syntax = "proto3";
+
+package flowforge.v1;
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+// The spec text also imports google/protobuf/{timestamp,duration,struct}.proto
+// here, but nothing in this file uses them; they are dropped so protoc and
+// buf do not report unused imports (see proto/README.md).
+
+enum ActivityClass {
+  ACTIVITY_CLASS_UNSPECIFIED = 0;
+  ACTIVITY_CLASS_PASSIVE     = 1;
+  ACTIVITY_CLASS_ACTIVE      = 2;
+  ACTIVITY_CLASS_INTRUSIVE   = 3;
+}
+
+message PageRequest  { int32 page_size = 1; string page_token = 2; }
+message PageResponse { string next_page_token = 1; }
+
+// A diagnostic from the DSL front end (section 7.7).
+message SourcePos { int32 line = 1; int32 col = 2; int32 offset = 3; }
+message SourceSpan { string file = 1; SourcePos start = 2; SourcePos end = 3; string label = 4; }
+message Diagnostic {
+  string code = 1;                 // E0302, W0101, ...
+  enum Severity { SEVERITY_UNSPECIFIED = 0; SEVERITY_ERROR = 1; SEVERITY_WARNING = 2; SEVERITY_HINT = 3; }
+  Severity severity = 2;
+  string message = 3;
+  SourceSpan primary = 4;
+  repeated SourceSpan secondary = 5;
+  string help = 6;
+}
+
+// Error details are carried as google.rpc.ErrorInfo: reason = one of section 11.8, metadata = free-form strings.

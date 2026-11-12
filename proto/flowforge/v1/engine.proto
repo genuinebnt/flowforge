@@ -1,0 +1,82 @@
+// Spec section 11.4: engine service (workflows, runs, approvals).
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/common.proto";
+import "google/protobuf/duration.proto"; // missing from the spec text; SubmitRunRequest.deadline needs it
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+service EngineService {
+  rpc CheckWorkflow(CheckWorkflowRequest) returns (CheckWorkflowResponse);          // diagnostics only
+  rpc RegisterWorkflow(RegisterWorkflowRequest) returns (WorkflowVersion);          // checks, compiles, publishes
+  rpc GetWorkflowVersion(GetWorkflowVersionRequest) returns (WorkflowVersion);
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+
+  rpc SubmitRun(SubmitRunRequest) returns (Run);                                    // requires idempotency-key metadata
+  rpc GetRun(GetRunRequest) returns (Run);
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc CancelRun(CancelRunRequest) returns (Run);
+  rpc ListRunEvents(ListRunEventsRequest) returns (ListRunEventsResponse);
+  rpc WatchRun(WatchRunRequest) returns (stream RunEvent);                          // resumable by after_seq
+
+  rpc ListApprovals(ListApprovalsRequest) returns (ListApprovalsResponse);
+  rpc GetApproval(GetApprovalRequest) returns (Approval);
+  rpc DecideApproval(DecideApprovalRequest) returns (Approval);                     // idempotent per (approval, actor)
+  rpc ResolveUnknownEffect(ResolveUnknownEffectRequest) returns (Run);              // operator action
+}
+
+message CheckWorkflowRequest { string source = 1; string program_id = 2; }
+message CheckWorkflowResponse { repeated Diagnostic diagnostics = 1; repeated string inferred_effects = 2; ActivityClass inferred_class = 3; bool ok = 4; }
+message RegisterWorkflowRequest { string name = 1; string source = 2; string program_id = 3; }
+message WorkflowVersion {
+  string id = 1; string name = 2; int32 version = 3; string status = 4;
+  string module_sha256 = 5; repeated string effects = 6; ActivityClass inferred_class = 7;
+  repeated Diagnostic diagnostics = 8; string source = 9;
+  google.protobuf.Timestamp created_at = 10; string created_by = 11;
+}
+message GetWorkflowVersionRequest { string name = 1; int32 version = 2; }          // version 0 = latest published
+message ListWorkflowsRequest { PageRequest page = 1; }
+message ListWorkflowsResponse { repeated WorkflowVersion latest = 1; PageResponse page = 2; }
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0; RUN_STATUS_PENDING = 1; RUN_STATUS_RUNNING = 2; RUN_STATUS_WAITING = 3; RUN_STATUS_PAUSED = 4;
+  RUN_STATUS_CANCELLING = 5; RUN_STATUS_COMPENSATING = 6; RUN_STATUS_SUCCEEDED = 7; RUN_STATUS_FAILED = 8; RUN_STATUS_CANCELLED = 9;
+}
+message Run {
+  string id = 1; string program_id = 2; string workflow_name = 3; int32 workflow_version = 4; int32 scope_version = 5;
+  RunStatus status = 6; string compensation_outcome = 7;
+  google.protobuf.Struct input = 8; google.protobuf.Value output = 9;
+  string failure_code = 10; string failure_message = 11; string created_by = 12;
+  google.protobuf.Timestamp created_at = 13; google.protobuf.Timestamp started_at = 14; google.protobuf.Timestamp finished_at = 15;
+  int64 last_seq = 16; string parent_run_id = 17;
+}
+message SubmitRunRequest {
+  string workflow_name = 1; int32 workflow_version = 2;   // 0 = latest published
+  string program_id = 3; google.protobuf.Struct input = 4;
+  int32 priority = 5; google.protobuf.Duration deadline = 6;
+}
+message GetRunRequest { string run_id = 1; }
+message ListRunsRequest { PageRequest page = 1; string program_id = 2; RunStatus status = 3; string workflow_name = 4; google.protobuf.Timestamp created_after = 5; }
+message ListRunsResponse { repeated Run runs = 1; PageResponse page = 2; }
+message CancelRunRequest { string run_id = 1; string reason = 2; }
+
+message RunEvent { string run_id = 1; int64 seq = 2; string type = 3; google.protobuf.Timestamp at = 4; string actor = 5; google.protobuf.Struct payload = 6; }
+message ListRunEventsRequest { string run_id = 1; int64 after_seq = 2; PageRequest page = 3; repeated string types = 4; }
+message ListRunEventsResponse { repeated RunEvent events = 1; PageResponse page = 2; }
+message WatchRunRequest { string run_id = 1; int64 after_seq = 2; }
+
+message Approval {
+  string id = 1; string run_id = 2; string effect_path = 3; string role = 4; string reason = 5; google.protobuf.Struct proposed = 6;
+  string status = 7; google.protobuf.Timestamp expires_at = 8; string decided_by = 9; google.protobuf.Timestamp decided_at = 10; string comment = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+message ListApprovalsRequest { PageRequest page = 1; string status = 2; string role = 3; string run_id = 4; }
+message ListApprovalsResponse { repeated Approval approvals = 1; PageResponse page = 2; }
+message GetApprovalRequest { string approval_id = 1; }
+enum ApprovalDecision { APPROVAL_DECISION_UNSPECIFIED = 0; APPROVAL_DECISION_APPROVE = 1; APPROVAL_DECISION_DENY = 2; }
+message DecideApprovalRequest { string approval_id = 1; ApprovalDecision decision = 2; string comment = 3; }
+message ResolveUnknownEffectRequest { string run_id = 1; string effect_path = 2; string resolution = 3; google.protobuf.Value result = 4; }  // resolution: retry | assume_completed | assume_failed

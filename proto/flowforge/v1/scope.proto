@@ -1,0 +1,86 @@
+// Spec section 11.3: scope service.
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+service ScopeService {
+  rpc Check(CheckRequest) returns (Decision);                        // hot path; deadline 500 ms; MUST fail closed
+  rpc CheckBatch(CheckBatchRequest) returns (CheckBatchResponse);
+  rpc CreateProgram(CreateProgramRequest) returns (Program);
+  rpc GetProgram(GetProgramRequest) returns (Program);
+  rpc ListPrograms(ListProgramsRequest) returns (ListProgramsResponse);
+  rpc PutScope(PutScopeRequest) returns (ScopeVersion);              // creates version N+1; optimistic concurrency
+  rpc GetScope(GetScopeRequest) returns (ScopeVersion);              // version 0 = current
+  rpc ListScopeVersions(ListScopeVersionsRequest) returns (ListScopeVersionsResponse);
+  rpc SetKillSwitch(SetKillSwitchRequest) returns (KillSwitch);
+  rpc GetKillSwitches(GetKillSwitchesRequest) returns (GetKillSwitchesResponse);
+}
+
+enum RuleEffect { RULE_EFFECT_UNSPECIFIED = 0; RULE_EFFECT_ALLOW = 1; RULE_EFFECT_DENY = 2; }
+enum RuleKind {
+  RULE_KIND_UNSPECIFIED = 0; RULE_KIND_DOMAIN = 1; RULE_KIND_WILDCARD_DOMAIN = 2;
+  RULE_KIND_CIDR = 3; RULE_KIND_URL_PREFIX = 4; RULE_KIND_ASN = 5;
+}
+enum TargetKind { TARGET_KIND_UNSPECIFIED = 0; TARGET_KIND_HOST = 1; TARGET_KIND_IP = 2; TARGET_KIND_URL = 3; TARGET_KIND_CIDR = 4; }
+enum DecisionResult { DECISION_RESULT_UNSPECIFIED = 0; DECISION_RESULT_ALLOW = 1; DECISION_RESULT_DENY = 2; }
+
+message ScopeRule { string id = 1; RuleEffect effect = 2; RuleKind kind = 3; string value = 4; string note = 5; }
+message RateLimit { double requests_per_second = 1; int32 burst = 2; int32 concurrency = 3; }
+message TimeWindow { repeated string days = 1; string start = 2; string end = 3; string tz = 4; }
+message ActivityPolicy {
+  ActivityClass max_class = 1;
+  repeated string prohibited = 2;
+  RateLimit rate = 3;
+  repeated TimeWindow windows = 4;
+}
+message ScopeDocument { repeated ScopeRule rules = 1; ActivityPolicy activity = 2; }
+
+message Program {
+  string id = 1; string name = 2; string platform = 3; string status = 4;
+  int32 current_version = 5; google.protobuf.Timestamp created_at = 6;
+}
+message ScopeVersion {
+  string program_id = 1; int32 version = 2; ScopeDocument document = 3;
+  google.protobuf.Timestamp effective_from = 4; string created_by = 5; google.protobuf.Timestamp created_at = 6;
+}
+
+message CheckRequest {
+  string program_id = 1;
+  int32  scope_version = 2;         // 0 = current; runs always pass the pinned version
+  TargetKind kind = 3;
+  string target = 4;                // raw; the service normalizes (section 4.2)
+  ActivityClass activity_class = 5;
+  string run_id = 6;
+  string effect_path = 7;
+  bool   resolve = 8;               // resolve and pin IPs for active checks
+}
+message Decision {
+  string decision_id = 1;
+  DecisionResult result = 2;
+  string reason = 3;                // explicit_deny, no_matching_allow, invalid_target, class_exceeds_program, outside_window, resolved_ip_denied, kill_switch, allow
+  string rule_id = 4;
+  int32  scope_version = 5;
+  string normalized_target = 6;
+  repeated string pinned_ips = 7;
+  google.protobuf.Timestamp decided_at = 8;
+}
+message CheckBatchRequest  { repeated CheckRequest requests = 1; }
+message CheckBatchResponse { repeated Decision decisions = 1; }
+
+message CreateProgramRequest { string name = 1; string platform = 2; ScopeDocument initial_scope = 3; }
+message GetProgramRequest { string program_id = 1; }
+message ListProgramsRequest { PageRequest page = 1; }
+message ListProgramsResponse { repeated Program programs = 1; PageResponse page = 2; }
+message PutScopeRequest { string program_id = 1; int32 base_version = 2; ScopeDocument document = 3; google.protobuf.Timestamp effective_from = 4; }
+message GetScopeRequest { string program_id = 1; int32 version = 2; }
+message ListScopeVersionsRequest { string program_id = 1; PageRequest page = 2; }
+message ListScopeVersionsResponse { repeated ScopeVersion versions = 1; PageResponse page = 2; }
+message KillSwitch { string level = 1; string target_id = 2; bool enabled = 3; string reason = 4; string set_by = 5; google.protobuf.Timestamp set_at = 6; }
+message SetKillSwitchRequest { string level = 1; string target_id = 2; bool enabled = 3; string reason = 4; }
+message GetKillSwitchesRequest {}
+message GetKillSwitchesResponse { repeated KillSwitch switches = 1; }

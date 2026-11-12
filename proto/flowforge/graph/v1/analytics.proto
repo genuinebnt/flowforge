@@ -1,0 +1,85 @@
+// Spec section 21.6: graph analytics over in-memory CSR snapshots.
+//
+// The spec labels this "graph.proto additions (package flowforge.graph.v1)";
+// it lives in its own file and package here so that its Direction enum does
+// not collide with flowforge.v1.Direction (see proto/README.md).
+syntax = "proto3";
+
+package flowforge.graph.v1;
+
+import "google/protobuf/timestamp.proto"; // missing from the spec text; SnapshotInfo.built_at needs it
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/graph/v1;graphv1";
+
+service GraphAnalytics {
+  rpc RunAnalysis(RunAnalysisRequest) returns (RunAnalysisResponse);
+  rpc GetSnapshotInfo(GetSnapshotInfoRequest) returns (SnapshotInfo);
+}
+
+message RunAnalysisRequest {
+  string tenant_id  = 1;
+  string program_id = 2;
+  oneof algorithm {
+    Bfs          bfs         = 10;
+    ShortestPath shortest    = 11;
+    PageRank     pagerank    = 12;
+    Components   components  = 13;
+    Scc          scc         = 14;
+    KCore        kcore       = 15;
+  }
+  uint64 min_watermark_seq = 20;   // fail with FAILED_PRECONDITION if the snapshot is older
+}
+message Bfs          { string start_entity_id = 1; uint32 max_depth = 2; Direction direction = 3; repeated string labels = 4; }
+message ShortestPath { string from_entity_id = 1; string to_entity_id = 2; repeated string labels = 3; }
+message PageRank     { double damping = 1; double tolerance = 2; uint32 max_iterations = 3; uint32 top_n = 4; }
+message Components   { bool strong = 1; }
+message Scc          {}
+message KCore        { uint32 k = 1; }
+
+// The spec text names the values OUT, IN and BOTH; they carry the enum-name
+// prefix here (proto convention, spec 11.1) and to avoid C++-scoped name
+// clashes with any other enum in the package.
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_OUT = 1;
+  DIRECTION_IN = 2;
+  DIRECTION_BOTH = 3;
+}
+
+message RunAnalysisResponse {
+  uint64 watermark_seq = 1;
+  uint64 node_count = 2;
+  uint64 edge_count = 3;
+  oneof result {
+    LevelResult  levels  = 10;   // repeated Level { depth, entity_ids }
+    PathResult   path    = 11;   // entity_ids, edge_ids, confidence
+    ScoreResult  scores  = 12;   // top_n { entity_id, score }, iterations, converged
+    GroupResult  groups  = 13;   // repeated Group { id, entity_ids } (large results are paged)
+  }
+  string next_page_token = 20;
+}
+
+// The result messages below are only described in comments in the spec text;
+// their fields are filled in from those comments.
+
+// BFS output: one Level per distance from the start entity.
+message LevelResult { repeated Level levels = 1; }
+message Level { uint32 depth = 1; repeated string entity_ids = 2; }
+
+// Shortest-path output. Empty entity_ids means no path exists.
+message PathResult { repeated string entity_ids = 1; repeated string edge_ids = 2; double confidence = 3; }
+
+// PageRank output: the top_n entities by score, highest first.
+message ScoreResult { repeated Score top_n = 1; uint32 iterations = 2; bool converged = 3; }
+message Score { string entity_id = 1; double score = 2; }
+
+// Components / SCC / k-core output.
+message GroupResult { repeated Group groups = 1; }
+message Group { uint64 id = 1; repeated string entity_ids = 2; }
+
+message GetSnapshotInfoRequest { string tenant_id = 1; string program_id = 2; }
+message SnapshotInfo {
+  uint64 watermark_seq = 1; uint64 node_count = 2; uint64 edge_count = 3;
+  string gcs_uri = 4; google.protobuf.Timestamp built_at = 5; string sha256 = 6;
+  uint64 overlay_events = 7;
+}

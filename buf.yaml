@@ -1,0 +1,27 @@
+# Buf workspace for the Flowforge gRPC contracts (spec sections 11, 21.6, 22.9).
+# Regenerate with scripts/genproto.sh; see proto/README.md.
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD # the buf v2 name of the DEFAULT category (DEFAULT is a deprecated alias)
+  except:
+    # The spec's contracts are resource-oriented (Google AIP-131/133 style):
+    # Get/Create/Put RPCs return the resource itself (Program, Run, Approval,
+    # ScopeVersion, ...), and several RPCs share one response type
+    # (similarity's SearchResponse). Renaming them would contradict the spec.
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+  ignore_only:
+    # GraphService.IngestObservations takes IngestRequest (spec 11.6).
+    RPC_REQUEST_STANDARD_NAME:
+      - proto/flowforge/v1/graph.proto
+    # GraphAnalytics (spec 21.6) and Similarity (spec 22.9) are named without
+    # the Service suffix in the spec; generated Go names follow the spec.
+    SERVICE_SUFFIX:
+      - proto/flowforge/graph/v1/analytics.proto
+      - proto/flowforge/similarity/v1/similarity.proto
+breaking:
+  use:
+    - FILE

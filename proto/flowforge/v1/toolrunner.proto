@@ -1,0 +1,56 @@
+// Spec section 11.5: tool runner service.
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/common.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+service ToolRunnerService {
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+  rpc Execute(ExecuteRequest) returns (stream ExecuteResponse);      // server-streaming; cancelling the call cancels the tool
+}
+
+message ToolSpec {
+  string name = 1; string version = 2; string description = 3;
+  string input_type = 4; string output_type = 5;                   // DSL type text, e.g. "InScope<Host>"
+  repeated string observes = 6;                                    // OAM asset types emitted
+  ActivityClass effect_class = 7;
+  double rate_rps = 8; int32 rate_burst = 9; int32 concurrency = 10;
+  google.protobuf.Duration timeout = 11; bool idempotent = 12;
+  string spec_sha256 = 13;
+}
+message ListToolsRequest {}
+message ListToolsResponse { repeated ToolSpec tools = 1; }
+
+message ExecuteRequest {
+  string tool = 1; string version = 2;                             // version empty = pinned by workflow module hash
+  google.protobuf.Value input = 3;
+  string run_id = 4; string effect_path = 5; string idempotency_key = 6;
+  string program_id = 7; int32 scope_version = 8;
+  repeated string scope_decision_ids = 9;                          // decisions that authorize the inputs
+  google.protobuf.Duration timeout = 10;
+}
+
+message OamEntity { string ref = 1; string asset_type = 2; google.protobuf.Struct content = 3; }
+message OamRelation { string relation_type = 1; string label = 2; google.protobuf.Struct content = 3; }  // port_number, protocol, header, ...
+message OamEdge { string from = 1; string to = 2; OamRelation relation = 3; }                            // ref or entity id
+message OamProperty { string property_type = 1; string name = 2; google.protobuf.Struct content = 3; }
+message OamTag { string target = 1; OamProperty property = 2; }
+
+message Observation {
+  string observation_id = 1; google.protobuf.Timestamp observed_at = 2; double confidence = 3;
+  repeated OamEntity entities = 4; repeated OamEdge edges = 5; repeated OamTag tags = 6; string raw_ref = 7;
+}
+message Progress { int64 items_done = 1; int64 items_total = 2; string message = 3; }
+message ToolError { string code = 1; string message = 2; bool retryable = 3; }
+message Skipped { string target = 1; string reason = 2; }          // runner-level scope re-check denied a target
+message Done { google.protobuf.Value output = 1; int64 observations = 2; google.protobuf.Duration elapsed = 3; }
+
+message ExecuteResponse {
+  oneof event { Observation observation = 1; Progress progress = 2; ToolError error = 3; Skipped skipped = 4; Done done = 5; }
+}
