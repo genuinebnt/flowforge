@@ -1,8 +1,10 @@
 package dsl
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -309,7 +311,7 @@ func captureNames(l *Lambda) string {
 	for _, c := range l.Captures {
 		s := c.Binding.Name
 		if c.Outer >= 0 {
-			s += "@" + itoa(c.Outer)
+			s += "@" + strconv.Itoa(c.Outer)
 		}
 		parts = append(parts, s)
 	}
@@ -362,9 +364,9 @@ func TestDSL006_Closures(t *testing.T) {
 			if id, ok := n.(*Ident); ok {
 				switch id.Ref.Kind {
 				case RefLocal:
-					refs = append(refs, id.Name+":local"+itoa(id.Ref.Binding.Slot))
+					refs = append(refs, id.Name+":local"+strconv.Itoa(id.Ref.Binding.Slot))
 				case RefCapture:
-					refs = append(refs, id.Name+":cap"+itoa(id.Ref.Capture))
+					refs = append(refs, id.Name+":cap"+strconv.Itoa(id.Ref.Capture))
 				}
 			}
 			return true
@@ -483,5 +485,36 @@ func TestDSLProgramAPI(t *testing.T) {
 	})
 	if prog.Types[0] != defList || prog.Types[len(builtinTypeDefs)].Name != "HttpService" {
 		t.Fatalf("type table order")
+	}
+}
+
+// TestDSLConcurrentChecks: the prelude is shared and must never be
+// mutated, so independent checks may run in parallel.
+func TestDSLConcurrentChecks(t *testing.T) {
+	var srcs []string
+	for _, c := range loadSuite(t, "dsl/check") {
+		srcs = append(srcs, string(c.Src))
+	}
+	want := make([]Analysis, len(srcs))
+	for i, s := range srcs {
+		want[i] = Analyze(s, Options{FileName: "x.ff"})
+	}
+	done := make(chan error, 4)
+	for w := 0; w < 4; w++ {
+		go func() {
+			for i, s := range srcs {
+				got := Analyze(s, Options{FileName: "x.ff"})
+				if len(got.Diagnostics) != len(want[i].Diagnostics) || got.OK != want[i].OK {
+					done <- fmt.Errorf("case %d differs under concurrency", i)
+					return
+				}
+			}
+			done <- nil
+		}()
+	}
+	for w := 0; w < 4; w++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
 	}
 }

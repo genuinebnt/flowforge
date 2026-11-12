@@ -78,7 +78,7 @@ func (c *checker) checkAnnotations(annots []*Annotation, target annotTarget, att
 			}
 			d := c.sink.errorf(CodeUnknownAnnotation, a.Name.Span(), "unknown annotation",
 				"unknown annotation `%s`", name)
-			if sug := suggest(name, sortedStrings(names)); sug != "" {
+			if sug := suggest(name, names); sug != "" {
 				d.withHelp("Did you mean `%s`?", sug)
 			} else {
 				d.withHelp("Known annotations: deprecated, effects, idempotent, on_unknown, retry, timeout.")
@@ -228,13 +228,4 @@ func plainString(e Expr) (string, bool) {
 		out += p.Lit
 	}
 	return out, true
-}
-
-func sortedStrings(xs []string) []string {
-	for i := 1; i < len(xs); i++ {
-		for j := i; j > 0 && xs[j] < xs[j-1]; j-- {
-			xs[j], xs[j-1] = xs[j-1], xs[j]
-		}
-	}
-	return xs
 }

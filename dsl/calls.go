@@ -20,11 +20,13 @@ func (c *checker) recordOp(op OpKind) {
 	c.opEvents++
 }
 
-func (c *checker) noteTool(t *Tool) {
+func (c *checker) noteTool(t *Tool, sp Span) {
 	if c.fn == nil || c.fn.info == nil {
 		return
 	}
-	c.noteDeprecatedTool(t)
+	if t.Decl != nil && t.Decl.Attrs.HasDeprecated {
+		c.deprecatedWarning(sp, "tool", t.Name, t.Decl.Attrs.Deprecated)
+	}
 	uses := c.toolUses[c.fn.info]
 	for _, u := range uses {
 		if u == t {
@@ -47,12 +49,6 @@ func (c *checker) noteFnCall(fn *FnDecl) {
 func (c *checker) noteDeprecated(fn *FnDecl, sp Span, name string) {
 	if fn.Attrs.HasDeprecated {
 		c.deprecatedWarning(sp, "function", name, fn.Attrs.Deprecated)
-	}
-}
-
-func (c *checker) noteDeprecatedTool(t *Tool) {
-	if t.Decl != nil && t.Decl.Attrs.HasDeprecated && c.curSpan != nil {
-		c.deprecatedWarning(*c.curSpan, "tool", t.Name, t.Decl.Attrs.Deprecated)
 	}
 }
 
@@ -81,8 +77,6 @@ func (c *checker) calleeName(fn Expr) string {
 func (c *checker) inferCall(call *CallExpr, hint Type) (Type, EffectSet) {
 	name := c.calleeName(call.Fn)
 	sp := call.Fn.Span()
-	c.curSpan = &sp
-	defer func() { c.curSpan = nil }()
 
 	// Resolve the callee without checking it as a value where possible.
 	var ref Ref
@@ -139,7 +133,7 @@ func (c *checker) inferCall(call *CallExpr, hint Type) (Type, EffectSet) {
 			t := ref.Tool
 			call.Fn.base().T = t.funcType()
 			call.Kind, call.Tool, call.Own = CallTool, t, t.Effects
-			c.noteTool(t)
+			c.noteTool(t, sp)
 			ps := make([]callParam, len(t.Params))
 			for i := range t.Params {
 				ps[i] = callParam{name: t.ParamNames[i], t: t.Params[i]}
@@ -428,15 +422,15 @@ func (c *checker) checkArg(e Expr, got, want Type, callee string) {
 }
 
 // checkCallArgs checks arguments against a builtin signature and returns
-// the instantiated result type and the arguments' effects.
-func (c *checker) checkCallArgs(sig *Signature, pre map[*Arg]Type, args []*Arg, callee string, sp Span) (Type, EffectSet) {
+// the instantiated function type and the arguments' effects.
+func (c *checker) checkCallArgs(sig *Signature, pre map[*Arg]Type, args []*Arg, callee string, sp Span) (*FuncType, EffectSet) {
 	m := c.instantiate(sig.Generics)
 	ps := make([]callParam, len(sig.Params))
 	for i, p := range sig.Params {
 		ps[i] = callParam{name: p.Name, t: subst(p.Type, m), optional: p.Optional}
 	}
 	eff := c.checkArgsWith(ps, args, callee, sp, pre)
-	return subst(sig.Result, m), eff
+	return &FuncType{Params: paramTypes(ps), Result: subst(sig.Result, m)}, eff
 }
 
 // firstArg returns the argument that binds a builtin's first parameter.
@@ -501,8 +495,11 @@ func (c *checker) callBuiltin(call *CallExpr, b *Builtin, name string, hint Type
 			sig = chosen
 		}
 	}
-	res, eff := c.checkCallArgs(sig, pre, call.Args, name, call.Span())
-	call.Fn.base().T = TError
+	ft, eff := c.checkCallArgs(sig, pre, call.Args, name, call.Span())
+	ft.Effects = b.Effects
+	ft.Open = b.HigherOrder
+	call.Fn.base().T = ft
+	res := ft.Result
 	if b.HigherOrder {
 		for _, a := range call.Args {
 			if a.Value == nil {

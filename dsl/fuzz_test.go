@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/testkit"
 )
 
 // seedCorpus adds the spec programs, the conformance sources and a few
 // generated programs to a fuzz corpus.
 func seedCorpus(f *testing.F) {
 	for _, suite := range []string{"parse", "check"} {
-		names, _ := filepath.Glob(filepath.Join("..", "conformance", "dsl", suite, "*.ff"))
+		names, _ := filepath.Glob(filepath.Join(testkit.ConformanceDir(f, "dsl/"+suite), "*.ff"))
 		for _, n := range names {
 			if b, err := os.ReadFile(n); err == nil {
 				f.Add(b)

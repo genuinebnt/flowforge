@@ -1,0 +1,39 @@
+{
+  "module": "dsl",
+  "date": "2026-11-12",
+  "commit": "c2df4dc",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkDSL01_FrontEnd/10KB",
+      "package": "github.com/genuinebnt/flowforge/dsl",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 1617725,
+        "MB/s": 5.45,
+        "allocs/op": 14866,
+        "ns/op": 1906763
+      }
+    },
+    {
+      "bench_id": "BenchmarkDSL01_FrontEnd/1MB",
+      "package": "github.com/genuinebnt/flowforge/dsl",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 108649104,
+        "MB/s": 8.27,
+        "allocs/op": 1436507,
+        "ns/op": 126863097
+      }
+    }
+  ]
+}

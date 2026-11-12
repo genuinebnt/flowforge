@@ -562,7 +562,7 @@ func (c *checker) refValueType(ref Ref, sp Span, name string, hint Type) Type {
 		c.noteFnCall(ref.Fn)
 		return &FuncType{Params: ps, Result: subst(info.Result, m), Effects: info.Declared}
 	case RefTool:
-		c.noteTool(ref.Tool)
+		c.noteTool(ref.Tool, sp)
 		return ref.Tool.funcType()
 	case RefWorkflow:
 		c.sink.errorf(CodeNotCallable, sp, "a workflow",

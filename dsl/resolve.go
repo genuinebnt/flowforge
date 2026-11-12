@@ -706,15 +706,27 @@ func (c *checker) checkValueName(id *Ident, what string) {
 // ---- Suggestions ----
 
 // suggest returns the candidate closest to name by edit distance, or "".
+// Ties prefer a candidate with the same first letter, then the
+// lexicographically smallest, so the result never depends on map order.
 func suggest(name string, candidates []string) string {
 	best, bestD := "", 1<<30
 	limit := len(name)/3 + 1
+	better := func(cand string, d int) bool {
+		if d != bestD {
+			return d < bestD
+		}
+		cs, bs := cand[0] == name[0], best[0] == name[0]
+		if cs != bs {
+			return cs
+		}
+		return cand < best
+	}
 	for _, cand := range candidates {
-		if cand == name {
+		if cand == name || cand == "" || name == "" {
 			continue
 		}
 		d := editDistance(name, cand, limit)
-		if d <= limit && d < bestD {
+		if d <= limit && better(cand, d) {
 			best, bestD = cand, d
 		}
 	}

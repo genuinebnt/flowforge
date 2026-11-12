@@ -40,6 +40,7 @@ var primNames = [...]string{"Int", "Float", "Bool", "String", "Duration", "Time"
 // PrimType is a primitive type. Use the shared values TInt, TFloat, ...
 type PrimType struct{ Kind PrimKind }
 
+// String returns the type as written in source.
 func (t *PrimType) String() string { return primNames[t.Kind] }
 func (*PrimType) isType()          {}
 
@@ -130,6 +131,7 @@ type NamedType struct {
 	Args []Type
 }
 
+// String returns the type as written in source.
 func (t *NamedType) String() string {
 	if len(t.Args) == 0 {
 		return t.Def.Name
@@ -146,6 +148,7 @@ func (*NamedType) isType() {}
 // TUnit).
 type TupleType struct{ Elems []Type }
 
+// String returns the type as written in source.
 func (t *TupleType) String() string {
 	parts := make([]string, len(t.Elems))
 	for i, a := range t.Elems {
@@ -168,6 +171,7 @@ type FuncType struct {
 	Open    bool
 }
 
+// String returns the type as written in source, with latent effects.
 func (t *FuncType) String() string {
 	parts := make([]string, len(t.Params))
 	for i, a := range t.Params {
@@ -188,6 +192,7 @@ type TypeParam struct {
 	ID   int
 }
 
+// String returns the parameter name.
 func (t *TypeParam) String() string { return t.Name }
 func (*TypeParam) isType()          {}
 
@@ -197,6 +202,7 @@ type TypeVar struct {
 	Ref Type
 }
 
+// String returns the solution, or "_" while unsolved.
 func (t *TypeVar) String() string {
 	if t.Ref != nil {
 		return t.Ref.String()
@@ -330,6 +336,7 @@ const (
 var opNames = [...]string{"", "tool_call", "scope_check", "approval", "sleep", "agent_call",
 	"execute_plan", "emit_alert", "now", "log", "par_map", "embed", "similarity_query"}
 
+// String returns the spec 8.4 name of the operation.
 func (o OpKind) String() string {
 	if int(o) < len(opNames) {
 		return opNames[o]
@@ -424,7 +431,7 @@ const (
 	RefTool                     // a tool
 	RefBuiltin                  // a standard-library function
 	RefVariant                  // an enum variant constructor or unit variant
-	RefNamespace                // the builtin `scope` namespace
+	RefNamespace                // the builtin `scope` namespace (its Ident has no meaningful type)
 )
 
 // Ref is the resolution of a name (set by Check).

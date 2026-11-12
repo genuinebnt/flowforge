@@ -66,7 +66,10 @@ type itemBase struct {
 	Attrs Attrs // set by Check
 }
 
-func (b *itemBase) Span() Span                { return b.Sp }
+// Span implements Node.
+func (b *itemBase) Span() Span { return b.Sp }
+
+// Annots implements Item.
 func (b *itemBase) Annots() []*Annotation     { return b.Annot }
 func (b *itemBase) item()                     {}
 func (b *itemBase) setAnnots(a []*Annotation) { b.Annot = a }
@@ -202,7 +205,10 @@ type typeExprBase struct {
 	Res Type
 }
 
-func (b *typeExprBase) Span() Span     { return b.Sp }
+// Span implements Node.
+func (b *typeExprBase) Span() Span { return b.Sp }
+
+// Resolved implements TypeExpr.
 func (b *typeExprBase) Resolved() Type { return b.Res }
 func (b *typeExprBase) typeExpr()      {}
 
@@ -296,6 +302,7 @@ type AssignStmt struct {
 	Value  Expr
 }
 
+// Span implements Node for the statement types.
 func (s *LetStmt) Span() Span     { return s.Sp }
 func (s *ForStmt) Span() Span     { return s.Sp }
 func (s *RequireStmt) Span() Span { return s.Sp }
@@ -328,8 +335,13 @@ type exprBase struct {
 	Eff EffectSet
 }
 
-func (b *exprBase) Span() Span         { return b.Sp }
-func (b *exprBase) Type() Type         { return b.T }
+// Span implements Node.
+func (b *exprBase) Span() Span { return b.Sp }
+
+// Type returns the checked type (nil before Check).
+func (b *exprBase) Type() Type { return b.T }
+
+// Effects returns the checked effect set.
 func (b *exprBase) Effects() EffectSet { return b.Eff }
 func (b *exprBase) base() *exprBase    { return b }
 func (b *exprBase) expr()              {}
@@ -524,6 +536,7 @@ const (
 
 var binaryOpText = [...]string{"||", "&&", "==", "!=", "<", "<=", ">", ">=", "in", "..", "+", "-", "*", "/", "%"}
 
+// String returns the operator as written.
 func (o BinaryOp) String() string { return binaryOpText[o] }
 
 // precedence returns the level of o in the table of spec 7.3.
@@ -692,7 +705,10 @@ type patBase struct {
 	T  Type
 }
 
-func (b *patBase) Span() Span    { return b.Sp }
+// Span implements Node.
+func (b *patBase) Span() Span { return b.Sp }
+
+// Type returns the type of the matched value (nil before Check).
 func (b *patBase) Type() Type    { return b.T }
 func (b *patBase) pat() *patBase { return b }
 

@@ -1,6 +1,7 @@
 package dsl
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -182,9 +183,6 @@ type checker struct {
 	// before and after checking an expression tells whether the
 	// expression performs any.
 	opEvents int
-	// curSpan is the callee span of the call being checked (for
-	// deprecation warnings on tools).
-	curSpan *Span
 	// deferred checks run when the current item's body is checked.
 	deferred []func()
 
@@ -260,7 +258,7 @@ func (c *checker) toolFromSpec(ts ToolSpec) *ToolDecl {
 	}
 	d := &ToolDecl{Name: &Ident{Name: ts.Name}, Result: ft.Result}
 	for i, pt := range ft.Params {
-		name := "arg" + itoa(i)
+		name := "arg" + strconv.Itoa(i)
 		if i < len(ts.ParamNames) && IsIdentName(ts.ParamNames[i]) {
 			name = ts.ParamNames[i]
 		}
@@ -285,18 +283,6 @@ func IsIdentName(s string) bool {
 		}
 	}
 	return !IsKeyword(s)
-}
-
-func itoa(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	var b []byte
-	for i > 0 {
-		b = append([]byte{byte('0' + i%10)}, b...)
-		i /= 10
-	}
-	return string(b)
 }
 
 // run performs all checking phases.

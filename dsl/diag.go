@@ -65,14 +65,13 @@ const (
 	CodeUnknownEffect     = "E0405"
 
 	// Patterns (E0500-E0599).
-	CodeNonExhaustive  = "E0501"
-	CodeRefutable      = "E0502"
-	CodePatternMisuse  = "E0503"
-	CodeNoSuchVariant  = "E0504"
-	CodePatternArity   = "E0505"
-	CodeBadLitPattern  = "E0506"
-	CodeBadRecordPat   = "E0507"
-	CodeDupPatternBind = "E0202" // same code as a duplicate binding
+	CodeNonExhaustive = "E0501"
+	CodeRefutable     = "E0502"
+	CodePatternMisuse = "E0503"
+	CodeNoSuchVariant = "E0504"
+	CodePatternArity  = "E0505"
+	CodeBadLitPattern = "E0506"
+	CodeBadRecordPat  = "E0507"
 
 	// Annotations and limits (E0600-E0699).
 	CodeUnknownAnnotation   = "E0601"
