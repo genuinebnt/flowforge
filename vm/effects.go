@@ -52,10 +52,18 @@ func (p ParMap) NewTask(prog *bytecode.Verified, parent Suspended, task int, cfg
 // they finished. With on_error = fail the first failing task in input
 // order fails the effect (the engine should have cancelled the siblings
 // already); with collect each element becomes Ok(value) or
-// Err(TaskError { code, message }).
+// Err(TaskError { code, message }). A task that failed with
+// nondeterminism_detected fails the effect with that code in both modes.
 func (p ParMap) Join(outcomes []Outcome) EffectResult {
 	if len(outcomes) != len(p.Items) {
 		return FailResult(bytecode.FailEffectFailed, fmt.Sprintf("par_map joined %d of %d tasks", len(outcomes), len(p.Items)))
+	}
+	// A task that diverged from the event log invalidates the whole run,
+	// whatever on_error says (spec 8.6).
+	for i, o := range outcomes {
+		if f, ok := o.(Failed); ok && f.Code == bytecode.FailNondeterminismDetected {
+			return FailResult(bytecode.FailNondeterminismDetected, fmt.Sprintf("par_map task %d: %s", i, f.Message))
+		}
 	}
 	elems := make([]Value, len(outcomes))
 	for i, o := range outcomes {

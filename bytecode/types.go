@@ -7,7 +7,9 @@ type TypeID uint16
 
 // Reserved type ids. Option and Result are the enums of spec 8.2 with fixed
 // ids; the others are standard-library types the engine constructs as
-// effect results (spec 7.4, 7.6). Ids 13-31 are reserved for future
+// effect results (spec 7.4, 7.6). Their field layouts are those of the DSL
+// standard library (dsl prelude), so values built by the engine and values
+// built by compiled code agree. Ids 13-31 are reserved for future
 // built-ins and are rejected today.
 const (
 	TypeOption      TypeID = 0  // enum None | Some(T)
@@ -15,9 +17,9 @@ const (
 	TypeHost        TypeID = 2  // enum Name(Fqdn) | Ip(IpAddress)
 	TypeSeverity    TypeID = 3  // enum Info | Low | Medium | High | Critical
 	TypeTuple       TypeID = 4  // record with any number of positional fields
-	TypeScopeDenied TypeID = 5  // record { target, reason, rule_id }
-	TypeApproval    TypeID = 6  // record { approval_id, actor, comment }
-	TypeDenied      TypeID = 7  // record { approval_id, actor, reason }
+	TypeScopeDenied TypeID = 5  // record { target, reason, rule_id, decision_id }
+	TypeApproval    TypeID = 6  // record { id, role, decided_by, decided_at }
+	TypeDenied      TypeID = 7  // record { id, role, reason }
 	TypePlanError   TypeID = 8  // record { code, message }
 	TypeTaskError   TypeID = 9  // record { code, message } (par_map collect)
 	TypeLogLevel    TypeID = 10 // enum Debug | Info | Warn | Error
@@ -100,9 +102,9 @@ var builtinTypes = [FirstUserType]*TypeLayout{
 	TypeHost:        enum(TypeHost, "Host", v("Name", "Fqdn"), v("Ip", "IpAddress")),
 	TypeSeverity:    enum(TypeSeverity, "Severity", v("Info"), v("Low"), v("Medium"), v("High"), v("Critical")),
 	TypeTuple:       {ID: TypeTuple, Kind: KindRecord, Name: "Tuple", Variadic: true},
-	TypeScopeDenied: rec(TypeScopeDenied, "ScopeDenied", "target", "String", "reason", "String", "rule_id", "Option<String>"),
-	TypeApproval:    rec(TypeApproval, "Approval", "approval_id", "String", "actor", "String", "comment", "String"),
-	TypeDenied:      rec(TypeDenied, "Denied", "approval_id", "String", "actor", "String", "reason", "String"),
+	TypeScopeDenied: rec(TypeScopeDenied, "ScopeDenied", "target", "String", "reason", "String", "rule_id", "Option<String>", "decision_id", "String"),
+	TypeApproval:    rec(TypeApproval, "Approval", "id", "String", "role", "String", "decided_by", "String", "decided_at", "Time"),
+	TypeDenied:      rec(TypeDenied, "Denied", "id", "String", "role", "String", "reason", "String"),
 	TypePlanError:   rec(TypePlanError, "PlanError", "code", "String", "message", "String"),
 	TypeTaskError:   rec(TypeTaskError, "TaskError", "code", "String", "message", "String"),
 	TypeLogLevel:    enum(TypeLogLevel, "LogLevel", v("Debug"), v("Info"), v("Warn"), v("Error")),

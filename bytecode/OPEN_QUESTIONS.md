@@ -42,7 +42,21 @@
    `list_get_opt(xs, 0)`; `scope.allows` is the `scope_allows` builtin
    backed by a read-only scope snapshot passed to the VM.
 9. **Built-in record layouts** (ScopeDenied, Approval, Denied, PlanError,
-   TaskError, Budget, Plan) are provisional: the spec names the types but
-   not their fields. They must stay in sync with the DSL standard library.
+   TaskError, Budget) are those of the DSL standard library (dsl
+   OPEN_QUESTIONS 18): ScopeDenied `{target, reason, rule_id,
+   decision_id}`, Approval `{id, role, decided_by, decided_at}`, Denied
+   `{id, role, reason}`, PlanError and TaskError `{code, message}`, Budget
+   `{tokens, tool_calls, iterations}`. Plan is provisional (the DSL type is
+   opaque).
 10. `ErrTooComplex` (bitset memory over 2^24 words) and `ErrTooManyItems`
     guard verifier resources; no realistic compiler output hits them.
+11. **Annotations (ANNOTS).** Spec 8.3 has no place for the annotations the
+    engine enforces (#[timeout], #[retry], #[effects(max)],
+    #[on_unknown(retry)], #[idempotent]). Flag bit 1 (`FlagAnnotations`)
+    announces an optional ANNOTS section between META and entry (layout in
+    annotations.go): workflow-level values and one entry per annotated
+    EFFECT instruction, keyed by (function, code offset) as reported by
+    `vm.Suspended.Site`. Without the flag the layout is exactly spec 8.3.
+    The verifier checks that the flag and the section agree, that sites are
+    sorted, unique and on EFFECT instructions, and that values are in range
+    (rule `annotations`).

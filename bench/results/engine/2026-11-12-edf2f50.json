@@ -1,0 +1,53 @@
+{
+  "module": "engine",
+  "date": "2026-11-12",
+  "commit": "edf2f50",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkEng01_RunThroughput/steps=5",
+      "package": "github.com/genuinebnt/flowforge/engine",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 221266,
+        "allocs/op": 2344,
+        "ns/op": 534793,
+        "ns/step": 114157,
+        "runs/s": 1752
+      }
+    },
+    {
+      "bench_id": "BenchmarkEng01_RunThroughput/steps=20",
+      "package": "github.com/genuinebnt/flowforge/engine",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 723738,
+        "allocs/op": 7701,
+        "ns/op": 1129280,
+        "ns/step": 58160,
+        "runs/s": 859.7
+      }
+    },
+    {
+      "bench_id": "BenchmarkEng01_RunThroughput/steps=100",
+      "package": "github.com/genuinebnt/flowforge/engine",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 3444546,
+        "allocs/op": 37297,
+        "ns/op": 5895640,
+        "ns/step": 59073,
+        "runs/s": 169.3
+      }
+    }
+  ]
+}

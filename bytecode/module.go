@@ -162,7 +162,10 @@ type Module struct {
 	Effects       EffectMask
 	Tools         []Tool
 	Meta          Meta
-	Entry         uint16
+	// Annotations is the optional ANNOTS section (FlagAnnotations); nil
+	// when absent.
+	Annotations *Annotations
+	Entry       uint16
 }
 
 // Hash returns the module hash: SHA-256 of the encoded module.

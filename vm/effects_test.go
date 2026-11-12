@@ -105,7 +105,7 @@ func reconEffects() *vm.ScriptedEffects {
 			bc.EffectScopeCheck: func(s vm.Suspended) vm.EffectResult {
 				target := s.Args[0]
 				if strings.Contains(target.Str(), "evil") {
-					return vm.OkResult(vm.Err(vm.Record(bc.TypeScopeDenied, vm.Str(target.Str()), vm.Str("explicit_deny"), vm.None())))
+					return vm.OkResult(vm.Err(vm.Record(bc.TypeScopeDenied, vm.Str(target.Str()), vm.Str("explicit_deny"), vm.None(), vm.Str("d-deny"))))
 				}
 				return vm.OkResult(vm.Ok(vm.ScopeProof(target, "dec-"+s.Path.String())))
 			},

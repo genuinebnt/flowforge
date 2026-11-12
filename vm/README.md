@@ -17,6 +17,8 @@ effect results. Layer 3; imports `core`, `core/netnorm`, `bytecode` and
 | effect args | `EncodeArgs`, `ArgsHash`, `DecodeArgs`, `EncodeValue`, `DecodeValue` (deterministic CBOR) |
 | JSON | `ParseType`, `ToJSON`, `FromJSON`, `DecodeInputs`, `EncodeOutput` |
 | drivers | `RunWithEffects`, `Drive`, `ScriptedEffects`, `Replayer` |
+| reference evaluators | `CallBuiltin` (native builtins outside a run), `NewClosure` |
+| per-site policies | `Suspended.Site` (function, code offset, source span of the EFFECT) with `bytecode.Annotations.Site` |
 
 ## Tests and benchmarks
 
@@ -25,13 +27,13 @@ effect results. Layer 3; imports `core`, `core/netnorm`, `bytecode` and
     go test ./vm/ -run XXX -fuzz FuzzSnapshotDecode -fuzztime 20s
     go test ./vm/ -run XXX -bench . -benchtime 3x
 
-vm_001..vm_007 are `TestVM001_Arithmetic` .. `TestVM007_CompensationOrder`;
+vm_001..vm_007 are `TestVM001_Arithmetic` .. `TestVM007_CompensationOrder`
+(vm_008 and the `conformance/vm` suites run in package `compiler`);
 properties `TestVMProp_VerifiedNeverPanics`, `TestVMProp_FuelMonotonic`;
 benchmarks `BenchmarkVM01_*` (fib(30), arithmetic loop with a zero
 per-instruction allocation check, map/filter over 1M elements, string
 building), `BenchmarkVM02_Snapshot` (10, 1k, 100k live values) and
-`BenchmarkVM03_Replay` (10k, 100k effects). vm_008 and the `conformance/vm`
-cases arrive with the compiler.
+`BenchmarkVM03_Replay` (10k, 100k effects).
 
 ## Known limitations
 

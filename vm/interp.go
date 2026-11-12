@@ -397,7 +397,8 @@ func (vm *VM) exec(slice int64) Outcome {
 			vm.nextSeq++
 			vm.effects++
 			pc += 3
-			vm.pending = &Suspended{Path: vm.prefix.Child(uint32(seq)), Seq: seq, Kind: kind, Args: args}
+			vm.pending = &Suspended{Path: vm.prefix.Child(uint32(seq)), Seq: seq, Kind: kind, Args: args,
+				Site: vm.span(int(fr.fn), ipc)}
 			vm.status = statusSuspended
 			sync()
 			return *vm.pending

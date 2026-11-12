@@ -10,17 +10,18 @@ import (
 
 // Decoding and encoding errors. Decode wraps one of these with %w.
 var (
-	ErrTooLarge     = errors.New("bytecode: module exceeds 4 MiB")
-	ErrBadMagic     = errors.New("bytecode: bad magic")
-	ErrVersion      = errors.New("bytecode: unsupported format version")
-	ErrFlags        = errors.New("bytecode: unknown flags")
-	ErrTruncated    = errors.New("bytecode: truncated module")
-	ErrTrailing     = errors.New("bytecode: trailing bytes after entry")
-	ErrBadConst     = errors.New("bytecode: malformed constant")
-	ErrBadTypeDef   = errors.New("bytecode: malformed type layout")
-	ErrBadSpans     = errors.New("bytecode: malformed span table")
-	ErrBadMetaField = errors.New("bytecode: malformed META string")
-	ErrEncode       = errors.New("bytecode: module cannot be encoded")
+	ErrTooLarge       = errors.New("bytecode: module exceeds 4 MiB")
+	ErrBadMagic       = errors.New("bytecode: bad magic")
+	ErrVersion        = errors.New("bytecode: unsupported format version")
+	ErrFlags          = errors.New("bytecode: unknown flags")
+	ErrTruncated      = errors.New("bytecode: truncated module")
+	ErrTrailing       = errors.New("bytecode: trailing bytes after entry")
+	ErrBadConst       = errors.New("bytecode: malformed constant")
+	ErrBadTypeDef     = errors.New("bytecode: malformed type layout")
+	ErrBadSpans       = errors.New("bytecode: malformed span table")
+	ErrBadMetaField   = errors.New("bytecode: malformed META string")
+	ErrBadAnnotations = errors.New("bytecode: malformed ANNOTS section")
+	ErrEncode         = errors.New("bytecode: module cannot be encoded")
 )
 
 type reader struct {
@@ -140,7 +141,7 @@ func Decode(b []byte) (*Module, error) {
 	if r.err == nil && m.FormatVersion != FormatVersion {
 		return nil, fmt.Errorf("%w: %d", ErrVersion, m.FormatVersion)
 	}
-	if r.err == nil && m.Flags != 0 {
+	if r.err == nil && m.Flags&^FlagAnnotations != 0 {
 		return nil, fmt.Errorf("%w: 0x%04x", ErrFlags, m.Flags)
 	}
 
@@ -183,6 +184,9 @@ func Decode(b []byte) (*Module, error) {
 	m.Meta.SourceSHA256 = r.hash()
 	m.Meta.ProgramPolicySHA256 = r.hash()
 	m.Meta.WorkflowName = r.str(MaxStringBytes)
+	if r.err == nil && m.Flags&FlagAnnotations != 0 {
+		m.Annotations = decodeAnnotations(r)
+	}
 	m.Entry = r.u16()
 	if r.err != nil {
 		return nil, r.err

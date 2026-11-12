@@ -43,6 +43,9 @@ var (
 	defRunInfo        = &TypeDef{Name: "RunInfo", Kind: DefRecord, Builtin: true}
 	defPlanError      = &TypeDef{Name: "PlanError", Kind: DefRecord, Builtin: true}
 	defGraphSummary   = &TypeDef{Name: "GraphSummary", Kind: DefRecord, Builtin: true}
+	// defTaskError is the error of a par_map element with on_error =
+	// "collect" (spec 8.6); appended last so earlier IDs stay stable.
+	defTaskError = &TypeDef{Name: "TaskError", Kind: DefRecord, Builtin: true}
 )
 
 // builtinTypeDefs lists every builtin TypeDef in ID order.
@@ -51,7 +54,7 @@ var builtinTypeDefs = []*TypeDef{
 	defScope, defEntity, defVector, defFqdn, defIPAddress, defNetblock, defAsn,
 	defURL, defHost, defSeverity, defService, defTLSCertificate, defProduct,
 	defOrganization, defScopeDenied, defBudget, defApproval, defDenied,
-	defRunInfo, defPlanError, defGraphSummary,
+	defRunInfo, defPlanError, defGraphSummary, defTaskError,
 }
 
 // scopeTargets are the types scope.check and scope.allows accept.
@@ -251,6 +254,7 @@ func buildPrelude() *preludeTables {
 	fields(defDenied, "id", TString, "role", TString, "reason", TString)
 	fields(defRunInfo, "run_id", TString, "workflow", TString, "version", TInt, "started_at", TTime)
 	fields(defPlanError, "code", TString, "message", TString)
+	fields(defTaskError, "code", TString, "message", TString)
 	fields(defGraphSummary, "entities_by_type", &NamedType{Def: defMap, Args: []Type{TString, TInt}},
 		"new_since_last_run", TInt, "top_entities", &NamedType{Def: defList, Args: []Type{&NamedType{Def: defEntity}}})
 

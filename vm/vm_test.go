@@ -462,7 +462,7 @@ func TestVM002_ClosuresRecursionMatch(t *testing.T) {
 		approve := func(ok bool) vm.Handler {
 			return func(s vm.Suspended) vm.EffectResult {
 				if ok {
-					return vm.OkResult(vm.Ok(vm.Record(bc.TypeApproval, vm.Str("ap1"), vm.Str("alice"), vm.Str(""))))
+					return vm.OkResult(vm.Ok(vm.Record(bc.TypeApproval, vm.Str("ap1"), vm.Str("finance"), vm.Str("alice"), vm.Time(0))))
 				}
 				return vm.OkResult(vm.Err(vm.Record(bc.TypeDenied, vm.Str("ap1"), vm.Str("alice"), vm.Str("no"))))
 			}

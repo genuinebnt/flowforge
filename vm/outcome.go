@@ -22,6 +22,10 @@ type Suspended struct {
 	// tool_call the tool name (pushed last) is moved to Args[0], so
 	// Args = [tool_name, inputs...].
 	Args []Value
+	// Site locates the EFFECT instruction (function, code offset and the
+	// closest source span). The engine looks per-site policies up with it
+	// (bytecode.Annotations.Site); it is not part of the effect identity.
+	Site Span
 }
 
 // Tool returns the tool name of a tool_call effect.

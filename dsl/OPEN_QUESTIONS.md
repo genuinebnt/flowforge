@@ -75,7 +75,10 @@ the test that pins it. Where scope or policy is involved the conservative
     `iterations`, from the example) and GraphSummary (from the planner
     request of 16.2). `Scope`, `Entity`, `Vector`, `Plan<T>` are opaque.
 19. **`log(level, msg)`** takes the level as a String. `par_map`'s
-    `on_error` is a String literal `"fail"` or `"collect"`.
+    `on_error` must be the String literal `"fail"` or `"collect"` (E0308
+    otherwise), because it decides the result type: with `"collect"` the
+    result is `Seq<Result<B, TaskError>>` (spec 8.6), where `TaskError
+    {code, message}` is a prelude record, the error of a failed task.
 20. **Stdlib additions** beyond 7.6: `get`, `keys`, `values` on maps (the
     spec has no map literal or accessor otherwise).
 21. **Function values and effects.** Function types written in source are

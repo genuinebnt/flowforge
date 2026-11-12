@@ -52,6 +52,7 @@ var (
 	ErrEffectBits        = errors.New("bytecode: effect mask has undefined bits")
 	ErrEffectMask        = errors.New("bytecode: declared effect mask is not a superset of the reachable effects")
 	ErrFormatVersionFlag = errors.New("bytecode: unsupported format version or flags")
+	ErrAnnotations       = errors.New("bytecode: ANNOTS section names a non-EFFECT site or holds invalid values")
 )
 
 // VerifyError locates a rule violation. Unwrap returns the rule sentinel.
@@ -127,6 +128,7 @@ var ruleIDs = []struct {
 	{"effect_bits", ErrEffectBits},
 	{"effect_mask", ErrEffectMask},
 	{"format_version_flags", ErrFormatVersionFlag},
+	{"annotations", ErrAnnotations},
 }
 
 // RuleID returns the stable snake_case id of the verifier rule err

@@ -88,7 +88,7 @@ const maxVerifyWords = 1 << 24
 // needs. tools resolves TOOLS entries; a nil resolver rejects any module
 // that lists tools. Errors are *VerifyError wrapping a rule sentinel.
 func Verify(m *Module, tools ToolResolver) (*Verified, error) {
-	if m.FormatVersion != FormatVersion || m.Flags != 0 {
+	if m.FormatVersion != FormatVersion || m.Flags&^FlagAnnotations != 0 {
 		return nil, &VerifyError{Rule: ErrFormatVersionFlag, Func: -1, Offset: -1}
 	}
 	if len(m.Funcs) == 0 || len(m.Funcs) > 1<<16 || len(m.Types) > int(^uint16(0)-uint16(FirstUserType)) {
@@ -99,6 +99,9 @@ func Verify(m *Module, tools ToolResolver) (*Verified, error) {
 	}
 	if int(m.Entry) >= len(m.Funcs) || m.Funcs[m.Entry].NCaps != 0 {
 		return nil, &VerifyError{Rule: ErrEntry, Func: -1, Offset: -1}
+	}
+	if err := verifyAnnotations(m); err != nil {
+		return nil, err
 	}
 	toolFx, err := verifyTools(m, tools)
 	if err != nil {

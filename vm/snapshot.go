@@ -560,6 +560,11 @@ func (d *snapDecoder) pendingEffect(x any, all int) error {
 		args = []Value{}
 	}
 	vm.pending = &Suspended{Path: vm.prefix.Child(uint32(seq)), Seq: seq, Kind: bytecode.EffectKind(kind), Args: args}
+	if n := len(vm.frames); n > 0 {
+		// The saved pc of the top frame is just past the EFFECT (3 bytes).
+		fr := vm.frames[n-1]
+		vm.pending.Site = vm.span(int(fr.fn), fr.pc-3)
+	}
 	return nil
 }
 

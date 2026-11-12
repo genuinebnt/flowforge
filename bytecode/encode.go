@@ -22,6 +22,7 @@ import (
 //	TOOLS   u16 count, then (name u32, spec_sha256 [32]byte)*
 //	META    compiler_version (u32 len, bytes), source_sha256 [32]byte,
 //	          program_policy_sha256 [32]byte, workflow_name (u32 len, bytes)
+//	ANNOTS  only when flags has FlagAnnotations (see Annotations)
 //	entry   u16
 
 type writer struct{ b []byte }
@@ -150,6 +151,14 @@ func (m *Module) Encode() ([]byte, error) {
 	w.bytes(m.Meta.SourceSHA256[:])
 	w.bytes(m.Meta.ProgramPolicySHA256[:])
 	w.str(m.Meta.WorkflowName)
+	if (m.Flags&FlagAnnotations != 0) != (m.Annotations != nil) {
+		return nil, fmt.Errorf("%w: FlagAnnotations and the ANNOTS section disagree", ErrEncode)
+	}
+	if m.Annotations != nil {
+		if err := encodeAnnotations(w, m.Annotations); err != nil {
+			return nil, err
+		}
+	}
 	w.u16(m.Entry)
 
 	if len(w.b) > MaxModuleSize {

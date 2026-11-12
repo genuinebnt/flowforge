@@ -144,6 +144,21 @@ func (b *Builder) AddEffects(m EffectMask) { b.m.Effects |= m }
 // SetMeta sets the META section.
 func (b *Builder) SetMeta(meta Meta) { b.m.Meta = meta }
 
+// SetAnnotations sets the ANNOTS section (and FlagAnnotations); nil
+// removes both. Sites are sorted.
+func (b *Builder) SetAnnotations(a *Annotations) {
+	if a == nil {
+		b.m.Annotations = nil
+		b.m.Flags &^= FlagAnnotations
+		return
+	}
+	c := *a
+	c.Sites = append([]SiteAnnotation(nil), a.Sites...)
+	c.SortSites()
+	b.m.Annotations = &c
+	b.m.Flags |= FlagAnnotations
+}
+
 // SetEntry sets the workflow body function.
 func (b *Builder) SetEntry(fn uint16) { b.m.Entry = fn }
 

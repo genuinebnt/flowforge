@@ -530,22 +530,43 @@ func (c *checker) callBuiltin(call *CallExpr, b *Builtin, name string, hint Type
 		}
 	}
 	if b.Name == "par_map" {
-		for _, a := range call.Args {
-			if a.Param == 3 {
-				if s, ok := a.Value.(*StringLit); ok && !s.Interpolated() {
-					v := ""
-					for _, p := range s.Parts {
-						v += p.Lit
-					}
-					if v != "fail" && v != "collect" {
-						c.sink.errorf(CodeBadNamedArg, a.Value.Span(), "expected \"fail\" or \"collect\"",
-							"on_error must be \"fail\" or \"collect\", found %q", v)
-					}
-				}
-			}
-		}
+		res = c.parMapResult(call, res)
 	}
 	return res, eff | b.Effects
+}
+
+// parMapResult checks par_map's on_error argument, which must be the
+// string literal "fail" or "collect" because it decides the result type:
+// with "collect" each element is Ok(value) or Err(TaskError) (spec 8.6).
+func (c *checker) parMapResult(call *CallExpr, res Type) Type {
+	for _, a := range call.Args {
+		if a.Param != 3 || a.Value == nil {
+			continue
+		}
+		s, ok := a.Value.(*StringLit)
+		if !ok || s.Interpolated() {
+			c.sink.errorf(CodeBadNamedArg, a.Value.Span(), "expected a string literal",
+				"on_error must be the string literal \"fail\" or \"collect\"").
+				withHelp("The on_error mode decides the result type, so it must be written literally.")
+			return res
+		}
+		v := ""
+		for _, p := range s.Parts {
+			v += p.Lit
+		}
+		switch v {
+		case "fail":
+		case "collect":
+			if n, ok := prune(res).(*NamedType); ok && len(n.Args) == 1 {
+				elem := &NamedType{Def: defResult, Args: []Type{n.Args[0], &NamedType{Def: defTaskError}}}
+				return &NamedType{Def: n.Def, Args: []Type{elem}}
+			}
+		default:
+			c.sink.errorf(CodeBadNamedArg, a.Value.Span(), "expected \"fail\" or \"collect\"",
+				"on_error must be \"fail\" or \"collect\", found %q", v)
+		}
+	}
+	return res
 }
 
 func overloadHeads(b *Builtin) string {

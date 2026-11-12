@@ -40,7 +40,10 @@
 9. **par_map** `Join` with on_error = fail reports the first failing task in
    input order (the engine should cancel siblings when the first failure
    arrives); with collect each element is `Ok(v)` or
-   `Err(TaskError{code, message})`. The result keeps the Stream flag.
+   `Err(TaskError{code, message})`. The result keeps the Stream flag. A
+   task that failed with `nondeterminism_detected` (its replay diverged
+   from the log) fails the par_map with that code in both modes, so the
+   run fails with it instead of `effect_failed` or a collected `Err`.
 10. **scope.allows** is the `scope_allows` builtin over `Config.Scope`, a
     read-only snapshot of the run's pinned scope version (false when nil).
     The engine must supply the same snapshot on replay; it is the one VM
@@ -61,3 +64,8 @@
 14. **Snapshots** are a fixed 19-field CBOR array (documented in
     snapshot.go) and must be canonical: Restore re-encodes and compares. The
     pending effect's arguments are part of the snapshot.
+15. **Suspension sites.** `Suspended.Site` locates the EFFECT instruction
+    (function, code offset, closest source span); it is recomputed from the
+    saved pc on Restore and is not part of the effect identity (path, kind
+    and argument hash are). The engine uses it to find the per-site
+    annotations of the module (bytecode OPEN_QUESTIONS 11).

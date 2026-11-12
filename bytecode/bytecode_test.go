@@ -352,6 +352,82 @@ func verifyCases() []VerifyCase {
 			f.Op(bc.OpRet)
 		}), func(m *bc.Module) { m.Effects = 0 }), bc.ErrEffectMask},
 		{"format_flags", mutate(okBody, func(m *bc.Module) { m.Flags = 1 }), bc.ErrFormatVersionFlag},
+		{"accept_annotations", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) {
+			f.Effect(bc.EffectNow, 0)
+			f.Op(bc.OpRet)
+			b.AddEffects(bc.EffTime)
+			b.SetAnnotations(&bc.Annotations{Timeout: 60e9, MaxEffects: 100, OnUnknownRetry: true,
+				Sites: []bc.SiteAnnotation{{Func: 0, CodeOffset: 0, RetryMax: 2, BackoffInitial: 1e9, BackoffMax: 4e9}}})
+		}), nil},
+		{"annotations_site", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) {
+			f.Op(bc.OpUnit)
+			f.Effect(bc.EffectSleep, 1)
+			f.Op(bc.OpRet)
+			b.AddEffects(bc.EffTime)
+			b.SetAnnotations(&bc.Annotations{Sites: []bc.SiteAnnotation{{Func: 0, CodeOffset: 0, Timeout: 1}}})
+		}), bc.ErrAnnotations},
+	}
+}
+
+// TestBC_Annotations: the ANNOTS section round-trips, is looked up by
+// site, and is absent from modules that do not set it.
+func TestBC_Annotations(t *testing.T) {
+	m := sampleModule(t)
+	if m.Annotations != nil || m.Flags != 0 {
+		t.Fatal("annotations are optional")
+	}
+	a := &bc.Annotations{Timeout: 7, MaxEffects: 9, Idempotent: true, Sites: []bc.SiteAnnotation{
+		{Func: 1, CodeOffset: 4, SourceOffset: 10, SourceLen: 3, RetryMax: 3, BackoffInitial: 1, BackoffMax: 2, Idempotent: true},
+		{Func: 0, CodeOffset: 2, Timeout: 5},
+	}}
+	b := bc.NewBuilder()
+	f := b.Func("main", 0, 0)
+	ret(f)
+	b.SetAnnotations(a)
+	built, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if built.Flags != bc.FlagAnnotations || built.Annotations.Sites[0].Func != 0 {
+		t.Fatalf("SetAnnotations must set the flag and sort sites: %+v", built.Annotations)
+	}
+	enc, err := built.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dec, err := bc.Decode(enc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(dec.Annotations, built.Annotations) {
+		t.Fatalf("round trip:\n%+v\n%+v", dec.Annotations, built.Annotations)
+	}
+	again, _ := dec.Encode()
+	if !bytes.Equal(again, enc) {
+		t.Fatal("encode(decode(b)) != b")
+	}
+	if s, ok := dec.Annotations.Site(1, 4); !ok || s.RetryMax != 3 {
+		t.Fatalf("Site lookup: %+v %v", s, ok)
+	}
+	if _, ok := dec.Annotations.Site(1, 5); ok {
+		t.Fatal("unexpected site")
+	}
+	// A flag without a section (or the reverse) can be neither encoded
+	// nor verified.
+	built.Annotations = nil
+	if _, err := built.Encode(); err == nil {
+		t.Fatal("flag without section encoded")
+	}
+	if _, err := bc.Verify(built, nil); !errors.Is(err, bc.ErrFormatVersionFlag) {
+		t.Fatalf("flag without section verified: %v", err)
+	}
+	built.Flags, built.Annotations = 0, &bc.Annotations{}
+	if _, err := bc.Verify(built, nil); !errors.Is(err, bc.ErrFormatVersionFlag) {
+		t.Fatalf("section without flag verified: %v", err)
+	}
+	// Truncated sections are decode errors.
+	if _, err := bc.Decode(enc[:len(enc)-5]); err == nil {
+		t.Fatal("truncated ANNOTS decoded")
 	}
 }
 

@@ -12,7 +12,8 @@ Module format, instruction set, assembler and verifier of the Flowforge VM
 | `opcodes.go` | opcodes with the spec 8.4 values and operand widths |
 | `effects.go` | effect kinds (EFFECT operand), effect mask bits, per-kind argument counts |
 | `failcodes.go` | failure codes (FAIL operand), numbered in spec order |
-| `types.go` | reserved type ids: Option 0, Result 1, Host 2, Severity 3, Tuple 4, ScopeDenied 5, Approval 6, Denied 7, PlanError 8, TaskError 9, LogLevel 10, Budget 11, Plan 12; user types start at 32 |
+| `types.go` | reserved type ids: Option 0, Result 1, Host 2, Severity 3, Tuple 4, ScopeDenied 5, Approval 6, Denied 7, PlanError 8, TaskError 9, LogLevel 10, Budget 11, Plan 12; user types start at 32; record layouts match the DSL prelude |
+| `annotations.go` | optional ANNOTS section (`FlagAnnotations`): workflow and per-EFFECT annotations for the engine |
 | `builtins.go` | stable builtin ids and arities (pure natives for BUILTIN) |
 | `builder.go` | assembler: deduplicated constants, labels, jump patching, spans |
 | `verify.go` | all spec 8.8 rules, one exported sentinel per rule (`RuleID` gives stable ids) |

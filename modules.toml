@@ -151,3 +151,13 @@ tests = { prefix = "ES", required = ["001", "002", "003", "004", "005", "006", "
 conformance = ["eventstore"]
 properties = ["TestESProp_RandomInterleavings"]
 bench = ["BenchmarkES01", "BenchmarkES02"]
+
+[module.engine]
+layer = 4
+spec = ["9"]
+dir = "engine"
+depends = ["core", "vm", "bytecode", "eventstore", "scope", "limiter"]
+tests = { prefix = "Eng", required = ["001", "002", "003", "004", "005", "006", "007", "008"] }
+conformance = ["engine"]
+properties = ["TestEngProp_CrashAnywhere"]
+bench = ["BenchmarkEng01"]
