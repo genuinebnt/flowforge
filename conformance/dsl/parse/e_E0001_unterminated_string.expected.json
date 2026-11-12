@@ -1,0 +1,87 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0001",
+      "help": "Close the string with a double quote.",
+      "message": "unterminated string literal",
+      "primary": {
+        "end": {
+          "col": 12,
+          "line": 2,
+          "offset": 26
+        },
+        "file": "e_E0001_unterminated_string.ff",
+        "label": "string starts here",
+        "start": {
+          "col": 11,
+          "line": 2,
+          "offset": 25
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0008",
+      "help": "Write }} for a literal brace.",
+      "message": "unmatched `}` in string literal",
+      "primary": {
+        "end": {
+          "col": 2,
+          "line": 3,
+          "offset": 41
+        },
+        "file": "e_E0001_unterminated_string.ff",
+        "label": "unmatched `}`",
+        "start": {
+          "col": 1,
+          "line": 3,
+          "offset": 40
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0102",
+      "help": "Add `;` here.",
+      "message": "missing semicolon after let statement",
+      "primary": {
+        "end": {
+          "col": 1,
+          "line": 4,
+          "offset": 42
+        },
+        "file": "e_E0001_unterminated_string.ff",
+        "label": "expected `;`",
+        "start": {
+          "col": 1,
+          "line": 4,
+          "offset": 42
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0101",
+      "message": "expected `}`, found end of file",
+      "primary": {
+        "end": {
+          "col": 1,
+          "line": 4,
+          "offset": 42
+        },
+        "file": "e_E0001_unterminated_string.ff",
+        "label": "expected `}`",
+        "start": {
+          "col": 1,
+          "line": 4,
+          "offset": 42
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

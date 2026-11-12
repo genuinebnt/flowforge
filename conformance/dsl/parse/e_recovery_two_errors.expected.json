@@ -1,0 +1,45 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0102",
+      "help": "Add `;` here.",
+      "message": "missing semicolon after let statement",
+      "primary": {
+        "end": {
+          "col": 12,
+          "line": 2,
+          "offset": 26
+        },
+        "file": "e_recovery_two_errors.ff",
+        "label": "expected `;`",
+        "start": {
+          "col": 12,
+          "line": 2,
+          "offset": 26
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0101",
+      "message": "expected an expression, found `)`",
+      "primary": {
+        "end": {
+          "col": 17,
+          "line": 7,
+          "offset": 74
+        },
+        "file": "e_recovery_two_errors.ff",
+        "label": "expected an expression",
+        "start": {
+          "col": 16,
+          "line": 7,
+          "offset": 73
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

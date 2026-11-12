@@ -1,0 +1,8 @@
+workflow w() {
+  let ints = [0, 42, 1_000_000, 0xFF, 0x7fff_ffff, 9223372036854775807];
+  let floats = [0.5, 1.0e10, 2.5E-3, 1_000.25];
+  let durations = [250ms, 30s, 5m, 2h, 1d, 0s];
+  let bools = [true, false];
+  let strings = ["", "plain", "tab\there", "quote \" and slash \\", "line\n", "\u{1F600} \u{41}", "braces {{literal}}"];
+  let interp = "host {h} has {len(xs)} ports, nested {"inner {x}"}";
+}

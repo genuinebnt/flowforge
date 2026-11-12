@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0006",
+      "message": "unterminated block comment",
+      "primary": {
+        "end": {
+          "col": 3,
+          "line": 2,
+          "offset": 18
+        },
+        "file": "e_E0006_unterminated_comment.ff",
+        "label": "comment starts here",
+        "start": {
+          "col": 1,
+          "line": 2,
+          "offset": 16
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

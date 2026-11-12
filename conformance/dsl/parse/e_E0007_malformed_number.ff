@@ -1,0 +1,1 @@
+workflow w() { let x = 0x; let y = 0xFG; }

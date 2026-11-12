@@ -1,0 +1,32 @@
+{
+  "id": "vec_002b",
+  "description": "Writes are ordered by source seq: stale upserts and deletes are ignored, replays are idempotent, a delete is not undone by an older upsert",
+  "metric": "l2",
+  "dim": 2,
+  "tolerance": 0,
+  "steps": [
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000a", "vector": [5, 0], "seq": 10 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000b", "vector": [0, 3], "seq": 11 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000a", "vector": [1, 0], "seq": 9 },
+    { "op": "delete", "id": "00000000-0000-0000-0000-00000000000a", "seq": 10 },
+    { "op": "search", "vector": [0, 0], "k": 2, "expect": [
+      { "id": "00000000-0000-0000-0000-00000000000b", "distance": 9 },
+      { "id": "00000000-0000-0000-0000-00000000000a", "distance": 25 } ] },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000a", "vector": [2, 0], "seq": 12 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000a", "vector": [2, 0], "seq": 12 },
+    { "op": "search", "vector": [0, 0], "k": 2, "expect": [
+      { "id": "00000000-0000-0000-0000-00000000000a", "distance": 4 },
+      { "id": "00000000-0000-0000-0000-00000000000b", "distance": 9 } ] },
+    { "op": "delete", "id": "00000000-0000-0000-0000-00000000000b", "seq": 20 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000b", "vector": [0, 1], "seq": 15 },
+    { "op": "delete", "id": "00000000-0000-0000-0000-00000000000c", "seq": 30 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000c", "vector": [0, 0], "seq": 29 },
+    { "op": "search", "vector": [0, 0], "k": 5, "expect": [
+      { "id": "00000000-0000-0000-0000-00000000000a", "distance": 4 } ] },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000d", "vector": [1], "seq": 31, "expect_error": "dimension" },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-00000000000d", "vector": [1, 2, 3], "seq": 31, "expect_error": "dimension" },
+    { "op": "search", "vector": [0, 0], "k": 0, "expect_error": "invalid_params" },
+    { "op": "search", "vector": [0, 0], "k": 101, "expect_error": "invalid_params" },
+    { "op": "search", "vector": [0, 0], "k": 5, "l": 4, "expect_error": "invalid_params" }
+  ]
+}

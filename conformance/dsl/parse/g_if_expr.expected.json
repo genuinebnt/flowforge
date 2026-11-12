@@ -1,0 +1,118 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "cond": {
+              "kind": "binary",
+              "left": {
+                "kind": "ident",
+                "name": "n"
+              },
+              "op": "\u003c",
+              "right": {
+                "kind": "int",
+                "value": "0"
+              }
+            },
+            "else": {
+              "cond": {
+                "kind": "binary",
+                "left": {
+                  "kind": "ident",
+                  "name": "n"
+                },
+                "op": "==",
+                "right": {
+                  "kind": "int",
+                  "value": "0"
+                }
+              },
+              "else": {
+                "kind": "block",
+                "tail": {
+                  "kind": "string",
+                  "parts": [
+                    {
+                      "lit": "pos"
+                    }
+                  ]
+                }
+              },
+              "kind": "if",
+              "then": {
+                "kind": "block",
+                "tail": {
+                  "kind": "string",
+                  "parts": [
+                    {
+                      "lit": "zero"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "if",
+            "then": {
+              "kind": "block",
+              "tail": {
+                "kind": "string",
+                "parts": [
+                  {
+                    "lit": "neg"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "kind": "fn",
+        "name": "f",
+        "params": [
+          {
+            "name": "n",
+            "type": {
+              "kind": "named",
+              "name": "Int"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "String"
+        }
+      },
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "cond": {
+              "kind": "ident",
+              "name": "ready"
+            },
+            "kind": "if",
+            "then": {
+              "kind": "block",
+              "stmts": [
+                {
+                  "expr": {
+                    "callee": {
+                      "kind": "ident",
+                      "name": "go"
+                    },
+                    "kind": "call"
+                  },
+                  "kind": "expr"
+                }
+              ]
+            }
+          }
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+fn f(n: Int) -> String {
+  if n < 0 { "neg" } else if n == 0 { "zero" } else { "pos" }
+}
+workflow w() {
+  if ready { go(); }
+}

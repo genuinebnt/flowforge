@@ -1,0 +1,112 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "body": {
+                "kind": "block",
+                "stmts": [
+                  {
+                    "expr": {
+                      "args": [
+                        {
+                          "value": {
+                            "kind": "string",
+                            "parts": [
+                              {
+                                "lit": "info"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "value": {
+                            "kind": "string",
+                            "parts": [
+                              {
+                                "lit": "x"
+                              }
+                            ]
+                          }
+                        }
+                      ],
+                      "callee": {
+                        "kind": "ident",
+                        "name": "log"
+                      },
+                      "kind": "call"
+                    },
+                    "kind": "expr"
+                  }
+                ]
+              },
+              "iter": {
+                "kind": "ident",
+                "name": "xs"
+              },
+              "kind": "for",
+              "pattern": {
+                "kind": "bind",
+                "name": "x"
+              }
+            },
+            {
+              "body": {
+                "kind": "block"
+              },
+              "iter": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "enumerate"
+                },
+                "kind": "call"
+              },
+              "kind": "for",
+              "pattern": {
+                "elems": [
+                  {
+                    "kind": "bind",
+                    "name": "i"
+                  },
+                  {
+                    "kind": "bind",
+                    "name": "x"
+                  }
+                ],
+                "kind": "tuple"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w",
+        "params": [
+          {
+            "name": "xs",
+            "type": {
+              "args": [
+                {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              ],
+              "kind": "named",
+              "name": "List"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

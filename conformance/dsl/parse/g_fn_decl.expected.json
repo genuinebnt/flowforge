@@ -1,0 +1,96 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "kind": "ident",
+            "name": "x"
+          }
+        },
+        "generics": [
+          "T"
+        ],
+        "kind": "fn",
+        "name": "id",
+        "params": [
+          {
+            "name": "x",
+            "type": {
+              "kind": "named",
+              "name": "T"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "T"
+        }
+      },
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "elems": [
+              {
+                "kind": "ident",
+                "name": "a"
+              },
+              {
+                "kind": "ident",
+                "name": "b"
+              }
+            ],
+            "kind": "tuple"
+          }
+        },
+        "effects": [
+          "read"
+        ],
+        "generics": [
+          "A",
+          "B"
+        ],
+        "kind": "fn",
+        "name": "pair",
+        "params": [
+          {
+            "name": "a",
+            "type": {
+              "kind": "named",
+              "name": "A"
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "kind": "named",
+              "name": "B"
+            }
+          }
+        ],
+        "result": {
+          "elems": [
+            {
+              "kind": "named",
+              "name": "A"
+            },
+            {
+              "kind": "named",
+              "name": "B"
+            }
+          ],
+          "kind": "tuple"
+        }
+      },
+      {
+        "body": {
+          "kind": "block"
+        },
+        "kind": "fn",
+        "name": "unit"
+      }
+    ]
+  }
+}

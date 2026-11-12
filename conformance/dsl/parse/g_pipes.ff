@@ -1,0 +1,7 @@
+workflow w() {
+  let a = xs |> f;
+  let b = xs |> f(1);
+  let c = xs |> f() |> g(2) |> h;
+  let d = xs |> (make(1));
+  let e = xs |> (x => x);
+}

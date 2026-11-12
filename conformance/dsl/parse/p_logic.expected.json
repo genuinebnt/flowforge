@@ -1,0 +1,50 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "x"
+              },
+              "value": {
+                "kind": "binary",
+                "left": {
+                  "kind": "ident",
+                  "name": "a"
+                },
+                "op": "||",
+                "right": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "ident",
+                    "name": "b"
+                  },
+                  "op": "\u0026\u0026",
+                  "right": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "ident",
+                      "name": "c"
+                    },
+                    "op": "==",
+                    "right": {
+                      "kind": "ident",
+                      "name": "d"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

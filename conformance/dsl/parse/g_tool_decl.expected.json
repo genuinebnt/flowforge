@@ -1,0 +1,86 @@
+{
+  "ast": {
+    "items": [
+      {
+        "effects": [
+          "passive"
+        ],
+        "kind": "tool",
+        "name": "subfinder",
+        "params": [
+          {
+            "name": "domain",
+            "type": {
+              "kind": "named",
+              "name": "Fqdn"
+            }
+          }
+        ],
+        "result": {
+          "args": [
+            {
+              "kind": "named",
+              "name": "Fqdn"
+            }
+          ],
+          "kind": "named",
+          "name": "Stream"
+        }
+      },
+      {
+        "effects": [
+          "financial_write",
+          "write"
+        ],
+        "kind": "tool",
+        "name": "post",
+        "params": [
+          {
+            "name": "e",
+            "type": {
+              "kind": "named",
+              "name": "LedgerEntry"
+            }
+          },
+          {
+            "name": "note",
+            "type": {
+              "kind": "named",
+              "name": "String"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "PostingId"
+        }
+      },
+      {
+        "effects": [
+          "read"
+        ],
+        "kind": "tool",
+        "name": "similar_hosts",
+        "params": [
+          {
+            "name": "e",
+            "type": {
+              "kind": "named",
+              "name": "Entity"
+            }
+          }
+        ],
+        "result": {
+          "args": [
+            {
+              "kind": "named",
+              "name": "Entity"
+            }
+          ],
+          "kind": "named",
+          "name": "List"
+        }
+      }
+    ]
+  }
+}

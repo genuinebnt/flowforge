@@ -1,0 +1,4 @@
+workflow w() {
+  let a = par_map(xs, f, limit = 8);
+  let b = f(a: 1, b = 2);
+}

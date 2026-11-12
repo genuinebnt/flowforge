@@ -1,0 +1,276 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "arms": [
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "0"
+                },
+                "pattern": {
+                  "kind": "wildcard"
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "1"
+                },
+                "pattern": {
+                  "kind": "bind",
+                  "name": "x"
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "2"
+                },
+                "pattern": {
+                  "kind": "literal",
+                  "value": {
+                    "kind": "int",
+                    "value": "42"
+                  }
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "3"
+                },
+                "pattern": {
+                  "kind": "literal",
+                  "value": {
+                    "kind": "int",
+                    "value": "-7"
+                  }
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "4"
+                },
+                "pattern": {
+                  "kind": "literal",
+                  "value": {
+                    "kind": "float",
+                    "value": "1.5"
+                  }
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "5"
+                },
+                "pattern": {
+                  "kind": "literal",
+                  "value": {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "s"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "6"
+                },
+                "pattern": {
+                  "kind": "literal",
+                  "value": {
+                    "kind": "bool",
+                    "value": "true"
+                  }
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "7"
+                },
+                "pattern": {
+                  "kind": "literal",
+                  "value": {
+                    "kind": "duration",
+                    "nanos": "10000000000"
+                  }
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "8"
+                },
+                "pattern": {
+                  "kind": "variant",
+                  "path": [
+                    "Value",
+                    "A"
+                  ]
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "9"
+                },
+                "pattern": {
+                  "args": [
+                    {
+                      "kind": "bind",
+                      "name": "a"
+                    },
+                    {
+                      "kind": "wildcard"
+                    }
+                  ],
+                  "kind": "variant",
+                  "parens": true,
+                  "path": [
+                    "Value",
+                    "B"
+                  ]
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "10"
+                },
+                "pattern": {
+                  "args": [
+                    {
+                      "args": [
+                        {
+                          "kind": "bind",
+                          "name": "y"
+                        }
+                      ],
+                      "kind": "variant",
+                      "parens": true,
+                      "path": [
+                        "Some"
+                      ]
+                    }
+                  ],
+                  "kind": "variant",
+                  "parens": true,
+                  "path": [
+                    "Some"
+                  ]
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "11"
+                },
+                "pattern": {
+                  "elems": [
+                    {
+                      "kind": "bind",
+                      "name": "a"
+                    },
+                    {
+                      "elems": [
+                        {
+                          "kind": "bind",
+                          "name": "b"
+                        },
+                        {
+                          "kind": "bind",
+                          "name": "c"
+                        }
+                      ],
+                      "kind": "tuple"
+                    }
+                  ],
+                  "kind": "tuple"
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "12"
+                },
+                "pattern": {
+                  "kind": "unit"
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "13"
+                },
+                "pattern": {
+                  "fields": [
+                    {
+                      "name": "new_assets"
+                    },
+                    {
+                      "name": "alerts",
+                      "pattern": {
+                        "kind": "literal",
+                        "value": {
+                          "kind": "int",
+                          "value": "0"
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "record",
+                  "path": [
+                    "Report"
+                  ]
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "14"
+                },
+                "pattern": {
+                  "kind": "record",
+                  "path": [
+                    "Empty"
+                  ]
+                }
+              }
+            ],
+            "kind": "match",
+            "scrutinee": {
+              "kind": "ident",
+              "name": "v"
+            }
+          }
+        },
+        "kind": "fn",
+        "name": "f",
+        "params": [
+          {
+            "name": "v",
+            "type": {
+              "kind": "named",
+              "name": "Value"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "Int"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+workflow w() { let x = a || b |> f(c) |> g; let y = 1 + 2 |> h; }

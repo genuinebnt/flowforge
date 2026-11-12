@@ -1,0 +1,258 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "ints"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "int",
+                    "value": "0"
+                  },
+                  {
+                    "kind": "int",
+                    "value": "42"
+                  },
+                  {
+                    "kind": "int",
+                    "value": "1000000"
+                  },
+                  {
+                    "kind": "int",
+                    "value": "255"
+                  },
+                  {
+                    "kind": "int",
+                    "value": "2147483647"
+                  },
+                  {
+                    "kind": "int",
+                    "value": "9223372036854775807"
+                  }
+                ],
+                "kind": "list"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "floats"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "float",
+                    "value": "0.5"
+                  },
+                  {
+                    "kind": "float",
+                    "value": "1e+10"
+                  },
+                  {
+                    "kind": "float",
+                    "value": "0.0025"
+                  },
+                  {
+                    "kind": "float",
+                    "value": "1000.25"
+                  }
+                ],
+                "kind": "list"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "durations"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "duration",
+                    "nanos": "250000000"
+                  },
+                  {
+                    "kind": "duration",
+                    "nanos": "30000000000"
+                  },
+                  {
+                    "kind": "duration",
+                    "nanos": "300000000000"
+                  },
+                  {
+                    "kind": "duration",
+                    "nanos": "7200000000000"
+                  },
+                  {
+                    "kind": "duration",
+                    "nanos": "86400000000000"
+                  },
+                  {
+                    "kind": "duration",
+                    "nanos": "0"
+                  }
+                ],
+                "kind": "list"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "bools"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "bool",
+                    "value": "true"
+                  },
+                  {
+                    "kind": "bool",
+                    "value": "false"
+                  }
+                ],
+                "kind": "list"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "strings"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "string"
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "plain"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "tab\there"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "quote \" and slash \\"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "line\n"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "😀 A"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "braces {literal}"
+                      }
+                    ]
+                  }
+                ],
+                "kind": "list"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "interp"
+              },
+              "value": {
+                "kind": "string",
+                "parts": [
+                  {
+                    "lit": "host "
+                  },
+                  {
+                    "expr": {
+                      "kind": "ident",
+                      "name": "h"
+                    }
+                  },
+                  {
+                    "lit": " has "
+                  },
+                  {
+                    "expr": {
+                      "args": [
+                        {
+                          "value": {
+                            "kind": "ident",
+                            "name": "xs"
+                          }
+                        }
+                      ],
+                      "callee": {
+                        "kind": "ident",
+                        "name": "len"
+                      },
+                      "kind": "call"
+                    }
+                  },
+                  {
+                    "lit": " ports, nested "
+                  },
+                  {
+                    "expr": {
+                      "kind": "string",
+                      "parts": [
+                        {
+                          "lit": "inner "
+                        },
+                        {
+                          "expr": {
+                            "kind": "ident",
+                            "name": "x"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

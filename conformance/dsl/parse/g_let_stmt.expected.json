@@ -1,0 +1,132 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "x"
+              },
+              "value": {
+                "kind": "int",
+                "value": "1"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "y"
+              },
+              "type": {
+                "kind": "named",
+                "name": "Int"
+              },
+              "value": {
+                "kind": "int",
+                "value": "2"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "elems": [
+                  {
+                    "kind": "bind",
+                    "name": "a"
+                  },
+                  {
+                    "kind": "bind",
+                    "name": "b"
+                  }
+                ],
+                "kind": "tuple"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "int",
+                    "value": "1"
+                  },
+                  {
+                    "kind": "int",
+                    "value": "2"
+                  }
+                ],
+                "kind": "tuple"
+              }
+            },
+            {
+              "compensate": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "it"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "reverse"
+                },
+                "kind": "call"
+              },
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "id"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "x"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "post"
+                },
+                "kind": "call"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "fields": [
+                  {
+                    "name": "new_assets"
+                  },
+                  {
+                    "name": "alerts",
+                    "pattern": {
+                      "kind": "bind",
+                      "name": "n"
+                    }
+                  }
+                ],
+                "kind": "record",
+                "path": [
+                  "Report"
+                ]
+              },
+              "value": {
+                "kind": "ident",
+                "name": "r"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

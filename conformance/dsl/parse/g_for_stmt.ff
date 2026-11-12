@@ -1,0 +1,4 @@
+workflow w(xs: List<Int>) {
+  for x in xs { log("info", "x"); }
+  for (i, x) in enumerate(xs) {}
+}

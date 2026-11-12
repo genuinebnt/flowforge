@@ -1,0 +1,1 @@
+workflow w() { let f = g(x => x + 1 |> h, 2); let k = x => y => x == y; }

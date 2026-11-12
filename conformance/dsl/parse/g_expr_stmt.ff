@@ -1,0 +1,7 @@
+workflow w() {
+  f(1);
+  if a { b(); }
+  match x { _ => () }
+  { inner(); }
+  g()
+}

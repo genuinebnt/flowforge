@@ -1,0 +1,45 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0003",
+      "help": "The largest Int is 9223372036854775807.",
+      "message": "integer literal `9223372036854775808` is too large",
+      "primary": {
+        "end": {
+          "col": 43,
+          "line": 1,
+          "offset": 42
+        },
+        "file": "e_E0003_integer_too_large.ff",
+        "label": "does not fit in 64-bit signed integer",
+        "start": {
+          "col": 24,
+          "line": 1,
+          "offset": 23
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0003",
+      "message": "duration literal `999999999999d` is too large",
+      "primary": {
+        "end": {
+          "col": 66,
+          "line": 1,
+          "offset": 65
+        },
+        "file": "e_E0003_integer_too_large.ff",
+        "label": "does not fit in 64-bit nanoseconds",
+        "start": {
+          "col": 53,
+          "line": 1,
+          "offset": 52
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+workflow w() {
+  let p = Severity::High;
+  let t = (1, "a");
+  let u = ();
+  let paren = (1 + 2);
+  let l = [];
+  let r = Report { new_assets: 1, alerts = 2 };
+  let e = Empty {};
+  let b = { 1 };
+}

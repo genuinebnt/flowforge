@@ -1,0 +1,6 @@
+workflow w() {
+  let a = x => x + 1;
+  let b = (x, y) => x * y;
+  let c = () => now();
+  let d = xs |> map(x => y => x + y);
+}

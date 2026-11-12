@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0101",
+      "message": "expected an item (workflow, fn, tool, type, enum or use), found keyword `let`",
+      "primary": {
+        "end": {
+          "col": 4,
+          "line": 1,
+          "offset": 3
+        },
+        "file": "e_E0101_bad_item.ff",
+        "label": "expected an item (workflow, fn, tool, type, enum or use)",
+        "start": {
+          "col": 1,
+          "line": 1,
+          "offset": 0
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

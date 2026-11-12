@@ -1,0 +1,4 @@
+workflow w() {
+  require approval(role = "finance_ap", reason = "post it", timeout = 24h);
+  require approval();
+}

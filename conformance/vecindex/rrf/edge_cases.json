@@ -1,0 +1,15 @@
+{
+  "id": "vec_rrf_002",
+  "description": "rrf_k = 0 means the default 60; a duplicate within one list counts once at its best rank; an empty list contributes nothing",
+  "rrf_k": 0,
+  "lists": [
+    ["00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000001"],
+    [],
+    ["00000000-0000-0000-0000-000000000002"]
+  ],
+  "tolerance": 1e-5,
+  "expect": [
+    { "id": "00000000-0000-0000-0000-000000000002", "score": 0.03252 },
+    { "id": "00000000-0000-0000-0000-000000000001", "score": 0.01639 }
+  ]
+}

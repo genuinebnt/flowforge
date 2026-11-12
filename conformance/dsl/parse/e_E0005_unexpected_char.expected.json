@@ -1,0 +1,45 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0102",
+      "help": "Add `;` here.",
+      "message": "missing semicolon after let statement",
+      "primary": {
+        "end": {
+          "col": 25,
+          "line": 1,
+          "offset": 24
+        },
+        "file": "e_E0005_unexpected_char.ff",
+        "label": "expected `;`",
+        "start": {
+          "col": 25,
+          "line": 1,
+          "offset": 24
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0005",
+      "message": "unexpected character '@'",
+      "primary": {
+        "end": {
+          "col": 27,
+          "line": 1,
+          "offset": 26
+        },
+        "file": "e_E0005_unexpected_char.ff",
+        "label": "unexpected character",
+        "start": {
+          "col": 26,
+          "line": 1,
+          "offset": 25
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "ast": {
+    "items": [
+      {
+        "fields": [
+          {
+            "name": "new_assets",
+            "type": {
+              "kind": "named",
+              "name": "Int"
+            }
+          },
+          {
+            "name": "alerts",
+            "type": {
+              "kind": "named",
+              "name": "Int"
+            }
+          }
+        ],
+        "kind": "type",
+        "name": "Report"
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "type": {
+              "kind": "named",
+              "name": "T"
+            }
+          }
+        ],
+        "generics": [
+          "T"
+        ],
+        "kind": "type",
+        "name": "Box"
+      },
+      {
+        "kind": "type",
+        "name": "Empty"
+      }
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "x"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "args": [
+                        {
+                          "value": {
+                            "kind": "binary",
+                            "left": {
+                              "kind": "ident",
+                              "name": "a"
+                            },
+                            "op": "||",
+                            "right": {
+                              "kind": "ident",
+                              "name": "b"
+                            }
+                          }
+                        },
+                        {
+                          "value": {
+                            "kind": "ident",
+                            "name": "c"
+                          }
+                        }
+                      ],
+                      "callee": {
+                        "kind": "ident",
+                        "name": "f"
+                      },
+                      "kind": "call",
+                      "pipe": "call"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "g"
+                },
+                "kind": "call",
+                "pipe": "bare"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "y"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "binary",
+                      "left": {
+                        "kind": "int",
+                        "value": "1"
+                      },
+                      "op": "+",
+                      "right": {
+                        "kind": "int",
+                        "value": "2"
+                      }
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "h"
+                },
+                "kind": "call",
+                "pipe": "bare"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

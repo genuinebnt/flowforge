@@ -1,0 +1,188 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "int",
+                      "value": "3"
+                    }
+                  }
+                ],
+                "callee": {
+                  "args": [
+                    {
+                      "value": {
+                        "kind": "int",
+                        "value": "1"
+                      }
+                    },
+                    {
+                      "value": {
+                        "kind": "int",
+                        "value": "2"
+                      }
+                    }
+                  ],
+                  "callee": {
+                    "kind": "ident",
+                    "name": "f"
+                  },
+                  "kind": "call"
+                },
+                "kind": "call"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "b"
+              },
+              "value": {
+                "index": {
+                  "kind": "int",
+                  "value": "1"
+                },
+                "kind": "index",
+                "target": {
+                  "index": {
+                    "kind": "int",
+                    "value": "0"
+                  },
+                  "kind": "index",
+                  "target": {
+                    "kind": "ident",
+                    "name": "xs"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "c"
+              },
+              "value": {
+                "kind": "field",
+                "name": "host",
+                "target": {
+                  "kind": "field",
+                  "name": "url",
+                  "target": {
+                    "kind": "ident",
+                    "name": "svc"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "d"
+              },
+              "value": {
+                "kind": "try",
+                "operand": {
+                  "args": [
+                    {
+                      "value": {
+                        "kind": "ident",
+                        "name": "h"
+                      }
+                    }
+                  ],
+                  "callee": {
+                    "kind": "field",
+                    "name": "check",
+                    "target": {
+                      "kind": "ident",
+                      "name": "scope"
+                    }
+                  },
+                  "kind": "call"
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "e"
+              },
+              "value": {
+                "kind": "cast",
+                "operand": {
+                  "kind": "ident",
+                  "name": "n"
+                },
+                "type": {
+                  "kind": "named",
+                  "name": "Float"
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "g"
+              },
+              "value": {
+                "kind": "cast",
+                "operand": {
+                  "index": {
+                    "kind": "int",
+                    "value": "0"
+                  },
+                  "kind": "index",
+                  "target": {
+                    "kind": "field",
+                    "name": "y",
+                    "target": {
+                      "kind": "try",
+                      "operand": {
+                        "args": [
+                          {
+                            "value": {
+                              "kind": "ident",
+                              "name": "x"
+                            }
+                          }
+                        ],
+                        "callee": {
+                          "kind": "ident",
+                          "name": "f"
+                        },
+                        "kind": "call"
+                      }
+                    }
+                  }
+                },
+                "type": {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

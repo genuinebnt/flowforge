@@ -1,0 +1,3 @@
+workflow w(ctx: GraphSummary) {
+  let plan: Plan<Report> = agent planner(goal = "probe", context = ctx, tools = [resolve], budget = Budget { tokens = 1, tool_calls = 2, iterations = 3 });
+}

@@ -1,0 +1,19 @@
+{
+  "ast": {
+    "items": [
+      {
+        "kind": "use",
+        "path": [
+          "Severity",
+          "High"
+        ]
+      },
+      {
+        "kind": "use",
+        "path": [
+          "Report"
+        ]
+      }
+    ]
+  }
+}

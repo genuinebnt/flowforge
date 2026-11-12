@@ -1,0 +1,132 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "body": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "ident",
+                    "name": "x"
+                  },
+                  "op": "+",
+                  "right": {
+                    "kind": "int",
+                    "value": "1"
+                  }
+                },
+                "kind": "lambda",
+                "params": [
+                  "x"
+                ]
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "b"
+              },
+              "value": {
+                "body": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "ident",
+                    "name": "x"
+                  },
+                  "op": "*",
+                  "right": {
+                    "kind": "ident",
+                    "name": "y"
+                  }
+                },
+                "kind": "lambda",
+                "params": [
+                  "x",
+                  "y"
+                ]
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "c"
+              },
+              "value": {
+                "body": {
+                  "callee": {
+                    "kind": "ident",
+                    "name": "now"
+                  },
+                  "kind": "call"
+                },
+                "kind": "lambda"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "d"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  },
+                  {
+                    "value": {
+                      "body": {
+                        "body": {
+                          "kind": "binary",
+                          "left": {
+                            "kind": "ident",
+                            "name": "x"
+                          },
+                          "op": "+",
+                          "right": {
+                            "kind": "ident",
+                            "name": "y"
+                          }
+                        },
+                        "kind": "lambda",
+                        "params": [
+                          "y"
+                        ]
+                      },
+                      "kind": "lambda",
+                      "params": [
+                        "x"
+                      ]
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "map"
+                },
+                "kind": "call",
+                "pipe": "call"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

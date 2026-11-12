@@ -1,0 +1,80 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  },
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "f"
+                    }
+                  },
+                  {
+                    "name": "limit",
+                    "value": {
+                      "kind": "int",
+                      "value": "8"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "par_map"
+                },
+                "kind": "call"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "b"
+              },
+              "value": {
+                "args": [
+                  {
+                    "name": "a",
+                    "value": {
+                      "kind": "int",
+                      "value": "1"
+                    }
+                  },
+                  {
+                    "name": "b",
+                    "value": {
+                      "kind": "int",
+                      "value": "2"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "f"
+                },
+                "kind": "call"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "vec_002c",
+  "description": "Cosine normalises at insert: parallel vectors of different length tie at distance 0 and are ordered by id; distance = 1 - dot",
+  "metric": "cosine",
+  "dim": 3,
+  "tolerance": 1e-6,
+  "steps": [
+    { "op": "upsert", "id": "00000000-0000-0000-0000-000000000002", "vector": [2, 0, 0], "seq": 1 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-000000000001", "vector": [1, 0, 0], "seq": 2 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-000000000003", "vector": [0, 1, 0], "seq": 3 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-000000000004", "vector": [1, 1, 0], "seq": 4 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-000000000005", "vector": [-1, 0, 0], "seq": 5 },
+    { "op": "upsert", "id": "00000000-0000-0000-0000-000000000006", "vector": [0, 0, 0], "seq": 6, "expect_error": "invalid_vector" },
+    { "op": "search", "vector": [3, 0, 0], "k": 5, "expect": [
+      { "id": "00000000-0000-0000-0000-000000000001", "distance": 0 },
+      { "id": "00000000-0000-0000-0000-000000000002", "distance": 0 },
+      { "id": "00000000-0000-0000-0000-000000000004", "distance": 0.29289323 },
+      { "id": "00000000-0000-0000-0000-000000000003", "distance": 1 },
+      { "id": "00000000-0000-0000-0000-000000000005", "distance": 2 } ] },
+    { "op": "search", "vector": [0, 0, 0], "k": 1, "expect_error": "invalid_vector" }
+  ]
+}

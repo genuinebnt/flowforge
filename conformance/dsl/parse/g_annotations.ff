@@ -1,0 +1,9 @@
+#[timeout(2h)]
+#[idempotent, deprecated("use recon2")]
+#[effects(max = 5000)]
+#[on_unknown(retry)]
+workflow w() {
+  #[retry(max = 3, backoff = exp(1s, 30s))]
+  #[timeout(30s)]
+  let x = f();
+}

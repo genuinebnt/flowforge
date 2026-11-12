@@ -1,0 +1,25 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0103",
+      "help": "Use parentheses to make the grouping explicit, or combine comparisons with \u0026\u0026.",
+      "message": "equality operators cannot be chained",
+      "primary": {
+        "end": {
+          "col": 33,
+          "line": 1,
+          "offset": 32
+        },
+        "file": "e_E0103_nonassoc_equality.ff",
+        "label": "second operator here",
+        "start": {
+          "col": 31,
+          "line": 1,
+          "offset": 30
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

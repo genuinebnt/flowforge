@@ -1,0 +1,18 @@
+// Spec 7.1, third example program. GraphSummary, Plan, Budget and Report
+// come from the prelude except Report and the tools, declared below.
+
+// Agent step: the model proposes a plan as DSL source; the engine checks it before anything runs.
+workflow triage(ctx: GraphSummary) -> Report {
+  let plan: Plan<Report> = agent planner(
+      goal    = "Probe newly discovered hosts that look like admin or CI systems",
+      context = ctx,
+      tools   = [resolve, httpx],
+      budget  = Budget { tokens = 20000, tool_calls = 25, iterations = 3 });
+  let result = execute(plan)?;        // plan was type-, effect- and scope-checked when produced
+  result
+}
+
+tool resolve(name: Fqdn)            -> Option<IpAddress>    ! passive
+tool httpx(host: InScope<Host>)     -> Option<HttpService> ! active
+type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }
+type Report      = { new_assets: Int, alerts: Int }

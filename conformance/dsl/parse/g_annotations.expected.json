@@ -1,0 +1,132 @@
+{
+  "ast": {
+    "items": [
+      {
+        "annotations": [
+          {
+            "args": [
+              {
+                "value": {
+                  "kind": "duration",
+                  "nanos": "7200000000000"
+                }
+              }
+            ],
+            "name": "timeout"
+          },
+          {
+            "name": "idempotent"
+          },
+          {
+            "args": [
+              {
+                "value": {
+                  "kind": "string",
+                  "parts": [
+                    {
+                      "lit": "use recon2"
+                    }
+                  ]
+                }
+              }
+            ],
+            "name": "deprecated"
+          },
+          {
+            "args": [
+              {
+                "name": "max",
+                "value": {
+                  "kind": "int",
+                  "value": "5000"
+                }
+              }
+            ],
+            "name": "effects"
+          },
+          {
+            "args": [
+              {
+                "value": {
+                  "kind": "ident",
+                  "name": "retry"
+                }
+              }
+            ],
+            "name": "on_unknown"
+          }
+        ],
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "annotations": [
+                {
+                  "args": [
+                    {
+                      "name": "max",
+                      "value": {
+                        "kind": "int",
+                        "value": "3"
+                      }
+                    },
+                    {
+                      "name": "backoff",
+                      "value": {
+                        "args": [
+                          {
+                            "value": {
+                              "kind": "duration",
+                              "nanos": "1000000000"
+                            }
+                          },
+                          {
+                            "value": {
+                              "kind": "duration",
+                              "nanos": "30000000000"
+                            }
+                          }
+                        ],
+                        "callee": {
+                          "kind": "ident",
+                          "name": "exp"
+                        },
+                        "kind": "call"
+                      }
+                    }
+                  ],
+                  "name": "retry"
+                },
+                {
+                  "args": [
+                    {
+                      "value": {
+                        "kind": "duration",
+                        "nanos": "30000000000"
+                      }
+                    }
+                  ],
+                  "name": "timeout"
+                }
+              ],
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "x"
+              },
+              "value": {
+                "callee": {
+                  "kind": "ident",
+                  "name": "f"
+                },
+                "kind": "call"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

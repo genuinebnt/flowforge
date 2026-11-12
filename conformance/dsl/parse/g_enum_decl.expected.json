@@ -1,0 +1,62 @@
+{
+  "ast": {
+    "items": [
+      {
+        "kind": "enum",
+        "name": "Color",
+        "variants": [
+          {
+            "name": "Red"
+          },
+          {
+            "name": "Green"
+          },
+          {
+            "name": "Blue"
+          }
+        ]
+      },
+      {
+        "generics": [
+          "T"
+        ],
+        "kind": "enum",
+        "name": "Tree",
+        "variants": [
+          {
+            "name": "Leaf"
+          },
+          {
+            "name": "Node",
+            "payload": [
+              {
+                "args": [
+                  {
+                    "kind": "named",
+                    "name": "T"
+                  }
+                ],
+                "kind": "named",
+                "name": "Tree"
+              },
+              {
+                "kind": "named",
+                "name": "T"
+              },
+              {
+                "args": [
+                  {
+                    "kind": "named",
+                    "name": "T"
+                  }
+                ],
+                "kind": "named",
+                "name": "Tree"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+fn f(o: Option<Int>) -> Int {
+  match o {
+    Some(n) if n > 10 => n,
+    Some(n) => {
+      n + 1
+    }
+    None => 0,
+  }
+}

@@ -1,0 +1,6 @@
+workflow w() {
+  let a = 1
+  let b = 2;
+  f(a)
+  g(b);
+}

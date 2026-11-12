@@ -1,0 +1,1 @@
+workflow w() { let a = x as Float + 1.0; let b = (y as Int) < 3; let c = -n as Float; }

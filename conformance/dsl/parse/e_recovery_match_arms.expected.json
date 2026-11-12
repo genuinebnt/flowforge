@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0101",
+      "message": "expected `,` or `}` after match arm, found identifier `n`",
+      "primary": {
+        "end": {
+          "col": 19,
+          "line": 3,
+          "offset": 60
+        },
+        "file": "e_recovery_match_arms.ff",
+        "label": "expected `,` or `}` after match arm",
+        "start": {
+          "col": 18,
+          "line": 3,
+          "offset": 59
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

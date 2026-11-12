@@ -1,0 +1,52 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "args": [
+                {
+                  "name": "role",
+                  "value": {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "finance_ap"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "reason",
+                  "value": {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "post it"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "timeout",
+                  "value": {
+                    "kind": "duration",
+                    "nanos": "86400000000000"
+                  }
+                }
+              ],
+              "kind": "require_approval"
+            },
+            {
+              "kind": "require_approval"
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

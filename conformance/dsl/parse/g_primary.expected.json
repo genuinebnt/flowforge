@@ -1,0 +1,148 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "p"
+              },
+              "value": {
+                "kind": "path",
+                "segments": [
+                  "Severity",
+                  "High"
+                ]
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "t"
+              },
+              "value": {
+                "elems": [
+                  {
+                    "kind": "int",
+                    "value": "1"
+                  },
+                  {
+                    "kind": "string",
+                    "parts": [
+                      {
+                        "lit": "a"
+                      }
+                    ]
+                  }
+                ],
+                "kind": "tuple"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "u"
+              },
+              "value": {
+                "kind": "unit"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "paren"
+              },
+              "value": {
+                "kind": "binary",
+                "left": {
+                  "kind": "int",
+                  "value": "1"
+                },
+                "op": "+",
+                "right": {
+                  "kind": "int",
+                  "value": "2"
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "l"
+              },
+              "value": {
+                "kind": "list"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "r"
+              },
+              "value": {
+                "fields": [
+                  {
+                    "name": "new_assets",
+                    "value": {
+                      "kind": "int",
+                      "value": "1"
+                    }
+                  },
+                  {
+                    "name": "alerts",
+                    "value": {
+                      "kind": "int",
+                      "value": "2"
+                    }
+                  }
+                ],
+                "kind": "record",
+                "path": [
+                  "Report"
+                ]
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "e"
+              },
+              "value": {
+                "kind": "record",
+                "path": [
+                  "Empty"
+                ]
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "b"
+              },
+              "value": {
+                "kind": "block",
+                "tail": {
+                  "kind": "int",
+                  "value": "1"
+                }
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

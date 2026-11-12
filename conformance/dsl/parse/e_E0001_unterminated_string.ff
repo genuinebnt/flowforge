@@ -1,0 +1,3 @@
+workflow w() {
+  let s = "never closed;
+}

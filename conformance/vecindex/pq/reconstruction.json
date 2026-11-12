@@ -1,0 +1,8 @@
+{
+  "id": "vec_003a",
+  "description": "Train PQ (m sub-vectors, 256 centroids each) on a sample of a Gaussian mixture, encode and decode every vector; the mean squared reconstruction error relative to the data's total variance must stay below the bound. Data: generator gaussian_mixture_v1 (see vecindex/helpers_test.go); PQ randomness: SplitMix64(pq_seed)",
+  "generator": { "seed": 31, "n": 4000, "dim": 32, "clusters": 16, "latent": 8, "spread": 20, "noise": 4 },
+  "pq": { "m": 8, "centroids": 256, "iterations": 12, "train_sample": 2000 },
+  "pq_seed": 77,
+  "max_relative_mse": 0.08
+}

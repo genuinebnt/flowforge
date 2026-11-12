@@ -1,0 +1,1 @@
+fn f(a: (), b: (Int, String), c: (Int) -> Bool, d: () -> Unit, e: Map<String, List<Option<Int>>>, g: ((Int) -> Int, Int), h: (Int) -> (Int) -> Int) {}

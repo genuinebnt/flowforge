@@ -1,0 +1,183 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "f"
+                },
+                "kind": "call",
+                "pipe": "bare"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "b"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  },
+                  {
+                    "value": {
+                      "kind": "int",
+                      "value": "1"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "f"
+                },
+                "kind": "call",
+                "pipe": "call"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "c"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "args": [
+                        {
+                          "value": {
+                            "args": [
+                              {
+                                "value": {
+                                  "kind": "ident",
+                                  "name": "xs"
+                                }
+                              }
+                            ],
+                            "callee": {
+                              "kind": "ident",
+                              "name": "f"
+                            },
+                            "kind": "call",
+                            "pipe": "call"
+                          }
+                        },
+                        {
+                          "value": {
+                            "kind": "int",
+                            "value": "2"
+                          }
+                        }
+                      ],
+                      "callee": {
+                        "kind": "ident",
+                        "name": "g"
+                      },
+                      "kind": "call",
+                      "pipe": "call"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "h"
+                },
+                "kind": "call",
+                "pipe": "bare"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "d"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  }
+                ],
+                "callee": {
+                  "args": [
+                    {
+                      "value": {
+                        "kind": "int",
+                        "value": "1"
+                      }
+                    }
+                  ],
+                  "callee": {
+                    "kind": "ident",
+                    "name": "make"
+                  },
+                  "kind": "call"
+                },
+                "kind": "call",
+                "pipe": "bare"
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "e"
+              },
+              "value": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "ident",
+                      "name": "xs"
+                    }
+                  }
+                ],
+                "callee": {
+                  "body": {
+                    "kind": "ident",
+                    "name": "x"
+                  },
+                  "kind": "lambda",
+                  "params": [
+                    "x"
+                  ]
+                },
+                "kind": "call",
+                "pipe": "bare"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

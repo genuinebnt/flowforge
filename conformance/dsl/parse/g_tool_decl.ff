@@ -1,0 +1,3 @@
+tool subfinder(domain: Fqdn) -> Stream<Fqdn> ! passive
+tool post(e: LedgerEntry, note: String) -> PostingId ! financial_write, write
+tool similar_hosts(e: Entity) -> List<Entity> !{read}

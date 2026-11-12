@@ -1,0 +1,4 @@
+workflow plain() {}
+workflow full(a: Int, b: List<Fqdn>) -> Report ! passive, active {
+  a
+}

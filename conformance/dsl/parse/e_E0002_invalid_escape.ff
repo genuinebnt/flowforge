@@ -1,0 +1,1 @@
+workflow w() { let s = "bad \q escape"; let u = "\u{D800}"; }

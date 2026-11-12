@@ -1,0 +1,89 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "kind": "binary",
+                "left": {
+                  "kind": "cast",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "x"
+                  },
+                  "type": {
+                    "kind": "named",
+                    "name": "Float"
+                  }
+                },
+                "op": "+",
+                "right": {
+                  "kind": "float",
+                  "value": "1"
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "b"
+              },
+              "value": {
+                "kind": "binary",
+                "left": {
+                  "kind": "cast",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "y"
+                  },
+                  "type": {
+                    "kind": "named",
+                    "name": "Int"
+                  }
+                },
+                "op": "\u003c",
+                "right": {
+                  "kind": "int",
+                  "value": "3"
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "c"
+              },
+              "value": {
+                "kind": "unary",
+                "op": "-",
+                "operand": {
+                  "kind": "cast",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "n"
+                  },
+                  "type": {
+                    "kind": "named",
+                    "name": "Float"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

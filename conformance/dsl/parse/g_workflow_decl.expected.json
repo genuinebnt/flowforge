@@ -1,0 +1,54 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block"
+        },
+        "kind": "workflow",
+        "name": "plain"
+      },
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "kind": "ident",
+            "name": "a"
+          }
+        },
+        "effects": [
+          "passive",
+          "active"
+        ],
+        "kind": "workflow",
+        "name": "full",
+        "params": [
+          {
+            "name": "a",
+            "type": {
+              "kind": "named",
+              "name": "Int"
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "args": [
+                {
+                  "kind": "named",
+                  "name": "Fqdn"
+                }
+              ],
+              "kind": "named",
+              "name": "List"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "Report"
+        }
+      }
+    ]
+  }
+}

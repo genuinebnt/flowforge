@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0603",
+      "message": "annotation `timeout` is only allowed on items and let statements",
+      "primary": {
+        "end": {
+          "col": 16,
+          "line": 2,
+          "offset": 30
+        },
+        "file": "e_E0603_misplaced_annotation.ff",
+        "label": "not allowed here",
+        "start": {
+          "col": 5,
+          "line": 2,
+          "offset": 19
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

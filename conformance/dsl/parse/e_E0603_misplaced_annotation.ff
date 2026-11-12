@@ -1,0 +1,4 @@
+workflow w() {
+  #[timeout(1s)]
+  f();
+}

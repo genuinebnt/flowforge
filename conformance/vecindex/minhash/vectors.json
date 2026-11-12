@@ -1,0 +1,137 @@
+{
+  "id": "vec_minhash_001",
+  "description": "MinHash + LSH (spec 22.8): 128 permutations h_i(x) = (a_i x + b_i) mod (2^61 - 1) over x = FNV-1a64(element) mod (2^61 - 1); a_i in [1, p), b_i in [0, p) drawn a then b per i from SplitMix64(seed) >> 3 with rejection; the empty set's signature is all ffffffffffffffff; LSH 32 bands of 4 rows, band key FNV-1a over the rows' little-endian bytes; collision probability 1 - (1 - s^4)^32. 64-bit values are hex strings",
+  "seed": "46464d494e484153",
+  "permutations": 128,
+  "bands": 32,
+  "rows": 4,
+  "coefficients_prefix": {
+    "a": [
+      "10142e2361ae5a06",
+      "07698beafd51ea64"
+    ],
+    "b": [
+      "1088d49902d82126"
+    ]
+  },
+  "sets": {
+    "a": [
+      "www.example.com",
+      "mail.example.com",
+      "vpn.example.com",
+      "api.example.com",
+      "dev.example.com",
+      "staging.example.com",
+      "cdn.example.com",
+      "shop.example.com"
+    ],
+    "b": [
+      "www.example.com",
+      "mail.example.com",
+      "vpn.example.com",
+      "api.example.com",
+      "dev.example.com",
+      "staging.example.com",
+      "beta.example.com",
+      "admin.example.com"
+    ],
+    "c": [
+      "login.other.net",
+      "www.other.net",
+      "sso.other.net"
+    ],
+    "empty": []
+  },
+  "signature_prefix": {
+    "a": [
+      "015fb968bd7e6f9c",
+      "02dadfdd35536299",
+      "0542237a4025d39b",
+      "07bdc7d6cfc1198e",
+      "0ae5d1cda24d3464",
+      "02591ce698eddb13",
+      "01dce3910f7e1ece",
+      "037da65b89fd248f"
+    ],
+    "b": [
+      "015fb968bd7e6f9c",
+      "03ef14881a7d1072",
+      "00c466ead04b5a51",
+      "009d18f128b112ea",
+      "0e8f4d8211f3c5d2",
+      "02591ce698eddb13",
+      "01dce3910f7e1ece",
+      "037da65b89fd248f"
+    ],
+    "c": [
+      "03cb93a8265fa3ff",
+      "1cff9f5936a41fca",
+      "00f7e47c94f13598",
+      "0f6f69cc862f2213",
+      "11d484e136ad6705",
+      "001f4853c0e06596",
+      "0d6d6e3790e6b482",
+      "12adb2bd67306499"
+    ],
+    "empty": [
+      "ffffffffffffffff",
+      "ffffffffffffffff",
+      "ffffffffffffffff",
+      "ffffffffffffffff",
+      "ffffffffffffffff",
+      "ffffffffffffffff",
+      "ffffffffffffffff",
+      "ffffffffffffffff"
+    ]
+  },
+  "pairs": [
+    {
+      "a": "a",
+      "b": "b",
+      "jaccard": 0.6,
+      "estimate": 0.578125,
+      "lsh_candidate": true
+    },
+    {
+      "a": "a",
+      "b": "c",
+      "jaccard": 0,
+      "estimate": 0,
+      "lsh_candidate": false
+    },
+    {
+      "a": "a",
+      "b": "a",
+      "jaccard": 1,
+      "estimate": 1,
+      "lsh_candidate": true
+    }
+  ],
+  "collision_probability": [
+    {
+      "s": 0,
+      "p": 0
+    },
+    {
+      "s": 0.2,
+      "p": 0.0499503226
+    },
+    {
+      "s": 0.3,
+      "p": 0.2291453645
+    },
+    {
+      "s": 0.5,
+      "p": 0.8732112136
+    },
+    {
+      "s": 0.8,
+      "p": 0.9999999525
+    },
+    {
+      "s": 1,
+      "p": 1
+    }
+  ],
+  "tolerance": 1e-09
+}

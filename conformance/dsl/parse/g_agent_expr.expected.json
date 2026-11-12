@@ -1,0 +1,109 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "plan"
+              },
+              "type": {
+                "args": [
+                  {
+                    "kind": "named",
+                    "name": "Report"
+                  }
+                ],
+                "kind": "named",
+                "name": "Plan"
+              },
+              "value": {
+                "args": [
+                  {
+                    "name": "goal",
+                    "value": {
+                      "kind": "string",
+                      "parts": [
+                        {
+                          "lit": "probe"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "context",
+                    "value": {
+                      "kind": "ident",
+                      "name": "ctx"
+                    }
+                  },
+                  {
+                    "name": "tools",
+                    "value": {
+                      "elems": [
+                        {
+                          "kind": "ident",
+                          "name": "resolve"
+                        }
+                      ],
+                      "kind": "list"
+                    }
+                  },
+                  {
+                    "name": "budget",
+                    "value": {
+                      "fields": [
+                        {
+                          "name": "tokens",
+                          "value": {
+                            "kind": "int",
+                            "value": "1"
+                          }
+                        },
+                        {
+                          "name": "tool_calls",
+                          "value": {
+                            "kind": "int",
+                            "value": "2"
+                          }
+                        },
+                        {
+                          "name": "iterations",
+                          "value": {
+                            "kind": "int",
+                            "value": "3"
+                          }
+                        }
+                      ],
+                      "kind": "record",
+                      "path": [
+                        "Budget"
+                      ]
+                    }
+                  }
+                ],
+                "kind": "agent",
+                "name": "planner"
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w",
+        "params": [
+          {
+            "name": "ctx",
+            "type": {
+              "kind": "named",
+              "name": "GraphSummary"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

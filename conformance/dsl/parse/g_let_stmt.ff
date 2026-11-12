@@ -1,0 +1,7 @@
+workflow w() {
+  let x = 1;
+  let y: Int = 2;
+  let (a, b) = (1, 2);
+  let id = post(x) compensate reverse(it);
+  let Report { new_assets, alerts: n } = r;
+}

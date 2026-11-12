@@ -1,0 +1,8 @@
+workflow w() {
+  let a = f(1, 2)(3);
+  let b = xs[0][1];
+  let c = svc.url.host;
+  let d = scope.check(h)?;
+  let e = n as Float;
+  let g = f(x)?.y[0] as Int;
+}

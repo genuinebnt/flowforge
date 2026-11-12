@@ -1,0 +1,47 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "return",
+              "value": {
+                "kind": "ident",
+                "name": "x"
+              }
+            }
+          ]
+        },
+        "kind": "fn",
+        "name": "f",
+        "params": [
+          {
+            "name": "x",
+            "type": {
+              "kind": "named",
+              "name": "Int"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "Int"
+        }
+      },
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        "kind": "fn",
+        "name": "g"
+      }
+    ]
+  }
+}

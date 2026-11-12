@@ -1,0 +1,78 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "kind": "binary",
+                "left": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "binary",
+                      "left": {
+                        "kind": "ident",
+                        "name": "x"
+                      },
+                      "op": "+",
+                      "right": {
+                        "kind": "int",
+                        "value": "1"
+                      }
+                    },
+                    "op": "\u003c",
+                    "right": {
+                      "kind": "binary",
+                      "left": {
+                        "kind": "ident",
+                        "name": "y"
+                      },
+                      "op": "*",
+                      "right": {
+                        "kind": "int",
+                        "value": "2"
+                      }
+                    }
+                  },
+                  "op": "\u0026\u0026",
+                  "right": {
+                    "kind": "unary",
+                    "op": "!",
+                    "operand": {
+                      "kind": "binary",
+                      "left": {
+                        "kind": "ident",
+                        "name": "p"
+                      },
+                      "op": "==",
+                      "right": {
+                        "kind": "ident",
+                        "name": "q"
+                      }
+                    }
+                  }
+                },
+                "op": "||",
+                "right": {
+                  "kind": "ident",
+                  "name": "r"
+                }
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

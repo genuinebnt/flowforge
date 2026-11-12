@@ -1,0 +1,10 @@
+workflow a() {
+  let x = 1
+  let y = 2;
+}
+
+workflow b() {
+  let z = (1 + );
+}
+
+fn ok() -> Int { 1 }

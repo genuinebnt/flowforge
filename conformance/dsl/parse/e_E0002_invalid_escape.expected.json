@@ -1,0 +1,45 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0002",
+      "help": "Valid escapes are \\n \\t \\\" \\\\ and \\u{HEX}; write {{ and }} for literal braces.",
+      "message": "invalid escape sequence `\\q`",
+      "primary": {
+        "end": {
+          "col": 31,
+          "line": 1,
+          "offset": 30
+        },
+        "file": "e_E0002_invalid_escape.ff",
+        "label": "unknown escape",
+        "start": {
+          "col": 29,
+          "line": 1,
+          "offset": 28
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0002",
+      "message": "invalid unicode escape `\\u{D800}`",
+      "primary": {
+        "end": {
+          "col": 58,
+          "line": 1,
+          "offset": 57
+        },
+        "file": "e_E0002_invalid_escape.ff",
+        "label": "not a Unicode scalar value",
+        "start": {
+          "col": 50,
+          "line": 1,
+          "offset": 49
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

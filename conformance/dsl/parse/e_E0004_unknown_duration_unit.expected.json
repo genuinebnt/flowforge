@@ -1,0 +1,46 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0004",
+      "help": "Duration units are ms, s, m, h and d.",
+      "message": "unknown duration unit `min`",
+      "primary": {
+        "end": {
+          "col": 28,
+          "line": 1,
+          "offset": 27
+        },
+        "file": "e_E0004_unknown_duration_unit.ff",
+        "label": "unknown unit",
+        "start": {
+          "col": 25,
+          "line": 1,
+          "offset": 24
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0004",
+      "help": "Duration units are ms, s, m, h and d.",
+      "message": "unknown duration unit `e5`",
+      "primary": {
+        "end": {
+          "col": 41,
+          "line": 1,
+          "offset": 40
+        },
+        "file": "e_E0004_unknown_duration_unit.ff",
+        "label": "unknown unit",
+        "start": {
+          "col": 39,
+          "line": 1,
+          "offset": 38
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

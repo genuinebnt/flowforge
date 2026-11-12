@@ -1,0 +1,103 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "expr": {
+                "args": [
+                  {
+                    "value": {
+                      "kind": "int",
+                      "value": "1"
+                    }
+                  }
+                ],
+                "callee": {
+                  "kind": "ident",
+                  "name": "f"
+                },
+                "kind": "call"
+              },
+              "kind": "expr"
+            },
+            {
+              "expr": {
+                "cond": {
+                  "kind": "ident",
+                  "name": "a"
+                },
+                "kind": "if",
+                "then": {
+                  "kind": "block",
+                  "stmts": [
+                    {
+                      "expr": {
+                        "callee": {
+                          "kind": "ident",
+                          "name": "b"
+                        },
+                        "kind": "call"
+                      },
+                      "kind": "expr"
+                    }
+                  ]
+                }
+              },
+              "kind": "expr"
+            },
+            {
+              "expr": {
+                "arms": [
+                  {
+                    "body": {
+                      "kind": "unit"
+                    },
+                    "pattern": {
+                      "kind": "wildcard"
+                    }
+                  }
+                ],
+                "kind": "match",
+                "scrutinee": {
+                  "kind": "ident",
+                  "name": "x"
+                }
+              },
+              "kind": "expr"
+            },
+            {
+              "expr": {
+                "kind": "block",
+                "stmts": [
+                  {
+                    "expr": {
+                      "callee": {
+                        "kind": "ident",
+                        "name": "inner"
+                      },
+                      "kind": "call"
+                    },
+                    "kind": "expr"
+                  }
+                ]
+              },
+              "kind": "expr"
+            }
+          ],
+          "tail": {
+            "callee": {
+              "kind": "ident",
+              "name": "g"
+            },
+            "kind": "call"
+          }
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}

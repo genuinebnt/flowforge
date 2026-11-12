@@ -1,0 +1,1 @@
+workflow w() { let x = -a * !b; let y = - -z; let q = -f(x)?.y; let r = !!t; }

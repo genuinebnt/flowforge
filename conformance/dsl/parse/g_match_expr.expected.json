@@ -1,0 +1,112 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "tail": {
+            "arms": [
+              {
+                "body": {
+                  "kind": "ident",
+                  "name": "n"
+                },
+                "guard": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "ident",
+                    "name": "n"
+                  },
+                  "op": "\u003e",
+                  "right": {
+                    "kind": "int",
+                    "value": "10"
+                  }
+                },
+                "pattern": {
+                  "args": [
+                    {
+                      "kind": "bind",
+                      "name": "n"
+                    }
+                  ],
+                  "kind": "variant",
+                  "parens": true,
+                  "path": [
+                    "Some"
+                  ]
+                }
+              },
+              {
+                "body": {
+                  "kind": "block",
+                  "tail": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "ident",
+                      "name": "n"
+                    },
+                    "op": "+",
+                    "right": {
+                      "kind": "int",
+                      "value": "1"
+                    }
+                  }
+                },
+                "pattern": {
+                  "args": [
+                    {
+                      "kind": "bind",
+                      "name": "n"
+                    }
+                  ],
+                  "kind": "variant",
+                  "parens": true,
+                  "path": [
+                    "Some"
+                  ]
+                }
+              },
+              {
+                "body": {
+                  "kind": "int",
+                  "value": "0"
+                },
+                "pattern": {
+                  "kind": "bind",
+                  "name": "None"
+                }
+              }
+            ],
+            "kind": "match",
+            "scrutinee": {
+              "kind": "ident",
+              "name": "o"
+            }
+          }
+        },
+        "kind": "fn",
+        "name": "f",
+        "params": [
+          {
+            "name": "o",
+            "type": {
+              "args": [
+                {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              ],
+              "kind": "named",
+              "name": "Option"
+            }
+          }
+        ],
+        "result": {
+          "kind": "named",
+          "name": "Int"
+        }
+      }
+    ]
+  }
+}

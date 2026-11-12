@@ -1,0 +1,69 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "a"
+              },
+              "value": {
+                "kind": "int",
+                "value": "1"
+              }
+            }
+          ],
+          "tail": {
+            "kind": "block",
+            "stmts": [
+              {
+                "kind": "let",
+                "pattern": {
+                  "kind": "bind",
+                  "name": "b"
+                },
+                "value": {
+                  "kind": "int",
+                  "value": "2"
+                }
+              }
+            ],
+            "tail": {
+              "kind": "ident",
+              "name": "b"
+            }
+          }
+        },
+        "kind": "fn",
+        "name": "f",
+        "result": {
+          "kind": "named",
+          "name": "Int"
+        }
+      },
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "expr": {
+                "callee": {
+                  "kind": "ident",
+                  "name": "h"
+                },
+                "kind": "call"
+              },
+              "kind": "expr"
+            }
+          ]
+        },
+        "kind": "fn",
+        "name": "g"
+      }
+    ]
+  }
+}

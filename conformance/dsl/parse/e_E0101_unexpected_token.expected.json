@@ -1,0 +1,24 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0101",
+      "message": "expected a pattern, found `=`",
+      "primary": {
+        "end": {
+          "col": 21,
+          "line": 1,
+          "offset": 20
+        },
+        "file": "e_E0101_unexpected_token.ff",
+        "label": "expected a pattern",
+        "start": {
+          "col": 20,
+          "line": 1,
+          "offset": 19
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

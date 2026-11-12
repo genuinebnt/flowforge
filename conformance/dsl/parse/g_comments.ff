@@ -1,0 +1,5 @@
+// line comment
+/* block /* nested */ still comment */
+workflow w() { // trailing
+  let x = /* inline */ 1;
+}

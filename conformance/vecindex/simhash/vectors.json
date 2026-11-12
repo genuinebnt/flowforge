@@ -1,0 +1,229 @@
+{
+  "id": "vec_simhash_001",
+  "description": "SimHash (spec 22.8): FNV-1a 64 feature hashes (published test vectors), Unicode-lower-cased letter/digit tokens, 3-token shingles joined by one space, 64-bit SimHash with +1/-1 votes and strict-positive bits; near duplicate iff Hamming distance <= 3; multi-index lookup over four 16-bit blocks. 64-bit values are lower-case hex strings",
+  "fnv1a64": [
+    {
+      "s": "",
+      "expect": "cbf29ce484222325"
+    },
+    {
+      "s": "a",
+      "expect": "af63dc4c8601ec8c"
+    },
+    {
+      "s": "foobar",
+      "expect": "85944171f73967e8"
+    },
+    {
+      "s": "admin login",
+      "expect": "2b52c383eaab56a1"
+    }
+  ],
+  "tokens": [
+    {
+      "text": "Apache/2.4.41 (Ubuntu) Server at intranet.example.com Port 443",
+      "expect": [
+        "apache",
+        "2",
+        "4",
+        "41",
+        "ubuntu",
+        "server",
+        "at",
+        "intranet",
+        "example",
+        "com",
+        "port",
+        "443"
+      ]
+    },
+    {
+      "text": "Ünïcödé Straße — ÉTÉ 2024",
+      "expect": [
+        "ünïcödé",
+        "straße",
+        "été",
+        "2024"
+      ]
+    },
+    {
+      "text": "",
+      "expect": []
+    }
+  ],
+  "shingles": [
+    {
+      "tokens": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "w": 3,
+      "expect": [
+        "a b c",
+        "b c d"
+      ]
+    },
+    {
+      "tokens": [
+        "a",
+        "b"
+      ],
+      "w": 3,
+      "expect": [
+        "a b"
+      ]
+    },
+    {
+      "tokens": [],
+      "w": 3,
+      "expect": []
+    }
+  ],
+  "char_ngrams": [
+    {
+      "s": "login-paypal.com",
+      "n": 3,
+      "expect": [
+        "log",
+        "ogi",
+        "gin",
+        "in-",
+        "n-p",
+        "-pa",
+        "pay",
+        "ayp",
+        "ypa",
+        "pal",
+        "al.",
+        "l.c",
+        ".co",
+        "com"
+      ]
+    },
+    {
+      "s": "bücher",
+      "n": 4,
+      "expect": [
+        "büch",
+        "üche",
+        "cher"
+      ]
+    },
+    {
+      "s": "ab",
+      "n": 3,
+      "expect": [
+        "ab"
+      ]
+    }
+  ],
+  "simhash": [
+    {
+      "text": "Apache/2.4.41 (Ubuntu) Server at intranet.example.com Port 443",
+      "expect": "8e82c5b312483494"
+    },
+    {
+      "text": "Apache/2.4.41 (Ubuntu) Server at intranet.example.com Port 8443",
+      "expect": "9680e5b332083494"
+    },
+    {
+      "text": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipeline overview.",
+      "expect": "199df155637f564b"
+    },
+    {
+      "text": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipelines overview.",
+      "expect": "999df157637f4743"
+    },
+    {
+      "text": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipeline overview!",
+      "expect": "199df155637f564b"
+    },
+    {
+      "text": "nginx default page: if you see this page, the nginx web server is successfully installed and working",
+      "expect": "f573187fc7b3850b"
+    },
+    {
+      "text": "",
+      "expect": "0000000000000000"
+    },
+    {
+      "text": "Ünïcödé Straße — ÉTÉ 2024",
+      "expect": "81404c9a03050c20"
+    }
+  ],
+  "pairs": [
+    {
+      "a": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipeline overview.",
+      "b": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipeline overview!",
+      "hamming": 0,
+      "near_duplicate": true
+    },
+    {
+      "a": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipeline overview.",
+      "b": "Welcome to the Jenkins admin login portal. Please sign in with your corporate account to continue to the build dashboard and pipelines overview.",
+      "hamming": 5,
+      "near_duplicate": false
+    },
+    {
+      "a": "Apache/2.4.41 (Ubuntu) Server at intranet.example.com Port 443",
+      "b": "Apache/2.4.41 (Ubuntu) Server at intranet.example.com Port 8443",
+      "hamming": 6,
+      "near_duplicate": false
+    },
+    {
+      "a": "Apache/2.4.41 (Ubuntu) Server at intranet.example.com Port 443",
+      "b": "nginx default page: if you see this page, the nginx web server is successfully installed and working",
+      "hamming": 43,
+      "near_duplicate": false
+    }
+  ],
+  "index": {
+    "entries": [
+      {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "hash": "199df155637f564b"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "hash": "199df155637f564a"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "hash": "199df154637e564a"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000004",
+        "hash": "199df155637f56ab"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000005",
+        "hash": "199cf154637e564a"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000006",
+        "hash": "199df155637fa9b4"
+      }
+    ],
+    "query": "199df155637f564b",
+    "expect": [
+      {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "distance": 0
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "distance": 1
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "distance": 3
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000004",
+        "distance": 3
+      }
+    ]
+  }
+}

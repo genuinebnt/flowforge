@@ -1,0 +1,19 @@
+fn f(v: Value) -> Int {
+  match v {
+    _ => 0,
+    x => 1,
+    42 => 2,
+    -7 => 3,
+    1.5 => 4,
+    "s" => 5,
+    true => 6,
+    10s => 7,
+    Value::A => 8,
+    Value::B(a, _) => 9,
+    Some(Some(y)) => 10,
+    (a, (b, c)) => 11,
+    () => 12,
+    Report { new_assets, alerts: 0 } => 13,
+    Empty {} => 14,
+  }
+}

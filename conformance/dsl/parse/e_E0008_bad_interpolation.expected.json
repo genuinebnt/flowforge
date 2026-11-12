@@ -1,0 +1,46 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0008",
+      "help": "Write {{}} for literal braces.",
+      "message": "empty string interpolation `{}`",
+      "primary": {
+        "end": {
+          "col": 33,
+          "line": 1,
+          "offset": 32
+        },
+        "file": "e_E0008_bad_interpolation.ff",
+        "label": "empty interpolation",
+        "start": {
+          "col": 31,
+          "line": 1,
+          "offset": 30
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0008",
+      "help": "Write }} for a literal brace.",
+      "message": "unmatched `}` in string literal",
+      "primary": {
+        "end": {
+          "col": 51,
+          "line": 1,
+          "offset": 50
+        },
+        "file": "e_E0008_bad_interpolation.ff",
+        "label": "unmatched `}`",
+        "start": {
+          "col": 50,
+          "line": 1,
+          "offset": 49
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

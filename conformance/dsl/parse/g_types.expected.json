@@ -1,0 +1,142 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block"
+        },
+        "kind": "fn",
+        "name": "f",
+        "params": [
+          {
+            "name": "a",
+            "type": {
+              "kind": "unit"
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "elems": [
+                {
+                  "kind": "named",
+                  "name": "Int"
+                },
+                {
+                  "kind": "named",
+                  "name": "String"
+                }
+              ],
+              "kind": "tuple"
+            }
+          },
+          {
+            "name": "c",
+            "type": {
+              "kind": "func",
+              "params": [
+                {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              ],
+              "result": {
+                "kind": "named",
+                "name": "Bool"
+              }
+            }
+          },
+          {
+            "name": "d",
+            "type": {
+              "kind": "func",
+              "result": {
+                "kind": "named",
+                "name": "Unit"
+              }
+            }
+          },
+          {
+            "name": "e",
+            "type": {
+              "args": [
+                {
+                  "kind": "named",
+                  "name": "String"
+                },
+                {
+                  "args": [
+                    {
+                      "args": [
+                        {
+                          "kind": "named",
+                          "name": "Int"
+                        }
+                      ],
+                      "kind": "named",
+                      "name": "Option"
+                    }
+                  ],
+                  "kind": "named",
+                  "name": "List"
+                }
+              ],
+              "kind": "named",
+              "name": "Map"
+            }
+          },
+          {
+            "name": "g",
+            "type": {
+              "elems": [
+                {
+                  "kind": "func",
+                  "params": [
+                    {
+                      "kind": "named",
+                      "name": "Int"
+                    }
+                  ],
+                  "result": {
+                    "kind": "named",
+                    "name": "Int"
+                  }
+                },
+                {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              ],
+              "kind": "tuple"
+            }
+          },
+          {
+            "name": "h",
+            "type": {
+              "kind": "func",
+              "params": [
+                {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              ],
+              "result": {
+                "kind": "func",
+                "params": [
+                  {
+                    "kind": "named",
+                    "name": "Int"
+                  }
+                ],
+                "result": {
+                  "kind": "named",
+                  "name": "Int"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

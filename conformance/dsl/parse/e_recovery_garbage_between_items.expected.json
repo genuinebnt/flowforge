@@ -1,0 +1,44 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0101",
+      "message": "expected an item (workflow, fn, tool, type, enum or use), found `)`",
+      "primary": {
+        "end": {
+          "col": 2,
+          "line": 2,
+          "offset": 11
+        },
+        "file": "e_recovery_garbage_between_items.ff",
+        "label": "expected an item (workflow, fn, tool, type, enum or use)",
+        "start": {
+          "col": 1,
+          "line": 2,
+          "offset": 10
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0101",
+      "message": "expected an expression, found `;`",
+      "primary": {
+        "end": {
+          "col": 25,
+          "line": 4,
+          "offset": 50
+        },
+        "file": "e_recovery_garbage_between_items.ff",
+        "label": "expected an expression",
+        "start": {
+          "col": 24,
+          "line": 4,
+          "offset": 49
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ]
+}

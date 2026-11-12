@@ -1,0 +1,8 @@
+{
+  "id": "vec_003b",
+  "description": "A coarse quantiser (m = 2 for dim 64, so 32 coordinates per byte) still explains most of the variance of clustered data",
+  "generator": { "seed": 5, "n": 3000, "dim": 64, "clusters": 32, "latent": 8, "spread": 20, "noise": 4 },
+  "pq": { "m": 2, "centroids": 256, "iterations": 12, "train_sample": 3000 },
+  "pq_seed": 3,
+  "max_relative_mse": 0.25
+}

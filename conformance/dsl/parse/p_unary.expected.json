@@ -1,0 +1,113 @@
+{
+  "ast": {
+    "items": [
+      {
+        "body": {
+          "kind": "block",
+          "stmts": [
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "x"
+              },
+              "value": {
+                "kind": "binary",
+                "left": {
+                  "kind": "unary",
+                  "op": "-",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "a"
+                  }
+                },
+                "op": "*",
+                "right": {
+                  "kind": "unary",
+                  "op": "!",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "b"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "y"
+              },
+              "value": {
+                "kind": "unary",
+                "op": "-",
+                "operand": {
+                  "kind": "unary",
+                  "op": "-",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "z"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "q"
+              },
+              "value": {
+                "kind": "unary",
+                "op": "-",
+                "operand": {
+                  "kind": "field",
+                  "name": "y",
+                  "target": {
+                    "kind": "try",
+                    "operand": {
+                      "args": [
+                        {
+                          "value": {
+                            "kind": "ident",
+                            "name": "x"
+                          }
+                        }
+                      ],
+                      "callee": {
+                        "kind": "ident",
+                        "name": "f"
+                      },
+                      "kind": "call"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "let",
+              "pattern": {
+                "kind": "bind",
+                "name": "r"
+              },
+              "value": {
+                "kind": "unary",
+                "op": "!",
+                "operand": {
+                  "kind": "unary",
+                  "op": "!",
+                  "operand": {
+                    "kind": "ident",
+                    "name": "t"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "kind": "workflow",
+        "name": "w"
+      }
+    ]
+  }
+}
