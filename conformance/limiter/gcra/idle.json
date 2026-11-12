@@ -1,0 +1,15 @@
+{
+  "id": "lim_001c_idle",
+  "comment": "T = 500 ms, tau = 500 ms; a long idle period restores exactly the burst, never more",
+  "config": { "rate_per_s": 2, "burst": 2 },
+  "steps": [
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": true, "remaining": 1 } },
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": false, "retry_after_ms": 500 } },
+    { "t_ms": 250,   "cost": 1, "expect": { "allow": false, "retry_after_ms": 250 } },
+    { "t_ms": 500,   "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 10000, "cost": 1, "expect": { "allow": true, "remaining": 1 } },
+    { "t_ms": 10000, "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 10000, "cost": 1, "expect": { "allow": false, "retry_after_ms": 500 } }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "lim_005_log",
+  "model": "sliding_window_log",
+  "comment": "L = 4, W = 1000 ms, window (now - W, now]: exact, so the boundary never admits more than L in any window of length W",
+  "config": { "rate_per_s": 4, "burst": 4, "window_ms": 1000 },
+  "steps": [
+    { "t_ms": 900,  "cost": 1, "expect": { "allow": true, "remaining": 3 } },
+    { "t_ms": 900,  "cost": 1, "expect": { "allow": true, "remaining": 2 } },
+    { "t_ms": 900,  "cost": 1, "expect": { "allow": true, "remaining": 1 } },
+    { "t_ms": 900,  "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 900,  "cost": 1, "expect": { "allow": false, "retry_after_ms": 1000 } },
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": false, "retry_after_ms": 900 } },
+    { "t_ms": 1899, "cost": 1, "expect": { "allow": false, "retry_after_ms": 1 } },
+    { "t_ms": 1900, "cost": 1, "expect": { "allow": true, "remaining": 3 } },
+    { "t_ms": 1900, "cost": 4, "expect": { "allow": false, "retry_after_ms": 1000 } }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "lim_001b_cost",
+  "comment": "T = 100 ms, tau = 400 ms; costs above 1 and a cost above the burst",
+  "config": { "rate_per_s": 10, "burst": 5 },
+  "steps": [
+    { "t_ms": 0,    "cost": 3, "expect": { "allow": true, "remaining": 2 } },
+    { "t_ms": 0,    "cost": 3, "expect": { "allow": false, "retry_after_ms": 100, "remaining": 0 } },
+    { "t_ms": 0,    "cost": 2, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 50,   "cost": 1, "expect": { "allow": false, "retry_after_ms": 50 } },
+    { "t_ms": 100,  "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 100,  "cost": 6, "expect": { "allow": false, "error": "cost_exceeds_capacity" } },
+    { "t_ms": 1000, "cost": 5, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": false, "retry_after_ms": 100 } }
+  ]
+}

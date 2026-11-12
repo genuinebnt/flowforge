@@ -1,0 +1,17 @@
+{
+  "id": "lim_003_backwards",
+  "comment": "a reading earlier than one already seen never yields extra allowance",
+  "config": { "rate_per_s": 10, "burst": 5 },
+  "steps": [
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": true } },
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": true } },
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": true } },
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": true } },
+    { "t_ms": 1000, "cost": 1, "expect": { "allow": true } },
+    { "t_ms": 0,    "cost": 1, "expect": { "allow": false, "retry_after_ms": 1100 } },
+    { "t_ms": 500,  "cost": 1, "expect": { "allow": false, "retry_after_ms": 600 } },
+    { "t_ms": 1100, "cost": 1, "expect": { "allow": true } },
+    { "t_ms": 0,    "cost": 1, "expect": { "allow": false, "retry_after_ms": 1200 } },
+    { "t_ms": 1200, "cost": 1, "expect": { "allow": true } }
+  ]
+}

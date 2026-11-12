@@ -1,0 +1,19 @@
+{
+  "id": "lim_002",
+  "model": "token_bucket",
+  "comment": "rate 2/s, burst 3: burst, then steady refill; a long idle refills to the capacity and no further",
+  "config": { "rate_per_s": 2, "burst": 3 },
+  "steps": [
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": true, "remaining": 2 } },
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": true, "remaining": 1 } },
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 0,     "cost": 1, "expect": { "allow": false, "retry_after_ms": 500 } },
+    { "t_ms": 250,   "cost": 1, "expect": { "allow": false, "retry_after_ms": 250 } },
+    { "t_ms": 500,   "cost": 1, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 1000,  "cost": 2, "expect": { "allow": false, "retry_after_ms": 500 } },
+    { "t_ms": 1500,  "cost": 2, "expect": { "allow": true, "remaining": 0 } },
+    { "t_ms": 10000, "cost": 1, "expect": { "allow": true, "remaining": 2 } },
+    { "t_ms": 10000, "cost": 3, "expect": { "allow": false, "retry_after_ms": 500 } },
+    { "t_ms": 10000, "cost": 4, "expect": { "allow": false, "error": "cost_exceeds_capacity" } }
+  ]
+}
