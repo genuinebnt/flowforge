@@ -1,0 +1,321 @@
+{
+  "description": "Spec 12.7 approvals: queue reads, approvals:decide with role match, already decided; waiting_on on the run.",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{pid}}"
+        }
+      },
+      "capture": {
+        "pid": "id"
+      }
+    },
+    {
+      "name": "register gated workflow",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "gated",
+          "source": "workflow gated(roots: List<Fqdn>) { approve(\"lead\"); }"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "name": "submit",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "gated",
+          "program_id": "{{pid}}",
+          "input": {}
+        },
+        "headers": {
+          "Idempotency-Key": "g1"
+        }
+      },
+      "expect": {
+        "status": 202
+      },
+      "capture": {
+        "rid": "id"
+      }
+    },
+    {
+      "name": "run is waiting on the approval",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{rid}}",
+          "status": "waiting",
+          "waiting_on": {
+            "kind": "approval",
+            "approval_id": "<id:apr>",
+            "expires_at": "<timestamp>"
+          }
+        }
+      },
+      "capture": {
+        "aid": "waiting_on.approval_id"
+      }
+    },
+    {
+      "name": "queue",
+      "request": {
+        "method": "GET",
+        "path": "/v1/approvals?status=pending",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "id": "{{aid}}",
+              "run_id": "{{rid}}",
+              "role": "approver",
+              "status": "pending",
+              "expires_at": "<timestamp>",
+              "decided_by": null,
+              "decided_at": null,
+              "created_at": "<timestamp>"
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "get",
+      "request": {
+        "method": "GET",
+        "path": "/v1/approvals/{{aid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{aid}}",
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "name": "other tenant",
+      "request": {
+        "method": "GET",
+        "path": "/v1/approvals/{{aid}}",
+        "auth": "t2:approver"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analyst cannot decide",
+      "request": {
+        "method": "POST",
+        "path": "/v1/approvals/{{aid}}:decide",
+        "auth": "t1:analyst",
+        "body": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "admin's role does not match the approval role",
+      "request": {
+        "method": "POST",
+        "path": "/v1/approvals/{{aid}}:decide",
+        "auth": "t1:admin",
+        "body": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "bad decision",
+      "request": {
+        "method": "POST",
+        "path": "/v1/approvals/{{aid}}:decide",
+        "auth": "t1:approver",
+        "body": {
+          "decision": "maybe"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "approve",
+      "request": {
+        "method": "POST",
+        "path": "/v1/approvals/{{aid}}:decide",
+        "auth": "t1:approver",
+        "body": {
+          "decision": "approve",
+          "comment": "Checked the target list; ok to probe."
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{aid}}",
+          "status": "approved",
+          "decided_by": "{{t1_approver}}",
+          "decided_at": "<timestamp>",
+          "run_id": "{{rid}}"
+        }
+      }
+    },
+    {
+      "name": "already decided",
+      "request": {
+        "method": "POST",
+        "path": "/v1/approvals/{{aid}}:decide",
+        "auth": "t1:approver",
+        "body": {
+          "decision": "deny"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "approval_already_decided",
+            "status": 409,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "other tenant cannot decide",
+      "request": {
+        "method": "POST",
+        "path": "/v1/approvals/{{aid}}:decide",
+        "auth": "t2:approver",
+        "body": {
+          "decision": "deny"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

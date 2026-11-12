@@ -155,6 +155,13 @@ func identityFromToken(ctx context.Context, v TokenVerifier, authz, tenantMD, ac
 	return Identity{Tenant: tenant, Actor: actor, Role: role}, nil
 }
 
+// IdentityFromBearer verifies an "authorization"-style header value
+// ("Bearer <internal token>") and returns the identity it carries (the
+// egress proxy authenticates the tool runner with it).
+func IdentityFromBearer(ctx context.Context, v TokenVerifier, header string) (Identity, error) {
+	return identityFromToken(ctx, v, header, "", "")
+}
+
 // normalizeActor accepts the token subject forms: "user:<uuid>" (kept),
 // "usr_..." public ids (rendered user:<uuid>) and anything else verbatim.
 func normalizeActor(s string) string {

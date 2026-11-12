@@ -1,0 +1,320 @@
+{
+  "description": "Spec 12.3/12.7 API keys: secret shown once, ffk_ bearer authentication with the key's role, revocation.",
+  "steps": [
+    {
+      "name": "create key",
+      "request": {
+        "method": "POST",
+        "path": "/v1/api-keys",
+        "auth": "t1:admin",
+        "body": {
+          "name": "ci-submitter",
+          "role": "analyst",
+          "expires_at": "2027-02-01T00:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:key>",
+          "name": "ci-submitter",
+          "role": "analyst",
+          "prefix": "<nonempty>",
+          "created_by": "<id:usr>",
+          "created_at": "<timestamp>",
+          "last_used_at": "<timestamp|null>",
+          "expires_at": "2027-02-01T00:00:00.000Z",
+          "revoked_at": "<timestamp|null>",
+          "key": "<nonempty>",
+          "note": "This value is shown once."
+        }
+      },
+      "capture": {
+        "key": "key",
+        "kid": "id"
+      }
+    },
+    {
+      "name": "list keys never shows the secret",
+      "request": {
+        "method": "GET",
+        "path": "/v1/api-keys",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "id": "<id:key>",
+              "name": "ci-submitter",
+              "role": "analyst",
+              "prefix": "<nonempty>",
+              "created_by": "<id:usr>",
+              "created_at": "<timestamp>",
+              "last_used_at": "<timestamp|null>",
+              "expires_at": "<timestamp|null>",
+              "revoked_at": "<timestamp|null>",
+              "$absent": [
+                "key"
+              ]
+            },
+            "$len": 1
+          },
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "me with the key",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "bearer {{key}}"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "user": null,
+          "api_key": {
+            "id": "{{kid}}",
+            "name": "ci-submitter"
+          },
+          "role": "analyst",
+          "tenant": {
+            "id": "{{t1}}"
+          }
+        }
+      }
+    },
+    {
+      "name": "analyst key may check workflows",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "bearer {{key}}",
+        "body": {
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "name": "analyst key may not create programs",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "bearer {{key}}",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analyst cannot manage keys",
+      "request": {
+        "method": "GET",
+        "path": "/v1/api-keys",
+        "auth": "t1:analyst"
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "owner role keys are refused",
+      "request": {
+        "method": "POST",
+        "path": "/v1/api-keys",
+        "auth": "t1:owner",
+        "body": {
+          "name": "root",
+          "role": "owner"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "past expiry refused",
+      "request": {
+        "method": "POST",
+        "path": "/v1/api-keys",
+        "auth": "t1:admin",
+        "body": {
+          "name": "old",
+          "role": "viewer",
+          "expires_at": "2020-01-01T00:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "other tenant cannot delete",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/api-keys/{{kid}}",
+        "auth": "t2:admin"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "delete",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/api-keys/{{kid}}",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "revoked key rejected",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "bearer {{key}}"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "delete again",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/api-keys/{{kid}}",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "malformed key",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "bearer ffk_nope"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

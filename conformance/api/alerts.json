@@ -1,0 +1,603 @@
+{
+  "description": "Alert rules (analyst/admin), rule tests, channels (admin) and alert history (viewer).",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{pid}}"
+        }
+      },
+      "capture": {
+        "pid": "id"
+      }
+    },
+    {
+      "name": "create rule",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "new-jenkins",
+          "program_id": "{{pid}}",
+          "enabled": true,
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:alr>",
+          "name": "new-jenkins",
+          "version": 1,
+          "enabled": true,
+          "diagnostics": []
+        },
+        "headers": {
+          "Location": "/v1/alerts/rules/{{rule}}"
+        }
+      },
+      "capture": {
+        "rule": "id"
+      }
+    },
+    {
+      "name": "rule that does not compile",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "bad",
+          "source": "when x"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "body": {
+          "error": {
+            "code": "dsl_diagnostics",
+            "status": 422,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot create rules",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules",
+        "auth": "t1:viewer",
+        "body": {
+          "name": "x",
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "approver cannot create rules",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules",
+        "auth": "t1:approver",
+        "body": {
+          "name": "x",
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "list",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/rules",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "id": "{{rule}}",
+              "name": "new-jenkins",
+              "version": "<int>",
+              "enabled": true,
+              "diagnostics": []
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "other tenant lists nothing",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/rules",
+        "auth": "t2:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "get",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/rules/{{rule}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:alr>",
+          "name": "new-jenkins",
+          "version": "<int>",
+          "enabled": true,
+          "diagnostics": [],
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name"
+        },
+        "headers_present": [
+          "ETag"
+        ]
+      },
+      "capture": {
+        "etag": "header:ETag"
+      }
+    },
+    {
+      "name": "put with stale If-Match",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/alerts/rules/{{rule}}",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "new-jenkins",
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name",
+          "enabled": false
+        },
+        "headers": {
+          "If-Match": "\"0\""
+        }
+      },
+      "expect": {
+        "status": 412,
+        "body": {
+          "error": {
+            "code": "precondition_failed",
+            "status": 412,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "put",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/alerts/rules/{{rule}}",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "new-jenkins",
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name",
+          "enabled": false
+        },
+        "headers": {
+          "If-Match": "{{etag}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:alr>",
+          "name": "new-jenkins",
+          "version": 2,
+          "enabled": false,
+          "diagnostics": []
+        },
+        "headers_present": [
+          "ETag"
+        ]
+      }
+    },
+    {
+      "name": "put on another tenant's rule",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/alerts/rules/{{rule}}",
+        "auth": "t2:analyst",
+        "body": {
+          "name": "x",
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "test rule",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules:test",
+        "auth": "t1:analyst",
+        "body": {
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name",
+          "change": {
+            "type": "entity_added",
+            "entity": {
+              "asset_type": "FQDN",
+              "content": {
+                "name": "jenkins.acme.com"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "matched": true,
+          "diagnostics": [],
+          "rendered_payload": "<object>"
+        }
+      }
+    },
+    {
+      "name": "test rule needs alerts:write",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules:test",
+        "auth": "t1:viewer",
+        "body": {
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "test rule with both samples",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/rules:test",
+        "auth": "t1:analyst",
+        "body": {
+          "source": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name",
+          "change": {
+            "type": "x"
+          },
+          "historical_event_id": "ale_1"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "delete",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/alerts/rules/{{rule}}",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "deleted",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/rules/{{rule}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot list channels",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/channels",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analyst cannot create channels",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/channels",
+        "auth": "t1:analyst",
+        "body": {
+          "kind": "slack",
+          "name": "sec",
+          "config": {
+            "channel": "#sec"
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "create channel",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/channels",
+        "auth": "t1:admin",
+        "body": {
+          "kind": "slack",
+          "name": "sec-recon",
+          "config": {
+            "channel": "#sec-recon"
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:chn>",
+          "kind": "slack",
+          "name": "sec-recon",
+          "config": {
+            "channel": "#sec-recon"
+          },
+          "enabled": true
+        }
+      },
+      "capture": {
+        "ch": "id"
+      }
+    },
+    {
+      "name": "bad channel kind",
+      "request": {
+        "method": "POST",
+        "path": "/v1/alerts/channels",
+        "auth": "t1:admin",
+        "body": {
+          "kind": "fax",
+          "name": "x"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "put channel",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/alerts/channels/{{ch}}",
+        "auth": "t1:admin",
+        "body": {
+          "kind": "slack",
+          "name": "sec-recon",
+          "config": {
+            "channel": "#sec"
+          },
+          "enabled": false
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{ch}}",
+          "enabled": false
+        },
+        "headers_present": [
+          "ETag"
+        ]
+      }
+    },
+    {
+      "name": "put another tenant's channel",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/alerts/channels/{{ch}}",
+        "auth": "t2:admin",
+        "body": {
+          "kind": "slack",
+          "name": "x"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "list channels",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/channels",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "id": "{{ch}}"
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "alert events",
+      "request": {
+        "method": "GET",
+        "path": "/v1/alerts/events?status=sent",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "next_page_token": null
+        }
+      }
+    }
+  ]
+}

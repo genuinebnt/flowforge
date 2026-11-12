@@ -1,0 +1,882 @@
+{
+  "description": "Spec 12.7, 21.6 and 22.9 graph reads, search, paths, diff, analytics, snapshots and similarity.",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{pid}}"
+        }
+      },
+      "capture": {
+        "pid": "id"
+      }
+    },
+    {
+      "name": "entities need program_id",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "entities",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities?program_id={{pid}}&asset_type=FQDN",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "id": "<id:ent>",
+              "program_id": "{{pid}}",
+              "asset_type": "FQDN",
+              "content": "<object>",
+              "scope_status": "<string>",
+              "confidence": "<number>",
+              "state": "<string>",
+              "last_seen": "<timestamp>"
+            },
+            "$len": 2
+          },
+          "next_page_token": null
+        }
+      },
+      "capture": {
+        "e1": "items.0.id",
+        "e2": "items.1.id"
+      }
+    },
+    {
+      "name": "entities of another tenant's program",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities?program_id={{pid}}",
+        "auth": "t2:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "search",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/search?program_id={{pid}}&q=jenkin&fuzzy=true&limit=2",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "hits": [
+            {
+              "score": "<number>",
+              "entity": {
+                "id": "<id:ent>",
+                "program_id": "{{pid}}",
+                "asset_type": "FQDN",
+                "content": {
+                  "name": "jenkins.acme.com"
+                },
+                "scope_status": "<string>",
+                "confidence": "<number>",
+                "state": "<string>",
+                "last_seen": "<timestamp>"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "search without q",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/search?program_id={{pid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "search bad fuzzy",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/search?program_id={{pid}}&q=x&fuzzy=perhaps",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "find api entity",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities?program_id={{pid}}&key_prefix=fqdn:api",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$len": 1,
+            "$each": {
+              "id": "<id:ent>",
+              "program_id": "{{pid}}",
+              "asset_type": "<string>",
+              "content": "<object>",
+              "scope_status": "<string>",
+              "confidence": "<number>",
+              "state": "<string>",
+              "last_seen": "<timestamp>"
+            }
+          }
+        }
+      },
+      "capture": {
+        "api": "items.0.id"
+      }
+    },
+    {
+      "name": "find ip entity",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities?program_id={{pid}}&asset_type=IPAddress",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$len": 1,
+            "$each": {
+              "id": "<id:ent>",
+              "program_id": "{{pid}}",
+              "asset_type": "<string>",
+              "content": "<object>",
+              "scope_status": "<string>",
+              "confidence": "<number>",
+              "state": "<string>",
+              "last_seen": "<timestamp>"
+            }
+          }
+        }
+      },
+      "capture": {
+        "ip": "items.0.id"
+      }
+    },
+    {
+      "name": "get entity",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}?include_tags=true",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{api}}",
+          "program_id": "{{pid}}",
+          "asset_type": "<string>",
+          "content": {
+            "name": "api.acme.com"
+          },
+          "scope_status": "<string>",
+          "confidence": "<number>",
+          "state": "<string>",
+          "last_seen": "<timestamp>",
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "entity of another tenant",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}",
+        "auth": "t2:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "neighbors",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}/neighbors?direction=out&labels=dns_record,port&depth=2",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "entities": {
+            "$len": 2,
+            "$each": {
+              "id": "<id:ent>",
+              "asset_type": "<string>",
+              "content": "<object>"
+            }
+          },
+          "edges": [
+            {
+              "id": "<id:edg>",
+              "relation_type": "BasicDNSRelation",
+              "label": "dns_record",
+              "from_entity_id": "{{api}}",
+              "to_entity_id": "{{ip}}",
+              "confidence": "<number>"
+            }
+          ],
+          "truncated": false
+        }
+      }
+    },
+    {
+      "name": "neighbors bad depth",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}/neighbors?depth=99",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "neighbors bad direction",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}/neighbors?direction=sideways",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "paths",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/paths",
+        "auth": "t1:viewer",
+        "body": {
+          "from_entity_id": "{{api}}",
+          "to_entity_id": "{{ip}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "entity_ids": [
+            "{{api}}",
+            "{{ip}}"
+          ],
+          "edges": {
+            "$len": 1,
+            "$each": "<object>"
+          },
+          "total_cost": "<number>",
+          "combined_confidence": "<number>"
+        }
+      }
+    },
+    {
+      "name": "paths unknown field",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/paths",
+        "auth": "t1:viewer",
+        "body": {
+          "from_entity_id": "{{api}}",
+          "to_entity_id": "{{ip}}",
+          "algo": "dijkstra"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "diff",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/diff?program_id={{pid}}&since=2026-11-11T00:00:00Z&page_size=2",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$len": 2,
+            "$each": {
+              "id": "<id:chg>",
+              "seq": "<int>",
+              "type": "entity_added",
+              "entity": {
+                "id": "<id:ent>",
+                "asset_type": "<string>",
+                "content": "<object>"
+              },
+              "at": "<timestamp>"
+            }
+          },
+          "next_page_token": "<nonempty>"
+        }
+      }
+    },
+    {
+      "name": "diff needs since or run_id_a",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/diff?program_id={{pid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "snapshots",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/snapshots?program_id={{pid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "program_id": "{{pid}}",
+              "watermark_seq": "<int>",
+              "node_count": "<int>",
+              "edge_count": "<int>",
+              "built_at": "<timestamp>",
+              "sha256": "<string>"
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "snapshots (22.9 path)",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/graph/snapshots",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$len": 1,
+            "$each": "<object>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis pagerank",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/analysis",
+        "auth": "t1:analyst",
+        "body": {
+          "program_id": "{{pid}}",
+          "pagerank": {
+            "damping": 0.85,
+            "tolerance": 1e-06,
+            "max_iterations": 100,
+            "top_n": 3
+          }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "watermark_seq": "<int>",
+          "node_count": 3,
+          "edge_count": 1,
+          "scores": {
+            "top_n": {
+              "$len": 3,
+              "$each": {
+                "entity_id": "<id:ent>",
+                "score": "<number>"
+              }
+            },
+            "iterations": "<int>",
+            "converged": true
+          },
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "analysis (22.9 path) bfs",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/graph/analysis",
+        "auth": "t1:analyst",
+        "body": {
+          "bfs": {
+            "start_entity_id": "{{api}}",
+            "max_depth": 2,
+            "direction": "out"
+          }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "levels": [
+            {
+              "depth": 0,
+              "entity_ids": [
+                "{{api}}"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "analysis needs exactly one algorithm",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/analysis",
+        "auth": "t1:analyst",
+        "body": {
+          "program_id": "{{pid}}",
+          "scc": {},
+          "kcore": {
+            "k": 2
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis unknown algorithm field",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/analysis",
+        "auth": "t1:analyst",
+        "body": {
+          "program_id": "{{pid}}",
+          "louvain": {}
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot run analysis",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/analysis",
+        "auth": "t1:viewer",
+        "body": {
+          "program_id": "{{pid}}",
+          "scc": {}
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "tenant_id in the analysis body that disagrees",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/analysis",
+        "auth": "t1:analyst",
+        "body": {
+          "tenant_id": "{{t2}}",
+          "program_id": "{{pid}}",
+          "scc": {}
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analysis on another tenant's program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/analysis",
+        "auth": "t2:analyst",
+        "body": {
+          "program_id": "{{pid}}",
+          "scc": {}
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "similar entities",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}/similar?k=2",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "index_watermark_seq": "<int>",
+          "hits": {
+            "$len": 2,
+            "$each": {
+              "entity_id": "<id:ent>",
+              "type": "<string>",
+              "score": "<number>",
+              "in_scope": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "similar entities (22.9 path)",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/entities/{{api}}/similar?k=10&model=text-embedding-005",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "hits": {
+            "$len": 2,
+            "$each": "<object>"
+          }
+        }
+      }
+    },
+    {
+      "name": "similar k out of range",
+      "request": {
+        "method": "GET",
+        "path": "/v1/graph/entities/{{api}}/similar?k=1000",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "similar text (22.9)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/similar",
+        "auth": "t1:viewer",
+        "body": {
+          "text": "admin login portal powered by jenkins",
+          "k": 3,
+          "mode": "hybrid"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "index_watermark_seq": "<int>",
+          "hits": {
+            "$len": 3,
+            "$each": {
+              "entity_id": "<id:ent>",
+              "type": "<string>",
+              "score": "<number>",
+              "in_scope": "<bool>"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "similar text (12.3)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/similar",
+        "auth": "t1:viewer",
+        "body": {
+          "program_id": "{{pid}}",
+          "text": "jenkins",
+          "k": 1
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "hits": {
+            "$len": 1,
+            "$each": "<object>"
+          }
+        }
+      }
+    },
+    {
+      "name": "similar bad mode",
+      "request": {
+        "method": "POST",
+        "path": "/v1/graph/similar",
+        "auth": "t1:viewer",
+        "body": {
+          "program_id": "{{pid}}",
+          "text": "jenkins",
+          "mode": "fuzzy"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "index info (admin)",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/similarity/index",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "model_id": "<string>",
+          "dimension": 768,
+          "metric": "cosine",
+          "vectors": "<int>",
+          "segments": "<int>",
+          "watermark_seq": "<int>"
+        }
+      }
+    },
+    {
+      "name": "index info needs admin",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/similarity/index",
+        "auth": "t1:analyst"
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

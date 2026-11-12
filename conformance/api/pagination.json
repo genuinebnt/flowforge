@@ -1,0 +1,386 @@
+{
+  "description": "Spec 12.1 pagination: page_size 1-500 (default 50), opaque page_token, items/next_page_token envelope.",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{p1}}"
+        }
+      },
+      "capture": {
+        "p1": "id"
+      }
+    },
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{p2}}"
+        }
+      },
+      "capture": {
+        "p2": "id"
+      }
+    },
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{p3}}"
+        }
+      },
+      "capture": {
+        "p3": "id"
+      }
+    },
+    {
+      "name": "page 1",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_size=2",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "id": "<id:prg>",
+              "name": "<string>",
+              "platform": "<string>",
+              "status": "<string>",
+              "current_version": "<int>",
+              "created_at": "<timestamp>",
+              "$exact": true
+            },
+            "$len": 2
+          },
+          "next_page_token": "<nonempty>",
+          "$exact": true
+        }
+      },
+      "capture": {
+        "next": "next_page_token"
+      }
+    },
+    {
+      "name": "page 2",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_size=2&page_token={{next}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "id": "<id:prg>",
+              "name": "<string>",
+              "platform": "<string>",
+              "status": "<string>",
+              "current_version": "<int>",
+              "created_at": "<timestamp>",
+              "$exact": true
+            },
+            "$len": 1
+          },
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "default page size",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$len": 3,
+            "$each": "<object>"
+          },
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "page_size 0",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_size=0",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "page_size 501",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_size=501",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "page_size not a number",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_size=ten",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "page_size 500",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_size=500",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": "<array>",
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "bad page_token",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?page_token=zzz",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity lists page too",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members?page_size=500",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$len": 5,
+            "$each": "<object>"
+          },
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "bad identity page_token",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members?page_token=!!",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "description": "Spec 12.1/14.3: RateLimit-* headers on every response; 429 RATE_LIMITED with Retry-After (tenant t3 is on plan 'tiny': burst 2 per route class).",
+  "steps": [
+    {
+      "name": "first",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t3:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "RateLimit-Limit": "2",
+          "RateLimit-Remaining": "1",
+          "RateLimit-Reset": "<int>"
+        }
+      }
+    },
+    {
+      "name": "second",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t3:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "RateLimit-Limit": "2",
+          "RateLimit-Remaining": "0"
+        }
+      }
+    },
+    {
+      "name": "third is limited",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "auth": "t3:admin"
+      },
+      "expect": {
+        "status": 429,
+        "body": {
+          "error": {
+            "code": "rate_limited",
+            "status": 429,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        },
+        "headers": {
+          "RateLimit-Limit": "2",
+          "RateLimit-Remaining": "0",
+          "Retry-After": "<int>"
+        }
+      }
+    },
+    {
+      "name": "limits are per tenant",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "name": "write class has its own budget",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "t3:analyst",
+        "body": {
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "RateLimit-Remaining": "1"
+        }
+      }
+    },
+    {
+      "name": "signup throttle: 5 per IP per hour (1)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s1@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.77"
+      },
+      "expect": {
+        "status": 202
+      }
+    },
+    {
+      "name": "(2)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s2@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.77"
+      },
+      "expect": {
+        "status": 202
+      }
+    },
+    {
+      "name": "(3)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s3@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.77"
+      },
+      "expect": {
+        "status": 202
+      }
+    },
+    {
+      "name": "(4)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s4@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.77"
+      },
+      "expect": {
+        "status": 202
+      }
+    },
+    {
+      "name": "(5)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s5@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.77"
+      },
+      "expect": {
+        "status": 202
+      }
+    },
+    {
+      "name": "sixth signup from the IP",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s6@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.77"
+      },
+      "expect": {
+        "status": 429,
+        "body": {
+          "error": {
+            "code": "rate_limited",
+            "status": 429,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        },
+        "headers_present": [
+          "Retry-After"
+        ]
+      }
+    },
+    {
+      "name": "another IP is fine",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "s6@example.com",
+          "password": "long enough password",
+          "tenant_name": "T"
+        },
+        "ip": "192.0.2.78"
+      },
+      "expect": {
+        "status": 202
+      }
+    }
+  ]
+}

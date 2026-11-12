@@ -1,0 +1,876 @@
+{
+  "description": "Spec 12.1/12.6: POST /runs requires Idempotency-Key, 202 + Location; replay with Idempotent-Replayed; reuse with another body is 409; reads, events, cancel.",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{pid}}"
+        }
+      },
+      "capture": {
+        "pid": "id"
+      }
+    },
+    {
+      "name": "register",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "recon",
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "name": "submit without Idempotency-Key",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 0,
+          "deadline_ms": 7200000
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "Idempotency-Key too long",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 0,
+          "deadline_ms": 7200000
+        },
+        "headers": {
+          "Idempotency-Key": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "submit",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 0,
+          "deadline_ms": 7200000
+        },
+        "headers": {
+          "Idempotency-Key": "2c6f7a1e-0b0c-4d6c-9d1e-8f3b5f7d9a10"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "id": "<id:run>",
+          "status": "pending",
+          "workflow": "recon",
+          "workflow_version": "<int>",
+          "program_id": "{{pid}}",
+          "scope_version": "<int>",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "created_by": "<id:usr>",
+          "created_at": "<timestamp>",
+          "last_seq": 1,
+          "output": null,
+          "failure": null,
+          "started_at": "<timestamp|null>",
+          "finished_at": "<timestamp|null>",
+          "waiting_on": null,
+          "compensation_outcome": "<string|null>"
+        },
+        "headers_absent": [
+          "Idempotent-Replayed"
+        ],
+        "headers": {
+          "Location": "/v1/runs/{{rid}}"
+        }
+      },
+      "capture": {
+        "rid": "id"
+      }
+    },
+    {
+      "name": "replay",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 0,
+          "deadline_ms": 7200000
+        },
+        "headers": {
+          "Idempotency-Key": "2c6f7a1e-0b0c-4d6c-9d1e-8f3b5f7d9a10"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "id": "{{rid}}",
+          "status": "pending",
+          "workflow": "recon",
+          "workflow_version": "<int>",
+          "program_id": "{{pid}}",
+          "scope_version": "<int>",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "created_by": "<id:usr>",
+          "created_at": "<timestamp>",
+          "last_seq": "<int>",
+          "output": null,
+          "failure": null,
+          "started_at": "<timestamp|null>",
+          "finished_at": "<timestamp|null>",
+          "waiting_on": null,
+          "compensation_outcome": "<string|null>"
+        },
+        "headers": {
+          "Idempotent-Replayed": "true",
+          "Location": "/v1/runs/{{rid}}"
+        }
+      }
+    },
+    {
+      "name": "replay with keys in another order is the same request",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "deadline_ms": 7200000,
+          "priority": 0,
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "program_id": "{{pid}}",
+          "version": 1,
+          "workflow": "recon"
+        },
+        "headers": {
+          "Idempotency-Key": "2c6f7a1e-0b0c-4d6c-9d1e-8f3b5f7d9a10"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "id": "{{rid}}"
+        },
+        "headers": {
+          "Idempotent-Replayed": "true"
+        }
+      }
+    },
+    {
+      "name": "same key, different body",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 5,
+          "deadline_ms": 7200000
+        },
+        "headers": {
+          "Idempotency-Key": "2c6f7a1e-0b0c-4d6c-9d1e-8f3b5f7d9a10"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "idempotency_key_reused",
+            "status": 409,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "same key in another tenant is independent",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t2:analyst",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 0,
+          "deadline_ms": 7200000
+        },
+        "headers": {
+          "Idempotency-Key": "2c6f7a1e-0b0c-4d6c-9d1e-8f3b5f7d9a10"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot submit",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:viewer",
+        "body": {
+          "workflow": "recon",
+          "version": 1,
+          "program_id": "{{pid}}",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "priority": 0,
+          "deadline_ms": 7200000
+        },
+        "headers": {
+          "Idempotency-Key": "v1"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "missing program_id",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon"
+        },
+        "headers": {
+          "Idempotency-Key": "k2"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "failed validation is replayed too",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs",
+        "auth": "t1:analyst",
+        "body": {
+          "workflow": "recon"
+        },
+        "headers": {
+          "Idempotency-Key": "k2"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        },
+        "headers": {
+          "Idempotent-Replayed": "true"
+        }
+      }
+    },
+    {
+      "name": "get",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{rid}}",
+          "status": "<string>",
+          "workflow": "recon",
+          "workflow_version": "<int>",
+          "program_id": "{{pid}}",
+          "scope_version": "<int>",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "created_by": "<id:usr>",
+          "created_at": "<timestamp>",
+          "last_seq": "<int>",
+          "output": null,
+          "failure": null,
+          "started_at": "<timestamp|null>",
+          "finished_at": "<timestamp|null>",
+          "waiting_on": null,
+          "compensation_outcome": "<string|null>"
+        }
+      }
+    },
+    {
+      "name": "other tenant: 404",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}",
+        "auth": "t2:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "list with filters",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs?status=pending&program_id={{pid}}&created_after=2026-11-01T00:00:00Z",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "id": "{{rid}}"
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "bad status filter",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs?status=sleeping",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "bad created_after",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs?created_after=yesterday",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "cancel",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs/{{rid}}:cancel",
+        "auth": "t1:analyst",
+        "body": {
+          "reason": "test"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "{{rid}}",
+          "status": "cancelled",
+          "workflow": "recon",
+          "workflow_version": "<int>",
+          "program_id": "{{pid}}",
+          "scope_version": "<int>",
+          "input": {
+            "roots": [
+              "acme.com"
+            ]
+          },
+          "created_by": "<id:usr>",
+          "created_at": "<timestamp>",
+          "last_seq": "<int>",
+          "output": null,
+          "failure": null,
+          "started_at": "<timestamp|null>",
+          "finished_at": "<timestamp>",
+          "waiting_on": null,
+          "compensation_outcome": "<string|null>"
+        }
+      }
+    },
+    {
+      "name": "cancel again",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs/{{rid}}:cancel",
+        "auth": "t1:analyst"
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "run_not_cancellable",
+            "status": 409,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot cancel",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs/{{rid}}:cancel",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown verb",
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs/{{rid}}:explode",
+        "auth": "t1:analyst"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "events",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}/events?page_size=1",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "seq": 1,
+              "type": "run_submitted",
+              "at": "<timestamp>",
+              "actor": "<string>",
+              "payload": "<object>"
+            }
+          ],
+          "next_page_token": "<nonempty>"
+        }
+      },
+      "capture": {
+        "next": "next_page_token"
+      }
+    },
+    {
+      "name": "events page 2",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}/events?page_size=1&page_token={{next}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "seq": 2,
+              "type": "run_cancelled"
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "events after_seq",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}/events?after_seq=1",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "seq": 2
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "events bad after_seq",
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/{{rid}}/events?after_seq=-1",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "idempotency on another POST (program create)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        },
+        "headers": {
+          "Idempotency-Key": "prog-1"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      },
+      "capture": {
+        "p2": "id"
+      }
+    },
+    {
+      "name": "program create replay",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        },
+        "headers": {
+          "Idempotency-Key": "prog-1"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "{{p2}}"
+        },
+        "headers": {
+          "Idempotent-Replayed": "true"
+        }
+      }
+    },
+    {
+      "name": "same key on another path",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:admin",
+        "body": {
+          "name": "x",
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        },
+        "headers": {
+          "Idempotency-Key": "prog-1"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "idempotency_key_reused",
+            "status": 409,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

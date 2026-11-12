@@ -1,0 +1,1086 @@
+{
+  "description": "Spec 12.5: programs, scope documents with optimistic base_version, scope:check, kill switch, If-Match on PATCH, tenant isolation.",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{pid}}"
+        }
+      },
+      "capture": {
+        "pid": "id"
+      }
+    },
+    {
+      "name": "get",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers_present": [
+          "ETag",
+          "RateLimit-Limit",
+          "RateLimit-Remaining",
+          "RateLimit-Reset"
+        ],
+        "headers": {
+          "Cache-Control": "no-store"
+        }
+      },
+      "capture": {
+        "etag": "header:ETag"
+      }
+    },
+    {
+      "name": "other tenant: 404",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t2:admin"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "malformed id: 404",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/run_123",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot create",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:viewer",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown field",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          },
+          "owner": "me"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown nested field",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [],
+            "extra": 1
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "bad enum",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "maybe",
+                "kind": "domain",
+                "value": "x"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "tenant_id in body that disagrees: 404",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          },
+          "tenant_id": "{{t2}}"
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "tenant_id in body that agrees",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          },
+          "tenant_id": "{{t1}}"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "tenant_id in query that disagrees: 404",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?tenant_id={{t2}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "list",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs?tenant_id={{t1}}",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "id": "<id:prg>",
+              "name": "<string>",
+              "platform": "<string>",
+              "status": "<string>",
+              "current_version": "<int>",
+              "created_at": "<timestamp>",
+              "$exact": true
+            },
+            "$len": 2
+          },
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "other tenant lists nothing",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "auth": "t2:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "PATCH with stale If-Match",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t1:admin",
+        "body": {
+          "status": "paused"
+        },
+        "headers": {
+          "If-Match": "\"x\""
+        }
+      },
+      "expect": {
+        "status": 412,
+        "body": {
+          "error": {
+            "code": "precondition_failed",
+            "status": 412,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "PATCH name is not supported (unknown field)",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t1:admin",
+        "body": {
+          "name": "x"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "PATCH pause",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t1:admin",
+        "body": {
+          "status": "paused",
+          "reason": "maintenance"
+        },
+        "headers": {
+          "If-Match": "{{etag}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "paused",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "PATCH resume",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t1:admin",
+        "body": {
+          "status": "active"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "active",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "analyst cannot PATCH",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/programs/{{pid}}",
+        "auth": "t1:analyst",
+        "body": {
+          "status": "paused"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "get scope",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/scope",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "program_id": "{{pid}}",
+          "version": 1,
+          "effective_from": "<timestamp>",
+          "created_by": "<string>",
+          "created_at": "<timestamp>",
+          "document": {
+            "rules": {
+              "$each": {
+                "id": "<string>",
+                "effect": "<string>",
+                "kind": "<string>",
+                "value": "<string>"
+              },
+              "$len": 2
+            },
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "put scope",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/programs/{{pid}}/scope",
+        "auth": "t1:admin",
+        "body": {
+          "base_version": 1,
+          "effective_from": "2026-11-12T14:00:00.000Z",
+          "document": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "program_id": "{{pid}}",
+          "version": 2,
+          "effective_from": "2026-11-12T14:00:00.000Z",
+          "created_by": "<id:usr>",
+          "paused_runs": null
+        }
+      }
+    },
+    {
+      "name": "put scope with a stale base_version",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/programs/{{pid}}/scope",
+        "auth": "t1:admin",
+        "body": {
+          "base_version": 1,
+          "document": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "version_conflict",
+            "status": 409,
+            "message": "<string>",
+            "details": [
+              {
+                "reason": "VERSION_CONFLICT",
+                "current_version": 2
+              }
+            ],
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "put scope without base_version",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/programs/{{pid}}/scope",
+        "auth": "t1:admin",
+        "body": {
+          "document": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analyst cannot put scope",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/programs/{{pid}}/scope",
+        "auth": "t1:analyst",
+        "body": {
+          "base_version": 2,
+          "document": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "scope version 1",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/scope?version=1",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "program_id": "{{pid}}",
+          "version": 1,
+          "effective_from": "<timestamp>",
+          "created_by": "<string>",
+          "created_at": "<timestamp>"
+        }
+      }
+    },
+    {
+      "name": "versions",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs/{{pid}}/scope/versions?page_size=1",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "program_id": "{{pid}}",
+              "version": "<int>",
+              "effective_from": "<timestamp>",
+              "created_by": "<string>",
+              "created_at": "<timestamp>",
+              "$absent": [
+                "document"
+              ]
+            },
+            "$len": 1
+          },
+          "next_page_token": "<nonempty>"
+        }
+      }
+    },
+    {
+      "name": "scope:check deny",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/scope:check",
+        "auth": "t1:analyst",
+        "body": {
+          "target": "https://Admin.Corp.Acme.com:443/login",
+          "kind": "url",
+          "activity_class": "active"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "result": "deny",
+          "reason": "explicit_deny",
+          "rule_id": "r5",
+          "scope_version": 2,
+          "normalized_target": "https://admin.corp.acme.com/login",
+          "pinned_ips": [],
+          "decision_id": "<id:dec>"
+        }
+      }
+    },
+    {
+      "name": "scope:check allow",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/scope:check",
+        "auth": "t1:analyst",
+        "body": {
+          "target": "api.acme.com",
+          "kind": "host"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "result": "allow",
+          "rule_id": "r1"
+        }
+      }
+    },
+    {
+      "name": "scope:check missing kind",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/scope:check",
+        "auth": "t1:analyst",
+        "body": {
+          "target": "api.acme.com"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot scope:check",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/scope:check",
+        "auth": "t1:viewer",
+        "body": {
+          "target": "api.acme.com",
+          "kind": "host"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "kill switch without reason",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/kill-switch",
+        "auth": "t1:admin",
+        "body": {
+          "enabled": true
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "kill switch on",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/kill-switch",
+        "auth": "t1:admin",
+        "body": {
+          "enabled": true,
+          "reason": "incident"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "level": "program",
+          "target_id": "{{pid}}",
+          "enabled": true,
+          "reason": "incident",
+          "set_by": "<id:usr>",
+          "set_at": "<timestamp>"
+        }
+      }
+    },
+    {
+      "name": "check while killed",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/scope:check",
+        "auth": "t1:analyst",
+        "body": {
+          "target": "api.acme.com",
+          "kind": "host"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "result": "deny",
+          "reason": "kill_switch"
+        }
+      }
+    },
+    {
+      "name": "approver cannot use the kill switch",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/kill-switch",
+        "auth": "t1:approver",
+        "body": {
+          "enabled": false
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "kill switch of another tenant's program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs/{{pid}}/kill-switch",
+        "auth": "t2:admin",
+        "body": {
+          "enabled": false
+        }
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

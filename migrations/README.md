@@ -17,6 +17,8 @@ and a Go runner (`migrations.Apply`).
 | `0010_gateway_idempotency.sql` | `identity.http_idempotency` (7-day retention) | 12.1, 9.10 (addition) |
 | `0011_scope_decision_partitions.sql` | default partition, `scope.ensure_decision_partition(month)` | 10.3 (addition) |
 | `0012_graph_vectors.sql` | `graph.embeddings`, `vector_indexes`, `vector_segments` (needs pgvector) | 22.9 |
+| `0013_engine_extras.sql` | `engine.workflow_version_ext`, `run_ext`, `run_requests`, `approval_ext` (engine/pgrepo's SchemaSQL, idempotent) | 9, 10.4 (addition) |
+| `0014_notifier_delivery_target.sql` | `notifier.deliveries.target` (Slack channel override / e-mail recipient of an action) | 15.4 (addition) |
 
 ## Usage
 

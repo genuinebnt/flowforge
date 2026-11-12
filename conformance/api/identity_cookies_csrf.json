@@ -1,0 +1,432 @@
+{
+  "description": "Spec 13.5: console cookies ff_at/ff_rt/ff_csrf; CSRF double submit on state-changing cookie requests; bearer requests exempt.",
+  "steps": [
+    {
+      "name": "login with cookies",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "{{t1_admin_email}}",
+          "password": "{{password}}",
+          "use_cookies": true
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "token_type": "Bearer",
+          "expires_in": 600,
+          "$absent": [
+            "refresh_token"
+          ]
+        },
+        "set_cookies": [
+          "ff_at",
+          "ff_rt",
+          "ff_csrf"
+        ]
+      },
+      "capture": {
+        "at": "cookie:ff_at",
+        "rt": "cookie:ff_rt",
+        "csrf": "cookie:ff_csrf"
+      }
+    },
+    {
+      "name": "cookie GET needs no CSRF header",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "cookies": {
+          "ff_at": "{{at}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "cookie POST without X-CSRF-Token",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        },
+        "cookies": {
+          "ff_at": "{{at}}",
+          "ff_csrf": "{{csrf}}"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "csrf_failed",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "cookie POST with a mismatched token",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        },
+        "headers": {
+          "X-CSRF-Token": "nope"
+        },
+        "cookies": {
+          "ff_at": "{{at}}",
+          "ff_csrf": "{{csrf}}"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "csrf_failed",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "cookie POST with the token",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        },
+        "headers": {
+          "X-CSRF-Token": "{{csrf}}"
+        },
+        "cookies": {
+          "ff_at": "{{at}}",
+          "ff_csrf": "{{csrf}}"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "bearer POST is exempt",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "harness cookie auth with CSRF",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin:cookie",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        },
+        "headers": {
+          "X-CSRF-Token": "test-csrf-token"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "refresh from cookie without CSRF",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh",
+        "cookies": {
+          "ff_rt": "{{rt}}",
+          "ff_csrf": "{{csrf}}"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "csrf_failed",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "refresh from cookie",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh",
+        "headers": {
+          "X-CSRF-Token": "{{csrf}}"
+        },
+        "cookies": {
+          "ff_rt": "{{rt}}",
+          "ff_csrf": "{{csrf}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "$absent": [
+            "refresh_token"
+          ]
+        },
+        "set_cookies": [
+          "ff_at",
+          "ff_rt",
+          "ff_csrf"
+        ]
+      },
+      "capture": {
+        "at2": "cookie:ff_at",
+        "csrf2": "cookie:ff_csrf"
+      }
+    },
+    {
+      "name": "logout via cookies",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/logout",
+        "headers": {
+          "X-CSRF-Token": "{{csrf2}}"
+        },
+        "cookies": {
+          "ff_at": "{{at2}}",
+          "ff_csrf": "{{csrf2}}"
+        }
+      },
+      "expect": {
+        "status": 204,
+        "set_cookies": [
+          "ff_at",
+          "ff_rt",
+          "ff_csrf"
+        ]
+      }
+    },
+    {
+      "name": "cookie token denied after logout",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "cookies": {
+          "ff_at": "{{at2}}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    }
+  ]
+}

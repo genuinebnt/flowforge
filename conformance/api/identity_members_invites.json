@@ -1,0 +1,432 @@
+{
+  "description": "Spec 12.3 membership management (admin), If-Match on PATCH, owner-only owner grants, invites and acceptance.",
+  "steps": [
+    {
+      "name": "list members",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members?page_size=2",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "user_id": "<id:usr>",
+              "email": "<string>",
+              "role": "<string>",
+              "status": "<string>",
+              "created_at": "<timestamp>"
+            },
+            "$len": 2
+          },
+          "next_page_token": "<nonempty>"
+        }
+      },
+      "capture": {
+        "next": "next_page_token"
+      }
+    },
+    {
+      "name": "next page",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members?page_size=2&page_token={{next}}",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "user_id": "<id:usr>",
+              "email": "<string>",
+              "role": "<string>",
+              "status": "<string>",
+              "created_at": "<timestamp>"
+            },
+            "$len": 2
+          },
+          "next_page_token": "<nonempty>"
+        }
+      }
+    },
+    {
+      "name": "viewer cannot list",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "get member",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members/{{t1_viewer}}",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "user_id": "<id:usr>",
+          "email": "<string>",
+          "role": "viewer",
+          "status": "<string>",
+          "created_at": "<timestamp>"
+        },
+        "headers_present": [
+          "ETag"
+        ]
+      },
+      "capture": {
+        "etag": "header:ETag"
+      }
+    },
+    {
+      "name": "other tenant's member",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tenant/members/{{t2_viewer}}",
+        "auth": "t1:admin"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "stale If-Match",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/tenant/members/{{t1_viewer}}",
+        "auth": "t1:admin",
+        "body": {
+          "role": "analyst"
+        },
+        "headers": {
+          "If-Match": "\"stale\""
+        }
+      },
+      "expect": {
+        "status": 412,
+        "body": {
+          "error": {
+            "code": "precondition_failed",
+            "status": 412,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "change role",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/tenant/members/{{t1_viewer}}",
+        "auth": "t1:admin",
+        "body": {
+          "role": "analyst"
+        },
+        "headers": {
+          "If-Match": "{{etag}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "user_id": "<id:usr>",
+          "email": "<string>",
+          "role": "analyst",
+          "status": "<string>",
+          "created_at": "<timestamp>"
+        },
+        "headers_present": [
+          "ETag"
+        ]
+      }
+    },
+    {
+      "name": "old ETag no longer matches",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/tenant/members/{{t1_viewer}}",
+        "auth": "t1:admin",
+        "body": {
+          "role": "viewer"
+        },
+        "headers": {
+          "If-Match": "{{etag}}"
+        }
+      },
+      "expect": {
+        "status": 412,
+        "body": {
+          "error": {
+            "code": "precondition_failed",
+            "status": 412,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "the member's old token is revoked (session_version bump)",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "admin cannot grant owner",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/tenant/members/{{t1_analyst}}",
+        "auth": "t1:admin",
+        "body": {
+          "role": "owner"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "invalid role",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/tenant/members/{{t1_analyst}}",
+        "auth": "t1:admin",
+        "body": {
+          "role": "superuser"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "last owner cannot be demoted",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/tenant/members/{{t1_owner}}",
+        "auth": "t1:owner",
+        "body": {
+          "role": "admin"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "invite",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tenant/invites",
+        "auth": "t1:admin",
+        "body": {
+          "email": "new.hire@example.com",
+          "role": "analyst"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:inv>",
+          "email": "new.hire@example.com",
+          "role": "analyst",
+          "expires_at": "<timestamp>",
+          "created_at": "<timestamp>"
+        }
+      },
+      "capture": {
+        "tok": "email:invite:new.hire@example.com"
+      }
+    },
+    {
+      "name": "invite an existing member",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tenant/invites",
+        "auth": "t1:admin",
+        "body": {
+          "email": "{{t1_admin_email}}",
+          "role": "viewer"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "already_exists",
+            "status": 409,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "analyst cannot invite",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tenant/invites",
+        "auth": "t1:analyst",
+        "body": {
+          "email": "a@example.com",
+          "role": "viewer"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "accept invite",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/invites:accept",
+        "body": {
+          "token": "{{tok}}",
+          "password": "a long enough password"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "user_id": "<id:usr>",
+          "tenant_id": "{{t1}}",
+          "role": "analyst",
+          "created": true
+        }
+      }
+    },
+    {
+      "name": "accept twice",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/invites:accept",
+        "body": {
+          "token": "{{tok}}",
+          "password": "a long enough password"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "new member logs in",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "new.hire@example.com",
+          "password": "a long enough password"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "token_type": "Bearer",
+          "expires_in": 600,
+          "refresh_token": "<nonempty>",
+          "user": {
+            "id": "<id:usr>",
+            "email": "<string>"
+          },
+          "tenant": {
+            "id": "{{t1}}",
+            "role": "analyst"
+          }
+        }
+      }
+    }
+  ]
+}

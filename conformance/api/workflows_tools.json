@@ -1,0 +1,495 @@
+{
+  "description": "Spec 12.6 workflow check/register (422 DSL_DIAGNOSTICS with the diagnostics in details), reads, tool registry.",
+  "steps": [
+    {
+      "name": "create program",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "body": {
+          "name": "Acme public bug bounty",
+          "platform": "hackerone",
+          "scope": {
+            "rules": [
+              {
+                "id": "r1",
+                "effect": "allow",
+                "kind": "wildcard_domain",
+                "value": "*.acme.com"
+              },
+              {
+                "id": "r5",
+                "effect": "deny",
+                "kind": "domain",
+                "value": "admin.corp.acme.com"
+              }
+            ],
+            "activity": {
+              "max_class": "active",
+              "prohibited": [
+                "dos"
+              ],
+              "rate": {
+                "requests_per_second": 5,
+                "burst": 10,
+                "concurrency": 4
+              },
+              "windows": []
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:prg>",
+          "name": "<string>",
+          "platform": "<string>",
+          "status": "<string>",
+          "current_version": "<int>",
+          "created_at": "<timestamp>",
+          "$exact": true
+        },
+        "headers": {
+          "Location": "/v1/programs/{{pid}}"
+        }
+      },
+      "capture": {
+        "pid": "id"
+      }
+    },
+    {
+      "name": "check (type error)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "t1:analyst",
+        "body": {
+          "program_id": "{{pid}}",
+          "source": "workflow recon(roots: List<Fqdn>) { let h = httpx(Host::Name(roots[0])); }"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ok": false,
+          "inferred_effects": [
+            "passive",
+            "active"
+          ],
+          "inferred_class": "active",
+          "diagnostics": [
+            {
+              "code": "E0301",
+              "severity": "error",
+              "message": "<string>",
+              "primary": {
+                "file": "<string>",
+                "start": {
+                  "line": "<int>",
+                  "col": "<int>",
+                  "offset": "<int>"
+                },
+                "end": {
+                  "line": "<int>",
+                  "col": "<int>",
+                  "offset": "<int>"
+                },
+                "label": "<string>"
+              },
+              "secondary": [],
+              "help": "<string>"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "check ok",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "t1:analyst",
+        "body": {
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "name": "check without source",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "t1:analyst",
+        "body": {
+          "source": ""
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "check bad program id",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "t1:analyst",
+        "body": {
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }",
+          "program_id": "nope"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "viewer cannot check",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows:check",
+        "auth": "t1:viewer",
+        "body": {
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "approver cannot register",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:approver",
+        "body": {
+          "name": "recon",
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "forbidden_role",
+            "status": 403,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "register",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "recon",
+          "program_id": "{{pid}}",
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:wfv>",
+          "name": "recon",
+          "version": 1,
+          "status": "published",
+          "module_sha256": "<nonempty>",
+          "effects": {
+            "$each": "<string>"
+          },
+          "inferred_class": "<string>",
+          "diagnostics": []
+        },
+        "headers": {
+          "Location": "/v1/workflows/recon/versions/1"
+        }
+      }
+    },
+    {
+      "name": "register v2",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "recon",
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "<id:wfv>",
+          "name": "recon",
+          "version": 2,
+          "status": "published",
+          "module_sha256": "<nonempty>",
+          "effects": {
+            "$each": "<string>"
+          },
+          "inferred_class": "<string>",
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "name": "register does not compile",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "recon",
+          "source": "workflow recon(roots: List<Fqdn>) { let h = httpx(Host::Name(roots[0])); }"
+        }
+      },
+      "expect": {
+        "status": 422,
+        "body": {
+          "error": {
+            "code": "dsl_diagnostics",
+            "status": 422,
+            "message": "<string>",
+            "details": [
+              {
+                "code": "E0301",
+                "severity": "error",
+                "message": "<string>",
+                "primary": {
+                  "file": "<string>",
+                  "start": {
+                    "line": "<int>",
+                    "col": "<int>",
+                    "offset": "<int>"
+                  },
+                  "end": {
+                    "line": "<int>",
+                    "col": "<int>",
+                    "offset": "<int>"
+                  },
+                  "label": "<string>"
+                },
+                "secondary": [],
+                "help": "<string>"
+              }
+            ],
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "bad name",
+      "request": {
+        "method": "POST",
+        "path": "/v1/workflows",
+        "auth": "t1:analyst",
+        "body": {
+          "name": "no spaces allowed",
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "list",
+      "request": {
+        "method": "GET",
+        "path": "/v1/workflows",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "id": "<id:wfv>",
+              "name": "recon",
+              "version": 2,
+              "status": "published",
+              "module_sha256": "<nonempty>",
+              "effects": {
+                "$each": "<string>"
+              },
+              "inferred_class": "<string>",
+              "diagnostics": []
+            }
+          ],
+          "next_page_token": null
+        }
+      }
+    },
+    {
+      "name": "get version",
+      "request": {
+        "method": "GET",
+        "path": "/v1/workflows/recon/versions/1",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:wfv>",
+          "name": "recon",
+          "version": 1,
+          "status": "published",
+          "module_sha256": "<nonempty>",
+          "effects": {
+            "$each": "<string>"
+          },
+          "inferred_class": "<string>",
+          "diagnostics": [],
+          "source": "workflow recon(roots: List<Fqdn>) -> Report { let h = httpx(scope.check(Host::Name(roots[0]))?); }"
+        }
+      }
+    },
+    {
+      "name": "get latest",
+      "request": {
+        "method": "GET",
+        "path": "/v1/workflows/recon/versions/latest",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "<id:wfv>",
+          "name": "recon",
+          "version": 2,
+          "status": "published",
+          "module_sha256": "<nonempty>",
+          "effects": {
+            "$each": "<string>"
+          },
+          "inferred_class": "<string>",
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "name": "missing version",
+      "request": {
+        "method": "GET",
+        "path": "/v1/workflows/recon/versions/9",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "other tenant",
+      "request": {
+        "method": "GET",
+        "path": "/v1/workflows/recon/versions/1",
+        "auth": "t2:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "tools",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tools",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "items": {
+            "$each": {
+              "name": "<string>",
+              "version": "<string>",
+              "input_type": "<string>",
+              "output_type": "<string>",
+              "observes": "<array>",
+              "effect_class": "<string>",
+              "rate_rps": "<number>",
+              "rate_burst": "<int>",
+              "concurrency": "<int>",
+              "timeout_ms": "<int>",
+              "idempotent": "<bool>",
+              "spec_sha256": "<string>"
+            },
+            "$len": 2
+          },
+          "next_page_token": null
+        }
+      }
+    }
+  ]
+}

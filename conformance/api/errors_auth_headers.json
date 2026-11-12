@@ -1,0 +1,414 @@
+{
+  "description": "Spec 12.1/12.2/13.3/13.5: authentication errors, error model, request ids, security and rate-limit headers, strict JSON, probes and JWKS.",
+  "steps": [
+    {
+      "name": "no credentials",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_missing",
+            "status": 401,
+            "message": "<string>",
+            "details": [
+              {
+                "reason": "TOKEN_MISSING"
+              }
+            ],
+            "request_id": "<id:req>",
+            "$exact": true
+          },
+          "$exact": true
+        },
+        "headers_present": [
+          "RateLimit-Limit",
+          "RateLimit-Remaining",
+          "RateLimit-Reset"
+        ]
+      }
+    },
+    {
+      "name": "garbage bearer",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "headers": {
+          "Authorization": "Bearer not.a.jwt"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        },
+        "headers_present": [
+          "RateLimit-Limit",
+          "RateLimit-Remaining",
+          "RateLimit-Reset"
+        ]
+      }
+    },
+    {
+      "name": "wrong scheme",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "headers": {
+          "Authorization": "Basic dXNlcjpwYXNz"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "alg none token",
+      "request": {
+        "method": "GET",
+        "path": "/v1/programs",
+        "headers": {
+          "Authorization": "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ4In0."
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "client request id is echoed",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t1:viewer",
+        "headers": {
+          "X-Request-Id": "client-req-42"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "X-Request-Id": "client-req-42"
+        }
+      }
+    },
+    {
+      "name": "invalid client request id is replaced",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t1:viewer",
+        "headers": {
+          "X-Request-Id": "bad id with spaces"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "X-Request-Id": "<id:req>"
+        }
+      }
+    },
+    {
+      "name": "security headers",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+          "RateLimit-Limit": "<int>",
+          "RateLimit-Remaining": "<int>",
+          "RateLimit-Reset": "<int>"
+        }
+      }
+    },
+    {
+      "name": "unknown route",
+      "request": {
+        "method": "GET",
+        "path": "/v1/nope",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "wrong method",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/programs",
+        "auth": "t1:viewer"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "status": 404,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "malformed JSON",
+      "request": {
+        "method": "POST",
+        "path": "/v1/programs",
+        "auth": "t1:admin",
+        "raw": "{\"name\": "
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "trailing data",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "raw": "{\"email\":\"a@b.co\",\"password\":\"x\"} {}"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "JSON array instead of object",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "raw": "[1,2]"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "empty body",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "raw": ""
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "wrong type",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": 5,
+          "password": "x"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown login field",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "a@b.co",
+          "password": "x",
+          "remember_me": true
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "public auth endpoints carry rate-limit headers",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/password/forgot",
+        "body": {
+          "email": "a@b.co"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "headers_present": [
+          "RateLimit-Limit",
+          "RateLimit-Remaining",
+          "RateLimit-Reset"
+        ]
+      }
+    },
+    {
+      "name": "healthz",
+      "request": {
+        "method": "GET",
+        "path": "/healthz"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "status": "ok"
+        }
+      }
+    },
+    {
+      "name": "readyz",
+      "request": {
+        "method": "GET",
+        "path": "/v1/readyz"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "status": "ready",
+          "checks": {
+            "identity_store": "ok"
+          }
+        }
+      }
+    },
+    {
+      "name": "jwks",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/jwks.json"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "keys": {
+            "$len": 1,
+            "$each": {
+              "kty": "OKP",
+              "crv": "Ed25519",
+              "kid": "<nonempty>",
+              "use": "sig",
+              "alg": "EdDSA",
+              "x": "<nonempty>",
+              "$exact": true
+            }
+          }
+        },
+        "headers": {
+          "Cache-Control": "public, max-age=300"
+        }
+      }
+    },
+    {
+      "name": "jwks under /v1",
+      "request": {
+        "method": "GET",
+        "path": "/v1/.well-known/jwks.json"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "keys": "<array>"
+        }
+      }
+    }
+  ]
+}

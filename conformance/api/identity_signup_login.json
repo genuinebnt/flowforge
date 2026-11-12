@@ -1,0 +1,595 @@
+{
+  "description": "Spec 12.4 and 13.1-13.4: signup is always 202 (also for an existing e-mail), verification, login, refresh rotation with reuse detection, logout.",
+  "steps": [
+    {
+      "name": "signup",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple",
+          "tenant_name": "Example Security"
+        },
+        "ip": "198.51.100.1"
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "user_id": "<id:usr>",
+          "tenant_id": "<id:ten>",
+          "status": "pending",
+          "message": "<string>",
+          "$exact": true
+        },
+        "headers_present": [
+          "RateLimit-Limit",
+          "RateLimit-Remaining",
+          "RateLimit-Reset"
+        ]
+      }
+    },
+    {
+      "name": "login while pending",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "signup again with the same e-mail: same shape",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple",
+          "tenant_name": "Example Security"
+        },
+        "ip": "198.51.100.1"
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "user_id": "<id:usr>",
+          "tenant_id": "<id:ten>",
+          "status": "pending",
+          "message": "<string>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "signup with an existing seeded e-mail",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "{{t1_owner_email}}",
+          "password": "another fine password",
+          "tenant_name": "X"
+        },
+        "ip": "198.51.100.2"
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "user_id": "<id:usr>",
+          "tenant_id": "<id:ten>",
+          "status": "pending",
+          "message": "<string>",
+          "$exact": true
+        }
+      }
+    },
+    {
+      "name": "signup unknown field",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple",
+          "tenant_name": "Example Security",
+          "plan": "pro"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "signup short password",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "x@example.com",
+          "password": "short",
+          "tenant_name": "Example Security"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "signup breached password",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/signup",
+        "body": {
+          "email": "y@example.com",
+          "password": "password1234",
+          "tenant_name": "Example Security"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "capture verification token",
+      "request": {
+        "method": "GET",
+        "path": "/healthz"
+      },
+      "expect": {
+        "status": 200
+      },
+      "capture": {
+        "vt": "email:verify_email:dev@example.com"
+      }
+    },
+    {
+      "name": "verify e-mail",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/verify-email",
+        "body": {
+          "token": "{{vt}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "user_id": "<id:usr>",
+          "status": "active",
+          "email_verified_at": "<timestamp>"
+        }
+      }
+    },
+    {
+      "name": "verify again (single use)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/verify-email",
+        "body": {
+          "token": "{{vt}}"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "validation_failed",
+            "status": 400,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "login",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "token_type": "Bearer",
+          "expires_in": 600,
+          "refresh_token": "<nonempty>",
+          "user": {
+            "id": "<id:usr>",
+            "email": "<string>"
+          },
+          "tenant": {
+            "id": "<id:ten>",
+            "role": "owner"
+          }
+        },
+        "headers_absent": [
+          "Set-Cookie"
+        ]
+      },
+      "capture": {
+        "at": "access_token",
+        "rt": "refresh_token",
+        "tid": "tenant.id"
+      }
+    },
+    {
+      "name": "login with explicit tenant_id",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple",
+          "tenant_id": "{{tid}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "token_type": "Bearer",
+          "expires_in": 600,
+          "refresh_token": "<nonempty>",
+          "user": {
+            "id": "<id:usr>",
+            "email": "<string>"
+          },
+          "tenant": {
+            "id": "<id:ten>",
+            "role": "<string>"
+          }
+        }
+      }
+    },
+    {
+      "name": "login wrong password",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "dev@example.com",
+          "password": "wrong password here"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "invalid email or password",
+            "details": [
+              {
+                "reason": "TOKEN_INVALID"
+              }
+            ],
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "login unknown e-mail: identical body",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "nobody@example.com",
+          "password": "wrong password here"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "invalid email or password",
+            "details": [
+              {
+                "reason": "TOKEN_INVALID"
+              }
+            ],
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "me",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "bearer {{at}}"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "user": {
+            "id": "<id:usr>",
+            "email": "dev@example.com",
+            "status": "active"
+          },
+          "api_key": null,
+          "tenant": {
+            "id": "{{tid}}",
+            "name": "Example Security",
+            "role": "owner",
+            "plan": "free"
+          },
+          "role": "owner",
+          "permissions": {
+            "$each": "<string>",
+            "$len": 8
+          }
+        },
+        "headers": {
+          "Cache-Control": "no-store"
+        }
+      }
+    },
+    {
+      "name": "refresh (body)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh",
+        "body": {
+          "refresh_token": "{{rt}}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "token_type": "Bearer",
+          "expires_in": 600,
+          "refresh_token": "<nonempty>",
+          "user": {
+            "id": "<id:usr>",
+            "email": "<string>"
+          },
+          "tenant": {
+            "id": "<id:ten>",
+            "role": "<string>"
+          }
+        }
+      },
+      "capture": {
+        "rt2": "refresh_token",
+        "at2": "access_token"
+      }
+    },
+    {
+      "name": "reuse the rotated refresh token",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh",
+        "body": {
+          "refresh_token": "{{rt}}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "the whole family is revoked",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh",
+        "body": {
+          "refresh_token": "{{rt2}}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "access tokens die with the session version bump",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "bearer {{at2}}"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "login again",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/login",
+        "body": {
+          "email": "dev@example.com",
+          "password": "correct horse battery staple"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "access_token": "<nonempty>",
+          "token_type": "Bearer",
+          "expires_in": 600,
+          "refresh_token": "<nonempty>",
+          "user": {
+            "id": "<id:usr>",
+            "email": "<string>"
+          },
+          "tenant": {
+            "id": "<id:ten>",
+            "role": "<string>"
+          }
+        }
+      },
+      "capture": {
+        "at3": "access_token",
+        "rt3": "refresh_token"
+      }
+    },
+    {
+      "name": "logout",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/logout",
+        "auth": "bearer {{at3}}"
+      },
+      "expect": {
+        "status": 204
+      }
+    },
+    {
+      "name": "access token denied after logout",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "auth": "bearer {{at3}}"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "refresh token revoked after logout",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh",
+        "body": {
+          "refresh_token": "{{rt3}}"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_invalid",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "refresh without a token",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/refresh"
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "token_missing",
+            "status": 401,
+            "message": "<string>",
+            "details": "<array>",
+            "request_id": "<id:req>"
+          }
+        }
+      }
+    },
+    {
+      "name": "resend verification (unknown address)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/auth/verify-email:resend",
+        "body": {
+          "email": "ghost@example.com"
+        }
+      },
+      "expect": {
+        "status": 202,
+        "body": {
+          "message": "<string>"
+        }
+      }
+    }
+  ]
+}
