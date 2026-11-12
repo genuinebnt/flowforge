@@ -109,7 +109,7 @@ depends = ["core"]
 tests = { prefix = "BC", required = ["001", "002"] }
 conformance = ["bytecode/verify"]
 properties = ["TestBCProp_EncodeDecodeIdentity"]
-fuzz = ["FuzzBytecodeDecode", "FuzzVerifier"]
+fuzz = ["FuzzBytecodeDecode"]
 
 [module.vecindex]
 layer = 2
@@ -139,7 +139,7 @@ dir = "vm"
 depends = ["core", "bytecode"]
 tests = { prefix = "VM", required = ["001", "002", "003", "004", "005", "006", "007"] }
 properties = ["TestVMProp_VerifiedNeverPanics", "TestVMProp_FuelMonotonic"]
-fuzz = ["FuzzSnapshotDecode"]
+fuzz = ["FuzzVerifier", "FuzzSnapshotDecode"]
 bench = ["BenchmarkVM01", "BenchmarkVM02", "BenchmarkVM03"]
 
 [module.eventstore]

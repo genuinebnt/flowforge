@@ -596,27 +596,14 @@ func (p *printer) exprInner(e Expr) {
 	}
 }
 
+// call prints a call written without a pipe (pipes go through pipe).
 func (p *printer) call(x *CallExpr) {
-	switch {
-	case x.Pipe == PipeBare && len(x.Args) == 1:
-		p.expr(x.Args[0].Value, 1)
-		p.ws(" |> ")
-		if c, ok := x.Fn.(*CallExpr); ok && c.Pipe == PipeNone {
-			p.ws("(")
-			p.call(c)
-			p.ws(")")
-			return
-		}
-		p.expr(x.Fn, 2)
-	case x.Pipe == PipeCall && len(x.Args) >= 1:
-		p.expr(x.Args[0].Value, 1)
-		p.ws(" |> ")
-		p.expr(x.Fn, 10)
-		p.args(x.Args[1:])
-	default:
-		p.expr(x.Fn, 10)
-		p.args(x.Args)
+	if x.Pipe != PipeNone && len(x.Args) > 0 {
+		p.pipe(x, false)
+		return
 	}
+	p.expr(x.Fn, 10)
+	p.args(x.Args)
 }
 
 func (p *printer) pat(pt Pattern) {

@@ -71,9 +71,9 @@ func (l *lexer) spanFrom(start Pos) Span { return Span{Start: start, End: l.pos(
 func (l *lexer) run(depth int) []Token {
 	var toks []Token
 	if depth == 0 {
-		// Roughly one token per five bytes of source; presizing avoids
+		// Roughly one token per three bytes of source; presizing avoids
 		// repeated growth of a large slice of pointerful structs.
-		toks = make([]Token, 0, len(l.src)/5+16)
+		toks = make([]Token, 0, len(l.src)/3+16)
 	}
 	braces := 0
 	for {

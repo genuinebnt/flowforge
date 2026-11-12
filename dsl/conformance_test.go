@@ -25,9 +25,6 @@ type parseCaseResult struct {
 	Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
 }
 
-// checkCaseResult is the shape of conformance/dsl/check/<case>.expected.json.
-type checkCaseResult = Analysis
-
 // suiteCase is one .ff file of a suite.
 type suiteCase struct {
 	Name string // base name without extension

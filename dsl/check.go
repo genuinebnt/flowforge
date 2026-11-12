@@ -107,7 +107,7 @@ func (c *checker) checkBody(params []*Param, body *BlockExpr, info *FuncInfo, is
 			sp = body.Tail.Span()
 		} else {
 			sp = Span{Start: body.Sp.End, End: body.Sp.End}
-			if body.Sp.End.Offset > 0 {
+			if body.Sp.End.Offset > 0 && body.Sp.End.Col > 1 {
 				sp.Start = Pos{Line: body.Sp.End.Line, Col: body.Sp.End.Col - 1, Offset: body.Sp.End.Offset - 1}
 			}
 		}
