@@ -1,0 +1,26 @@
+{
+  "failure": "unwrap_failed",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "scope_check",
+      "args": "[\"Name(x.example.com)\"]",
+      "args_hash": "984007aa15e817b9a7fe9dfd11689090ab1e998070d27bd6337e6141dd22c88c",
+      "result": "ok Err(ScopeDenied { target: \"Name(x.example.com)\", reason: \"excluded\", rule_id: None, decision_id: \"d-9\" })"
+    },
+    {
+      "path": "1",
+      "kind": "log",
+      "args": "[\"info\",\"excluded/d-9\"]",
+      "args_hash": "2e8040d49efbc8926f0a265b8a44a99bf32f657133017da33b13bcb6f48372ab",
+      "result": "ok ()"
+    },
+    {
+      "path": "2",
+      "kind": "scope_check",
+      "args": "[\"Name(x.example.com)\"]",
+      "args_hash": "984007aa15e817b9a7fe9dfd11689090ab1e998070d27bd6337e6141dd22c88c",
+      "result": "ok Err(ScopeDenied { target: \"Name(x.example.com)\", reason: \"excluded\", rule_id: None, decision_id: \"d-9\" })"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+// vm_003: running with tiny fuel slices (resumable OutOfFuel at every
+// instruction boundary) gives the same result as one run.
+fn tri(n: Int) -> Int { fold(0..n + 1, 0, (a, b) => a + b) }
+workflow main() -> List<Int> {
+  let xs = 0..12 |> map(tri) |> filter(t => t % 3 == 0);
+  concat(xs, [len(xs)])
+}

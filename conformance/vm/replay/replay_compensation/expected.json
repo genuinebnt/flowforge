@@ -1,0 +1,44 @@
+{
+  "module_sha256": "6b19f334d2bb8e7d04355261a47266f5845e209a5b02141ba0882efbc5df0711",
+  "failure": "approval_denied",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"book\",\"flight\"]",
+      "args_hash": "8dc564346f070254d5e1c68ef61f2e5f2ab4cfd1d933f848580c4366b5845ad5",
+      "result": "ok 7"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"book\",\"hotel\"]",
+      "args_hash": "d17c9dbfb46fd07e675bd217c0ab62e2cf1992a2247ec177818efd1fb6e01985",
+      "result": "ok 8"
+    },
+    {
+      "path": "2",
+      "kind": "approval",
+      "args": "[\"travel\",\"trip\",\"0s\"]",
+      "args_hash": "518980a6986d6230f22c4b3c01979be8f07354623e12dd369030fc017b5509bc",
+      "result": "ok Err(Denied { id: \"ap-2\", role: \"travel\", reason: \"no\" })"
+    },
+    {
+      "path": "3/0/0",
+      "kind": "tool_call",
+      "args": "[\"cancel\",\"8\"]",
+      "args_hash": "02df1dc5bd9d099b3682a0fe609a8b107b85f515774ffc348a02303159dd1d2b",
+      "result": "ok ()"
+    },
+    {
+      "path": "3/1/0",
+      "kind": "tool_call",
+      "args": "[\"cancel\",\"7\"]",
+      "args_hash": "62686b7e16db49f10a7649abff2e5bdbdd13b42204bb6fa278efd37378f4eeb8",
+      "result": "ok ()"
+    }
+  ],
+  "compensations": 2,
+  "replayed": 5,
+  "executed": 0
+}

@@ -1,0 +1,55 @@
+{
+  "failure": "effect_failed",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"reserve\",\"a\"]",
+      "args_hash": "35ddadec7f3f612b6a935e466339fd0fea4e2dad6b25173081d411c52e8d3f5d",
+      "result": "ok 1"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"reserve\",\"b\"]",
+      "args_hash": "2c2823cabe9ff0c46bae7bf2ff79cfd68185e3329876b757e723ef910115f66c",
+      "result": "ok 2"
+    },
+    {
+      "path": "2",
+      "kind": "tool_call",
+      "args": "[\"reserve\",\"c\"]",
+      "args_hash": "7655ca99299984eeb33ae5e2623f1ca290b30e3b2855aa85642ce44c655859a0",
+      "result": "ok 3"
+    },
+    {
+      "path": "3",
+      "kind": "tool_call",
+      "args": "[\"charge\",\"6\"]",
+      "args_hash": "96c8a190a44fe0010352b85d90b93ceaa0fb10139720a8b66c225e34787a9cdf",
+      "result": "failed effect_failed"
+    },
+    {
+      "path": "4/0/0",
+      "kind": "tool_call",
+      "args": "[\"release\",\"1003\",\"undo\"]",
+      "args_hash": "d86ab5173793ae1f9bada88bc32abddbdae1db61d94c050cc8b1ebbb09277e55",
+      "result": "ok ()"
+    },
+    {
+      "path": "4/1/0",
+      "kind": "tool_call",
+      "args": "[\"release\",\"2\",\"undo!\"]",
+      "args_hash": "3a4fbb0d9c5a5632dbcbd27b32e41957edecadc89260d15327d3c827941e276c",
+      "result": "ok ()"
+    },
+    {
+      "path": "4/2/0",
+      "kind": "tool_call",
+      "args": "[\"release\",\"1\",\"undo\"]",
+      "args_hash": "ee135624b9cd4132e9b80f97fa84a3e30e1b3e7fdbcee2f3b8854bf78750b489",
+      "result": "ok ()"
+    }
+  ],
+  "compensations": 3
+}

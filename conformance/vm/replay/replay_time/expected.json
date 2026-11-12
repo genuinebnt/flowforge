@@ -1,0 +1,30 @@
+{
+  "module_sha256": "da558a9a1362622f670c07bc5eaa84e968719415e537f9a9352695ee201f55ff",
+  "value": "5m2s",
+  "display": "5m2s",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "now",
+      "args": "[]",
+      "args_hash": "76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71",
+      "result": "ok 2026-03-01T10:00:00Z"
+    },
+    {
+      "path": "1",
+      "kind": "sleep",
+      "args": "[\"5m0s\"]",
+      "args_hash": "dc92b85fbd28372d6472433d988f6a38b0da9808f89b0b889c64dad3d4c78fb9",
+      "result": "ok ()"
+    },
+    {
+      "path": "2",
+      "kind": "now",
+      "args": "[]",
+      "args_hash": "76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71",
+      "result": "ok 2026-03-01T10:05:02Z"
+    }
+  ],
+  "replayed": 3,
+  "executed": 0
+}

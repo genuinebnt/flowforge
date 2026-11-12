@@ -1,0 +1,6 @@
+// 9223372036854775807 + 1 overflows i64: arith_overflow (spec 7.2).
+workflow main() -> Int {
+  let max = 9223372036854775807;
+  let one = 1;
+  max + one
+}

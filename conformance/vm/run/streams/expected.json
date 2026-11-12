@@ -1,0 +1,30 @@
+{
+  "value": [
+    "a.example.com,b.example.com",
+    "2"
+  ],
+  "display": "[\"a.example.com,b.example.com\", \"2\"]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"subfinder\",\"example.com\"]",
+      "args_hash": "6b63d6511117ce5a4928c1c6013459112fc681e717d61cde3c02ff06655b8a47",
+      "result": "ok [a.example.com, b.example.com, a.example.com]"
+    },
+    {
+      "path": "1",
+      "kind": "log",
+      "args": "[\"debug\",\"a.example.com\"]",
+      "args_hash": "afdcb8b2c3418a844c8e0733cb7e7cb7493517de5ada8f81fc5204711fa789d4",
+      "result": "ok ()"
+    },
+    {
+      "path": "2",
+      "kind": "log",
+      "args": "[\"debug\",\"b.example.com\"]",
+      "args_hash": "e22e758cc356b25ded59af9d911ad0473e410ad2ca80ba6a57a985d96bf507aa",
+      "result": "ok ()"
+    }
+  ]
+}

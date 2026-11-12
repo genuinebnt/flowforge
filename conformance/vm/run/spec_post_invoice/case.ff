@@ -1,0 +1,24 @@
+// Spec 7.1, second example program (saga with approval), with the
+// declarations the spec leaves implicit; the posting fails after the
+// entry was written, so the compensation reverses it.
+tool extract_invoice(doc: DocRef) -> Invoice                       ! read
+tool post_entry(e: LedgerEntry)    -> PostingId                    ! financial_write
+tool reverse_entry(id: PostingId)  -> Unit                         ! financial_write
+tool notify(msg: String) -> Unit ! write
+
+workflow post_invoice(doc: DocRef) -> Result<PostingId, String> {
+  let inv = extract_invoice(doc);
+  require approval(role = "finance_ap", reason = "post {inv.total} to ledger", timeout = 24h);
+  let id = post_entry(entry_for(inv)) compensate reverse_entry(it);
+  notify("posted {id.id}");
+  Ok(id)
+}
+
+type DocRef = { id: String }
+type Invoice = { number: String, total: Int, vendor: String }
+type LedgerEntry = { account: String, amount: Int, memo: String }
+type PostingId = { id: String }
+
+fn entry_for(inv: Invoice) -> LedgerEntry {
+  LedgerEntry { account: "ap", amount: inv.total, memo: "invoice {inv.number} from {inv.vendor}" }
+}

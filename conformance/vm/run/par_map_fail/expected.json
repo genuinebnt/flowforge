@@ -1,0 +1,26 @@
+{
+  "failure": "effect_failed",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "par_map",
+      "args": "[\"[1, 2, 3]\",\"\\u003cclosure 1\\u003e\",\"1\",\"0\"]",
+      "args_hash": "68adf6272b3aad6e3ec4e02dd8d4cea177c592cfdbcbb14adedf746aa4ed83ca",
+      "result": "failed effect_failed"
+    },
+    {
+      "path": "0/0/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"1\"]",
+      "args_hash": "fca3c09d1ac6cfc395c56a5ca2b7c79c8cb42b05785b4f6025e0987820d9a05e",
+      "result": "ok 11"
+    },
+    {
+      "path": "0/1/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"2\"]",
+      "args_hash": "7a7dc89af42a2c9eef811d31bde73c1ec2fdfc4ef4899408e5b085b07fbb0108",
+      "result": "failed effect_failed"
+    }
+  ]
+}

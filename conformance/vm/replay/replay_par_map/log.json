@@ -1,0 +1,44 @@
+[
+  {
+    "path": "0",
+    "kind": "par_map",
+    "args_hash": "99fee8cb277d54046fb34528dc0bd995311774f8962555bd3eb4454db07ddcd6",
+    "value_cbor": "8307008382020c8202182282021838"
+  },
+  {
+    "path": "0/1/0",
+    "kind": "tool_call",
+    "args_hash": "7a7dc89af42a2c9eef811d31bde73c1ec2fdfc4ef4899408e5b085b07fbb0108",
+    "value_cbor": "820203"
+  },
+  {
+    "path": "0/1/1",
+    "kind": "tool_call",
+    "args_hash": "cf89b0109268a03c66d7ad0fb76ce9a813f01c0e052e29199b6c6e605810c23e",
+    "value_cbor": "820204"
+  },
+  {
+    "path": "0/2/0",
+    "kind": "tool_call",
+    "args_hash": "3373e2d9a21a1ea2dec45c2918e90bb1753a5f15d5cf037290052dad781547dc",
+    "value_cbor": "820205"
+  },
+  {
+    "path": "0/2/1",
+    "kind": "tool_call",
+    "args_hash": "19065c9b2597a9b1af52bf2dec956ef55543fda56e67a917d7f9b41da954f31a",
+    "value_cbor": "820206"
+  },
+  {
+    "path": "0/0/0",
+    "kind": "tool_call",
+    "args_hash": "fca3c09d1ac6cfc395c56a5ca2b7c79c8cb42b05785b4f6025e0987820d9a05e",
+    "value_cbor": "820201"
+  },
+  {
+    "path": "0/0/1",
+    "kind": "tool_call",
+    "args_hash": "941adad61234d1cef739927f1a4f0f61fad5fd2db2bd65a49410b88999226ee9",
+    "value_cbor": "820202"
+  }
+]

@@ -1,0 +1,4 @@
+// Unbounded recursion stops at the call depth limit of 256 frames
+// (spec 8.7): limit_exceeded.
+fn down(n: Int) -> Int { if n == 0 { 0 } else { 1 + down(n - 1) } }
+workflow main() -> Int { down(1000) }

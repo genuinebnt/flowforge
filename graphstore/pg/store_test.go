@@ -1,0 +1,345 @@
+package pg_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/graphstore"
+	"github.com/genuinebnt/flowforge/graphstore/pg"
+	"github.com/genuinebnt/flowforge/graphstore/storetest"
+	"github.com/genuinebnt/flowforge/migrations"
+	"github.com/genuinebnt/flowforge/oam"
+	"github.com/genuinebnt/flowforge/testkit"
+)
+
+// The tests run against FF_TEST_PG_DSN: a migrated template database is
+// created once, and every store gets a fresh clone of it.
+
+var (
+	tmplOnce sync.Once
+	tmplName string
+	tmplErr  error
+	dbSeq    atomic.Int64
+)
+
+func dsn(t testing.TB) string {
+	t.Helper()
+	d := os.Getenv("FF_TEST_PG_DSN")
+	if d == "" {
+		t.Skip("FF_TEST_PG_DSN not set")
+	}
+	return d
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if tmplName != "" {
+		ctx := context.Background()
+		if c, err := pgx.Connect(ctx, os.Getenv("FF_TEST_PG_DSN")); err == nil {
+			_, _ = c.Exec(ctx, "DROP DATABASE IF EXISTS "+tmplName+" WITH (FORCE)")
+			_ = c.Close(ctx)
+		}
+	}
+	os.Exit(code)
+}
+
+func template(t testing.TB) string {
+	t.Helper()
+	base := dsn(t)
+	tmplOnce.Do(func() {
+		ctx := context.Background()
+		admin, err := pgx.Connect(ctx, base)
+		if err != nil {
+			tmplErr = err
+			return
+		}
+		defer admin.Close(ctx)
+		name := fmt.Sprintf("ff_graph_tmpl_%d", os.Getpid())
+		_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+		if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
+			tmplErr = err
+			return
+		}
+		cfg, _ := pgx.ParseConfig(base)
+		cfg.Database = name
+		c, err := pgx.ConnectConfig(ctx, cfg)
+		if err != nil {
+			tmplErr = err
+			return
+		}
+		tmplErr = migrations.Apply(ctx, c)
+		_ = c.Close(ctx)
+		tmplName = name
+	})
+	if tmplErr != nil {
+		t.Fatalf("template database: %v", tmplErr)
+	}
+	return tmplName
+}
+
+// freshPool returns a pool on a new clone of the migrated template.
+func freshPool(t testing.TB) (*pgxpool.Pool, string) {
+	t.Helper()
+	tmpl := template(t)
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, dsn(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := fmt.Sprintf("ff_graph_%d_%d", os.Getpid(), dbSeq.Add(1))
+	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name+" TEMPLATE "+tmpl); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := pgxpool.ParseConfig(dsn(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ConnConfig.Database = name
+	cfg.MaxConns = 16
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		pool.Close()
+		_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+		_ = admin.Close(ctx)
+	})
+	return pool, name
+}
+
+func pgFactory(t testing.TB, o storetest.Options) graphstore.Store {
+	pool, _ := freshPool(t)
+	return pg.New(pool, pg.Config{Config: o.Config(), PollInterval: 50 * time.Millisecond})
+}
+
+func memFactory(_ testing.TB, o storetest.Options) graphstore.Store {
+	return graphstore.NewMem(o.Config())
+}
+
+func mergeCases(t *testing.T) []storetest.MergeCase {
+	var out []storetest.MergeCase
+	for _, c := range testkit.LoadCases[storetest.MergeFile](t, "oam/merge") {
+		out = append(out, storetest.MergeCase{Name: c.Name, Data: c.Data})
+	}
+	return out
+}
+
+func TestGraphIngest_MergeConformance(t *testing.T) {
+	dsn(t)
+	storetest.MergeConformance(t, pgFactory, mergeCases(t), memFactory)
+}
+func TestGraphIngest_Idempotent(t *testing.T) { storetest.Idempotent(t, pgFactory) }
+func TestGraphIngest_Atomic(t *testing.T)     { storetest.Atomic(t, pgFactory) }
+func TestGraphProp_Convergence(t *testing.T) {
+	dsn(t)
+	storetest.Convergence(t, pgFactory, testkit.Rng(t), max(testkit.Cases()/20, 10), memFactory)
+}
+func TestGraphNeighbors(t *testing.T)              { storetest.Neighbors(t, pgFactory) }
+func TestGraphPath(t *testing.T)                   { storetest.Path(t, pgFactory) }
+func TestGraphBlastRadius_Components(t *testing.T) { storetest.BlastAndComponents(t, pgFactory) }
+func TestGraphFindEntities(t *testing.T)           { storetest.FindEntities(t, pgFactory) }
+func TestGraphSearch(t *testing.T)                 { storetest.Search(t, pgFactory) }
+func TestGraphDiff(t *testing.T)                   { storetest.Diff(t, pgFactory) }
+func TestGraphStaleness(t *testing.T)              { storetest.Staleness(t, pgFactory) }
+func TestGraphTenantIsolation(t *testing.T)        { storetest.TenantIsolation(t, pgFactory) }
+func TestGraphWatchChanges_Resume(t *testing.T)    { storetest.WatchResume(t, pgFactory) }
+func TestGraphSnapshot_Deterministic(t *testing.T) {
+	dsn(t)
+	storetest.Snapshot(t, pgFactory, memFactory)
+}
+func TestGraphAddTag(t *testing.T) { storetest.AddTag(t, pgFactory) }
+
+// TestGraphIngest_ConcurrentConvergence ingests the same observation
+// multiset from many goroutines (with duplicates) and compares the result
+// with Mem: concurrent writers converge (spec 23.5).
+func TestGraphIngest_ConcurrentConvergence(t *testing.T) {
+	pool, _ := freshPool(t)
+	s := pg.New(pool, pg.Config{})
+	mem := graphstore.NewMem(graphstore.Config{})
+	r := testkit.Rng(t)
+	tenant, prog := storetest.TenantID("cc"), storetest.ProgramID("cc")
+	var list []graphstore.IngestRequest
+	for i := range 200 {
+		list = append(list, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: storetest.RandomObservation(r, i, "", "")})
+	}
+	ctx := context.Background()
+	for _, req := range list {
+		if _, err := mem.IngestObservation(ctx, req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for w := range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range list {
+				if _, err := s.IngestObservation(ctx, list[(i*(w+3))%len(list)]); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	c := graphstore.Caller{TenantID: tenant}
+	a, _ := s.Export(ctx, c, prog)
+	b, _ := mem.Export(ctx, c, prog)
+	if storetest.Canon(t, a) != storetest.Canon(t, b) {
+		t.Fatal("concurrent ingest diverged from Mem")
+	}
+	evs, err := s.ReadChanges(ctx, c, graphstore.ChangesRequest{ProgramID: prog, Limit: graphstore.MaxPageSize})
+	if err != nil || len(evs) == 0 {
+		t.Fatalf("changes: %d %v", len(evs), err)
+	}
+}
+
+// TestGraphPG_RowLevelSecurity connects as a role subject to the RLS
+// policies: the store still works (it sets app.tenant_id per
+// transaction) and a session that does not set the tenant sees nothing.
+func TestGraphPG_RowLevelSecurity(t *testing.T) {
+	pool, db := freshPool(t)
+	ctx := context.Background()
+	role := fmt.Sprintf("ff_graph_app_%d", os.Getpid())
+	for _, q := range []string{
+		"DROP ROLE IF EXISTS " + role,
+		"CREATE ROLE " + role + " LOGIN",
+		"GRANT USAGE ON SCHEMA graph TO " + role,
+		"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA graph TO " + role,
+		"GRANT USAGE ON ALL SEQUENCES IN SCHEMA graph TO " + role,
+	} {
+		if _, err := pool.Exec(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	cfg, _ := pgxpool.ParseConfig(dsn(t))
+	cfg.ConnConfig.Database, cfg.ConnConfig.User = db, role
+	app, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		app.Close()
+		_, _ = pool.Exec(ctx, "DROP OWNED BY "+role)
+		_, _ = pool.Exec(ctx, "DROP ROLE IF EXISTS "+role)
+	})
+	s := pg.New(app, pg.Config{})
+	tenant, prog := storetest.TenantID("rls"), storetest.ProgramID("rls")
+	o := oam.Observation{ObservationID: "rls-1", Tool: oam.Tool{Name: "dnsx"}, ObservedAt: storetest.T0, Confidence: 0.9,
+		Entities: []oam.ObservedEntity{{Ref: "a", Asset: oam.FQDN{Name: "rls.acme.com"}}}}
+	res, err := s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: o})
+	if err != nil || res.EntitiesCreated != 1 {
+		t.Fatalf("ingest as app role: %+v %v", res, err)
+	}
+	if _, err := s.GetEntity(ctx, graphstore.Caller{TenantID: tenant}, graphstore.GetEntityRequest{EntityID: res.RefToEntityID["a"], IncludeTags: true}); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := app.QueryRow(ctx, "SELECT count(*) FROM graph.entities").Scan(&n); err != nil || n != 0 {
+		t.Fatalf("RLS without app.tenant_id: %d rows, %v", n, err)
+	}
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM graph.entities").Scan(&n); err != nil || n != 1 {
+		t.Fatalf("owner sees %d rows, %v", n, err)
+	}
+}
+
+// TestGraphPG_Relay checks the outbox relay: publish, then mark; a failed
+// publish marks nothing (at least once, never lost).
+func TestGraphPG_Relay(t *testing.T) {
+	pool, _ := freshPool(t)
+	ctx := context.Background()
+	s := pg.New(pool, pg.Config{})
+	tenant, prog := storetest.TenantID("relay"), storetest.ProgramID("relay")
+	for i := range 3 {
+		o := oam.Observation{ObservationID: fmt.Sprint("relay-", i), Tool: oam.Tool{Name: "dnsx"}, ObservedAt: storetest.T0, Confidence: 0.9,
+			Entities: []oam.ObservedEntity{{Ref: "a", Asset: oam.FQDN{Name: fmt.Sprintf("r%d.acme.com", i)}}}}
+		if _, err := s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	boom := errors.New("broker down")
+	var got []graphstore.ChangeEvent
+	relay := &pg.Relay{DB: pool, BatchSize: 2, Clock: storetest.NewClock(storetest.T0), Publish: func(_ context.Context, evs []graphstore.ChangeEvent) error {
+		if boom != nil {
+			return boom
+		}
+		got = append(got, evs...)
+		return nil
+	}}
+	if _, err := relay.RunOnce(ctx); !errors.Is(err, boom) {
+		t.Fatalf("failed publish: %v", err)
+	}
+	boom = nil
+	total := 0
+	for {
+		n, err := relay.RunOnce(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n == 0 {
+			break
+		}
+		total += n
+	}
+	if total != 3 || len(got) != 3 || got[0].Entity == nil || got[0].TenantID != tenant || got[0].Seq >= got[2].Seq {
+		t.Fatalf("relayed %d: %+v", total, got)
+	}
+	var pending int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM graph.change_events WHERE published_at IS NULL").Scan(&pending); err != nil || pending != 0 {
+		t.Fatalf("pending after relay: %d %v", pending, err)
+	}
+}
+
+// TestGraphPG_SearchTextMaintained checks that search_text follows
+// content merges (spec 10.7).
+func TestGraphPG_SearchTextMaintained(t *testing.T) {
+	pool, _ := freshPool(t)
+	ctx := context.Background()
+	s := pg.New(pool, pg.Config{})
+	tenant, prog := storetest.TenantID("st"), storetest.ProgramID("st")
+	ingest := func(id, out string, at time.Time) string {
+		o := oam.Observation{ObservationID: id, Tool: oam.Tool{Name: "httpx"}, ObservedAt: at, Confidence: 0.9,
+			Entities: []oam.ObservedEntity{{Ref: "s", Asset: oam.Service{UniqueID: "svc-1", Output: out}}}}
+		res, err := s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: o})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.RefToEntityID["s"]
+	}
+	id := ingest("s1", "Apache Tomcat", storetest.T0)
+	ingest("s2", "Grafana v9", storetest.T0.Add(time.Minute))
+	u, _ := core.ParsePublicID(core.PrefixEntity, id)
+	var text string
+	if err := pool.QueryRow(ctx, "SELECT search_text FROM graph.entities WHERE id = $1::uuid", u.String()).Scan(&text); err != nil {
+		t.Fatal(err)
+	}
+	if text != graphstore.SearchText(map[string]any{"unique_id": "svc-1", "output": "Grafana v9"}) {
+		t.Fatalf("search_text %q", text)
+	}
+}
+
+// BenchmarkSys01_Ingest is b_sys_01 against Postgres: benchWorkers
+// concurrent writers into one program, as when the engine forwards
+// observations from many tool runners at once.
+func BenchmarkSys01_Ingest(b *testing.B) {
+	pool, _ := freshPool(b)
+	storetest.BenchIngest(b, pg.New(pool, pg.Config{}), benchWorkers)
+}
+
+const benchWorkers = 8

@@ -1,0 +1,13 @@
+// Generic fns (one body for all instantiations), block expressions,
+// shadowing in inner blocks and if/else chains.
+type Pair<A, B> = { left: A, right: B }
+fn swap<A, B>(p: Pair<A, B>) -> Pair<B, A> { Pair { left: p.right, right: p.left } }
+fn pick<T>(c: Bool, a: T, b: T) -> T { if c { a } else { b } }
+fn grade(n: Int) -> String { if n > 90 { "A" } else if n > 75 { "B" } else if n > 50 { "C" } else { "F" } }
+workflow main() -> List<String> {
+  let p = swap(Pair { left: 1, right: "one" });
+  let x = 1;
+  let y = { let x = 2; x * 10 } + x;
+  [p.left, to_string(p.right), pick(false, "a", "b"), to_string(pick(true, 1, 2)), to_string(y),
+   grade(95), grade(80), grade(60), grade(10)]
+}

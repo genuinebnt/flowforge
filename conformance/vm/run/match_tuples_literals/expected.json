@@ -1,0 +1,12 @@
+{
+  "value": [
+    "zero",
+    "negative",
+    "one y",
+    "seven",
+    "pos",
+    "1"
+  ],
+  "display": "[\"zero\", \"negative\", \"one y\", \"seven\", \"pos\", \"1\"]",
+  "trace": []
+}

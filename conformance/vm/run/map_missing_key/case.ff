@@ -1,0 +1,5 @@
+// Indexing a map with a missing key fails with index_oob.
+workflow main() -> Int {
+  let m = [1, 2, 3] |> group_by(x => x % 2);
+  len(m[5])
+}

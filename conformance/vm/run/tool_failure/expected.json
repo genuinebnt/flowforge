@@ -1,0 +1,19 @@
+{
+  "failure": "effect_failed",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"fetch\",\"https://example.com/a\"]",
+      "args_hash": "c1dcefcf60709b5159d49f22b6040766dc36737f519fd04ca1ade0f42f6422dc",
+      "result": "ok A"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"fetch\",\"https://example.com/b\"]",
+      "args_hash": "11d44de1d0b833e8deda487639bbd652f9903937cd3b9c47c76b2a4c20b714b4",
+      "result": "failed effect_failed"
+    }
+  ]
+}

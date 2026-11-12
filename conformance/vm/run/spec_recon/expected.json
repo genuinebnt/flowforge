@@ -1,0 +1,107 @@
+{
+  "value": {
+    "alerts": 0,
+    "new_assets": 2
+  },
+  "display": "Report { new_assets: 2, alerts: 0 }",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"subfinder\",\"example.com\"]",
+      "args_hash": "6b63d6511117ce5a4928c1c6013459112fc681e717d61cde3c02ff06655b8a47",
+      "result": "ok [www.example.com, ci.example.com]"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"subfinder\",\"example.org\"]",
+      "args_hash": "91b7c2654a56bc5a69605d5fe9a0afecbe0b1417c1e0e1d2980a31aeab835779",
+      "result": "ok [dev.example.org, www.example.com, old.example.org]"
+    },
+    {
+      "path": "2",
+      "kind": "tool_call",
+      "args": "[\"resolve\",\"www.example.com\"]",
+      "args_hash": "f42d17e3873a2e48d91dd3a2a471adf1305e05bca6fa83b3649a9240c669d4b1",
+      "result": "ok Some(192.0.2.10)"
+    },
+    {
+      "path": "3",
+      "kind": "tool_call",
+      "args": "[\"resolve\",\"ci.example.com\"]",
+      "args_hash": "e5c22ee026a40dcc3318fcbab62ae0a97063d774c8a0ba788f09a46028273bd9",
+      "result": "ok Some(192.0.2.11)"
+    },
+    {
+      "path": "4",
+      "kind": "tool_call",
+      "args": "[\"resolve\",\"dev.example.org\"]",
+      "args_hash": "3dcad8615e15ee3e97e554b7a1bcba3a142a1c2e2e21f92e81db3d0b0d71aec5",
+      "result": "ok None"
+    },
+    {
+      "path": "5",
+      "kind": "tool_call",
+      "args": "[\"resolve\",\"old.example.org\"]",
+      "args_hash": "cead2e4c7145fa979d45a3d0ef7d0cc6c3691f8f4ece2e0b77f90631e55fc97c",
+      "result": "ok Some(198.51.100.7)"
+    },
+    {
+      "path": "6",
+      "kind": "par_map",
+      "args": "[\"[www.example.com, ci.example.com, dev.example.org]\",\"\\u003cclosure 1\\u003e\",\"8\",\"0\"]",
+      "args_hash": "eace8d7e16e2a5204363f4b2e5c52da4513ecd2d50eb99eb203beb1c65de54ac",
+      "result": "ok [Some(HttpService { url: https://www.example.com/, status: 200, title: Some(\"Home\"), tech: [Product { name: \"nginx\", version: Some(\"1.25\"), vendor: None }] }), Some(HttpService { url: https://ci.example.com/, status: 403, title: None, tech: [Product { name: \"jenkins\", version: Some(\"2.401\"), vendor: None }] }), None]"
+    },
+    {
+      "path": "6/0/0",
+      "kind": "scope_check",
+      "args": "[\"Name(www.example.com)\"]",
+      "args_hash": "e4cc810e9241abfb5bd56d3657b937fc8455c69fa665a76842f5452f9e4513c5",
+      "result": "ok Ok(InScope(Name(www.example.com)))"
+    },
+    {
+      "path": "6/0/1",
+      "kind": "tool_call",
+      "args": "[\"httpx\",\"InScope(Name(www.example.com))\"]",
+      "args_hash": "939bec639ace548c55752f5cb973fa49846f03c347c574b7040514a1332b4352",
+      "result": "ok Some(HttpService { url: https://www.example.com/, status: 200, title: Some(\"Home\"), tech: [Product { name: \"nginx\", version: Some(\"1.25\"), vendor: None }] })"
+    },
+    {
+      "path": "6/1/0",
+      "kind": "scope_check",
+      "args": "[\"Name(ci.example.com)\"]",
+      "args_hash": "603196940bc82311c73544f08c241feff8b3ee3d3f16cefc83359612b56b77c9",
+      "result": "ok Ok(InScope(Name(ci.example.com)))"
+    },
+    {
+      "path": "6/1/1",
+      "kind": "tool_call",
+      "args": "[\"httpx\",\"InScope(Name(ci.example.com))\"]",
+      "args_hash": "51a93cbcabd0ab83549bfbc792e90229cf2d750f5cd1b5488361efc649c6b1d8",
+      "result": "ok Some(HttpService { url: https://ci.example.com/, status: 403, title: None, tech: [Product { name: \"jenkins\", version: Some(\"2.401\"), vendor: None }] })"
+    },
+    {
+      "path": "6/2/0",
+      "kind": "scope_check",
+      "args": "[\"Name(dev.example.org)\"]",
+      "args_hash": "43835c961d07521134c998bb7198dce2b0a98c9b2ec1294e6f1883db018e736b",
+      "result": "ok Ok(InScope(Name(dev.example.org)))"
+    },
+    {
+      "path": "6/2/1",
+      "kind": "tool_call",
+      "args": "[\"httpx\",\"InScope(Name(dev.example.org))\"]",
+      "args_hash": "47945af1e5cc9db47253ad2c1499c10f35247c853bdddb4c2ca0aa081974d782",
+      "result": "ok None"
+    },
+    {
+      "path": "7",
+      "kind": "emit_alert",
+      "args": "[\"High\",\"Jenkins exposed: https://ci.example.com/\"]",
+      "args_hash": "68866657aad31312393fbe29e5c3c32da920b4c8d3ed22925f45dd2a596b1ea1",
+      "result": "ok ()"
+    }
+  ]
+}

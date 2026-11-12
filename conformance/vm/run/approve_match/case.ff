@@ -1,0 +1,12 @@
+// approve(...) returns Result<Approval, Denied>; matching it handles a
+// denial without failing; approve(...)? in a fn fails with
+// approval_denied only on denial.
+fn gate(why: String) -> String {
+  let a = approve("ops", why)?;
+  "approved by " + a.decided_by + " as " + a.role
+}
+workflow main() -> List<String> {
+  let first = match approve("ops", "restart") { Ok(a) => a.decided_by, Err(d) => "denied: " + d.reason };
+  let second = match approve(role = "ops", reason = "deploy", timeout = 1h) { Ok(a) => a.decided_by, Err(d) => "denied: " + d.reason };
+  [first, second, gate("rollback")]
+}

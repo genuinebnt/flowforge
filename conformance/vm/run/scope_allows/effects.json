@@ -1,0 +1,13 @@
+{
+  "inputs": {
+    "names": [
+      "a.example.com",
+      "b.example.com",
+      "c.example.com"
+    ]
+  },
+  "scope_allows": [
+    "a.example.com",
+    "c.example.com"
+  ]
+}

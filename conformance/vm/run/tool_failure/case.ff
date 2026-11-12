@@ -1,0 +1,7 @@
+// A failed effect fails the run with its code.
+tool fetch(url: Url) -> String ! read
+workflow main() -> String {
+  let a = fetch("https://example.com/a" as Url);
+  let b = fetch("https://example.com/b" as Url);
+  a + b
+}

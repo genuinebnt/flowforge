@@ -1,0 +1,10 @@
+// String library functions (spec 7.6).
+workflow main() -> List<String> {
+  let s = "  Hello, World  ";
+  let t = trim(s);
+  let parts = split(t, ", ");
+  [t, lower(t), upper(t), replace(t, "o", "0"), join(parts, "|"),
+   to_string(len(t)), to_string(starts_with(t, "Hell")), to_string(ends_with(t, "x")),
+   to_string(contains(t, "lo, W")), concat("ab", "cd"), "x" + "y" + "z",
+   to_string(len("héllo"))]
+}

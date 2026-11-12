@@ -1,0 +1,17 @@
+{
+  "value": [
+    "a:3",
+    "b:2",
+    "c:1",
+    "apple+avocado+apricot",
+    "banana+blueberry",
+    "cherry",
+    "banana",
+    "no",
+    "true",
+    "true",
+    "3"
+  ],
+  "display": "[\"a:3\", \"b:2\", \"c:1\", \"apple+avocado+apricot\", \"banana+blueberry\", \"cherry\", \"banana\", \"no\", \"true\", \"true\", \"3\"]",
+  "trace": []
+}

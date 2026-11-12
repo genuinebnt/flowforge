@@ -1,0 +1,6 @@
+// on_error = fail (default): the first failing task cancels the rest and
+// the par_map effect fails the run.
+tool probe(n: Int) -> Int ! active
+workflow main() -> List<Int> {
+  [1, 2, 3] |> par_map(n => probe(n), limit = 1)
+}

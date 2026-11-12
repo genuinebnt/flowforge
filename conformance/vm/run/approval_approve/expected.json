@@ -1,0 +1,20 @@
+{
+  "value": "paid",
+  "display": "paid",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "approval",
+      "args": "[\"finance\",\"pay 100\",\"2h0m0s\"]",
+      "args_hash": "febbb3d5f489cad68ff9fb19984a7a1e877aa71b88b702e94c6b9b2e29d05b08",
+      "result": "ok Ok(Approval { id: \"ap-0\", role: \"finance\", decided_by: \"alice\", decided_at: 2023-11-14T22:13:20Z })"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"pay\",\"100\"]",
+      "args_hash": "c6c8a0b0d01e4a4d2373898534d9d661f133c9b6758f63e1f65d0c348a15d73e",
+      "result": "ok paid"
+    }
+  ]
+}

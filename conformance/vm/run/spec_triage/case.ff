@@ -1,0 +1,17 @@
+// Spec 7.1, third example program (agent step). The engine rejects agent
+// effects at registration (DECISIONS D1); the module still compiles and
+// runs against scripted agent_call and execute_plan results.
+workflow triage(ctx: GraphSummary) -> Report {
+  let plan: Plan<Report> = agent planner(
+      goal    = "Probe newly discovered hosts that look like admin or CI systems",
+      context = ctx,
+      tools   = [resolve, httpx],
+      budget  = Budget { tokens = 20000, tool_calls = 25, iterations = 3 });
+  let result = execute(plan)?;
+  result
+}
+
+tool resolve(name: Fqdn)            -> Option<IpAddress>    ! passive
+tool httpx(host: InScope<Host>)     -> Option<HttpService> ! active
+type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }
+type Report      = { new_assets: Int, alerts: Int }

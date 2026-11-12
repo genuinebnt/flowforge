@@ -1,0 +1,13 @@
+// Saga: three compensated writes, then a failure; compensations run in
+// reverse registration order, each once, with `it` bound to the value
+// (spec 7.5, 9.6, vm_007).
+tool reserve(item: String) -> Int ! write
+tool release(id: Int, note: String) -> () ! write
+tool charge(amount: Int) -> Int ! write
+workflow main() -> Int {
+  let note = "undo";
+  let a = reserve("a") compensate release(it, note);
+  let b = reserve("b") compensate release(it, note + "!");
+  let c = reserve("c") compensate release(it + 1000, note);
+  charge(a + b + c)
+}

@@ -1,0 +1,32 @@
+{
+  "inputs": {
+    "names": [
+      "a.example.com",
+      "b.example.com"
+    ]
+  },
+  "results": {
+    "0": {
+      "type": "Option<IpAddress>",
+      "value": "192.0.2.1"
+    },
+    "1": {
+      "type": "Option<IpAddress>",
+      "value": null
+    },
+    "3": {
+      "scope": "allow",
+      "decision": "d-a"
+    },
+    "4": {
+      "type": "Option<Int>",
+      "value": 200
+    },
+    "5": {
+      "scope": "deny",
+      "reason": "excluded",
+      "decision": "d-b"
+    }
+  },
+  "tamper": "1"
+}

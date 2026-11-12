@@ -1,0 +1,22 @@
+{
+  "module_sha256": "e81ff46eedc06f8b28638483ab2753e8a6f1b408e16d80c8cedf090c6c38928e",
+  "failure": "nondeterminism_detected",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"lookup\",\"a.example.com\"]",
+      "args_hash": "ac96bc77a4ce41834255415dd2820fc3cab099ddc07d41477d04413b7f5d9ab3",
+      "result": "ok Some(192.0.2.1)"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"lookup\",\"b.example.com\"]",
+      "args_hash": "28770315b31f4ca4d4f9de629269023be33c39cfa982ace004240c924e44ddfc",
+      "result": "failed nondeterminism_detected"
+    }
+  ],
+  "replayed": 1,
+  "executed": 0
+}

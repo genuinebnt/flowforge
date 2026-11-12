@@ -1,0 +1,6 @@
+// String as Fqdn validates at run time; an invalid name fails the run.
+workflow main() -> String {
+  let bad = "not a domain!";
+  let f = bad as Fqdn;
+  f as String
+}

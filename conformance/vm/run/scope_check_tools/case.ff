@@ -1,0 +1,8 @@
+// scope.check yields an InScope proof that an active tool requires.
+tool httpx(host: InScope<Host>) -> Option<Int> ! active
+workflow main(names: List<Fqdn>) -> List<Int> {
+  names |> filter_map(n => match scope.check(Host::Name(n)) {
+    Ok(proof) => httpx(proof),
+    Err(_) => None,
+  })
+}

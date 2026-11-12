@@ -1,0 +1,28 @@
+{
+  "inputs": {
+    "ctx": {
+      "entities_by_type": {
+        "fqdn": 12
+      },
+      "new_since_last_run": 3,
+      "top_entities": [
+        "e1"
+      ]
+    }
+  },
+  "results": {
+    "0": {
+      "type": "String",
+      "value": "plan-1"
+    },
+    "1": {
+      "type": "Result<Report, PlanError>",
+      "value": {
+        "ok": {
+          "new_assets": 2,
+          "alerts": 1
+        }
+      }
+    }
+  }
+}

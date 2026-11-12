@@ -1,0 +1,9 @@
+// A failed saga replays its compensations from the log as well.
+tool book(item: String) -> Int ! write
+tool cancel(id: Int) -> () ! write
+workflow main() -> Int {
+  let a = book("flight") compensate cancel(it);
+  let b = book("hotel") compensate cancel(it);
+  require approval(role = "travel", reason = "trip");
+  a + b
+}

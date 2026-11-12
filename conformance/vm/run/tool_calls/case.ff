@@ -1,0 +1,11 @@
+// Tool calls: inputs in parameter order (named arguments evaluated in
+// source order), CONST name, EFFECT tool_call; results are scripted.
+tool lookup(name: Fqdn) -> Option<IpAddress> ! passive
+tool score(host: String, weight: Int) -> Int ! read
+workflow main() -> List<String> {
+  let a = lookup("a.example.com" as Fqdn);
+  let b = lookup("b.example.com" as Fqdn);
+  let s = score(weight = 3, host = "h1");
+  let show = o => match o { Some(ip) => to_string(ip), None => "none" };
+  [show(a), show(b), to_string(s)]
+}

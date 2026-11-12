@@ -1,0 +1,14 @@
+// Matching tuples, strings, booleans and integer literals.
+fn classify(p: (Int, String)) -> String {
+  match p {
+    (0, _) => "zero",
+    (n, "neg") if n < 0 => "negative",
+    (1, s) => "one " + s,
+    (_, s) => s,
+  }
+}
+fn yes(b: Bool) -> Int { match b { true => 1, false => 0 } }
+workflow main() -> List<String> {
+  [classify((0, "x")), classify((-5, "neg")), classify((1, "y")), classify((7, "seven")),
+   classify((-1, "pos")), to_string(yes(true) + yes(false))]
+}

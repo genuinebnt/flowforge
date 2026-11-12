@@ -1,0 +1,27 @@
+// Spec 7.1, first example program, with scripted effects.
+tool subfinder(domain: Fqdn)        -> Stream<Fqdn>         ! passive
+tool resolve(name: Fqdn)            -> Option<IpAddress>    ! passive
+tool httpx(host: InScope<Host>)     -> Option<HttpService> ! active
+
+type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }
+type Report      = { new_assets: Int, alerts: Int }
+
+#[timeout(2h)]
+workflow recon(roots: List<Fqdn>) -> Report {
+  let subs: Stream<Fqdn> = roots |> flat_map(subfinder) |> dedupe;
+  let live = subs |> filter_map(resolve);                          // Stream<IpAddress>
+
+  #[retry(max = 3, backoff = exp(1s, 30s))]
+  let web = subs
+    |> filter(n => scope.allows(n))                               // cheap passive filter
+    |> par_map(n => httpx(scope.check(Host::Name(n))?), limit = 8)
+    |> filter_map(x => x);
+
+  for svc in web {
+    match svc.tech |> first(p => p.name == "jenkins") {
+      Some(p) => emit_alert(Severity::High, "Jenkins exposed: {svc.url}"),
+      None    => (),
+    }
+  }
+  Report { new_assets: len(web), alerts: 0 }
+}

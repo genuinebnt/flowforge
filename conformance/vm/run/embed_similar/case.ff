@@ -1,0 +1,6 @@
+// embed and similar are recorded effects (spec 22.9).
+workflow main(e: Entity) -> Int {
+  let v = embed("admin portal");
+  let near = similar(e, 3);
+  len(near)
+}

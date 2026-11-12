@@ -1,0 +1,17 @@
+{
+  "results": {
+    "0": {
+      "approval": "deny",
+      "by": "bob",
+      "reason": "not now"
+    },
+    "1": {
+      "approval": "approve",
+      "by": "carol"
+    },
+    "2": {
+      "approval": "approve",
+      "by": "dave"
+    }
+  }
+}

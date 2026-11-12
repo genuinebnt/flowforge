@@ -1,0 +1,12 @@
+// first with and without a predicate, stable sort_by, group_by.
+type Item = { name: String, size: Int }
+workflow main() -> String {
+  let items = [Item { name: "b", size: 2 }, Item { name: "a", size: 1 },
+               Item { name: "c", size: 2 }, Item { name: "d", size: 1 }];
+  let sorted = items |> sort_by(i => i.size) |> map(i => i.name);
+  let groups = items |> group_by(i => i.size);
+  let big = items |> first(i => i.size > 1);
+  let none = items |> first(i => i.size > 5);
+  let head = sorted |> first;
+  "{join(sorted, ",")} {len(groups)} {keys(groups) |> map(k => to_string(k)) |> join(",")} {match big { Some(i) => i.name, None => "-" }} {match none { Some(i) => i.name, None => "-" }} {match head { Some(n) => n, None => "-" }}"
+}

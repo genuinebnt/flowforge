@@ -1,0 +1,7 @@
+// now() is recorded: replay returns the original time, not a new one.
+workflow main() -> String {
+  let a = now();
+  sleep(5m);
+  let b = now();
+  "{b - a}"
+}

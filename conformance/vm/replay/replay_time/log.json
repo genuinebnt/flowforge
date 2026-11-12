@@ -1,0 +1,20 @@
+[
+  {
+    "path": "0",
+    "kind": "now",
+    "args_hash": "76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71",
+    "value_cbor": "82041b1898af4d52654000"
+  },
+  {
+    "path": "1",
+    "kind": "sleep",
+    "args_hash": "dc92b85fbd28372d6472433d988f6a38b0da9808f89b0b889c64dad3d4c78fb9",
+    "value_cbor": "8100"
+  },
+  {
+    "path": "2",
+    "kind": "now",
+    "args_hash": "76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71",
+    "value_cbor": "82041b1898af93a2ff8c00"
+  }
+]

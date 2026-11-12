@@ -1,0 +1,5 @@
+// par_map children are replayed by their hierarchical paths.
+tool probe(n: Int) -> Int ! active
+workflow main() -> List<Int> {
+  [1, 2, 3] |> par_map(n => probe(n) * 10 + probe(n + 100), limit = 2)
+}

@@ -1,0 +1,89 @@
+{
+  "inputs": {
+    "roots": [
+      "example.com",
+      "example.org"
+    ]
+  },
+  "scope_allows": [
+    "ci.example.com",
+    "www.example.com",
+    "dev.example.org"
+  ],
+  "results": {
+    "0": {
+      "type": "Stream<Fqdn>",
+      "value": [
+        "www.example.com",
+        "ci.example.com"
+      ]
+    },
+    "1": {
+      "type": "Stream<Fqdn>",
+      "value": [
+        "dev.example.org",
+        "www.example.com",
+        "old.example.org"
+      ]
+    },
+    "2": {
+      "type": "Option<IpAddress>",
+      "value": "192.0.2.10"
+    },
+    "3": {
+      "type": "Option<IpAddress>",
+      "value": "192.0.2.11"
+    },
+    "4": {
+      "type": "Option<IpAddress>",
+      "value": null
+    },
+    "5": {
+      "type": "Option<IpAddress>",
+      "value": "198.51.100.7"
+    },
+    "6/0/0": {
+      "scope": "allow",
+      "decision": "d-www"
+    },
+    "6/0/1": {
+      "type": "Option<HttpService>",
+      "value": {
+        "url": "https://www.example.com/",
+        "status": 200,
+        "title": "Home",
+        "tech": [
+          {
+            "name": "nginx",
+            "version": "1.25"
+          }
+        ]
+      }
+    },
+    "6/1/0": {
+      "scope": "allow",
+      "decision": "d-ci"
+    },
+    "6/1/1": {
+      "type": "Option<HttpService>",
+      "value": {
+        "url": "https://ci.example.com/",
+        "status": 403,
+        "tech": [
+          {
+            "name": "jenkins",
+            "version": "2.401"
+          }
+        ]
+      }
+    },
+    "6/2/0": {
+      "scope": "allow",
+      "decision": "d-dev"
+    },
+    "6/2/1": {
+      "type": "Option<HttpService>",
+      "value": null
+    }
+  }
+}

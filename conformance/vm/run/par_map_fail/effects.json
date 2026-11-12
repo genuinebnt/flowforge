@@ -1,0 +1,16 @@
+{
+  "results": {
+    "0/0/0": {
+      "type": "Int",
+      "value": 11
+    },
+    "0/1/0": {
+      "fail": "effect_failed",
+      "message": "boom"
+    },
+    "0/2/0": {
+      "type": "Int",
+      "value": 33
+    }
+  }
+}

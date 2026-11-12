@@ -1,0 +1,9 @@
+{
+  "by_kind": {
+    "scope_check": {
+      "scope": "deny",
+      "reason": "excluded",
+      "decision": "d-9"
+    }
+  }
+}

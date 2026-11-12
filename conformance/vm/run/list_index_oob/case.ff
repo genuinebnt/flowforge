@@ -1,0 +1,6 @@
+// Indexing past the end fails with index_oob.
+workflow main() -> Int {
+  let xs = [1, 2, 3];
+  let i = len(xs);
+  xs[i]
+}

@@ -1,0 +1,16 @@
+{
+  "results": {
+    "0": {
+      "type": "Option<IpAddress>",
+      "value": "192.0.2.1"
+    },
+    "1": {
+      "type": "Option<IpAddress>",
+      "value": null
+    },
+    "2": {
+      "type": "Int",
+      "value": 77
+    }
+  }
+}

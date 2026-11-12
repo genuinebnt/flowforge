@@ -1,0 +1,21 @@
+// `?` in a fn returning Result returns the Err early; in a fn returning
+// Option it returns None (dsl OPEN_QUESTIONS 12).
+fn half(n: Int) -> Result<Int, String> {
+  if n % 2 == 0 { Ok(n / 2) } else { Err("odd: " + to_string(n)) }
+}
+fn quarter(n: Int) -> Result<Int, String> {
+  let h = half(n)?;
+  let q = half(h)?;
+  Ok(q)
+}
+fn first_even(xs: List<Int>) -> Option<Int> {
+  let x = xs |> first(v => v % 2 == 0);
+  let y = x?;
+  Some(y * 100)
+}
+fn show(r: Result<Int, String>) -> String { match r { Ok(v) => "ok {v}", Err(e) => "err {e}" } }
+workflow main() -> List<String> {
+  [show(quarter(12)), show(quarter(6)), show(quarter(7)),
+   match first_even([1, 3, 4]) { Some(v) => to_string(v), None => "none" },
+   match first_even([1, 3]) { Some(v) => to_string(v), None => "none" }]
+}

@@ -1,0 +1,10 @@
+{
+  "value": [
+    "25",
+    "diag from y=0 to x=3",
+    "3,4",
+    "true"
+  ],
+  "display": "[\"25\", \"diag from y=0 to x=3\", \"3,4\", \"true\"]",
+  "trace": []
+}

@@ -1,0 +1,8 @@
+// Comparisons and short-circuit && / ||: the right operand is not
+// evaluated when the left decides (it would divide by zero).
+fn boom(x: Int) -> Bool { 10 / x > 1 }
+workflow main() -> List<Bool> {
+  let zero = 0;
+  [1 < 2, 2 <= 2, 3 > 4, 4 >= 5, 1 == 1, 1 != 1, "a" < "b",
+   false && boom(zero), true || boom(zero), !(1 == 2), true && 2 > 1]
+}

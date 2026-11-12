@@ -1,0 +1,12 @@
+{
+  "by_tool": {
+    "reserve": {
+      "type": "Int",
+      "value": 5
+    },
+    "release": {
+      "type": "()",
+      "value": null
+    }
+  }
+}

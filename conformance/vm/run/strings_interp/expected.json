@@ -1,0 +1,5 @@
+{
+  "value": "n=42 f=2.0 ok=true d=1m30s t=2023-11-14T22:13:20Z fqdn=example.com host=Name(example.com) sev=High {braces} 43",
+  "display": "n=42 f=2.0 ok=true d=1m30s t=2023-11-14T22:13:20Z fqdn=example.com host=Name(example.com) sev=High {braces} 43",
+  "trace": []
+}

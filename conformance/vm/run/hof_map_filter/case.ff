@@ -1,0 +1,9 @@
+// map, filter and filter_map with inlined lambdas.
+workflow main() -> List<List<Int>> {
+  let xs = 1..11;
+  let k = 3;
+  let squares = xs |> map(x => x * x);
+  let odd = xs |> filter(x => x % 2 == 1);
+  let small = xs |> filter_map(x => if x * k < 12 { Some(x * k) } else { None });
+  [squares, odd, small, [] |> map(x => x + 1)]
+}

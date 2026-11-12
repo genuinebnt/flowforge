@@ -1,0 +1,5 @@
+// scope.allows reads the pinned scope snapshot given to the VM (no
+// effect, not a proof).
+workflow main(names: List<Fqdn>) -> List<Fqdn> {
+  names |> filter(n => scope.allows(n))
+}

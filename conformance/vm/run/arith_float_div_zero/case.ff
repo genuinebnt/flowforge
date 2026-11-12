@@ -1,0 +1,5 @@
+// Float division by zero fails with div_zero (vm OPEN_QUESTIONS 5).
+workflow main() -> Float {
+  let z = 0.0;
+  1.0 / z
+}

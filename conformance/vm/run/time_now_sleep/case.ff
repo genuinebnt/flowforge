@@ -1,0 +1,10 @@
+// now() and sleep() are recorded effects: replay returns the recorded
+// time. log and emit_alert are effects too.
+workflow main() -> String {
+  let start = now();
+  sleep(30s);
+  let end = now();
+  log("info", "slept");
+  emit_alert(Severity::Low, "waited {end - start}");
+  "{start} -> {end}"
+}

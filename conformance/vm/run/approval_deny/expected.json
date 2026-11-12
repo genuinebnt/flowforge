@@ -1,0 +1,12 @@
+{
+  "failure": "approval_denied",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "approval",
+      "args": "[\"finance\",\"pay 100\",\"0s\"]",
+      "args_hash": "e4b11e9cf7062b04ec577c9475ac0018b1e9f4f105e780e2393c40bd358c2718",
+      "result": "ok Err(Denied { id: \"ap-0\", role: \"finance\", reason: \"over budget\" })"
+    }
+  ]
+}

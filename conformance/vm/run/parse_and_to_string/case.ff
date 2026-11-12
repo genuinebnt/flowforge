@@ -1,0 +1,10 @@
+// Parsers return Option; to_string renders the display form.
+fn show(o: Option<Int>) -> String {
+  match o { Some(v) => "some " + to_string(v), None => "none" }
+}
+workflow main() -> List<String> {
+  [show(parse_int("123")), show(parse_int("-9_000")), show(parse_int("12x")),
+   match parse_float("2.5") { Some(f) => to_string(f), None => "none" },
+   match parse_float("nan") { Some(f) => to_string(f), None => "none" },
+   to_string(3.0), to_string(-7)]
+}

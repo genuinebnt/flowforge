@@ -1,0 +1,6 @@
+// Multiplication overflow and negation of the minimum are checked.
+fn square(x: Int) -> Int { x * x }
+workflow main() -> Int {
+  let big = 4000000000;
+  square(big)
+}

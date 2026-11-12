@@ -1,0 +1,32 @@
+{
+  "inputs": {
+    "names": [
+      "a.example.com",
+      "b.example.com",
+      "c.example.com"
+    ]
+  },
+  "results": {
+    "0": {
+      "scope": "allow",
+      "decision": "d-a"
+    },
+    "1": {
+      "type": "Option<Int>",
+      "value": 200
+    },
+    "2": {
+      "scope": "deny",
+      "reason": "out of scope",
+      "decision": "d-b"
+    },
+    "3": {
+      "scope": "allow",
+      "decision": "d-c"
+    },
+    "4": {
+      "type": "Option<Int>",
+      "value": null
+    }
+  }
+}

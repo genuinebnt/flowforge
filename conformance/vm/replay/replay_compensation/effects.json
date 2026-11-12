@@ -1,0 +1,23 @@
+{
+  "results": {
+    "0": {
+      "type": "Int",
+      "value": 7
+    },
+    "1": {
+      "type": "Int",
+      "value": 8
+    },
+    "2": {
+      "approval": "deny",
+      "by": "boss",
+      "reason": "no"
+    }
+  },
+  "by_tool": {
+    "cancel": {
+      "type": "()",
+      "value": null
+    }
+  }
+}

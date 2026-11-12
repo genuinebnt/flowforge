@@ -1,0 +1,6 @@
+// require approval with a denial fails the run with approval_denied.
+tool pay(amount: Int) -> String ! financial_write
+workflow main() -> String {
+  require approval(role = "finance", reason = "pay 100");
+  pay(100)
+}

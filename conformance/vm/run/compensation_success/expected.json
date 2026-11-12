@@ -1,0 +1,20 @@
+{
+  "value": 10,
+  "display": "10",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"reserve\",\"a\"]",
+      "args_hash": "35ddadec7f3f612b6a935e466339fd0fea4e2dad6b25173081d411c52e8d3f5d",
+      "result": "ok 5"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"reserve\",\"b\"]",
+      "args_hash": "2c2823cabe9ff0c46bae7bf2ff79cfd68185e3329876b757e723ef910115f66c",
+      "result": "ok 5"
+    }
+  ]
+}

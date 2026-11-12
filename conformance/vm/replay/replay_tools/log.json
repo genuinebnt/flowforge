@@ -1,0 +1,38 @@
+[
+  {
+    "path": "0",
+    "kind": "tool_call",
+    "args_hash": "ac96bc77a4ce41834255415dd2820fc3cab099ddc07d41477d04413b7f5d9ab3",
+    "value_cbor": "840a000181820d693139322e302e322e31"
+  },
+  {
+    "path": "1",
+    "kind": "tool_call",
+    "args_hash": "28770315b31f4ca4d4f9de629269023be33c39cfa982ace004240c924e44ddfc",
+    "value_cbor": "840a000080"
+  },
+  {
+    "path": "2",
+    "kind": "log",
+    "args_hash": "6d22b4e4c93a8f5486e16adf771b2ebc5be4fbe47fb1e31fdc43dde7159c8463",
+    "value_cbor": "8100"
+  },
+  {
+    "path": "3",
+    "kind": "scope_check",
+    "args_hash": "17f87542b2b47118c3ccf563d413098cf48d6c74d27d92c02098d6dd1de8933d",
+    "value_cbor": "840a0100818311840a020081820c6d612e6578616d706c652e636f6d63642d61"
+  },
+  {
+    "path": "4",
+    "kind": "tool_call",
+    "args_hash": "50d034bc41d7b2487b30b49f8fb8bff41f119c841eb29a4582fc356d7580c20a",
+    "value_cbor": "840a000181820218c8"
+  },
+  {
+    "path": "5",
+    "kind": "scope_check",
+    "args_hash": "10e1f29cba3c8662fb19f3ee15af2ad3947242461265a44770c09393e8810658",
+    "value_cbor": "840a010181830905848206734e616d6528622e6578616d706c652e636f6d298206686578636c75646564840a000080820663642d62"
+  }
+]

@@ -1,0 +1,16 @@
+// Record literals in any field order (built in declaration order), field
+// access, nested records and record patterns.
+type Point = { x: Int, y: Int }
+type Segment = { from: Point, to: Point, label: String }
+fn length2(s: Segment) -> Int {
+  let dx = s.to.x - s.from.x;
+  let dy = s.to.y - s.from.y;
+  dx * dx + dy * dy
+}
+workflow main() -> List<String> {
+  let p = Point { y: 4, x: 3 };
+  let s = Segment { label: "diag", to: p, from: Point { x: 0, y: 0 } };
+  let desc = match s { Segment { from: Point { x: 0, y }, label, to } => "{label} from y={y} to x={to.x}", _ => "other" };
+  let Point { x, y: py } = p;
+  [to_string(length2(s)), desc, "{x},{py}", to_string(p == Point { x: 3, y: 4 })]
+}

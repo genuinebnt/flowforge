@@ -1,0 +1,16 @@
+// Closures capture by value; nested closures; closures returned from fns
+// and stored in lists (spec 8.1, dsl_006).
+fn adder(n: Int) -> (Int) -> Int { x => x + n }
+fn compose(f: (Int) -> Int, g: (Int) -> Int) -> (Int) -> Int { x => g(f(x)) }
+workflow main() -> List<Int> {
+  let base = 10;
+  let add_base = x => x + base;
+  let shadowed = {
+    let base = 1000;
+    add_base(base)
+  };
+  let fs = [adder(1), adder(2), add_base, compose(adder(3), add_base)];
+  let nested = y => (z => y * z + base);
+  let times = nested(3);
+  concat(fs |> map(f => f(5)), [times(4), add_base(0), shadowed])
+}

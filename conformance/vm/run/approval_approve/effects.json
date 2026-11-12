@@ -1,0 +1,12 @@
+{
+  "results": {
+    "0": {
+      "approval": "approve",
+      "by": "alice"
+    },
+    "1": {
+      "type": "String",
+      "value": "paid"
+    }
+  }
+}

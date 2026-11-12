@@ -1,0 +1,9 @@
+// fold, any, all and count, with and without a predicate.
+workflow main() -> List<Int> {
+  let xs = [4, 8, 15, 16, 23, 42];
+  let sum = fold(xs, 0, (acc, x) => acc + x);
+  let prod = xs |> take(3) |> fold(1, (acc, x) => acc * x);
+  let b = [any(xs, x => x > 40), any(xs, x => x > 50), all(xs, x => x > 3), all(xs, x => x % 2 == 0)];
+  let as_int = b |> map(v => if v { 1 } else { 0 });
+  concat([sum, prod, count(xs, x => x % 2 == 0), count(xs)], as_int)
+}

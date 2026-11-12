@@ -1,0 +1,41 @@
+{
+  "value": "2026-01-01T00:00:00Z -\u003e 2026-01-01T00:00:31Z",
+  "display": "2026-01-01T00:00:00Z -\u003e 2026-01-01T00:00:31Z",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "now",
+      "args": "[]",
+      "args_hash": "76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71",
+      "result": "ok 2026-01-01T00:00:00Z"
+    },
+    {
+      "path": "1",
+      "kind": "sleep",
+      "args": "[\"30s\"]",
+      "args_hash": "2a46d3fdb87ac485291b70d6113b939dcb7e6d0e6178eb98082b44572fecc75a",
+      "result": "ok ()"
+    },
+    {
+      "path": "2",
+      "kind": "now",
+      "args": "[]",
+      "args_hash": "76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71",
+      "result": "ok 2026-01-01T00:00:31Z"
+    },
+    {
+      "path": "3",
+      "kind": "log",
+      "args": "[\"info\",\"slept\"]",
+      "args_hash": "4470ebd98bea59746de43ca0aa140cdd236f482aa4e571cc4afeb6a01f2d76ab",
+      "result": "ok ()"
+    },
+    {
+      "path": "4",
+      "kind": "emit_alert",
+      "args": "[\"Low\",\"waited 31s\"]",
+      "args_hash": "8f3a5094b72ac57693895a9105c53318322f436ed2f3053be41edb092b77a0e2",
+      "result": "ok ()"
+    }
+  ]
+}

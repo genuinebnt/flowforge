@@ -1,0 +1,8 @@
+{
+  "value": [
+    "a.example.com",
+    "c.example.com"
+  ],
+  "display": "[a.example.com, c.example.com]",
+  "trace": []
+}

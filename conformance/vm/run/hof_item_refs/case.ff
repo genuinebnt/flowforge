@@ -1,0 +1,11 @@
+// Functions passed by name: a fn, a variant constructor, a library
+// function, and a closure held in a variable (CALL_CLOSURE).
+fn double(x: Int) -> Int { x * 2 }
+workflow main() -> List<String> {
+  let xs = [1, 2, 3];
+  let add = a => a + 100;
+  let wrapped = xs |> map(Some);
+  let ys = xs |> map(double) |> map(add);
+  let words = ["  a ", " b"] |> map(trim);
+  concat(words, [ys |> map(y => to_string(y)) |> join(","), to_string(len(wrapped))])
+}

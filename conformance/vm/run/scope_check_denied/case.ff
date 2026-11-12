@@ -1,0 +1,10 @@
+// A denied scope.check with `?` in the workflow body fails the run with
+// unwrap_failed; the denial's fields are readable through match.
+tool httpx(host: InScope<Host>) -> Option<Int> ! active
+workflow main() -> Int {
+  let h = Host::Name("x.example.com" as Fqdn);
+  let reason = match scope.check(h) { Ok(_) => "allowed", Err(d) => d.reason + "/" + d.decision_id };
+  log("info", reason);
+  let proof = scope.check(h)?;
+  match httpx(proof) { Some(s) => s, None => 0 }
+}

@@ -1,0 +1,15 @@
+// Casts between Int, Duration and Time, Duration and Time arithmetic,
+// and String <-> domain scalar.
+workflow main() -> List<String> {
+  let d = 1500 as Duration;
+  let n = 2m as Int;
+  let t = 86400000000000 as Time;
+  let later = t + 1h;
+  let gap = later - t;
+  let fq = "WWW.Example.com." as Fqdn;
+  let ip = "10.0.0.1" as IpAddress;
+  let net = "10.0.0.0/8" as Netblock;
+  let asn = "AS64500" as Asn;
+  [to_string(net), asn as String, to_string(d), to_string(n), to_string(t), to_string(later), to_string(gap), to_string(gap * 2),
+   to_string(later as Int), fq as String, to_string(ip), to_string(3m / 2), to_string(-(5s))]
+}

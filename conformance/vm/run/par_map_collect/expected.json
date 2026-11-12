@@ -1,0 +1,38 @@
+{
+  "value": [
+    "ok 11",
+    "err effect_failed",
+    "ok 33"
+  ],
+  "display": "[\"ok 11\", \"err effect_failed\", \"ok 33\"]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "par_map",
+      "args": "[\"[1, 2, 3]\",\"\\u003cclosure 1\\u003e\",\"3\",\"1\"]",
+      "args_hash": "45bdce1b55bff9b663f3c844a69d2a8c2c4e7b68253badef472cfc3a8bbf741a",
+      "result": "ok [Ok(11), Err(TaskError { code: \"effect_failed\", message: \"boom\" }), Ok(33)]"
+    },
+    {
+      "path": "0/0/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"1\"]",
+      "args_hash": "fca3c09d1ac6cfc395c56a5ca2b7c79c8cb42b05785b4f6025e0987820d9a05e",
+      "result": "ok 11"
+    },
+    {
+      "path": "0/1/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"2\"]",
+      "args_hash": "7a7dc89af42a2c9eef811d31bde73c1ec2fdfc4ef4899408e5b085b07fbb0108",
+      "result": "failed effect_failed"
+    },
+    {
+      "path": "0/2/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"3\"]",
+      "args_hash": "3373e2d9a21a1ea2dec45c2918e90bb1753a5f15d5cf037290052dad781547dc",
+      "result": "ok 33"
+    }
+  ]
+}

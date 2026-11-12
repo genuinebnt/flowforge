@@ -1,0 +1,74 @@
+{
+  "value": [
+    3,
+    7,
+    11,
+    15
+  ],
+  "display": "[3, 7, 11, 15]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "par_map",
+      "args": "[\"[10, 20, 30, 40]\",\"\\u003cclosure 1\\u003e\",\"2\",\"0\"]",
+      "args_hash": "48f07cf7de7ffd2fbe8c217288cd1a245ebac226f861fbba60d9c684696b51d1",
+      "result": "ok [3, 7, 11, 15]"
+    },
+    {
+      "path": "0/2/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"30\"]",
+      "args_hash": "194e3ade0d777922a063f1591b3225f6eb329e189703d084b1bfcc321503a816",
+      "result": "ok 5"
+    },
+    {
+      "path": "0/2/1",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"31\"]",
+      "args_hash": "f050fec7f272247fed1261c35b09581388cf3d1a678d26c103f862d93bbecd14",
+      "result": "ok 6"
+    },
+    {
+      "path": "0/0/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"10\"]",
+      "args_hash": "268a2f43d0c733d3ed47c62336b66d56d4bb9fcb157f9da51094e5a3c2dfe8c0",
+      "result": "ok 1"
+    },
+    {
+      "path": "0/0/1",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"11\"]",
+      "args_hash": "748258ec773f1dfbfa3d03be06ecc6c2ba4a75e58d3a89b51e39d5e727aa9630",
+      "result": "ok 2"
+    },
+    {
+      "path": "0/3/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"40\"]",
+      "args_hash": "53180b36ea799b8d90d767798913a858d3350b8ac065cbc8a423b88fe8623c25",
+      "result": "ok 7"
+    },
+    {
+      "path": "0/3/1",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"41\"]",
+      "args_hash": "a6016fcb20c4a32546c80e7bae054dc37e2640638af94a7ffd2a29e9a03f9cff",
+      "result": "ok 8"
+    },
+    {
+      "path": "0/1/0",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"20\"]",
+      "args_hash": "d52d33c8861f2ef8bdb98eec81f9a3e8f42724c9db98759b6301680648f0e420",
+      "result": "ok 3"
+    },
+    {
+      "path": "0/1/1",
+      "kind": "tool_call",
+      "args": "[\"probe\",\"21\"]",
+      "args_hash": "80aca2844fed0243de481c24a3f7108eca971bea712931ea8c66aa832d376b79",
+      "result": "ok 4"
+    }
+  ]
+}

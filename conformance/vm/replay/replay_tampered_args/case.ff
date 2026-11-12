@@ -1,0 +1,9 @@
+// Tool calls and a scope check, with a tampered log: the args_hash of effect 1 no longer
+// matches, so replay fails with nondeterminism_detected (spec 8.6).
+tool lookup(name: Fqdn) -> Option<IpAddress> ! passive
+tool httpx(host: InScope<Host>) -> Option<Int> ! active
+workflow main(names: List<Fqdn>) -> List<Int> {
+  let ips = names |> filter_map(lookup);
+  log("info", "resolved {len(ips)}");
+  names |> filter_map(n => match scope.check(Host::Name(n)) { Ok(p) => httpx(p), Err(_) => None })
+}

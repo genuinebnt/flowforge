@@ -1,0 +1,11 @@
+// `?` inside a lambda always fails the run, even inside a fn whose own `?`
+// would return (explicit lowering outside the workflow body).
+fn total(xs: List<Option<Int>>) -> Result<Int, String> {
+  let ys = xs |> map(o => o? * 2);
+  Ok(fold(ys, 0, (a, b) => a + b))
+}
+workflow main() -> Result<Int, String> {
+  let ok = total([Some(1), Some(2)])?;
+  let bad = total([Some(1), None])?;
+  Ok(ok + bad)
+}

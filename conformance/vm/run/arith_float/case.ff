@@ -1,0 +1,7 @@
+// Float arithmetic and Int/Float casts.
+workflow main() -> List<Float> {
+  let x = 1.5;
+  let n = 4;
+  let half = (n as Float) / 2.0;
+  [x + 2.25, x * 3.0, x - 4.0, -x, half, (7.9 as Int) as Float, 10.0 / 4.0]
+}

@@ -1,0 +1,23 @@
+{
+  "value": {
+    "alerts": 1,
+    "new_assets": 2
+  },
+  "display": "Report { new_assets: 2, alerts: 1 }",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "agent_call",
+      "args": "[\"planner\",\"Probe newly discovered hosts that look like admin or CI systems\",\"GraphSummary { entities_by_type: {\\\"fqdn\\\": 12}, new_since_last_run: 3, top_entities: [e1] }\",\"[\\\"resolve\\\", \\\"httpx\\\"]\",\"Budget { tokens: 20000, tool_calls: 25, iterations: 3 }\"]",
+      "args_hash": "d3ad06ba3f2e8c30ab70ac146733c8e80810609dc81bdb429e0744b74398af32",
+      "result": "ok plan-1"
+    },
+    {
+      "path": "1",
+      "kind": "execute_plan",
+      "args": "[\"plan-1\"]",
+      "args_hash": "e91aa658a92864e09c4aa2f42de04690308ac85073db67ed3c1e22c6eb75d76c",
+      "result": "ok Ok(Report { new_assets: 2, alerts: 1 })"
+    }
+  ]
+}

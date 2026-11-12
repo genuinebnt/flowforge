@@ -1,0 +1,12 @@
+{
+  "results": {
+    "0": {
+      "type": "String",
+      "value": "A"
+    },
+    "1": {
+      "fail": "effect_failed",
+      "message": "HTTP 500"
+    }
+  }
+}

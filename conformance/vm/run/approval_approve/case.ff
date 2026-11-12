@@ -1,0 +1,6 @@
+// require approval with an approving decision continues the run.
+tool pay(amount: Int) -> String ! financial_write
+workflow main() -> String {
+  require approval(role = "finance", reason = "pay 100", timeout = 2h);
+  pay(100)
+}

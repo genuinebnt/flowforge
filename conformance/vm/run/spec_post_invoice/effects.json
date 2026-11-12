@@ -1,0 +1,35 @@
+{
+  "inputs": {
+    "doc": {
+      "id": "doc-7"
+    }
+  },
+  "results": {
+    "0": {
+      "type": "Invoice",
+      "value": {
+        "number": "INV-1",
+        "total": 1250,
+        "vendor": "ACME"
+      }
+    },
+    "1": {
+      "approval": "approve",
+      "by": "fin-lead"
+    },
+    "2": {
+      "type": "PostingId",
+      "value": {
+        "id": "P-42"
+      }
+    },
+    "3": {
+      "fail": "effect_failed",
+      "message": "mail server down"
+    },
+    "4/0/0": {
+      "type": "()",
+      "value": null
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "module": "graphstore",
+  "date": "2026-11-12",
+  "commit": "76f1c90",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkSys01_Ingest",
+      "package": "github.com/genuinebnt/flowforge/graphstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 30437,
+        "allocs/op": 391,
+        "ns/op": 127530,
+        "obs/s": 3399,
+        "p50-us": 295,
+        "p99-us": 295
+      }
+    }
+  ]
+}

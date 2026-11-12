@@ -1,0 +1,11 @@
+// Maps come from group_by; get, keys, values, contains, len, index, in
+// and iteration in insertion order.
+workflow main() -> List<String> {
+  let words = ["apple", "avocado", "banana", "blueberry", "cherry", "apricot"];
+  let m = words |> group_by(w => lower(take(split(w, ""), 1) |> join("")));
+  let counts = keys(m) |> map(k => "{k}:{len(m[k])}");
+  let first_b = match get(m, "b") { Some(ws) => ws[0], None => "-" };
+  let missing = match get(m, "z") { Some(_) => "yes", None => "no" };
+  let all = values(m) |> map(ws => join(ws, "+"));
+  concat(concat(counts, all), [first_b, missing, to_string(contains(m, "c")), to_string("a" in m), to_string(len(m))])
+}

@@ -1,0 +1,15 @@
+{
+  "inputs": {
+    "root": "example.com"
+  },
+  "results": {
+    "0": {
+      "type": "Stream<Fqdn>",
+      "value": [
+        "a.example.com",
+        "b.example.com",
+        "a.example.com"
+      ]
+    }
+  }
+}

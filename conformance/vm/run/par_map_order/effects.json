@@ -1,0 +1,44 @@
+{
+  "par_map_order": {
+    "0": [
+      2,
+      0,
+      3,
+      1
+    ]
+  },
+  "results": {
+    "0/0/0": {
+      "type": "Int",
+      "value": 1
+    },
+    "0/0/1": {
+      "type": "Int",
+      "value": 2
+    },
+    "0/1/0": {
+      "type": "Int",
+      "value": 3
+    },
+    "0/1/1": {
+      "type": "Int",
+      "value": 4
+    },
+    "0/2/0": {
+      "type": "Int",
+      "value": 5
+    },
+    "0/2/1": {
+      "type": "Int",
+      "value": 6
+    },
+    "0/3/0": {
+      "type": "Int",
+      "value": 7
+    },
+    "0/3/1": {
+      "type": "Int",
+      "value": 8
+    }
+  }
+}

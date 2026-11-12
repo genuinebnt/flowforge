@@ -1,0 +1,9 @@
+// Tools may return Streams; list operations work on them.
+tool subfinder(domain: Fqdn) -> Stream<Fqdn> ! passive
+workflow main(root: Fqdn) -> List<String> {
+  let subs = subfinder(root) |> dedupe;
+  let n = len(subs);
+  let out = subs |> map(s => s as String);
+  for s in subs { log("debug", s as String); }
+  [join(out, ","), to_string(n)]
+}

@@ -1,0 +1,53 @@
+{
+  "module_sha256": "c121579967f20ba295dc3959e5a10d325de34e09026cb8655d0ba731cc390bb8",
+  "value": [
+    200
+  ],
+  "display": "[200]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"lookup\",\"a.example.com\"]",
+      "args_hash": "ac96bc77a4ce41834255415dd2820fc3cab099ddc07d41477d04413b7f5d9ab3",
+      "result": "ok Some(192.0.2.1)"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"lookup\",\"b.example.com\"]",
+      "args_hash": "28770315b31f4ca4d4f9de629269023be33c39cfa982ace004240c924e44ddfc",
+      "result": "ok None"
+    },
+    {
+      "path": "2",
+      "kind": "log",
+      "args": "[\"info\",\"resolved 1\"]",
+      "args_hash": "6d22b4e4c93a8f5486e16adf771b2ebc5be4fbe47fb1e31fdc43dde7159c8463",
+      "result": "ok ()"
+    },
+    {
+      "path": "3",
+      "kind": "scope_check",
+      "args": "[\"Name(a.example.com)\"]",
+      "args_hash": "17f87542b2b47118c3ccf563d413098cf48d6c74d27d92c02098d6dd1de8933d",
+      "result": "ok Ok(InScope(Name(a.example.com)))"
+    },
+    {
+      "path": "4",
+      "kind": "tool_call",
+      "args": "[\"httpx\",\"InScope(Name(a.example.com))\"]",
+      "args_hash": "50d034bc41d7b2487b30b49f8fb8bff41f119c841eb29a4582fc356d7580c20a",
+      "result": "ok Some(200)"
+    },
+    {
+      "path": "5",
+      "kind": "scope_check",
+      "args": "[\"Name(b.example.com)\"]",
+      "args_hash": "10e1f29cba3c8662fb19f3ee15af2ad3947242461265a44770c09393e8810658",
+      "result": "ok Err(ScopeDenied { target: \"Name(b.example.com)\", reason: \"excluded\", rule_id: None, decision_id: \"d-b\" })"
+    }
+  ],
+  "replayed": 6,
+  "executed": 0
+}

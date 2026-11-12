@@ -1,0 +1,31 @@
+{
+  "value": [
+    "denied: not now",
+    "carol",
+    "approved by dave as ops"
+  ],
+  "display": "[\"denied: not now\", \"carol\", \"approved by dave as ops\"]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "approval",
+      "args": "[\"ops\",\"restart\",\"0s\"]",
+      "args_hash": "ba985f1fd800b683565cfb827366e393105c6453d9bc7e80815bb4dd789ea227",
+      "result": "ok Err(Denied { id: \"ap-0\", role: \"ops\", reason: \"not now\" })"
+    },
+    {
+      "path": "1",
+      "kind": "approval",
+      "args": "[\"ops\",\"deploy\",\"1h0m0s\"]",
+      "args_hash": "daf03046412e353e36927ea3fcb42a70ce3fa99263c73905a105c5ba7f7ee07a",
+      "result": "ok Ok(Approval { id: \"ap-1\", role: \"ops\", decided_by: \"carol\", decided_at: 2023-11-14T22:13:20Z })"
+    },
+    {
+      "path": "2",
+      "kind": "approval",
+      "args": "[\"ops\",\"rollback\",\"0s\"]",
+      "args_hash": "f4878a0ed7d2f4628701d2000e70c1d7f5e27457896e47f2f1519cf9573d1f6b",
+      "result": "ok Ok(Approval { id: \"ap-2\", role: \"ops\", decided_by: \"dave\", decided_at: 2023-11-14T22:13:20Z })"
+    }
+  ]
+}

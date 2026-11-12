@@ -1,0 +1,7 @@
+// `?` on None in a workflow with a non-Result return fails the run with
+// unwrap_failed (spec 7.5).
+workflow main() -> Int {
+  let xs = [1, 3, 5];
+  let even = xs |> first(x => x % 2 == 0);
+  even? + 1
+}

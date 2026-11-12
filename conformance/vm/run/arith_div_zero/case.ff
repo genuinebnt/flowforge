@@ -1,0 +1,6 @@
+// Integer division by zero fails with div_zero.
+fn ratio(a: Int, b: Int) -> Int { a / b }
+workflow main() -> Int {
+  let zero = 3 - 3;
+  ratio(10, zero)
+}

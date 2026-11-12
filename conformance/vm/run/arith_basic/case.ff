@@ -1,0 +1,6 @@
+// Integer arithmetic, precedence, unary minus, division and remainder.
+workflow main() -> List<Int> {
+  let a = 7;
+  let b = -3;
+  [a + b * 2, (a + b) * 2, a / 2, a % 3, -a % 3, a - b - 1, -(a * b), 100 / -7]
+}

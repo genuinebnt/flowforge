@@ -161,3 +161,22 @@ tests = { prefix = "Eng", required = ["001", "002", "003", "004", "005", "006", 
 conformance = ["engine"]
 properties = ["TestEngProp_CrashAnywhere"]
 bench = ["BenchmarkEng01"]
+
+[module.compiler]
+layer = 4
+spec = ["8.5", "25.6"]
+dir = "compiler"
+depends = ["core", "dsl", "bytecode"]
+tests = { prefix = "VM", required = ["008"] }
+conformance = ["vm/run", "vm/replay"]
+properties = ["TestCompilerProp_VerifierAcceptsOutput", "TestCompilerProp_TreeWalkEqualsVM"]
+fuzz = ["FuzzCompile"]
+bench = ["BenchmarkVM01", "BenchmarkCompile"]
+
+[module.graphstore]
+layer = 4
+spec = ["5.7", "5.9", "10.5", "11.6"]
+dir = "graphstore"
+depends = ["core", "oam", "scope", "csr"]
+tests = { prefix = "Graph", required = [] }
+bench = ["BenchmarkSys01"]

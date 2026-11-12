@@ -1,0 +1,43 @@
+{
+  "value": [
+    200
+  ],
+  "display": "[200]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "scope_check",
+      "args": "[\"Name(a.example.com)\"]",
+      "args_hash": "17f87542b2b47118c3ccf563d413098cf48d6c74d27d92c02098d6dd1de8933d",
+      "result": "ok Ok(InScope(Name(a.example.com)))"
+    },
+    {
+      "path": "1",
+      "kind": "tool_call",
+      "args": "[\"httpx\",\"InScope(Name(a.example.com))\"]",
+      "args_hash": "50d034bc41d7b2487b30b49f8fb8bff41f119c841eb29a4582fc356d7580c20a",
+      "result": "ok Some(200)"
+    },
+    {
+      "path": "2",
+      "kind": "scope_check",
+      "args": "[\"Name(b.example.com)\"]",
+      "args_hash": "10e1f29cba3c8662fb19f3ee15af2ad3947242461265a44770c09393e8810658",
+      "result": "ok Err(ScopeDenied { target: \"Name(b.example.com)\", reason: \"out of scope\", rule_id: None, decision_id: \"d-b\" })"
+    },
+    {
+      "path": "3",
+      "kind": "scope_check",
+      "args": "[\"Name(c.example.com)\"]",
+      "args_hash": "31afaa586596ec0ec5ee2bbfe307729ea71ed93f7d57c26d4dda9fc8e5c1d2bc",
+      "result": "ok Ok(InScope(Name(c.example.com)))"
+    },
+    {
+      "path": "4",
+      "kind": "tool_call",
+      "args": "[\"httpx\",\"InScope(Name(c.example.com))\"]",
+      "args_hash": "27183f2c4cb90eae61644ca55e531a96ae62412e5916b0a6afa644760454c80f",
+      "result": "ok None"
+    }
+  ]
+}

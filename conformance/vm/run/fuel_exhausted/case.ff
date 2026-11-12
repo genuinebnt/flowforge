@@ -1,0 +1,5 @@
+// A run limit of 500 fuel stops this loop with out_of_fuel (spec 8.7;
+// LOOP costs 5, other instructions 1).
+workflow main() -> Int {
+  fold(0..1000, 0, (a, b) => a + b)
+}

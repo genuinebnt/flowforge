@@ -1,0 +1,11 @@
+// Interpolation of every displayable type, and literal braces.
+workflow main() -> String {
+  let n = 42;
+  let f = 2.0;
+  let ok = true;
+  let d = 90s;
+  let t = 1700000000000000000 as Time;
+  let h = "Example.COM" as Fqdn;
+  let host = Host::Name(h);
+  "n={n} f={f} ok={ok} d={d} t={t} fqdn={h} host={host} sev={Severity::High} {{braces}} {n + 1}"
+}

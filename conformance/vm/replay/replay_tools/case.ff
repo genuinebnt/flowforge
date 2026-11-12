@@ -1,0 +1,8 @@
+// Tool calls and a scope check, replayed from the log.
+tool lookup(name: Fqdn) -> Option<IpAddress> ! passive
+tool httpx(host: InScope<Host>) -> Option<Int> ! active
+workflow main(names: List<Fqdn>) -> List<Int> {
+  let ips = names |> filter_map(lookup);
+  log("info", "resolved {len(ips)}");
+  names |> filter_map(n => match scope.check(Host::Name(n)) { Ok(p) => httpx(p), Err(_) => None })
+}

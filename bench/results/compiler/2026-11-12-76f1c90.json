@@ -1,0 +1,91 @@
+{
+  "module": "compiler",
+  "date": "2026-11-12",
+  "commit": "76f1c90",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkVM01_TreeWalkVsVM/fib30",
+      "package": "github.com/genuinebnt/flowforge/compiler",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 86177520,
+        "allocs/op": 2692633,
+        "ns/op": 424531453,
+        "treewalk-ns/run": 279682076,
+        "treewalk/vm": 1.931,
+        "vm-ns/run": 144831347
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM01_TreeWalkVsVM/loop_arith",
+      "package": "github.com/genuinebnt/flowforge/compiler",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 128021093,
+        "allocs/op": 1000092,
+        "ns/op": 236281477,
+        "treewalk-ns/run": 117097203,
+        "treewalk/vm": 0.9826,
+        "vm-ns/run": 119168912
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM01_TreeWalkVsVM/map_filter_1M",
+      "package": "github.com/genuinebnt/flowforge/compiler",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 486820490,
+        "allocs/op": 2000208,
+        "ns/op": 567122033,
+        "treewalk-ns/run": 188797028,
+        "treewalk/vm": 0.4991,
+        "vm-ns/run": 378263898
+      }
+    },
+    {
+      "bench_id": "BenchmarkVM01_TreeWalkVsVM/string_build",
+      "package": "github.com/genuinebnt/flowforge/compiler",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 16553357,
+        "allocs/op": 237499,
+        "ns/op": 21583652,
+        "treewalk-ns/run": 11941950,
+        "treewalk/vm": 1.24,
+        "vm-ns/run": 9630317
+      }
+    },
+    {
+      "bench_id": "BenchmarkCompile/10KB",
+      "package": "github.com/genuinebnt/flowforge/compiler",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 3613088,
+        "MB/s": 2.15,
+        "allocs/op": 33513,
+        "ns/op": 4862017
+      }
+    },
+    {
+      "bench_id": "BenchmarkCompile/1024KB",
+      "package": "github.com/genuinebnt/flowforge/compiler",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 356755632,
+        "MB/s": 2.67,
+        "allocs/op": 3139102,
+        "ns/op": 393136585
+      }
+    }
+  ]
+}

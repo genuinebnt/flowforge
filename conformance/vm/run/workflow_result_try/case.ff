@@ -1,0 +1,7 @@
+// In a workflow returning Result, `?` returns the Err as the run's value.
+fn check(n: Int) -> Result<Int, String> { if n > 0 { Ok(n) } else { Err("not positive") } }
+workflow main() -> Result<Int, String> {
+  let a = check(5)?;
+  let b = check(0 - a)?;
+  Ok(a + b)
+}

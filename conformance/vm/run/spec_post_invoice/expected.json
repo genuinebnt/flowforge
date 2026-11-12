@@ -1,0 +1,41 @@
+{
+  "failure": "effect_failed",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "tool_call",
+      "args": "[\"extract_invoice\",\"DocRef { id: \\\"doc-7\\\" }\"]",
+      "args_hash": "2c944a4b88053e73fc8b0330f951f6ec64c2f97d4f5c6a12374f85e4179631c1",
+      "result": "ok Invoice { number: \"INV-1\", total: 1250, vendor: \"ACME\" }"
+    },
+    {
+      "path": "1",
+      "kind": "approval",
+      "args": "[\"finance_ap\",\"post 1250 to ledger\",\"24h0m0s\"]",
+      "args_hash": "7c719de83af67e5b7acd5bdd3053546300a0d357ee58fb1e031587cf3f3b97ed",
+      "result": "ok Ok(Approval { id: \"ap-1\", role: \"finance_ap\", decided_by: \"fin-lead\", decided_at: 2023-11-14T22:13:20Z })"
+    },
+    {
+      "path": "2",
+      "kind": "tool_call",
+      "args": "[\"post_entry\",\"LedgerEntry { account: \\\"ap\\\", amount: 1250, memo: \\\"invoice INV-1 from ACME\\\" }\"]",
+      "args_hash": "87379f803cbd38116818a4296f3540fd6c384adecd915a78caf482695cdb1f8c",
+      "result": "ok PostingId { id: \"P-42\" }"
+    },
+    {
+      "path": "3",
+      "kind": "tool_call",
+      "args": "[\"notify\",\"posted P-42\"]",
+      "args_hash": "0e55660720d3ecc4fd35807dc136e3297a6a844d348c69e771c8b21e9bae8b4e",
+      "result": "failed effect_failed"
+    },
+    {
+      "path": "4/0/0",
+      "kind": "tool_call",
+      "args": "[\"reverse_entry\",\"PostingId { id: \\\"P-42\\\" }\"]",
+      "args_hash": "45afa74ec35cf6614a0bfc83e5dfe2df0e875a46b58f0a6bd92f194b0089e57f",
+      "result": "ok ()"
+    }
+  ],
+  "compensations": 1
+}

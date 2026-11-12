@@ -1,0 +1,8 @@
+// A successful run does not run its compensations.
+tool reserve(item: String) -> Int ! write
+tool release(id: Int) -> () ! write
+workflow main() -> Int {
+  let a = reserve("a") compensate release(it);
+  let b = reserve("b") compensate release(it);
+  a + b
+}

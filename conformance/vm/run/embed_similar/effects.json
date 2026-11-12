@@ -1,0 +1,18 @@
+{
+  "inputs": {
+    "e": "ent-1"
+  },
+  "results": {
+    "0": {
+      "type": "String",
+      "value": "vec-ref-1"
+    },
+    "1": {
+      "type": "List<Entity>",
+      "value": [
+        "ent-2",
+        "ent-3"
+      ]
+    }
+  }
+}

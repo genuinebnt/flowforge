@@ -1,0 +1,18 @@
+{
+  "value": [
+    "Hello, World",
+    "hello, world",
+    "HELLO, WORLD",
+    "Hell0, W0rld",
+    "Hello|World",
+    "12",
+    "true",
+    "false",
+    "true",
+    "abcd",
+    "xyz",
+    "5"
+  ],
+  "display": "[\"Hello, World\", \"hello, world\", \"HELLO, WORLD\", \"Hell0, W0rld\", \"Hello|World\", \"12\", \"true\", \"false\", \"true\", \"abcd\", \"xyz\", \"5\"]",
+  "trace": []
+}

@@ -1,0 +1,6 @@
+// par_map children with a tampered log entry for task 2's first effect:
+// nondeterminism_detected.
+tool probe(n: Int) -> Int ! active
+workflow main() -> List<Int> {
+  [1, 2, 3] |> par_map(n => probe(n) * 10 + probe(n + 100), limit = 2)
+}

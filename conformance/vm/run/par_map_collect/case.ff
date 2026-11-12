@@ -1,0 +1,6 @@
+// on_error = "collect": each element is Ok(value) or Err(TaskError).
+tool probe(n: Int) -> Int ! active
+workflow main() -> List<String> {
+  [1, 2, 3] |> par_map(probe, limit = 3, on_error = "collect")
+            |> map(r => match r { Ok(v) => "ok {v}", Err(e) => "err " + e.code })
+}

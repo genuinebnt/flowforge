@@ -1,0 +1,8 @@
+// par_map: tasks complete in a shuffled order, results are joined in
+// input order and effect ids are hierarchical (parent/task/seq).
+tool probe(n: Int) -> Int ! active
+workflow main() -> List<Int> {
+  let xs = [10, 20, 30, 40];
+  let k = 1;
+  xs |> par_map(x => probe(x) + probe(x + k), limit = 2)
+}
