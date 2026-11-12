@@ -348,4 +348,3 @@ func (s *Server) ResolveUnknownEffect(ctx context.Context, req *pb.ResolveUnknow
 	}
 	return convert.RunProto(r), nil
 }
-

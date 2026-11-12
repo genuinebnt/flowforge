@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/scope"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
@@ -53,11 +54,10 @@ func (h *decisionHolder) set(id string) {
 	h.mu.Unlock()
 }
 
-
 func (e *Egress) headers(ctx context.Context, tc *ToolCtx, decision string) (http.Header, error) {
 	h := http.Header{}
 	if e.Tokens != nil {
-		tok, err := e.Tokens.Token(ctx, platform.Identity{Tenant: tc.Tenant, Actor: platform.ServiceActor(e.Service)})
+		tok, err := e.Tokens.Token(ctx, platform.Identity{Tenant: tc.Tenant, Actor: platform.ServiceActor(e.Service), Role: auth.RoleAnalyst})
 		if err != nil {
 			return nil, err
 		}

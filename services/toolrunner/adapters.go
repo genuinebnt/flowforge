@@ -96,7 +96,9 @@ type ProbePort struct {
 // HTTPProbe is the active httpprobe tool (spec 6.4 "HTTP probing"): an HTTP
 // GET through the egress proxy per configured scheme and port, emitting URL,
 // Service and Product entities with domain, ip_address, port and
-// product_used edges and the page title as a SimpleProperty.
+// product_used edges and the page title as a SimpleProperty. Its output is
+// the first responding Service (the prelude record), so workflows need no
+// type declaration; URL, status, title and products are in the graph.
 type HTTPProbe struct {
 	// Ports defaults to https:443 and http:80.
 	Ports []ProbePort
@@ -105,7 +107,7 @@ type HTTPProbe struct {
 // Spec implements Adapter.
 func (HTTPProbe) Spec() Spec {
 	return Spec{Name: "httpprobe", Version: "1.0.0", Description: "HTTP probing and fingerprinting through the egress proxy",
-		InputType: "InScope<Host>", OutputType: "Option<HttpService>",
+		InputType: "InScope<Host>", OutputType: "Option<Service>",
 		Observes: []string{oam.TypeURL, oam.TypeService, oam.TypeProduct, oam.TypeFQDN, oam.TypeIPAddress},
 		Class:    core.ClassActive, RateRPS: 20, RateBurst: 40, Concurrency: 8, Timeout: 5 * time.Minute, Idempotent: true}
 }
@@ -113,10 +115,16 @@ func (HTTPProbe) Spec() Spec {
 var titleRE = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpService struct {
-	URL    string    `json:"url"`
-	Status int       `json:"status"`
-	Title  *string   `json:"title"`
-	Tech   []product `json:"tech"`
+	URL    string
+	Status int
+	Title  *string
+	Tech   []product
+	svc    oam.Service
+}
+
+// output is the prelude Service record (spec 7.1 prelude).
+func (h *httpService) output() map[string]any {
+	return map[string]any{"unique_id": h.svc.UniqueID, "service_type": h.svc.ServiceType, "output": h.svc.Output, "output_length": h.svc.OutputLength}
 }
 
 type product struct {
@@ -170,7 +178,7 @@ func (p HTTPProbe) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, 
 	if first == nil {
 		return json.RawMessage("null"), nil
 	}
-	return json.Marshal(first)
+	return json.Marshal(first.output())
 }
 
 func (p HTTPProbe) probe(ctx context.Context, tc *ToolCtx, out Emitter, d scope.Decision, u, host string, pp ProbePort) (*httpService, error) {
@@ -203,12 +211,13 @@ func (p HTTPProbe) probe(ctx context.Context, tc *ToolCtx, out Emitter, d scope.
 	if err != nil {
 		return nil, err
 	}
+	svc.svc = oam.Service{UniqueID: oam.ServiceUniqueID(fqKey, pp.Port, "tcp", "http"), ServiceType: "http",
+		Output: resp.Proto + " " + resp.Status, OutputLength: len(body), Attributes: headerAttrs(resp.Header)}
 	obs := oam.Observation{ObservationID: tc.ObservationID("httpprobe", u), ObservedAt: tc.Now(), Confidence: 0.9,
 		Entities: []oam.ObservedEntity{
 			{Ref: "u", Asset: oam.URL{URL: final}},
 			{Ref: "h", Asset: fq},
-			{Ref: "s", Asset: oam.Service{UniqueID: oam.ServiceUniqueID(fqKey, pp.Port, "tcp", "http"), ServiceType: "http",
-				Output: resp.Proto + " " + resp.Status, OutputLength: len(body), Attributes: headerAttrs(resp.Header)}},
+			{Ref: "s", Asset: svc.svc},
 		},
 		Edges: []oam.ObservedEdge{
 			{From: "u", To: "h", Relation: oam.SimpleRelation{Label: oam.LabelDomain}},

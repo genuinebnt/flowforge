@@ -57,9 +57,9 @@ type Mem struct {
 	Logger      *slog.Logger
 	Metrics     *platform.Metrics
 
-	mu    sync.Mutex
-	subs  map[string][]*subscription
-	dead  []DeadLetter
+	mu   sync.Mutex
+	subs map[string][]*subscription
+	dead []DeadLetter
 }
 
 // NewMem returns an in-process bus (5 attempts, 10 ms initial backoff).

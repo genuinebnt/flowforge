@@ -86,6 +86,7 @@ type streamEmitter struct {
 	count  int64
 	log    *slog.Logger
 	ctx    context.Context
+	tool   oam.Tool
 }
 
 func (e *streamEmitter) send(r *pb.ExecuteResponse) error {
@@ -100,6 +101,9 @@ func (e *streamEmitter) send(r *pb.ExecuteResponse) error {
 func (e *streamEmitter) Observation(o oam.Observation) error {
 	if len(o.Entities) > oam.MaxBatchEntities {
 		return Errorf("batch_too_large", false, "an observation may carry at most 500 entities")
+	}
+	if o.Tool.Name == "" {
+		o.Tool = e.tool
 	}
 	if err := o.Validate(); err != nil {
 		return Errorf("invalid_observation", false, err.Error())
@@ -174,7 +178,7 @@ func (s *Server) Execute(req *pb.ExecuteRequest, stream grpc.ServerStreamingServ
 		return s.o.Scope.CheckTarget(ctx, scopesvc.Target{Tenant: id.Tenant, Program: program, Target: target, Kind: kind,
 			Class: class, Run: run, Path: req.GetEffectPath(), Resolve: class > core.ClassPassive})
 	}
-	em := &streamEmitter{stream: stream, log: s.o.Logger, ctx: ctx}
+	em := &streamEmitter{stream: stream, log: s.o.Logger, ctx: ctx, tool: oam.Tool{Name: spec.Name, Version: spec.Version}}
 	start := time.Now()
 	type result struct {
 		out json.RawMessage

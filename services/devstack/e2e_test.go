@@ -3,9 +3,11 @@ package devstack_test
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -28,8 +30,6 @@ import (
 // ReconSource is the spec-like recon workflow (spec 7.1) over the bundled
 // tools: dnsresolve every root, then probe the in-scope ones over HTTP.
 const ReconSource = `
-type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }
-
 workflow recon(roots: List<Fqdn>) -> Int {
   let ips = roots |> flat_map(dnsresolve);
   let web = roots
@@ -81,7 +81,7 @@ func runE2E(t *testing.T, dsn string) {
 
 	st, err := devstack.Start(ctx, devstack.Options{DBDSN: dsn, Resolver: resolver, Secrets: secrets, AllowInsecureWebhooks: true,
 		ProbePorts: []toolrunner.ProbePort{{Scheme: "http", Port: port}},
-		Engine:     engine.Config{PollInterval: 10 * time.Millisecond, IdleBackoff: 50 * time.Millisecond}})
+		Engine:     engine.Config{PollInterval: 10 * time.Millisecond, IdleBackoff: 50 * time.Millisecond}, Logger: testLogger()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,6 +218,13 @@ func scopeDecisions(t *testing.T, st *devstack.Stack, tenant core.UUID) []string
 		out = append(out, s)
 	}
 	return out
+}
+
+func testLogger() *slog.Logger {
+	if os.Getenv("FF_TEST_LOG") == "" {
+		return nil
+	}
+	return platform.NewLogger(os.Stderr, "devstack", "test", slog.LevelDebug)
 }
 
 func mustStruct(t *testing.T, m map[string]any) *structpb.Struct {

@@ -20,7 +20,8 @@ which satisfies spec 24.5 without a multi-module `go.work`.
 | 3 | `vm`, `eventstore` | `core`, `bytecode` (vm); `core` (eventstore). CBOR via `github.com/fxamacker/cbor/v2` |
 | 4 | `engine`, `agent` | layers 0-3 |
 | 5 | `sim` | everything above (test harness) |
-| 6 | `services/...`, `cmd/...` | everything; the only place gRPC, HTTP, Postgres and Redis are wired |
+| 6 | `services/...` | everything; the only place gRPC, HTTP, Postgres and Redis are wired |
+| 7 | `cmd/...` | everything, including `services/...` (each main starts a service) |
 
 Adapters with heavy dependencies live in sub-packages so the pure package
 stays light: `eventstore/pgstore` (pgx), `limiter/redislimiter` (go-redis),

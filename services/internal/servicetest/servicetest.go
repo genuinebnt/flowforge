@@ -6,6 +6,7 @@ package servicetest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,7 +21,11 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/genuinebnt/flowforge/alerts"
+	"github.com/genuinebnt/flowforge/auth"
+	"github.com/genuinebnt/flowforge/core"
+	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/scope"
+	"github.com/genuinebnt/flowforge/services/devstack"
 )
 
 var dbSeq atomic.Int64
@@ -147,5 +152,52 @@ func Eventually(t testing.TB, d time.Duration, what string, cond func() bool) {
 			t.Fatalf("timed out waiting for %s", what)
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// Tenants used by the service tests.
+var (
+	TenantA = core.MustParseUUID("0190a1b2-0000-7000-8000-00000000a001")
+	TenantB = core.MustParseUUID("0190a1b2-0000-7000-8000-00000000b002")
+	UserA   = "user:0190a1b2-0000-7000-8000-0000000000a1"
+	UserB   = "user:0190a1b2-0000-7000-8000-0000000000b1"
+)
+
+// Stack starts a dev stack for a test (Postgres when FF_TEST_PG_DSN is set
+// and pg is true) and returns contexts for tenants A and B (admin role).
+func Stack(t testing.TB, o devstack.Options) (*devstack.Stack, context.Context, context.Context) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+	if o.Engine.PollInterval == 0 {
+		o.Engine.PollInterval = 10 * time.Millisecond
+		o.Engine.IdleBackoff = 50 * time.Millisecond
+	}
+	st, err := devstack.Start(ctx, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	return st, st.As(ctx, TenantA, UserA, auth.RoleAdmin), st.As(ctx, TenantB, UserB, auth.RoleAdmin)
+}
+
+// ScopeDoc returns a scope document allowing the given domains (and the
+// loopback address, which the egress proxy needs explicitly) up to active.
+func ScopeDoc(domains ...string) *pb.ScopeDocument {
+	doc := &pb.ScopeDocument{Activity: &pb.ActivityPolicy{MaxClass: pb.ActivityClass_ACTIVITY_CLASS_ACTIVE},
+		Rules: []*pb.ScopeRule{{Id: "lo", Effect: pb.RuleEffect_RULE_EFFECT_ALLOW, Kind: pb.RuleKind_RULE_KIND_CIDR, Value: "127.0.0.1/32"}}}
+	for i, d := range domains {
+		doc.Rules = append(doc.Rules, &pb.ScopeRule{Id: fmt.Sprintf("d%d", i), Effect: pb.RuleEffect_RULE_EFFECT_ALLOW, Kind: pb.RuleKind_RULE_KIND_DOMAIN, Value: d})
+	}
+	return doc
+}
+
+// IsKind fails the test unless err is a *core.Error of kind with reason
+// (reason "" matches any).
+func IsKind(t testing.TB, err error, kind core.Kind, reason string) {
+	t.Helper()
+	var ce *core.Error
+	if !errors.As(err, &ce) || ce.Kind != kind || (reason != "" && ce.Reason != reason) {
+		t.Fatalf("want %v %s, got %v", kind, reason, err)
 	}
 }

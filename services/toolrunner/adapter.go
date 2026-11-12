@@ -42,6 +42,7 @@ func (s Spec) EngineSpec(retry engine.RetryPolicy) engine.ToolSpec {
 		OutputType: s.OutputType, Observes: s.Observes, Idempotent: s.Idempotent, Retry: retry,
 		Rate:      engine.Rate{RequestsPerSecond: s.RateRPS, Burst: s.RateBurst, Concurrency: s.Concurrency},
 		TimeoutMs: s.Timeout.Milliseconds()}
+	es.EffectClass = "read" // tools that touch no target (spec 7.5)
 	if s.Class != core.ClassNone {
 		es.EffectClass = s.Class.String()
 	}

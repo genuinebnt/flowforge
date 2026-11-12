@@ -202,7 +202,7 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 		st.Addrs[n] = l.Addr().String()
 	}
 	env := func(name string) *wire.Env {
-		return &wire.Env{Service: name, Logger: o.Logger.With("service", name), Metrics: metrics, Clock: clock,
+		return &wire.Env{Service: name, Logger: o.Logger.With("component", name), Metrics: metrics, Clock: clock,
 			Tokens: tokens, Verifier: verifier, DB: st.DB, DSN: o.DBDSN, Bus: st.Bus}
 	}
 	serve := func(name string, c *wire.Component) {

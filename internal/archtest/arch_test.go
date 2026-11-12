@@ -79,7 +79,9 @@ var units = []unit{
 	{prefix: "sim", layer: 5, testSupport: false},
 
 	{prefix: "services", layer: 6, thirdParty: []string{""}},
-	{prefix: "cmd", layer: 6, thirdParty: []string{""}},
+	// cmd mains sit above the services they start (cmd/<service> imports
+	// services/..., cmd/flowforge imports services/devstack).
+	{prefix: "cmd", layer: 7, thirdParty: []string{""}},
 }
 
 // pureLayers are the layers whose non-test code must be deterministic.

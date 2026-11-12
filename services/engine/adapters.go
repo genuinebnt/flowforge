@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/compiler"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
@@ -148,7 +149,7 @@ func (x *Executor) Execute(ctx context.Context, call engine.ToolCall) (engine.To
 // (spec 6.2): every listed spec is registered with DefaultToolRetry and its
 // canonical hash, which must equal the runner's spec_sha256.
 func SyncTools(ctx context.Context, c pb.ToolRunnerServiceClient, register func(context.Context, engine.ToolSpec) error, log *slog.Logger) (int, error) {
-	resp, err := c.ListTools(platform.WithIdentity(ctx, platform.Identity{Actor: platform.ServiceActor("engine")}), &pb.ListToolsRequest{})
+	resp, err := c.ListTools(platform.WithIdentity(ctx, platform.Identity{Actor: platform.ServiceActor("engine"), Role: auth.RoleAnalyst}), &pb.ListToolsRequest{})
 	if err != nil {
 		return 0, err
 	}
@@ -186,6 +187,9 @@ var _ engine.Ingester = (*Ingester)(nil)
 
 // Ingest implements engine.Ingester.
 func (g *Ingester) Ingest(ctx context.Context, req engine.IngestRequest) ([]engine.IngestResult, error) {
+	if req.Program.IsZero() {
+		return nil, nil // the graph is per program: runs without one keep no assets
+	}
 	ctx = platform.AsService(ctx, req.Tenant, "engine")
 	out := make([]engine.IngestResult, 0, len(req.Observations))
 	for _, raw := range req.Observations {

@@ -194,6 +194,9 @@ func ToolSpec(p *pb.ToolSpec) engine.ToolSpec {
 		Rate:      engine.Rate{RequestsPerSecond: p.GetRateRps(), Burst: int(p.GetRateBurst()), Concurrency: int(p.GetConcurrency())},
 		TimeoutMs: Duration(p.GetTimeout()).Milliseconds(),
 	}
+	// The proto carries only target-facing classes; UNSPECIFIED is a tool
+	// that touches no target (effect "read", spec 7.5).
+	s.EffectClass = "read"
 	if c := ClassFrom(p.GetEffectClass()); c != core.ClassNone {
 		s.EffectClass = c.String()
 	}
