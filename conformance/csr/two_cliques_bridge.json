@@ -1,0 +1,517 @@
+{
+  "name": "two_cliques_bridge",
+  "description": "Two directed 5-cliques {0..4} and {5..9} (both directions) joined by the single edge 4-\u003e5.",
+  "nodes": 10,
+  "labels": [
+    "link",
+    "bridge"
+  ],
+  "edges": [
+    {
+      "src": 0,
+      "dst": 1,
+      "label": "link",
+      "conf": 0.55
+    },
+    {
+      "src": 0,
+      "dst": 2,
+      "label": "link",
+      "conf": 0.6
+    },
+    {
+      "src": 0,
+      "dst": 3,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 0,
+      "dst": 4,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 1,
+      "dst": 0,
+      "label": "link",
+      "conf": 0.55
+    },
+    {
+      "src": 1,
+      "dst": 2,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 1,
+      "dst": 3,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 1,
+      "dst": 4,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 2,
+      "dst": 0,
+      "label": "link",
+      "conf": 0.6
+    },
+    {
+      "src": 2,
+      "dst": 1,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 2,
+      "dst": 3,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 2,
+      "dst": 4,
+      "label": "link",
+      "conf": 0.8
+    },
+    {
+      "src": 3,
+      "dst": 0,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 3,
+      "dst": 1,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 3,
+      "dst": 2,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 3,
+      "dst": 4,
+      "label": "link",
+      "conf": 0.85
+    },
+    {
+      "src": 4,
+      "dst": 0,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 4,
+      "dst": 1,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 4,
+      "dst": 2,
+      "label": "link",
+      "conf": 0.8
+    },
+    {
+      "src": 4,
+      "dst": 3,
+      "label": "link",
+      "conf": 0.85
+    },
+    {
+      "src": 5,
+      "dst": 6,
+      "label": "link",
+      "conf": 0.55
+    },
+    {
+      "src": 5,
+      "dst": 7,
+      "label": "link",
+      "conf": 0.6
+    },
+    {
+      "src": 5,
+      "dst": 8,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 5,
+      "dst": 9,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 6,
+      "dst": 5,
+      "label": "link",
+      "conf": 0.55
+    },
+    {
+      "src": 6,
+      "dst": 7,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 6,
+      "dst": 8,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 6,
+      "dst": 9,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 7,
+      "dst": 5,
+      "label": "link",
+      "conf": 0.6
+    },
+    {
+      "src": 7,
+      "dst": 6,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 7,
+      "dst": 8,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 7,
+      "dst": 9,
+      "label": "link",
+      "conf": 0.8
+    },
+    {
+      "src": 8,
+      "dst": 5,
+      "label": "link",
+      "conf": 0.65
+    },
+    {
+      "src": 8,
+      "dst": 6,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 8,
+      "dst": 7,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 8,
+      "dst": 9,
+      "label": "link",
+      "conf": 0.85
+    },
+    {
+      "src": 9,
+      "dst": 5,
+      "label": "link",
+      "conf": 0.7
+    },
+    {
+      "src": 9,
+      "dst": 6,
+      "label": "link",
+      "conf": 0.75
+    },
+    {
+      "src": 9,
+      "dst": 7,
+      "label": "link",
+      "conf": 0.8
+    },
+    {
+      "src": 9,
+      "dst": 8,
+      "label": "link",
+      "conf": 0.85
+    },
+    {
+      "src": 4,
+      "dst": 5,
+      "label": "bridge",
+      "conf": 0.9
+    }
+  ],
+  "expect": {
+    "bfs": [
+      {
+        "start": 0,
+        "direction": "out",
+        "max_depth": -1,
+        "levels": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            4
+          ],
+          [
+            5
+          ],
+          [
+            6,
+            7,
+            8,
+            9
+          ]
+        ],
+        "dist": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      {
+        "start": 9,
+        "direction": "in",
+        "max_depth": -1,
+        "levels": [
+          [
+            9
+          ],
+          [
+            5,
+            6,
+            7,
+            8
+          ],
+          [
+            4
+          ],
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ],
+        "dist": [
+          3,
+          3,
+          3,
+          3,
+          2,
+          1,
+          1,
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "start": 5,
+        "direction": "both",
+        "max_depth": 2,
+        "levels": [
+          [
+            5
+          ],
+          [
+            4,
+            6,
+            7,
+            8,
+            9
+          ],
+          [
+            0,
+            1,
+            2,
+            3
+          ]
+        ],
+        "dist": [
+          2,
+          2,
+          2,
+          2,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "start": 0,
+        "direction": "out",
+        "max_depth": 2,
+        "levels": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            4
+          ],
+          [
+            5
+          ]
+        ],
+        "dist": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          2,
+          -1,
+          -1,
+          -1,
+          -1
+        ]
+      },
+      {
+        "start": 0,
+        "direction": "out",
+        "max_depth": -1,
+        "labels": [
+          "link"
+        ],
+        "levels": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            4
+          ]
+        ],
+        "dist": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ]
+      }
+    ],
+    "scc": [
+      [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      [
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    ],
+    "wcc_count": 1,
+    "wcc": [
+      [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    ],
+    "core_numbers": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "articulation_points": [
+      4,
+      5
+    ],
+    "bridges": [
+      [
+        4,
+        5
+      ]
+    ],
+    "triangles": 20,
+    "pagerank": [
+      0.08050458715596691,
+      0.08050458715596691,
+      0.08050458715596691,
+      0.08050458715596691,
+      0.08342889908257257,
+      0.12826834862385006,
+      0.11657110091742741,
+      0.11657110091742741,
+      0.11657110091742741,
+      0.11657110091742741
+    ],
+    "paths": [
+      {
+        "from": 0,
+        "to": 9,
+        "reachable": true,
+        "confidence": 0.44099997329711965
+      },
+      {
+        "from": 9,
+        "to": 0,
+        "reachable": false
+      },
+      {
+        "from": 1,
+        "to": 5,
+        "reachable": true,
+        "confidence": 0.6749999821186066
+      }
+    ]
+  }
+}

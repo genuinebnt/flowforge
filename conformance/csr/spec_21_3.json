@@ -1,0 +1,46 @@
+{
+  "name": "spec_21_3",
+  "description": "Section 21.3 test vector. Labels and confidences are not part of 21.3; they are added here to exercise label filters (csr_004) and Dijkstra (csr_007). Expected values are derived by hand from the spec, not generated.",
+  "nodes": 5,
+  "labels": ["dns_record", "port"],
+  "edges": [
+    {"src": 0, "dst": 1, "label": "dns_record", "conf": 0.9},
+    {"src": 0, "dst": 2, "label": "port", "conf": 0.5},
+    {"src": 1, "dst": 3, "label": "dns_record", "conf": 0.8},
+    {"src": 2, "dst": 3, "label": "port", "conf": 1.0},
+    {"src": 3, "dst": 4, "label": "dns_record", "conf": 0.7},
+    {"src": 4, "dst": 1, "label": "port", "conf": 0.6}
+  ],
+  "expect": {
+    "degree": [2, 1, 1, 1, 1],
+    "offsets": [0, 2, 3, 4, 5, 6],
+    "targets": [1, 2, 3, 3, 4, 1],
+    "in_offsets": [0, 0, 2, 3, 5, 6],
+    "in_sources": [0, 4, 0, 1, 2, 3],
+    "in_edge": [0, 5, 1, 2, 3, 4],
+    "bfs": [
+      {"start": 0, "direction": "out", "max_depth": -1, "levels": [[0], [1, 2], [3], [4]], "dist": [0, 1, 1, 2, 3]},
+      {"start": 0, "direction": "out", "max_depth": -1, "labels": ["dns_record"], "levels": [[0], [1], [3], [4]], "dist": [0, 1, -1, 2, 3]},
+      {"start": 4, "direction": "in", "max_depth": -1, "levels": [[4], [3], [1, 2], [0]], "dist": [3, 2, 2, 1, 0]},
+      {"start": 0, "direction": "out", "max_depth": 1, "levels": [[0], [1, 2]], "dist": [0, 1, 1, -1, -1]},
+      {"start": 2, "direction": "both", "max_depth": 1, "levels": [[2], [0, 3]], "dist": [1, -1, 0, 1, -1]},
+      {"start": 3, "direction": "in", "max_depth": -1, "labels": ["port"], "levels": [[3], [2], [0]], "dist": [2, -1, 1, 0, -1]},
+      {"start": 4, "direction": "out", "max_depth": -1, "labels": ["owns"], "levels": [[4]], "dist": [-1, -1, -1, -1, 0]}
+    ],
+    "scc": [[0], [1, 3, 4], [2]],
+    "wcc_count": 1,
+    "wcc": [[0, 1, 2, 3, 4]],
+    "core_numbers": [2, 2, 2, 2, 2],
+    "articulation_points": [],
+    "bridges": [],
+    "triangles": 1,
+    "paths": [
+      {"from": 0, "to": 4, "reachable": true, "nodes": [0, 1, 3, 4], "edges": [0, 2, 4], "confidence": 0.504},
+      {"from": 2, "to": 4, "reachable": true, "nodes": [2, 3, 4], "edges": [3, 4], "confidence": 0.7},
+      {"from": 4, "to": 3, "reachable": true, "nodes": [4, 1, 3], "edges": [5, 2], "confidence": 0.48},
+      {"from": 1, "to": 1, "reachable": true, "nodes": [1], "edges": [], "confidence": 1.0},
+      {"from": 4, "to": 0, "reachable": false},
+      {"from": 2, "to": 1, "reachable": false, "max_cost": 0.5}
+    ]
+  }
+}
