@@ -1,0 +1,153 @@
+# Machine-readable module manifest (spec 24.3, 25.10), Go edition.
+#
+# Each [module.<name>] maps a spec "crate" to a Go package directory.
+# `go run ./cmd/xtask verify-module <name>` checks an entry against the code:
+#   tests.prefix   Go test functions are named Test<prefix><id>_<Description>
+#   properties     property-test function names (Test<Prefix>Prop_<Name>)
+#   fuzz           native Go fuzz targets
+#   bench          benchmark function-name prefixes (Benchmark<Prefix><NN>)
+#   conformance    directories under conformance/ that must be non-empty
+
+[module.core]
+layer = 0
+spec = ["1.2", "11.1", "24.4"]
+dir = "core"
+depends = []
+tests = { prefix = "Core", required = ["001", "002", "003", "004", "005", "006", "007"] }
+
+[module.netnorm]
+layer = 0
+spec = ["4.2"]
+dir = "core/netnorm"
+depends = []
+tests = { prefix = "", required = [] }
+properties = ["TestNetnormProp_Idempotent"]
+fuzz = ["FuzzNetnormURL"]
+
+[module.scope]
+layer = 1
+spec = ["4"]
+dir = "scope"
+depends = ["core", "netnorm"]
+tests = { prefix = "Scope", required = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015", "016"] }
+conformance = ["scope/normalize", "scope/decide"]
+properties = ["TestScopeProp_IdempotentNormalize", "TestScopeProp_DenyMonotone"]
+fuzz = ["FuzzScopeNormalize"]
+bench = ["BenchmarkScope01"]
+mutation = true
+
+[module.oam]
+layer = 1
+spec = ["5", "6", "23.5"]
+dir = "oam"
+depends = ["core", "netnorm"]
+tests = { prefix = "OAM", required = ["001", "002", "003", "004", "005", "006", "007"] }
+conformance = ["oam/keys", "oam/merge"]
+properties = ["TestOAMProp_MergeConverges"]
+fuzz = ["FuzzOAMDecodeObservation"]
+bench = ["BenchmarkOAM01"]
+
+[module.limiter]
+layer = 1
+spec = ["14"]
+dir = "limiter"
+depends = ["core"]
+tests = { prefix = "Lim", required = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011"] }
+conformance = ["limiter/gcra", "limiter/models"]
+properties = ["TestLimProp_WindowBound", "TestLimProp_MatchesReference"]
+fuzz = ["FuzzLimGCRA"]
+bench = ["BenchmarkLim01", "BenchmarkLim02", "BenchmarkLim03"]
+mutation = true
+
+[module.csr]
+layer = 1
+spec = ["21"]
+dir = "csr"
+depends = ["core"]
+tests = { prefix = "CSR", required = ["001", "002", "003", "004", "005", "006", "007", "008", "009"] }
+conformance = ["csr"]
+properties = ["TestCSRProp_Build", "TestCSRProp_BFSNaive", "TestCSRProp_SCCNaive", "TestCSRProp_PageRankDense", "TestCSRProp_OverlayEqualsRebuild"]
+fuzz = ["FuzzCSROpen"]
+bench = ["BenchmarkCSR01", "BenchmarkCSR02", "BenchmarkCSR03"]
+
+[module.placement]
+layer = 1
+spec = ["23.3"]
+dir = "placement"
+depends = ["core"]
+tests = { prefix = "Plc", required = ["001", "002", "003"] }
+conformance = ["placement"]
+properties = ["TestPlcProp_OwnerIsLive", "TestPlcProp_AddOnlyMovesToNew"]
+bench = ["BenchmarkPlc01"]
+
+[module.auth]
+layer = 1
+spec = ["13"]
+dir = "auth"
+depends = ["core"]
+tests = { prefix = "Auth", required = ["001", "002", "003", "004", "005"] }
+conformance = ["auth/jwt", "auth/rbac"]
+fuzz = ["FuzzJWT"]
+bench = ["BenchmarkAuth01"]
+
+[module.dsl]
+layer = 2
+spec = ["7"]
+dir = "dsl"
+depends = ["core"]
+tests = { prefix = "DSL", required = ["001", "002", "003", "004", "005", "006"] }
+conformance = ["dsl/parse", "dsl/check"]
+properties = ["TestDSLProp_PrintParseRoundTrip", "TestDSLProp_WellTypedChecks"]
+fuzz = ["FuzzDSLLexer", "FuzzDSLParser", "FuzzDSLChecker"]
+bench = ["BenchmarkDSL01"]
+
+[module.bytecode]
+layer = 2
+spec = ["8.3", "8.4", "8.8"]
+dir = "bytecode"
+depends = ["core"]
+tests = { prefix = "BC", required = ["001", "002"] }
+conformance = ["bytecode/verify"]
+properties = ["TestBCProp_EncodeDecodeIdentity"]
+fuzz = ["FuzzBytecodeDecode", "FuzzVerifier"]
+
+[module.vecindex]
+layer = 2
+spec = ["22"]
+dir = "vecindex"
+depends = ["core"]
+tests = { prefix = "Vec", required = ["001", "002", "003", "004", "005", "006", "007", "008"] }
+conformance = ["vecindex"]
+properties = ["TestVecProp_ResultsAreLive", "TestVecProp_DistancesSorted", "TestVecProp_EmptyAfterDeleteAll", "TestVecProp_RecallMonotonicInL"]
+fuzz = ["FuzzSegmentOpen"]
+bench = ["BenchmarkVec01", "BenchmarkVec02", "BenchmarkVec03", "BenchmarkVec04", "BenchmarkVec05"]
+
+[module.alerts]
+layer = 2
+spec = ["15"]
+dir = "alerts"
+depends = ["core", "netnorm"]
+tests = { prefix = "Alr", required = ["001", "002"] }
+conformance = ["alerts/eval"]
+fuzz = ["FuzzAlertRule"]
+bench = ["BenchmarkAlr01"]
+
+[module.vm]
+layer = 3
+spec = ["8"]
+dir = "vm"
+depends = ["core", "bytecode"]
+tests = { prefix = "VM", required = ["001", "002", "003", "004", "005", "006", "007"] }
+properties = ["TestVMProp_VerifiedNeverPanics", "TestVMProp_FuelMonotonic"]
+fuzz = ["FuzzSnapshotDecode"]
+bench = ["BenchmarkVM01", "BenchmarkVM02", "BenchmarkVM03"]
+
+[module.eventstore]
+layer = 3
+spec = ["9.3", "23.4"]
+dir = "eventstore"
+depends = ["core"]
+tests = { prefix = "ES", required = ["001", "002", "003", "004", "005", "006", "007"] }
+conformance = ["eventstore"]
+properties = ["TestESProp_RandomInterleavings"]
+bench = ["BenchmarkES01", "BenchmarkES02"]
