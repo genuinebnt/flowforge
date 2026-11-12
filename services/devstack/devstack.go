@@ -84,6 +84,10 @@ type Options struct {
 	Logger *slog.Logger
 	// Issuer of internal tokens (default "flowforge-dev").
 	Issuer string
+	// TrustKeys, when set, is trusted for internal tokens in addition to
+	// the stack's own dev key. cmd/flowforge dev passes the gateway's key
+	// manager so tokens the gateway mints verify; they must carry Issuer.
+	TrustKeys auth.KeyResolver
 }
 
 // Stack is a running dev stack.
@@ -159,6 +163,9 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	keys, err := platform.NewDevKeys(o.Issuer)
 	if err != nil {
 		return nil, err
+	}
+	if o.TrustKeys != nil {
+		keys.Resolver = anyResolver{keys.Resolver, o.TrustKeys}
 	}
 	verifier, err := keys.Verifier(clock)
 	if err != nil {
@@ -280,4 +287,19 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 		return fail(ctx.Err())
 	}
 	return st, nil
+}
+
+// anyResolver resolves a kid with the first resolver that knows it.
+type anyResolver []auth.KeyResolver
+
+// ResolveKey implements auth.KeyResolver.
+func (rs anyResolver) ResolveKey(ctx context.Context, kid string) (auth.PublicKey, error) {
+	var err error
+	for _, r := range rs {
+		var k auth.PublicKey
+		if k, err = r.ResolveKey(ctx, kid); err == nil {
+			return k, nil
+		}
+	}
+	return auth.PublicKey{}, err
 }

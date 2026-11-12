@@ -165,7 +165,7 @@ func (s *Server) putScope(c *call) error {
 		return err
 	}
 	return c.ok(map[string]any{"program_id": sv.GetProgramId(), "version": sv.GetVersion(), "effective_from": ts(sv.GetEffectiveFrom()),
-		"created_by": sv.GetCreatedBy(), "created_at": ts(sv.GetCreatedAt()), "paused_runs": nil})
+		"created_by": publicActor(sv.GetCreatedBy()), "created_at": ts(sv.GetCreatedAt()), "paused_runs": nil})
 }
 
 func (s *Server) listScopeVersions(c *call) error {
@@ -581,7 +581,7 @@ func (s *Server) decideApproval(c *call) error {
 	if err != nil {
 		return err
 	}
-	return c.ok(map[string]any{"id": a.GetId(), "status": a.GetStatus(), "decided_by": nonEmpty(a.GetDecidedBy()),
+	return c.ok(map[string]any{"id": a.GetId(), "status": a.GetStatus(), "decided_by": nonEmpty(publicActor(a.GetDecidedBy())),
 		"decided_at": ts(a.GetDecidedAt()), "run_id": a.GetRunId(), "comment": nonEmpty(a.GetComment())})
 }
 

@@ -41,7 +41,9 @@ func (c *call) outgoing() outgoing {
 		o.traceparent = "00-" + c.s.ids.hex(32) + "-" + c.s.ids.hex(16) + "-01"
 	}
 	if c.p != nil {
-		o.tenant, o.role, o.sub, o.actor = c.p.TenantID, c.p.Role, c.p.subject(), c.p.actor()
+		o.tenant, o.role = c.p.TenantID, c.p.Role
+		o.sub = c.p.internalActor()
+		o.actor = o.sub
 	}
 	return o
 }

@@ -246,7 +246,7 @@ type scopeVersionOut struct {
 
 func scopeVersionJSON(v *pb.ScopeVersion, withDoc bool) scopeVersionOut {
 	out := scopeVersionOut{ProgramID: v.GetProgramId(), Version: v.GetVersion(), EffectiveFrom: ts(v.GetEffectiveFrom()),
-		CreatedBy: v.GetCreatedBy(), CreatedAt: ts(v.GetCreatedAt())}
+		CreatedBy: publicActor(v.GetCreatedBy()), CreatedAt: ts(v.GetCreatedAt())}
 	if withDoc {
 		d := scopeDocJSON(v.GetDocument())
 		out.Document = &d
@@ -264,7 +264,7 @@ func decisionJSON(d *pb.Decision) map[string]any {
 
 func killSwitchJSON(k *pb.KillSwitch) map[string]any {
 	return map[string]any{"level": k.GetLevel(), "target_id": k.GetTargetId(), "enabled": k.GetEnabled(), "reason": k.GetReason(),
-		"set_by": k.GetSetBy(), "set_at": ts(k.GetSetAt())}
+		"set_by": publicActor(k.GetSetBy()), "set_at": ts(k.GetSetAt())}
 }
 
 // ---- workflows and runs ------------------------------------------------
@@ -310,7 +310,7 @@ func diagnostics(ds []*pb.Diagnostic) []map[string]any {
 func workflowJSON(w *pb.WorkflowVersion, withSource bool) map[string]any {
 	m := map[string]any{"id": w.GetId(), "name": w.GetName(), "version": w.GetVersion(), "status": w.GetStatus(),
 		"module_sha256": w.GetModuleSha256(), "effects": strs(w.GetEffects()), "inferred_class": activityName(w.GetInferredClass()),
-		"diagnostics": diagnostics(w.GetDiagnostics()), "created_at": ts(w.GetCreatedAt()), "created_by": nonEmpty(w.GetCreatedBy())}
+		"diagnostics": diagnostics(w.GetDiagnostics()), "created_at": ts(w.GetCreatedAt()), "created_by": nonEmpty(publicActor(w.GetCreatedBy()))}
 	if withSource {
 		m["source"] = w.GetSource()
 	}
@@ -326,7 +326,7 @@ func runJSON(r *pb.Run) map[string]any {
 		"id": r.GetId(), "status": runStatusName(r.GetStatus()), "workflow": r.GetWorkflowName(), "workflow_version": r.GetWorkflowVersion(),
 		"program_id": r.GetProgramId(), "scope_version": r.GetScopeVersion(), "input": structOrEmpty(r.GetInput()),
 		"output": valueJSON(r.GetOutput()), "failure": failure, "compensation_outcome": nonEmpty(r.GetCompensationOutcome()),
-		"waiting_on": nil, "created_by": r.GetCreatedBy(), "created_at": ts(r.GetCreatedAt()), "started_at": ts(r.GetStartedAt()),
+		"waiting_on": nil, "created_by": publicActor(r.GetCreatedBy()), "created_at": ts(r.GetCreatedAt()), "started_at": ts(r.GetStartedAt()),
 		"finished_at": ts(r.GetFinishedAt()), "last_seq": r.GetLastSeq(), "parent_run_id": nonEmpty(r.GetParentRunId()),
 	}
 }
@@ -338,7 +338,7 @@ func runEventJSON(e *pb.RunEvent) map[string]any {
 func approvalJSON(a *pb.Approval) map[string]any {
 	return map[string]any{"id": a.GetId(), "run_id": a.GetRunId(), "effect_path": a.GetEffectPath(), "role": a.GetRole(),
 		"reason": a.GetReason(), "proposed": structJSON(a.GetProposed()), "status": a.GetStatus(), "expires_at": ts(a.GetExpiresAt()),
-		"decided_by": nonEmpty(a.GetDecidedBy()), "decided_at": ts(a.GetDecidedAt()), "comment": nonEmpty(a.GetComment()),
+		"decided_by": nonEmpty(publicActor(a.GetDecidedBy())), "decided_at": ts(a.GetDecidedAt()), "comment": nonEmpty(a.GetComment()),
 		"created_at": ts(a.GetCreatedAt())}
 }
 
@@ -616,4 +616,24 @@ func (c *changeIn) proto() (*pb.ChangeEvent, error) {
 		ev.Entity = &pb.Entity{Id: e.ID, AssetType: e.AssetType, Key: e.Key, Content: content, ScopeStatus: e.ScopeStatus, Confidence: e.Confidence, State: e.State}
 	}
 	return ev, nil
+}
+
+// publicActor renders an internal actor string in the REST public-id form:
+// "user:<uuid>" becomes usr_..., "apikey:<uuid>" becomes key_...; other
+// actors (schedule:<id>, service:<name>) and values already in public form
+// pass through unchanged.
+func publicActor(s string) string {
+	for kind, prefix := range map[string]core.Prefix{"user:": core.PrefixUser, "apikey:": core.PrefixAPIKey} {
+		rest, ok := strings.CutPrefix(s, kind)
+		if !ok {
+			continue
+		}
+		if u, err := core.ParseUUID(rest); err == nil {
+			return core.PublicID(prefix, u)
+		}
+		if u, err := core.ParsePublicID(prefix, rest); err == nil {
+			return core.PublicID(prefix, u)
+		}
+	}
+	return s
 }

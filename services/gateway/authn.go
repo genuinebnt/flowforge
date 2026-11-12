@@ -48,6 +48,17 @@ func (p *principal) actor() string {
 	return "user:" + p.subject()
 }
 
+// internalActor is the actor the gateway asserts to internal services, in
+// both the internal token's subject and x-actor: "user:<uuid>" or
+// "apikey:<uuid>" (spec 11.1), the form services record in run.created_by
+// and compare for self-approval.
+func (p *principal) internalActor() string {
+	if !p.KeyID.IsZero() {
+		return "apikey:" + p.KeyID.String()
+	}
+	return "user:" + p.UserID.String()
+}
+
 func (p *principal) identityActor(ip, ua string) identity.Actor {
 	return identity.Actor{TenantID: p.TenantID, UserID: p.UserID, KeyID: p.KeyID, Role: p.Role, Client: identity.ClientInfo{IP: ip, UserAgent: ua}}
 }

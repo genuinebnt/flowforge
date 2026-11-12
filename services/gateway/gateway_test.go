@@ -300,7 +300,7 @@ func TestGatewayAPIKeyFlow(t *testing.T) {
 	}
 	calls := h.be.Calls()
 	last := calls[len(calls)-1]
-	if last.Actor != "apikey:"+kid || last.Role != "analyst" || last.Tenant != core.PublicID(core.PrefixTenant, h.tenants["t1"].id) {
+	if last.Actor != "apikey:"+mustKeyUUID(t, kid).String() || last.Role != "analyst" || last.Tenant != core.PublicID(core.PrefixTenant, h.tenants["t1"].id) {
 		t.Fatalf("internal call: %+v", last)
 	}
 	// An API key in a cookie is refused.
@@ -332,7 +332,7 @@ func TestGatewayInternalMetadata(t *testing.T) {
 	switch {
 	case submit == nil:
 		t.Fatal("no SubmitRun call")
-	case submit.tn != core.PublicID(core.PrefixTenant, analyst.TenantID), submit.a != "user:"+core.PublicID(core.PrefixUser, analyst.UserID):
+	case submit.tn != core.PublicID(core.PrefixTenant, analyst.TenantID), submit.a != "user:"+analyst.UserID.String():
 		t.Fatalf("tenant/actor %+v", submit)
 	case submit.rid != "req-abc", submit.tp != tp, submit.idem != "idem-77":
 		t.Fatalf("request id / traceparent / idempotency key %+v", submit)
@@ -441,4 +441,14 @@ func TestGatewayBodyLimit(t *testing.T) {
 	if code != 413 || errCode(m) != "validation_failed" {
 		t.Fatalf("%d %v", code, m)
 	}
+}
+
+// mustKeyUUID parses a key_ public id.
+func mustKeyUUID(t *testing.T, kid string) core.UUID {
+	t.Helper()
+	u, err := core.ParsePublicID(core.PrefixAPIKey, kid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
 }

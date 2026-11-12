@@ -260,7 +260,16 @@ func TestIdentityMembersInvitesAPIKeys(t *testing.T) {
 	if err != nil || got.ID != k.Record.ID || got.Role != auth.RoleAnalyst {
 		t.Fatalf("authenticate: %v", err)
 	}
-	if _, err := f.Service.AuthenticateAPIKey(ctx, k.Token[:len(k.Token)-1]+"A"); reason(err) != core.ReasonTokenInvalid {
+	// Flip a character inside the secret (not the last one: its low bits
+	// are base64 padding and may decode to the same bytes).
+	tampered := []byte(k.Token)
+	i := len(tampered) - 5
+	if tampered[i] == 'A' {
+		tampered[i] = 'B'
+	} else {
+		tampered[i] = 'A'
+	}
+	if _, err := f.Service.AuthenticateAPIKey(ctx, string(tampered)); reason(err) != core.ReasonTokenInvalid {
 		t.Fatalf("tampered key: %v", err)
 	}
 	if err := f.Service.RevokeAPIKey(ctx, identity.Actor{TenantID: core.NewUUIDv7(f.Clock, core.NewSplitMix64(1))}, k.Record.ID); reason(err) != core.ReasonNotFound {
