@@ -1,0 +1,3 @@
+type http_service = { URL: String }
+enum color { red }
+fn MakeIt(BadParam: Int) -> Int { let Big = BadParam; Big }

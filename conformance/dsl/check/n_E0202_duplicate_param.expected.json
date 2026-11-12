@@ -1,0 +1,43 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0202",
+      "help": "Bindings are immutable; use a different name, or shadow it inside a nested block.",
+      "message": "`a` is already defined in this block",
+      "primary": {
+        "end": {
+          "col": 15,
+          "line": 1,
+          "offset": 14
+        },
+        "file": "n_E0202_duplicate_param.ff",
+        "label": "redefined here",
+        "start": {
+          "col": 14,
+          "line": 1,
+          "offset": 13
+        }
+      },
+      "secondary": [
+        {
+          "end": {
+            "col": 7,
+            "line": 1,
+            "offset": 6
+          },
+          "file": "n_E0202_duplicate_param.ff",
+          "label": "first defined here",
+          "start": {
+            "col": 6,
+            "line": 1,
+            "offset": 5
+          }
+        }
+      ],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

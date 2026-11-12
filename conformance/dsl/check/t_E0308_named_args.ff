@@ -1,0 +1,2 @@
+fn f(limit: Int, name: String) -> Int { limit }
+fn g() -> Int { f(lmit = 1, name = "x") + f(limit = 1, 2) }

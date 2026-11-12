@@ -1,0 +1,30 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0404",
+      "help": "Only writes can be compensated; remove the compensate clause.",
+      "message": "compensate requires the right side to perform a write or financial_write effect",
+      "primary": {
+        "end": {
+          "col": 22,
+          "line": 10,
+          "offset": 519
+        },
+        "file": "f_E0404_compensate_without_write.ff",
+        "label": "performs no write",
+        "start": {
+          "col": 12,
+          "line": 10,
+          "offset": 509
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "passive",
+  "inferred_effects": [
+    "passive"
+  ],
+  "ok": false
+}

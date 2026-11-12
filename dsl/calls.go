@@ -352,9 +352,14 @@ func (c *checker) bindArgs(ps []callParam, args []*Arg, callee string, sp Span) 
 				required++
 			}
 		}
-		c.sink.errorf(CodeArity, sp, "missing arguments",
-			"%s expects %d argument(s) but %d were given (missing %s)", callee, required,
-			len(args), strings.Join(missing, ", "))
+		if len(args) < required {
+			c.sink.errorf(CodeArity, sp, "missing arguments",
+				"%s expects %d argument(s) but %d were given (missing %s)", callee, required,
+				len(args), strings.Join(missing, ", "))
+		} else {
+			c.sink.errorf(CodeArity, sp, "missing arguments",
+				"%s is missing argument(s) %s", callee, strings.Join(missing, ", "))
+		}
 		ok = false
 	}
 	return ok
@@ -517,11 +522,14 @@ func (c *checker) callBuiltin(call *CallExpr, b *Builtin, name string, hint Type
 		}
 	case specialDisplay:
 		if a := firstArg(b, call.Args); a != nil && a.Value.base().T != nil {
-			t := a.Value.base().T
-			if _, isVar := prune(t).(*TypeVar); !isVar && !displayable(t) && !hasError(t) {
-				c.sink.errorf(CodeNotDisplayable, a.Value.Span(), "not displayable",
-					"%s cannot be converted to a string", zonk(t))
-			}
+			x := a.Value
+			c.later(func() {
+				t := x.base().T
+				if _, isVar := prune(t).(*TypeVar); !isVar && !displayable(t) && !hasError(t) {
+					c.sink.errorf(CodeNotDisplayable, x.Span(), "not displayable",
+						"%s cannot be converted to a string", zonk(t))
+				}
+			})
 		}
 	}
 	if b.Name == "par_map" {
@@ -618,7 +626,8 @@ func (c *checker) checkScopeTarget(e Expr, callee string) {
 	if hasError(t) {
 		return
 	}
-	if _, isVar := t.(*TypeVar); isVar {
+	if v, isVar := t.(*TypeVar); isVar {
+		v.Ref = TError
 		c.sink.errorf(CodeCannotInfer, e.Span(), "type must be known here",
 			"cannot infer the type of the scope target").withHelp("Add a type annotation.")
 		return

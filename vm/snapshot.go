@@ -12,7 +12,7 @@ import (
 //
 //	[ version=1, module_hash, status, pc, frames, stack, compensation_stack,
 //	  next_seq, heap, child, prefix, effects, fuel_used, heap_live,
-//	  heap_alloc, pending, result, failure ]
+//	  heap_alloc, pending, result, failure, fuel_credit ]
 //
 // frames are [fn, pc, bp, ret, caps_ref|null]; pc of the top frame is
 // also stored on its own. Heap objects are listed once each, children
@@ -119,7 +119,7 @@ func (e *snapEncoder) value(v Value) any {
 // Snapshot serializes the complete VM state. Restoring it and continuing
 // behaves exactly like continuing the original VM.
 func (vm *VM) Snapshot() ([]byte, error) {
-	e := &snapEncoder{ids: map[any]uint64{}}
+	e := &snapEncoder{ids: map[any]uint64{}, heap: []any{}}
 	h := vm.prog.Hash()
 	frames := make([]any, len(vm.frames))
 	pc := uint64(0)
@@ -158,7 +158,7 @@ func (vm *VM) Snapshot() ([]byte, error) {
 	doc := []any{
 		uint64(snapshotVersion), h[:], uint64(vm.status), pc, frames, stack, comps,
 		vm.nextSeq, e.heap, vm.child, prefix, uint64(vm.effects), uint64(vm.fuelUsed),
-		uint64(vm.heapLive), uint64(vm.heapAlloc), pending, result, failure,
+		uint64(vm.heapLive), uint64(vm.heapAlloc), pending, result, failure, uint64(vm.credit),
 	}
 	b, err := encMode.Marshal(doc)
 	if err != nil {
@@ -431,8 +431,8 @@ func Restore(prog *bytecode.Verified, data []byte, cfg Config) (*VM, error) {
 	if !bytes.Equal(mustReencode(doc), data) {
 		return nil, snapErr("not canonical CBOR")
 	}
-	if len(doc) != 18 {
-		return nil, snapErr("expected 18 fields, got %d", len(doc))
+	if len(doc) != 19 {
+		return nil, snapErr("expected 19 fields, got %d", len(doc))
 	}
 	if v, ok := asUint(doc[0], math.MaxUint16); !ok || v != snapshotVersion {
 		return nil, snapErr("unsupported version")
@@ -478,8 +478,8 @@ func Restore(prog *bytecode.Verified, data []byte, cfg Config) (*VM, error) {
 		}
 		vm.prefix = append(vm.prefix, uint32(u))
 	}
-	nums := [5]uint64{}
-	for i, idx := range []int{7, 11, 12, 13, 14} {
+	nums := [6]uint64{}
+	for i, idx := range []int{7, 11, 12, 13, 14, 18} {
 		u, ok := asUint(doc[idx], math.MaxInt64)
 		if !ok {
 			return nil, snapErr("bad counter %d", idx)
@@ -487,7 +487,10 @@ func Restore(prog *bytecode.Verified, data []byte, cfg Config) (*VM, error) {
 		nums[i] = u
 	}
 	vm.nextSeq, vm.effects, vm.fuelUsed = nums[0], int(min(nums[1], math.MaxInt32)), int64(nums[2])
-	vm.heapLive, vm.heapAlloc = int64(nums[3]), int64(nums[4])
+	vm.heapLive, vm.heapAlloc, vm.credit = int64(nums[3]), int64(nums[4]), int64(nums[5])
+	if vm.credit != 0 && vm.status != statusReady {
+		return nil, snapErr("fuel credit on a VM that is not runnable")
+	}
 	if vm.effects > vm.lim.Effects || uint64(vm.effects) > vm.nextSeq {
 		return nil, snapErr("effect counter over the limit")
 	}

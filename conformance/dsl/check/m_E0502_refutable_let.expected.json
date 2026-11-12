@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0502",
+      "help": "Use match to handle the other cases.",
+      "message": "refutable pattern in let statement",
+      "primary": {
+        "end": {
+          "col": 14,
+          "line": 2,
+          "offset": 43
+        },
+        "file": "m_E0502_refutable_let.ff",
+        "label": "pattern may not match",
+        "start": {
+          "col": 7,
+          "line": 2,
+          "offset": 36
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

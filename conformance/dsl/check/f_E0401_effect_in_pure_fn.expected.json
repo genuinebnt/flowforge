@@ -1,0 +1,43 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0401",
+      "help": "A function without `!` is pure; declare its effects with `! active`.",
+      "message": "function `probe` performs effect `active` but does not declare it",
+      "primary": {
+        "end": {
+          "col": 11,
+          "line": 10,
+          "offset": 538
+        },
+        "file": "f_E0401_effect_in_pure_fn.ff",
+        "label": "performs active",
+        "start": {
+          "col": 3,
+          "line": 10,
+          "offset": 530
+        }
+      },
+      "secondary": [
+        {
+          "end": {
+            "col": 9,
+            "line": 9,
+            "offset": 484
+          },
+          "file": "f_E0401_effect_in_pure_fn.ff",
+          "label": "declared pure here",
+          "start": {
+            "col": 4,
+            "line": 9,
+            "offset": 479
+          }
+        }
+      ],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

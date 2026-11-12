@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0304",
+      "help": "Add a type annotation to the binding.",
+      "message": "cannot infer the type of this value to access field `name`",
+      "primary": {
+        "end": {
+          "col": 17,
+          "line": 2,
+          "offset": 32
+        },
+        "file": "c_lambda_inference_E0304.ff",
+        "label": "type must be known here",
+        "start": {
+          "col": 16,
+          "line": 2,
+          "offset": 31
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

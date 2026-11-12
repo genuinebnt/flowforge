@@ -1,0 +1,48 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0303",
+      "message": "add expects 2 argument(s) but 1 were given (missing `b`)",
+      "primary": {
+        "end": {
+          "col": 23,
+          "line": 2,
+          "offset": 62
+        },
+        "file": "t_E0303_arity.ff",
+        "label": "missing arguments",
+        "start": {
+          "col": 17,
+          "line": 2,
+          "offset": 56
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0303",
+      "help": "Remove the extra argument.",
+      "message": "add takes 2 argument(s) but 3 were given",
+      "primary": {
+        "end": {
+          "col": 37,
+          "line": 2,
+          "offset": 76
+        },
+        "file": "t_E0303_arity.ff",
+        "label": "unexpected argument",
+        "start": {
+          "col": 36,
+          "line": 2,
+          "offset": 75
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

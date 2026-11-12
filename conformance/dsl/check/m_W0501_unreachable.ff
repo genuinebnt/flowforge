@@ -1,0 +1,13 @@
+fn f(o: Option<Int>) -> Int {
+  match o {
+    _ => 0,
+    Some(n) => n,
+  }
+}
+fn g(h: Host) -> Int {
+  match h {
+    Host::Name(_) => 1,
+    Host::Ip(_) => 2,
+    Host::Name(_) => 3,
+  }
+}

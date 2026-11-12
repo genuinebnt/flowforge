@@ -1,0 +1,62 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0205",
+      "message": "`f` is defined more than once",
+      "primary": {
+        "end": {
+          "col": 5,
+          "line": 2,
+          "offset": 14
+        },
+        "file": "n_E0205_duplicate_item.ff",
+        "label": "redefined here",
+        "start": {
+          "col": 4,
+          "line": 2,
+          "offset": 13
+        }
+      },
+      "secondary": [
+        {
+          "end": {
+            "col": 5,
+            "line": 1,
+            "offset": 4
+          },
+          "file": "n_E0205_duplicate_item.ff",
+          "label": "first defined here",
+          "start": {
+            "col": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      ],
+      "severity": "error"
+    },
+    {
+      "code": "E0205",
+      "message": "type `Fqdn` is already defined by the standard library",
+      "primary": {
+        "end": {
+          "col": 10,
+          "line": 3,
+          "offset": 29
+        },
+        "file": "n_E0205_duplicate_item.ff",
+        "label": "conflicts with a builtin type",
+        "start": {
+          "col": 6,
+          "line": 3,
+          "offset": 25
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

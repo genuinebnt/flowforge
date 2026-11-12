@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0302",
+      "help": "Only scope.check produces scope proofs.",
+      "message": "cannot cast to InScope\u003cHost\u003e",
+      "primary": {
+        "end": {
+          "col": 29,
+          "line": 2,
+          "offset": 50
+        },
+        "file": "s_E0302_forged_cast.ff",
+        "label": "this type is a scope proof",
+        "start": {
+          "col": 16,
+          "line": 2,
+          "offset": 37
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

@@ -1,0 +1,12 @@
+fn id<T>(x: T) -> T { x }
+fn pair<A, B>(a: A, b: B) -> (A, B) { (a, b) }
+fn g() -> (Int, String) {
+  let p = pair(id(1), id("s"));
+  let (n, s) = p;
+  (n + 1, s)
+}
+fn h(xs: List<Int>) -> Map<Int, List<Int>> {
+  let total = xs |> fold(0, (acc, x) => acc + x);
+  let evens = xs |> filter(x => x % 2 == 0) |> map(x => x * total);
+  evens |> group_by(x => x % 3)
+}

@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0504",
+      "help": "Did you mean `Some`?",
+      "message": "`Sone` is not an enum variant",
+      "primary": {
+        "end": {
+          "col": 9,
+          "line": 3,
+          "offset": 50
+        },
+        "file": "m_E0504_unknown_variant_pattern.ff",
+        "label": "not a variant",
+        "start": {
+          "col": 5,
+          "line": 3,
+          "offset": 46
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

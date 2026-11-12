@@ -1,0 +1,27 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0305",
+      "message": "n is not callable (it has type Int)",
+      "primary": {
+        "end": {
+          "col": 4,
+          "line": 3,
+          "offset": 32
+        },
+        "file": "t_E0305_not_callable.ff",
+        "label": "not a function",
+        "start": {
+          "col": 3,
+          "line": 3,
+          "offset": 31
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

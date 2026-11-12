@@ -1,0 +1,1 @@
+fn f(m: Map<List<Int>, Int>) -> Int { 0 }

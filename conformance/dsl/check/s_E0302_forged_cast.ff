@@ -1,0 +1,3 @@
+workflow w(h: Host) {
+  let p = h as InScope<Host>;
+}

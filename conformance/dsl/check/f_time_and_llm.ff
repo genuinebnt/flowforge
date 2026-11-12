@@ -1,0 +1,6 @@
+fn wait() ! time { sleep(5s); }
+workflow w(t: String) -> Vector ! time, llm {
+  wait();
+  let started = now();
+  embed(t)
+}

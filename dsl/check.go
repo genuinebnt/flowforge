@@ -98,6 +98,7 @@ func (c *checker) checkBody(params []*Param, body *BlockExpr, info *FuncInfo, is
 			p.Binding = c.bind(p.Name, BindParam, t)
 		}
 	}
+	c.deferred = nil
 	got := c.inferBlock(body, info.Result)
 	if !unify(got, info.Result) {
 		sp := body.Span()
@@ -116,6 +117,10 @@ func (c *checker) checkBody(params []*Param, body *BlockExpr, info *FuncInfo, is
 		c.checkPureFunc(body.Tail.Span(), got, info.Result)
 	}
 	info.Inferred = body.Eff
+	for _, fn := range c.deferred {
+		fn()
+	}
+	c.deferred = nil
 	c.finishItem(params, body)
 	c.fn = nil
 	c.scope = nil
@@ -333,6 +338,7 @@ func (c *checker) forStmt(s *ForStmt) EffectSet {
 			c.mismatch(s.Iter.Span(), TError, it, "not iterable", "cannot iterate over %s", zonk(it))
 		}
 	case *TypeVar:
+		pt.Ref = TError
 		c.sink.errorf(CodeCannotInfer, s.Iter.Span(), "type must be known here",
 			"cannot infer the type of the iterated value").
 			withHelp("Add a type annotation to the value being iterated.")
@@ -385,16 +391,20 @@ func (c *checker) inferExpr(e Expr, hint Type) (Type, EffectSet) {
 			if p.X == nil {
 				continue
 			}
-			t := c.infer(p.X, nil)
+			c.infer(p.X, nil)
 			eff |= p.X.Effects()
-			if _, isVar := prune(t).(*TypeVar); isVar {
-				c.sink.errorf(CodeCannotInfer, p.X.Span(), "type must be known here",
-					"cannot infer the type of this interpolated value")
-			} else if !displayable(t) && !hasError(t) {
-				c.sink.errorf(CodeNotDisplayable, p.X.Span(), "not displayable",
-					"%s cannot be interpolated into a string", zonk(t)).
-					withHelp("Interpolate String, Int, Float, Bool, Duration, Time or a domain scalar such as Fqdn.")
-			}
+			x := p.X
+			c.later(func() {
+				t := prune(x.base().T)
+				if _, isVar := t.(*TypeVar); isVar {
+					return // reported as E0304 when the item is finished
+				}
+				if !displayable(t) && !hasError(t) {
+					c.sink.errorf(CodeNotDisplayable, x.Span(), "not displayable",
+						"%s cannot be interpolated into a string", zonk(t)).
+						withHelp("Interpolate String, Int, Float, Bool, Duration, Time or a domain scalar such as Fqdn.")
+				}
+			})
 		}
 		return TString, eff
 	case *Ident:
@@ -918,7 +928,14 @@ func (c *checker) inferBinary(e *BinaryExpr) (Type, EffectSet) {
 		return TBool, e.X.Effects() | e.Y.Effects()
 	}
 	xt := c.infer(e.X, nil)
-	yt := c.infer(e.Y, xt)
+	// Only operators whose operands have equal types pass the left type
+	// down as a hint (arithmetic such as Duration * Int does not).
+	var yHint Type
+	switch e.Op {
+	case OpEq, OpNe, OpLt, OpLe, OpGt, OpGe:
+		yHint = xt
+	}
+	yt := c.infer(e.Y, yHint)
 	eff := e.X.Effects() | e.Y.Effects()
 	if hasError(xt) || hasError(yt) {
 		switch e.Op {
@@ -981,16 +998,20 @@ func (c *checker) inferBinary(e *BinaryExpr) (Type, EffectSet) {
 		}
 		return &NamedType{Def: defList, Args: []Type{TInt}}, eff
 	}
-	// Arithmetic.
+	// Arithmetic. When one operand is still unknown, pick the operand
+	// type the table implies: the only possible one, else the same type
+	// as the known side.
 	px, py := prune(xt), prune(yt)
 	_, xv := px.(*TypeVar)
 	_, yv := py.(*TypeVar)
 	if xv && !yv {
-		unify(px, py)
-		px = py
+		guess := arithGuess(e.Op, py, false)
+		unify(px, guess)
+		px = prune(px)
 	} else if yv && !xv {
-		unify(py, px)
-		py = px
+		guess := arithGuess(e.Op, px, true)
+		unify(py, guess)
+		py = prune(py)
 	} else if xv && yv {
 		unify(px, TInt)
 		unify(py, TInt)
@@ -1032,6 +1053,7 @@ func (c *checker) inferIndex(e *IndexExpr) (Type, EffectSet) {
 			return pt.Args[1], eff | e.Index.Effects()
 		}
 	case *TypeVar:
+		pt.Ref = TError
 		c.infer(e.Index, nil)
 		c.sink.errorf(CodeCannotInfer, e.X.Span(), "type must be known here",
 			"cannot infer the type of the indexed value").withHelp("Add a type annotation.")
@@ -1084,6 +1106,7 @@ func (c *checker) inferField(e *FieldExpr) (Type, EffectSet) {
 			return subst(fd.Type, m), eff
 		}
 	case *TypeVar:
+		pt.Ref = TError
 		c.sink.errorf(CodeCannotInfer, e.X.Span(), "type must be known here",
 			"cannot infer the type of this value to access field `%s`", e.Name.Name).
 			withHelp("Add a type annotation to the binding.")
@@ -1110,6 +1133,7 @@ func (c *checker) inferTry(e *TryExpr) (Type, EffectSet) {
 			e.OnOption = true
 		}
 	case *TypeVar:
+		pt.Ref = TError
 		c.sink.errorf(CodeCannotInfer, e.X.Span(), "type must be known here",
 			"cannot infer the type of the operand of `?`").withHelp("Add a type annotation.")
 		return TError, eff
@@ -1133,21 +1157,15 @@ func (c *checker) inferTry(e *TryExpr) (Type, EffectSet) {
 				withHelp("Match on the Option and return an Err explicitly.")
 			return inner, eff
 		}
-		if !unify(errT, rn.Args[1]) {
-			c.mismatch(e.Span(), rn.Args[1], errT, "error type "+zonk(errT).String(),
+		if !unify(errT, rn.Args[1]) && !hasError(errT) && !hasError(rn.Args[1]) {
+			c.sink.errorf(CodeBadTry, e.Span(), "error type "+zonk(errT).String(),
 				"`?` cannot convert error type %s into %s (the error type of `%s`)", zonk(errT), zonk(rn.Args[1]), c.fn.info.Name).
 				withHelp("Error types must be equal; there is no implicit conversion. Map the error with match.")
 		}
 		e.Mode = TryReturnErr
 		return inner, eff
 	}
-	if namedOf(ret, defOption) != nil {
-		if !e.OnOption {
-			c.sink.errorf(CodeBadTry, e.Span(), "Result in an Option function",
-				"`?` on a Result in `%s`, which returns %s", c.fn.info.Name, ret).
-				withHelp("Match on the Result and return None explicitly.")
-			return inner, eff
-		}
+	if namedOf(ret, defOption) != nil && e.OnOption {
 		e.Mode = TryReturnNone
 		return inner, eff
 	}
@@ -1169,7 +1187,8 @@ func (c *checker) inferCast(e *CastExpr) (Type, EffectSet) {
 		return to, eff
 	}
 	from := prune(xt)
-	if _, isVar := from.(*TypeVar); isVar {
+	if v, isVar := from.(*TypeVar); isVar {
+		v.Ref = TError
 		c.sink.errorf(CodeCannotInfer, e.X.Span(), "type must be known here",
 			"cannot infer the type of the value being cast")
 		return to, eff
@@ -1216,3 +1235,29 @@ func castKind(from, to Type) (CastKind, bool) {
 	}
 	return CastNone, false
 }
+
+// arithGuess returns the type an unknown operand of op most likely has,
+// given the known operand (known is the left operand when left is true).
+func arithGuess(op BinaryOp, known Type, left bool) Type {
+	kp, ok := known.(*PrimType)
+	if !ok {
+		return known
+	}
+	var cands []*PrimType
+	for _, row := range arith[op] {
+		if left && row[0] == kp {
+			cands = append(cands, row[1])
+		}
+		if !left && row[1] == kp {
+			cands = append(cands, row[0])
+		}
+	}
+	if len(cands) == 1 {
+		return cands[0]
+	}
+	return known
+}
+
+// later defers a check to the end of the current item, when inference
+// variables have been solved.
+func (c *checker) later(fn func()) { c.deferred = append(c.deferred, fn) }

@@ -1,0 +1,49 @@
+{
+  "diagnostics": [
+    {
+      "code": "W0402",
+      "help": "Remove `active` from the effect clause.",
+      "message": "function `look` declares effect `active` but never performs it",
+      "primary": {
+        "end": {
+          "col": 56,
+          "line": 9,
+          "offset": 531
+        },
+        "file": "f_W0402_over_broad.ff",
+        "label": "never performed",
+        "start": {
+          "col": 50,
+          "line": 9,
+          "offset": 525
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0402",
+      "help": "Remove `time` from the effect clause.",
+      "message": "function `look` declares effect `time` but never performs it",
+      "primary": {
+        "end": {
+          "col": 62,
+          "line": 9,
+          "offset": 537
+        },
+        "file": "f_W0402_over_broad.ff",
+        "label": "never performed",
+        "start": {
+          "col": 58,
+          "line": 9,
+          "offset": 533
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": true
+}

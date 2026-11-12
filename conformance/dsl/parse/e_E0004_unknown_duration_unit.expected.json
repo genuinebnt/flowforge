@@ -23,7 +23,7 @@
     },
     {
       "code": "E0004",
-      "help": "Duration units are ms, s, m, h and d.",
+      "help": "Duration units are ms, s, m, h and d; a float needs a fractional part, as in 1.0e5.",
       "message": "unknown duration unit `e5`",
       "primary": {
         "end": {

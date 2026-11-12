@@ -1,0 +1,88 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0303",
+      "message": "f is missing argument(s) `limit`",
+      "primary": {
+        "end": {
+          "col": 40,
+          "line": 2,
+          "offset": 87
+        },
+        "file": "t_E0308_named_args.ff",
+        "label": "missing arguments",
+        "start": {
+          "col": 17,
+          "line": 2,
+          "offset": 64
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0308",
+      "help": "Did you mean `limit`?",
+      "message": "f has no parameter named `lmit`",
+      "primary": {
+        "end": {
+          "col": 23,
+          "line": 2,
+          "offset": 70
+        },
+        "file": "t_E0308_named_args.ff",
+        "label": "unknown parameter",
+        "start": {
+          "col": 19,
+          "line": 2,
+          "offset": 66
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0303",
+      "message": "f is missing argument(s) `name`",
+      "primary": {
+        "end": {
+          "col": 58,
+          "line": 2,
+          "offset": 105
+        },
+        "file": "t_E0308_named_args.ff",
+        "label": "missing arguments",
+        "start": {
+          "col": 43,
+          "line": 2,
+          "offset": 90
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0308",
+      "message": "positional arguments must come before named arguments",
+      "primary": {
+        "end": {
+          "col": 57,
+          "line": 2,
+          "offset": 104
+        },
+        "file": "t_E0308_named_args.ff",
+        "label": "positional after named",
+        "start": {
+          "col": 56,
+          "line": 2,
+          "offset": 103
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

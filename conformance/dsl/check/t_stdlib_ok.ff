@@ -1,0 +1,9 @@
+fn f(xs: List<String>, s: String, t: Time) -> Option<Int> {
+  let joined = xs |> sort_by(x => len(x)) |> reverse |> join(",");
+  let parts = split(trim(lower(joined)), ",");
+  let n = parts |> enumerate |> count(p => match p { (i, w) => i > 0 && starts_with(w, "a") });
+  let later: Time = t + 5m;
+  let elapsed: Duration = later - t;
+  let firsts = parts |> take(2) |> skip(1) |> zip(parts) |> map(pair => match pair { (a, b) => upper(a) + replace(b, "x", "y") });
+  if contains(parts, s) && "x" in s && ends_with(s, "z") { parse_int(to_string(n)) } else { None }
+}

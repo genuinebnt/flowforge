@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0401",
+      "help": "Function types written in source carry no effects; call the effectful function directly or pass it to a standard-library function such as map.",
+      "message": "this function performs `passive` but function types are pure",
+      "primary": {
+        "end": {
+          "col": 24,
+          "line": 11,
+          "offset": 601
+        },
+        "file": "f_E0401_effectful_closure_to_pure_param.ff",
+        "label": "performs passive",
+        "start": {
+          "col": 17,
+          "line": 11,
+          "offset": 594
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

@@ -1,0 +1,5 @@
+workflow w(e: Entity) -> Int {
+  let hits = similar(e, 20);
+  let ok = hits |> filter(h => scope.allows(h));
+  len(ok)
+}

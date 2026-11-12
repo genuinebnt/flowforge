@@ -190,15 +190,65 @@ func (vm *VM) slowOp(op bytecode.Opcode, code []byte, pc int, st []Value, spp *i
 	return 0, typeFault("unexpected opcode " + op.String())
 }
 
-// listAppend returns l with v appended, extending the shared backing in
-// place when l is its longest prefix.
+// appendBudget bounds the reachability check of an in-place append.
+const appendBudget = 1024
+
+// mayReach reports whether v may reference the backing b. It answers true
+// when it runs out of budget, which makes the caller copy.
+func mayReach(v Value, b *listObj, budget *int) bool {
+	var vals []Value
+	switch o := v.p.(type) {
+	case *listObj:
+		if o == b {
+			return true
+		}
+		vals = o.elems
+	case *tupObj:
+		if o == nil {
+			return false
+		}
+		vals = o.vals
+	case *mapObj:
+		*budget -= len(o.keys)
+		if *budget < 0 {
+			return true
+		}
+		for _, k := range o.keys {
+			if mayReach(k, b, budget) {
+				return true
+			}
+		}
+		vals = o.vals
+	case *proofObj:
+		return mayReach(o.target, b, budget)
+	default:
+		return false
+	}
+	*budget -= 1 + len(vals)
+	if *budget < 0 {
+		return true
+	}
+	for _, e := range vals {
+		if e.p != nil && mayReach(e, b, budget) {
+			return true
+		}
+	}
+	return false
+}
+
+// listAppend returns l with v appended. When l is the longest prefix of
+// its backing store and v does not reference that store, the store is
+// extended in place (amortized O(1)); otherwise the prefix is copied.
+// The reference check keeps the object graph acyclic, which snapshots and
+// heap accounting rely on.
 func (vm *VM) listAppend(l, v Value) (Value, *fault) {
 	n := int(l.n)
 	if n >= vm.lim.List {
 		return Value{}, faultf(bytecode.FailLimitExceeded, "list over the element limit")
 	}
 	b := l.p.(*listObj)
-	if len(b.elems) == n {
+	budget := appendBudget
+	if len(b.elems) == n && (v.p == nil || !mayReach(v, b, &budget)) {
 		if f := vm.alloc(valueBytes); f != nil {
 			return Value{}, f
 		}

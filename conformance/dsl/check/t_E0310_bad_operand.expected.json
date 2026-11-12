@@ -1,0 +1,48 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0310",
+      "message": "`!` expects Bool, found Int",
+      "primary": {
+        "end": {
+          "col": 37,
+          "line": 1,
+          "offset": 36
+        },
+        "file": "t_E0310_bad_operand.ff",
+        "label": "invalid operand",
+        "start": {
+          "col": 36,
+          "line": 1,
+          "offset": 35
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0310",
+      "help": "There are no implicit conversions; use `as` to convert, for example `n as Float`.",
+      "message": "`-` cannot be applied to String and Int",
+      "primary": {
+        "end": {
+          "col": 46,
+          "line": 1,
+          "offset": 45
+        },
+        "file": "t_E0310_bad_operand.ff",
+        "label": "invalid operands",
+        "start": {
+          "col": 41,
+          "line": 1,
+          "offset": 40
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

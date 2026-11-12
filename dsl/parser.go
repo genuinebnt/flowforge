@@ -32,6 +32,17 @@ func Parse(file string, src []byte) (*File, []Diagnostic) {
 	sink.diags = append(sink.diags, lexDiags...)
 	p := &parser{toks: toks, sink: sink, file: file}
 	f.Items = p.parseItems()
+	if p.tooDeep {
+		// Past the limit the parse is not meaningful; keep only the
+		// lexical errors and the limit error itself.
+		kept := sink.diags[:0]
+		for i, d := range sink.diags {
+			if i < len(lexDiags) || d.Code == CodeTooLarge {
+				kept = append(kept, d)
+			}
+		}
+		sink.diags = kept
+	}
 	SortDiagnostics(sink.diags)
 	return f, sink.diags
 }
@@ -969,10 +980,10 @@ func (p *parser) parsePostfix() Expr {
 				return x
 			}
 			p.advance()
-			save := p.noRecord
-			p.noRecord = false
+			save, saveNL := p.noRecord, p.noLambda
+			p.noRecord, p.noLambda = false, false
 			idx := p.parseExpr()
-			p.noRecord = save
+			p.noRecord, p.noLambda = save, saveNL
 			p.expect(TokRBracket)
 			x = &IndexExpr{exprBase: exprBase{Sp: p.spanFrom(start)}, X: x, Index: idx}
 		case TokDot:
@@ -1286,7 +1297,7 @@ func (p *parser) parseMatch() Expr {
 		m.Sp = p.spanFrom(start)
 		return m
 	}
-	saveNR := p.noRecord
+	saveNR, saveNL := p.noRecord, p.noLambda
 	p.noRecord = false
 	chain := p.chain
 	for !p.at(TokRBrace) && !p.at(TokEOF) {
@@ -1298,8 +1309,8 @@ func (p *parser) parseMatch() Expr {
 			p.advance()
 			p.noLambda = true
 			arm.Guard = p.parseExpr()
-			p.noLambda = false
 		}
+		p.noLambda = false
 		if _, ok := p.expect(TokFatArrow); ok {
 			arm.Body = p.parseExpr()
 		} else {
@@ -1345,7 +1356,7 @@ func (p *parser) parseMatch() Expr {
 			break
 		}
 	}
-	p.noRecord = saveNR
+	p.noRecord, p.noLambda = saveNR, saveNL
 	p.expect(TokRBrace)
 	m.Sp = p.spanFrom(start)
 	return m

@@ -1,0 +1,30 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0403",
+      "help": "Add `require approval(role = \"...\", reason = \"...\");` before this statement.",
+      "message": "`post_entry` performs `financial_write` without a preceding approval",
+      "primary": {
+        "end": {
+          "col": 16,
+          "line": 14,
+          "offset": 665
+        },
+        "file": "f_E0403_approval_in_branch_only.ff",
+        "label": "needs approval",
+        "start": {
+          "col": 3,
+          "line": 14,
+          "offset": 652
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [
+    "financial_write"
+  ],
+  "ok": false
+}

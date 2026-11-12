@@ -1,0 +1,69 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0604",
+      "message": "expected #[timeout(d)] with one positive duration such as 30s",
+      "primary": {
+        "end": {
+          "col": 13,
+          "line": 1,
+          "offset": 12
+        },
+        "file": "a_E0604_bad_arguments.ff",
+        "label": "invalid arguments",
+        "start": {
+          "col": 3,
+          "line": 1,
+          "offset": 2
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0604",
+      "message": "#[effects(max = N)] needs an integer N between 1 and 1000000",
+      "primary": {
+        "end": {
+          "col": 19,
+          "line": 2,
+          "offset": 32
+        },
+        "file": "a_E0604_bad_arguments.ff",
+        "label": "invalid arguments",
+        "start": {
+          "col": 3,
+          "line": 2,
+          "offset": 16
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0604",
+      "message": "#[retry] backoff = exp(initial, max) needs durations with 0 \u003c initial \u003c= max",
+      "primary": {
+        "end": {
+          "col": 43,
+          "line": 4,
+          "offset": 91
+        },
+        "file": "a_E0604_bad_arguments.ff",
+        "label": "invalid arguments",
+        "start": {
+          "col": 5,
+          "line": 4,
+          "offset": 53
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [
+    "time"
+  ],
+  "ok": false
+}

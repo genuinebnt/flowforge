@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0501",
+      "help": "Add an arm for `false`, or end with a wildcard arm `_ =\u003e ...`.",
+      "message": "non-exhaustive match: pattern `false` is not covered",
+      "primary": {
+        "end": {
+          "col": 10,
+          "line": 2,
+          "offset": 32
+        },
+        "file": "m_E0501_guards_do_not_count.ff",
+        "label": "pattern `false` not covered",
+        "start": {
+          "col": 9,
+          "line": 2,
+          "offset": 31
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

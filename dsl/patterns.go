@@ -530,7 +530,13 @@ func (c *checker) checkMatch(m *MatchExpr, st Type) {
 	u := &usefulness{budget: usefulnessBudget}
 	var rows [][]*spat
 	types := []Type{st}
+	broken := false
 	for _, arm := range m.Arms {
+		if patHasError(arm.Pat) {
+			// Already reported; leave the arm out of the analysis.
+			broken = true
+			continue
+		}
 		sp := simplify(arm.Pat)
 		if _, ok := u.useful(rows, []*spat{sp}, types); !ok && u.budget >= 0 {
 			c.sink.warnf(WarnUnreachable, arm.Pat.Span(), "unreachable pattern",
@@ -540,6 +546,9 @@ func (c *checker) checkMatch(m *MatchExpr, st Type) {
 		if arm.Guard == nil {
 			rows = append(rows, []*spat{sp})
 		}
+	}
+	if broken {
+		return
 	}
 	if w, ok := u.useful(rows, []*spat{wildPat}, types); ok && u.budget >= 0 {
 		missing := renderWitness(w[0], st)
@@ -558,4 +567,26 @@ func (c *checker) irrefutable(p Pattern) bool {
 	rows := [][]*spat{{simplify(p)}}
 	_, ok := u.useful(rows, []*spat{wildPat}, []Type{p.Type()})
 	return !ok
+}
+
+// patHasError reports whether a checked pattern contains an error.
+func patHasError(p Pattern) bool {
+	bad := false
+	Walk(p, func(n Node) bool {
+		switch x := n.(type) {
+		case *VariantPat:
+			if x.Variant == nil {
+				bad = true
+			}
+		case *RecordPat:
+			if x.Def == nil {
+				bad = true
+			}
+		}
+		if pt, ok := n.(Pattern); ok && (pt.Type() == nil || hasError(pt.Type())) {
+			bad = true
+		}
+		return !bad
+	})
+	return bad
 }

@@ -1,0 +1,8 @@
+{
+  "diagnostics": [],
+  "inferred_class": "none",
+  "inferred_effects": [
+    "financial_write"
+  ],
+  "ok": true
+}

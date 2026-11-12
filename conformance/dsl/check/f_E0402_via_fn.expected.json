@@ -1,0 +1,30 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0402",
+      "help": "The program allows at most active activity; remove this call or ask a program owner to raise max_class.",
+      "message": "effect `intrusive` exceeds the program's maximum activity class `active`",
+      "primary": {
+        "end": {
+          "col": 44,
+          "line": 13,
+          "offset": 709
+        },
+        "file": "f_E0402_via_fn.ff",
+        "label": "performs intrusive",
+        "start": {
+          "col": 11,
+          "line": 13,
+          "offset": 676
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "intrusive",
+  "inferred_effects": [
+    "intrusive"
+  ],
+  "ok": false
+}

@@ -3,7 +3,6 @@ package bytecode
 import (
 	"encoding/binary"
 	"fmt"
-	"math/bits"
 )
 
 // ToolInfo is what the verifier needs to know about a registered tool.
@@ -234,12 +233,6 @@ func (b bitset) or(o bitset) {
 	for i := range b {
 		b[i] |= o[i]
 	}
-}
-func (b bitset) count() (n int) {
-	for _, w := range b {
-		n += bits.OnesCount64(w)
-	}
-	return n
 }
 
 // absState is the abstract machine state before an instruction: operand

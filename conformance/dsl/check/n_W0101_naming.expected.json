@@ -1,0 +1,154 @@
+{
+  "diagnostics": [
+    {
+      "code": "W0101",
+      "help": "Rename it to `HttpService`.",
+      "message": "type `http_service` should have an UpperCamelCase name",
+      "primary": {
+        "end": {
+          "col": 18,
+          "line": 1,
+          "offset": 17
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not UpperCamelCase",
+        "start": {
+          "col": 6,
+          "line": 1,
+          "offset": 5
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0101",
+      "help": "Rename it to `u_r_l`.",
+      "message": "field `URL` should have a snake_case name",
+      "primary": {
+        "end": {
+          "col": 26,
+          "line": 1,
+          "offset": 25
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not snake_case",
+        "start": {
+          "col": 23,
+          "line": 1,
+          "offset": 22
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0101",
+      "help": "Rename it to `Color`.",
+      "message": "enum `color` should have an UpperCamelCase name",
+      "primary": {
+        "end": {
+          "col": 11,
+          "line": 2,
+          "offset": 46
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not UpperCamelCase",
+        "start": {
+          "col": 6,
+          "line": 2,
+          "offset": 41
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0101",
+      "help": "Rename it to `Red`.",
+      "message": "variant `red` should have an UpperCamelCase name",
+      "primary": {
+        "end": {
+          "col": 17,
+          "line": 2,
+          "offset": 52
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not UpperCamelCase",
+        "start": {
+          "col": 14,
+          "line": 2,
+          "offset": 49
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0101",
+      "help": "Rename it to `make_it`.",
+      "message": "function `MakeIt` should have a snake_case name",
+      "primary": {
+        "end": {
+          "col": 10,
+          "line": 3,
+          "offset": 64
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not snake_case",
+        "start": {
+          "col": 4,
+          "line": 3,
+          "offset": 58
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0101",
+      "help": "Rename it to `bad_param`.",
+      "message": "parameter `BadParam` should have a snake_case name",
+      "primary": {
+        "end": {
+          "col": 19,
+          "line": 3,
+          "offset": 73
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not snake_case",
+        "start": {
+          "col": 11,
+          "line": 3,
+          "offset": 65
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0101",
+      "help": "Rename it to `big`.",
+      "message": "binding `Big` should have a snake_case name",
+      "primary": {
+        "end": {
+          "col": 42,
+          "line": 3,
+          "offset": 96
+        },
+        "file": "n_W0101_naming.ff",
+        "label": "not snake_case",
+        "start": {
+          "col": 39,
+          "line": 3,
+          "offset": 93
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": true
+}

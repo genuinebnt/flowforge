@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0405",
+      "help": "Did you mean `passive`? Effects are read, passive, active, intrusive, write, financial_write, llm and time.",
+      "message": "unknown effect `pasive`",
+      "primary": {
+        "end": {
+          "col": 23,
+          "line": 1,
+          "offset": 22
+        },
+        "file": "f_E0405_unknown_effect.ff",
+        "label": "unknown effect",
+        "start": {
+          "col": 17,
+          "line": 1,
+          "offset": 16
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

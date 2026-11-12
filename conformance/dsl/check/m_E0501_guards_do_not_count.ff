@@ -1,0 +1,6 @@
+fn f(b: Bool) -> Int {
+  match b {
+    true => 1,
+    false if b => 0,
+  }
+}

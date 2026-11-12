@@ -314,10 +314,22 @@ func verifyCases() []VerifyCase {
 		{"payload_arity", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.MakeEnum(bc.TypeOption, bc.VariantSome, 0); f.Op(bc.OpRet) }), bc.ErrPayloadArity},
 		{"unknown_effect", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.Effect(40, 0); f.Op(bc.OpRet) }), bc.ErrUnknownEffect},
 		{"effect_argc", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.Op(bc.OpUnit); f.Effect(bc.EffectNow, 1); f.Op(bc.OpRet) }), bc.ErrEffectArgc},
-		{"tool_call_without_tool", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.Op(bc.OpUnit); f.Effect(bc.EffectToolCall, 1); f.Op(bc.OpRet) }), bc.ErrToolCallTarget},
-		{"tool_call_unlisted", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.String("nmap"); f.Effect(bc.EffectToolCall, 1); f.Op(bc.OpRet) }), bc.ErrToolCallTarget},
+		{"tool_call_without_tool", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) {
+			f.Op(bc.OpUnit)
+			f.Effect(bc.EffectToolCall, 1)
+			f.Op(bc.OpRet)
+		}), bc.ErrToolCallTarget},
+		{"tool_call_unlisted", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) {
+			f.String("nmap")
+			f.Effect(bc.EffectToolCall, 1)
+			f.Op(bc.OpRet)
+		}), bc.ErrToolCallTarget},
 		{"unknown_builtin", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.Emit(bc.OpBuiltin, 9999, 0); f.Op(bc.OpRet) }), bc.ErrUnknownBuiltin},
-		{"builtin_arity", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.Op(bc.OpUnit); f.Emit(bc.OpBuiltin, int64(bc.BReplace), 1); f.Op(bc.OpRet) }), bc.ErrBuiltinArity},
+		{"builtin_arity", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) {
+			f.Op(bc.OpUnit)
+			f.Emit(bc.OpBuiltin, int64(bc.BReplace), 1)
+			f.Op(bc.OpRet)
+		}), bc.ErrBuiltinArity},
 		{"fail_code", one(0, 0, func(b *bc.Builder, f *bc.FuncBuilder) { f.Fail(999) }), bc.ErrFailCode},
 		{"name_index", mutate(okBody, func(m *bc.Module) { m.Funcs[0].Name = 77 }), bc.ErrNameIndex},
 		{"entry_missing", mutate(okBody, func(m *bc.Module) { m.Entry = 5 }), bc.ErrEntry},

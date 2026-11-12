@@ -1,0 +1,6 @@
+fn parse(s: String) -> Result<Int, String> { Ok(1) }
+fn g() -> Result<Int, Int> {
+  let n = parse("1")?;
+  Ok(n)
+}
+fn h() -> Int { 5? }

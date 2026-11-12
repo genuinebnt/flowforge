@@ -1,0 +1,31 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0402",
+      "help": "The program allows at most passive activity; remove this call or ask a program owner to raise max_class.",
+      "message": "effect `active` exceeds the program's maximum activity class `passive`",
+      "primary": {
+        "end": {
+          "col": 47,
+          "line": 12,
+          "offset": 618
+        },
+        "file": "f_E0402_exceeds_max_class.ff",
+        "label": "performs active",
+        "start": {
+          "col": 13,
+          "line": 12,
+          "offset": 584
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "active",
+  "inferred_effects": [
+    "passive",
+    "active"
+  ],
+  "ok": false
+}

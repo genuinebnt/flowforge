@@ -1,0 +1,27 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0301",
+      "message": "if and else have different types: Int and String",
+      "primary": {
+        "end": {
+          "col": 46,
+          "line": 1,
+          "offset": 45
+        },
+        "file": "t_E0301_if_branches.ff",
+        "label": "expected Int",
+        "start": {
+          "col": 42,
+          "line": 1,
+          "offset": 41
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

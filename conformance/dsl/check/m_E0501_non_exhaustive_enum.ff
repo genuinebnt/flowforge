@@ -1,0 +1,7 @@
+fn f(s: Severity) -> Int {
+  match s {
+    Severity::Info => 0,
+    Severity::Low => 1,
+    Severity::High => 3,
+  }
+}

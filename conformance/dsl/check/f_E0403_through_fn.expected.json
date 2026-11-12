@@ -1,0 +1,30 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0403",
+      "help": "Add `require approval(role = \"...\", reason = \"...\");` before this statement.",
+      "message": "`book` performs `financial_write` without a preceding approval",
+      "primary": {
+        "end": {
+          "col": 18,
+          "line": 17,
+          "offset": 812
+        },
+        "file": "f_E0403_through_fn.ff",
+        "label": "needs approval",
+        "start": {
+          "col": 11,
+          "line": 17,
+          "offset": 805
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [
+    "financial_write"
+  ],
+  "ok": false
+}

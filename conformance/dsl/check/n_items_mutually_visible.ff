@@ -1,0 +1,4 @@
+fn a() -> Int { b() + 1 }
+fn b() -> Int { c(Box { v: 1 }) }
+fn c(x: Box<Int>) -> Int { x.v }
+type Box<T> = { v: T }

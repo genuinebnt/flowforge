@@ -1,0 +1,9 @@
+fn f() -> Int {
+  let x = 1;
+  let g = y => x + y;
+  let r = {
+    let x = 100;
+    g(x)
+  };
+  r
+}

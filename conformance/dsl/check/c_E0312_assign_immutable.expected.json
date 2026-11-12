@@ -1,0 +1,43 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0312",
+      "help": "Bindings are immutable; write `let x = ...;` in a nested block to shadow it.",
+      "message": "cannot assign twice to immutable binding `x`",
+      "primary": {
+        "end": {
+          "col": 9,
+          "line": 3,
+          "offset": 37
+        },
+        "file": "c_E0312_assign_immutable.ff",
+        "label": "cannot assign",
+        "start": {
+          "col": 3,
+          "line": 3,
+          "offset": 31
+        }
+      },
+      "secondary": [
+        {
+          "end": {
+            "col": 8,
+            "line": 2,
+            "offset": 23
+          },
+          "file": "c_E0312_assign_immutable.ff",
+          "label": "first bound here",
+          "start": {
+            "col": 7,
+            "line": 2,
+            "offset": 22
+          }
+        }
+      ],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

@@ -19,6 +19,26 @@
       },
       "secondary": [],
       "severity": "error"
+    },
+    {
+      "code": "E0101",
+      "message": "expected `,` or `}` after match arm, found integer literal `0`",
+      "primary": {
+        "end": {
+          "col": 16,
+          "line": 4,
+          "offset": 77
+        },
+        "file": "e_recovery_match_arms.ff",
+        "label": "expected `,` or `}` after match arm",
+        "start": {
+          "col": 15,
+          "line": 4,
+          "offset": 76
+        }
+      },
+      "secondary": [],
+      "severity": "error"
     }
   ]
 }

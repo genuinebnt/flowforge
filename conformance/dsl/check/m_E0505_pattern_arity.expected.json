@@ -1,0 +1,27 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0505",
+      "message": "variant `Option::Some` has 1 field(s) but the pattern has 2",
+      "primary": {
+        "end": {
+          "col": 15,
+          "line": 3,
+          "offset": 56
+        },
+        "file": "m_E0505_pattern_arity.ff",
+        "label": "wrong number of fields",
+        "start": {
+          "col": 5,
+          "line": 3,
+          "offset": 46
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

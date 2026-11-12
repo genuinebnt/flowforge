@@ -1,0 +1,1 @@
+fn f(a: String, b: Int) -> Bool { !b || a - 1 == "x" }

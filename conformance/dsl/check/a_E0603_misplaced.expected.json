@@ -1,0 +1,49 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0603",
+      "help": "#[retry(max = n, backoff = exp(initial, max))] applies to let statements whose right side performs effects.",
+      "message": "annotation `retry` is not allowed on a workflow",
+      "primary": {
+        "end": {
+          "col": 17,
+          "line": 1,
+          "offset": 16
+        },
+        "file": "a_E0603_misplaced.ff",
+        "label": "not allowed here",
+        "start": {
+          "col": 3,
+          "line": 1,
+          "offset": 2
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0603",
+      "help": "#[timeout(d)] applies to workflows and let statements.",
+      "message": "annotation `timeout` is not allowed on a fn",
+      "primary": {
+        "end": {
+          "col": 14,
+          "line": 3,
+          "offset": 47
+        },
+        "file": "a_E0603_misplaced.ff",
+        "label": "not allowed here",
+        "start": {
+          "col": 3,
+          "line": 3,
+          "offset": 36
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

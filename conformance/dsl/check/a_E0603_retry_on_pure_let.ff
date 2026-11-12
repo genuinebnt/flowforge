@@ -1,0 +1,4 @@
+workflow w() {
+  #[retry(max = 3)]
+  let x = 1 + 2;
+}

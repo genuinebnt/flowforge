@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0310",
+      "help": "There are no implicit conversions; use `as` to convert, for example `n as Float`.",
+      "message": "`*` cannot be applied to Int and Float",
+      "primary": {
+        "end": {
+          "col": 32,
+          "line": 1,
+          "offset": 31
+        },
+        "file": "t_E0310_no_implicit_coercion.ff",
+        "label": "invalid operands",
+        "start": {
+          "col": 25,
+          "line": 1,
+          "offset": 24
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

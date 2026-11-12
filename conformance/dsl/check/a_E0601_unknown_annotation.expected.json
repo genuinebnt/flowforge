@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0601",
+      "help": "Did you mean `timeout`?",
+      "message": "unknown annotation `timeut`",
+      "primary": {
+        "end": {
+          "col": 9,
+          "line": 1,
+          "offset": 8
+        },
+        "file": "a_E0601_unknown_annotation.ff",
+        "label": "unknown annotation",
+        "start": {
+          "col": 3,
+          "line": 1,
+          "offset": 2
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

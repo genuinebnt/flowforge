@@ -1,0 +1,4 @@
+fn f() -> Int {
+  let g = x => x.name;
+  0
+}

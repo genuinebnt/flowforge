@@ -1,0 +1,49 @@
+{
+  "diagnostics": [
+    {
+      "code": "W0501",
+      "help": "Remove the arm or reorder the arms.",
+      "message": "this pattern can never match because earlier arms cover it",
+      "primary": {
+        "end": {
+          "col": 12,
+          "line": 4,
+          "offset": 65
+        },
+        "file": "m_W0501_unreachable.ff",
+        "label": "unreachable pattern",
+        "start": {
+          "col": 5,
+          "line": 4,
+          "offset": 58
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    },
+    {
+      "code": "W0501",
+      "help": "Remove the arm or reorder the arms.",
+      "message": "this pattern can never match because earlier arms cover it",
+      "primary": {
+        "end": {
+          "col": 18,
+          "line": 11,
+          "offset": 176
+        },
+        "file": "m_W0501_unreachable.ff",
+        "label": "unreachable pattern",
+        "start": {
+          "col": 5,
+          "line": 11,
+          "offset": 163
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": true
+}

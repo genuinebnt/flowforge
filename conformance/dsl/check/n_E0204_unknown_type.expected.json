@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0204",
+      "help": "Did you mean `String`?",
+      "message": "unknown type `Strng`",
+      "primary": {
+        "end": {
+          "col": 14,
+          "line": 1,
+          "offset": 13
+        },
+        "file": "n_E0204_unknown_type.ff",
+        "label": "not found",
+        "start": {
+          "col": 9,
+          "line": 1,
+          "offset": 8
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

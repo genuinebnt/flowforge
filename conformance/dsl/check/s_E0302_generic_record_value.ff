@@ -1,0 +1,5 @@
+type Box<T> = { v: T }
+workflow w(n: Fqdn) {
+  let p = scope.check(Host::Name(n))?;
+  let b = Box { v: p };
+}

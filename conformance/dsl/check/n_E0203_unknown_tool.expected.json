@@ -1,0 +1,29 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0203",
+      "message": "unknown tool `subfindr`",
+      "primary": {
+        "end": {
+          "col": 77,
+          "line": 10,
+          "offset": 591
+        },
+        "file": "n_E0203_unknown_tool.ff",
+        "label": "not a tool",
+        "start": {
+          "col": 69,
+          "line": 10,
+          "offset": 583
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [
+    "llm"
+  ],
+  "ok": false
+}

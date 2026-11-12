@@ -1,0 +1,4 @@
+#[retry(max = 3)]
+workflow w() {}
+#[timeout(1s)]
+fn f() {}

@@ -1,0 +1,15 @@
+// policy: {"max_class": "active", "known": true}
+tool resolve(name: Fqdn) -> Option<IpAddress> ! passive
+tool httpx(host: InScope<Host>) -> Option<HttpService> ! active
+tool nmap(host: InScope<Host>) -> List<Service> ! intrusive
+tool post_entry(e: LedgerEntry) -> PostingId ! financial_write
+tool reverse_entry(id: PostingId) -> Unit ! financial_write
+type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }
+type LedgerEntry = { account: String, amount: Int }
+type PostingId = { id: String }
+workflow w(e: LedgerEntry, big: Bool) -> PostingId {
+  if big {
+    require approval(role = "finance", reason = "big");
+  }
+  post_entry(e)
+}

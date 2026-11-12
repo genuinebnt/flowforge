@@ -1,0 +1,6 @@
+fn adders(xs: List<Int>, k: Int) -> List<Int> {
+  let base = k * 2;
+  let add = x => x + base + k;
+  let nested = xs |> map(x => xs |> fold(0, (acc, y) => acc + y + x + base));
+  xs |> map(add) |> concat(nested)
+}

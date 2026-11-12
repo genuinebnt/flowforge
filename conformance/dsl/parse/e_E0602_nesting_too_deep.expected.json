@@ -19,47 +19,6 @@
       },
       "secondary": [],
       "severity": "error"
-    },
-    {
-      "code": "E0101",
-      "message": "expected `)`, found `(`",
-      "primary": {
-        "end": {
-          "col": 281,
-          "line": 1,
-          "offset": 280
-        },
-        "file": "e_E0602_nesting_too_deep.ff",
-        "label": "expected `)`",
-        "start": {
-          "col": 280,
-          "line": 1,
-          "offset": 279
-        }
-      },
-      "secondary": [],
-      "severity": "error"
-    },
-    {
-      "code": "E0102",
-      "help": "Add `;` here.",
-      "message": "missing semicolon after let statement",
-      "primary": {
-        "end": {
-          "col": 624,
-          "line": 1,
-          "offset": 623
-        },
-        "file": "e_E0602_nesting_too_deep.ff",
-        "label": "expected `;`",
-        "start": {
-          "col": 624,
-          "line": 1,
-          "offset": 623
-        }
-      },
-      "secondary": [],
-      "severity": "error"
     }
   ]
 }

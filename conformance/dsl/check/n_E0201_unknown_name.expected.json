@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0201",
+      "help": "Did you mean `count`?",
+      "message": "cannot find `coutn` in this scope",
+      "primary": {
+        "end": {
+          "col": 8,
+          "line": 2,
+          "offset": 33
+        },
+        "file": "n_E0201_unknown_name.ff",
+        "label": "not found in this scope",
+        "start": {
+          "col": 3,
+          "line": 2,
+          "offset": 28
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

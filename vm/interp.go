@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/binary"
+	"math"
 
 	"github.com/genuinebnt/flowforge/bytecode"
 )
@@ -36,7 +37,15 @@ func (vm *VM) exec(slice int64) Outcome {
 	if slice < 0 {
 		slice = 0
 	}
+	// Fuel left over from a slice that ended in OutOfFuel carries over, so
+	// any positive slices eventually pay for an expensive instruction.
 	budget := slice
+	if budget > math.MaxInt64-vm.credit {
+		budget = math.MaxInt64
+	} else {
+		budget += vm.credit
+	}
+	vm.credit = 0
 	capped := false
 	if rem := vm.cfg.FuelLimit - vm.fuelUsed; budget >= rem {
 		budget, capped = rem, true
@@ -66,6 +75,7 @@ func (vm *VM) exec(slice int64) Outcome {
 		if capped {
 			return vm.failSpan(bytecode.FailOutOfFuel, "fuel limit exhausted", vm.span(int(fr.fn), ipc))
 		}
+		vm.credit = left
 		return OutOfFuel{}
 	}
 	fail := func(f *fault) Outcome {

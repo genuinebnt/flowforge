@@ -1,0 +1,6 @@
+fn f(o: Option<Int>) -> Int {
+  match o {
+    Some(a, b) => a,
+    _ => 0,
+  }
+}

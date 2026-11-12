@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0311",
+      "help": "Interpolate String, Int, Float, Bool, Duration, Time or a domain scalar such as Fqdn.",
+      "message": "List\u003cInt\u003e cannot be interpolated into a string",
+      "primary": {
+        "end": {
+          "col": 44,
+          "line": 1,
+          "offset": 43
+        },
+        "file": "t_E0311_not_displayable.ff",
+        "label": "not displayable",
+        "start": {
+          "col": 42,
+          "line": 1,
+          "offset": 41
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

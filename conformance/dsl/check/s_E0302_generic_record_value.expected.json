@@ -1,0 +1,43 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0302",
+      "help": "Store the Host and call scope.check again where it is used.",
+      "message": "InScope\u003cHost\u003e cannot be stored in a record field",
+      "primary": {
+        "end": {
+          "col": 21,
+          "line": 4,
+          "offset": 104
+        },
+        "file": "s_E0302_generic_record_value.ff",
+        "label": "this value is a scope proof",
+        "start": {
+          "col": 20,
+          "line": 4,
+          "offset": 103
+        }
+      },
+      "secondary": [
+        {
+          "end": {
+            "col": 9,
+            "line": 1,
+            "offset": 8
+          },
+          "file": "s_E0302_generic_record_value.ff",
+          "label": "record declared here",
+          "start": {
+            "col": 6,
+            "line": 1,
+            "offset": 5
+          }
+        }
+      ],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

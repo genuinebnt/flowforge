@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0313",
+      "help": "A lambda's value is its body expression.",
+      "message": "`return` is not allowed inside a lambda or compensation",
+      "primary": {
+        "end": {
+          "col": 62,
+          "line": 1,
+          "offset": 61
+        },
+        "file": "t_E0313_return_in_lambda.ff",
+        "label": "inside a lambda",
+        "start": {
+          "col": 53,
+          "line": 1,
+          "offset": 52
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

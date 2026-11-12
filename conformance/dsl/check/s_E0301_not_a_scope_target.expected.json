@@ -1,0 +1,27 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0301",
+      "message": "scope.check expects a scope target (Fqdn, IpAddress, Netblock, Asn, Url, Host or Entity) but found Int",
+      "primary": {
+        "end": {
+          "col": 25,
+          "line": 2,
+          "offset": 39
+        },
+        "file": "s_E0301_not_a_scope_target.ff",
+        "label": "not a scope target",
+        "start": {
+          "col": 23,
+          "line": 2,
+          "offset": 37
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

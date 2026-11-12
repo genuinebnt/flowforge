@@ -1,0 +1,3 @@
+workflow recon(roots: List<Fqdn>) { let h = httpx(Host::Name(roots[0])); }
+tool httpx(host: InScope<Host>) -> Option<HttpService> ! active
+type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }

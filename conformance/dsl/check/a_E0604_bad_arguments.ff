@@ -1,0 +1,6 @@
+#[timeout(5)]
+#[effects(max = 0)]
+workflow w() {
+  #[retry(max = 2, backoff = exp(30s, 1s))]
+  let t = now();
+}

@@ -1,0 +1,1 @@
+fn f(b: Bool) -> Int { b as Int }

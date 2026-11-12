@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0206",
+      "help": "Did you mean `Severity::High`?",
+      "message": "`Severity` has no variant `Hgh`",
+      "primary": {
+        "end": {
+          "col": 35,
+          "line": 1,
+          "offset": 34
+        },
+        "file": "n_E0206_unknown_variant.ff",
+        "label": "not a variant",
+        "start": {
+          "col": 32,
+          "line": 1,
+          "offset": 31
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

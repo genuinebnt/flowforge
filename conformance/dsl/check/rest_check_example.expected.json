@@ -1,0 +1,30 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0301",
+      "help": "Call scope.check(Host::Name(roots[0]))? to obtain an InScope\u003cHost\u003e.",
+      "message": "httpx expects InScope\u003cHost\u003e but found Host",
+      "primary": {
+        "end": {
+          "col": 71,
+          "line": 1,
+          "offset": 70
+        },
+        "file": "rest_check_example.ff",
+        "label": "wrap in scope.check(...)?",
+        "start": {
+          "col": 51,
+          "line": 1,
+          "offset": 50
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "active",
+  "inferred_effects": [
+    "active"
+  ],
+  "ok": false
+}

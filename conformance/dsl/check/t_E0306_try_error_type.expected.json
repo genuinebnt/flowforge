@@ -1,0 +1,48 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0306",
+      "help": "Error types must be equal; there is no implicit conversion. Map the error with match.",
+      "message": "`?` cannot convert error type String into Int (the error type of `g`)",
+      "primary": {
+        "end": {
+          "col": 22,
+          "line": 3,
+          "offset": 103
+        },
+        "file": "t_E0306_try_error_type.ff",
+        "label": "error type String",
+        "start": {
+          "col": 11,
+          "line": 3,
+          "offset": 92
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    },
+    {
+      "code": "E0306",
+      "message": "`?` applies to Result and Option, found Int",
+      "primary": {
+        "end": {
+          "col": 19,
+          "line": 6,
+          "offset": 133
+        },
+        "file": "t_E0306_try_error_type.ff",
+        "label": "not a Result or Option",
+        "start": {
+          "col": 17,
+          "line": 6,
+          "offset": 131
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

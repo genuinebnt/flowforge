@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0603",
+      "help": "#[retry(max = n, backoff = exp(initial, max))] applies to let statements whose right side performs effects.",
+      "message": "#[retry] requires the right side of the let statement to perform effects",
+      "primary": {
+        "end": {
+          "col": 19,
+          "line": 2,
+          "offset": 33
+        },
+        "file": "a_E0603_retry_on_pure_let.ff",
+        "label": "nothing to retry",
+        "start": {
+          "col": 5,
+          "line": 2,
+          "offset": 19
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

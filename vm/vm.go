@@ -61,6 +61,7 @@ type VM struct {
 	effects int
 
 	fuelUsed int64
+	credit   int64 // unused fuel of a slice that ended in OutOfFuel
 
 	heapLive  int64 // live bytes at the last measurement
 	heapAlloc int64 // bytes allocated since the last measurement

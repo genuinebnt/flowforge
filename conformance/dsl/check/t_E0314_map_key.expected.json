@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0314",
+      "help": "Map keys are String, Int or a domain scalar such as Fqdn.",
+      "message": "`List\u003cInt\u003e` cannot be a Map key",
+      "primary": {
+        "end": {
+          "col": 22,
+          "line": 1,
+          "offset": 21
+        },
+        "file": "t_E0314_map_key.ff",
+        "label": "not a valid key type",
+        "start": {
+          "col": 13,
+          "line": 1,
+          "offset": 12
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

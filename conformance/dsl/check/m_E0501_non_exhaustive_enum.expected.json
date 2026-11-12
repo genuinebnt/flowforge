@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0501",
+      "help": "Add an arm for `Severity::Medium`, or end with a wildcard arm `_ =\u003e ...`.",
+      "message": "non-exhaustive match: pattern `Severity::Medium` is not covered",
+      "primary": {
+        "end": {
+          "col": 10,
+          "line": 2,
+          "offset": 36
+        },
+        "file": "m_E0501_non_exhaustive_enum.ff",
+        "label": "pattern `Severity::Medium` not covered",
+        "start": {
+          "col": 9,
+          "line": 2,
+          "offset": 35
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

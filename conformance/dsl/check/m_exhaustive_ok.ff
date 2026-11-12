@@ -1,0 +1,13 @@
+enum Shape { Circle(Int), Rect(Int, Int), Dot }
+fn area(s: Shape, flag: Bool) -> Int {
+  match (s, flag) {
+    (Shape::Circle(r), _) => r * r * 3,
+    (Shape::Rect(w, h), true) => w * h,
+    (Shape::Rect(_, _), false) => 0,
+    (Shape::Dot, _) => 0,
+  }
+}
+type P = { x: Int, y: Int }
+fn px(p: P) -> Int {
+  match p { P { x: 0 } => 0, P { x, y } => x + y }
+}

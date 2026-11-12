@@ -1,0 +1,3 @@
+workflow w(h: InScope<Host>, n: Fqdn) -> InScope<Fqdn> {
+  scope.check(n)?
+}

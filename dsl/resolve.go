@@ -71,7 +71,11 @@ func (c *checker) bind(name *Ident, kind BindingKind, t Type) *Binding {
 	} else {
 		c.scope.vars[name.Name] = b
 	}
-	if kind != BindIt {
+	switch kind {
+	case BindIt:
+	case BindParam, BindLambdaParam:
+		c.checkValueName(name, "parameter")
+	default:
 		c.checkValueName(name, "binding")
 	}
 	return b

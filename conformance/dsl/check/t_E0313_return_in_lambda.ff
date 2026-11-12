@@ -1,0 +1,1 @@
+fn f(xs: List<Int>) -> List<Int> { xs |> map(x => { return x; }) }

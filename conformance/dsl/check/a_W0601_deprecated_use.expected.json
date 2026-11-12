@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "W0601",
+      "help": "use new_f",
+      "message": "function `old_f` is deprecated",
+      "primary": {
+        "end": {
+          "col": 22,
+          "line": 3,
+          "offset": 72
+        },
+        "file": "a_W0601_deprecated_use.ff",
+        "label": "deprecated",
+        "start": {
+          "col": 17,
+          "line": 3,
+          "offset": 67
+        }
+      },
+      "secondary": [],
+      "severity": "warning"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": true
+}

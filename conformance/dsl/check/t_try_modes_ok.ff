@@ -1,0 +1,4 @@
+fn parse(s: String) -> Result<Int, String> { Ok(1) }
+fn a(s: String) -> Result<Int, String> { let n = parse(s)?; Ok(n + 1) }
+fn b(o: Option<Int>) -> Option<Int> { let n = o?; Some(n) }
+workflow w() -> Int { parse("1")? }

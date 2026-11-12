@@ -1,0 +1,28 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0304",
+      "help": "Add a type annotation, for example `let x: List\u003cInt\u003e = ...`.",
+      "message": "cannot infer the type of this expression (found List\u003c_\u003e)",
+      "primary": {
+        "end": {
+          "col": 14,
+          "line": 2,
+          "offset": 29
+        },
+        "file": "t_E0304_cannot_infer.ff",
+        "label": "type must be known here",
+        "start": {
+          "col": 12,
+          "line": 2,
+          "offset": 27
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "none",
+  "inferred_effects": [],
+  "ok": false
+}

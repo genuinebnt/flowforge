@@ -1,0 +1,6 @@
+fn f(o: Option<Int>) -> Int {
+  match o {
+    Sone(n) => n,
+    _ => 0,
+  }
+}

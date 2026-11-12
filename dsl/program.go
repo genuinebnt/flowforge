@@ -185,6 +185,8 @@ type checker struct {
 	// curSpan is the callee span of the call being checked (for
 	// deprecation warnings on tools).
 	curSpan *Span
+	// deferred checks run when the current item's body is checked.
+	deferred []func()
 
 	// fnCalls records the user fns each item calls, for summaries.
 	fnCalls map[*FuncInfo][]*FnDecl

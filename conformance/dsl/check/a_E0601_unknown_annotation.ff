@@ -1,0 +1,2 @@
+#[timeut(2h)]
+workflow w() {}

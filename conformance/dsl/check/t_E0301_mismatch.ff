@@ -1,0 +1,4 @@
+fn f() -> Int {
+  let s: String = 5;
+  "text"
+}

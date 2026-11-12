@@ -1,0 +1,4 @@
+use Severity::High;
+workflow w() {
+  emit_alert(High, "x");
+}

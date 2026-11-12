@@ -70,6 +70,11 @@ func (l *lexer) spanFrom(start Pos) Span { return Span{Start: start, End: l.pos(
 // a string interpolation (which is consumed but not emitted).
 func (l *lexer) run(depth int) []Token {
 	var toks []Token
+	if depth == 0 {
+		// Roughly one token per five bytes of source; presizing avoids
+		// repeated growth of a large slice of pointerful structs.
+		toks = make([]Token, 0, len(l.src)/5+16)
+	}
 	braces := 0
 	for {
 		l.skipTrivia()
@@ -324,7 +329,7 @@ func (l *lexer) number(start Pos) Token {
 	if !ok {
 		l.sink.errorf(CodeUnknownDurationUnit, Span{Start: Pos{Line: start.Line, Col: start.Col + (suffixStart - start.Offset), Offset: suffixStart}, End: tok.Span.End},
 			"unknown unit", "unknown duration unit `%s`", suffix).
-			withHelp("Duration units are ms, s, m, h and d.")
+			withHelp("%s", durationHelp(suffix))
 		return tok
 	}
 	if v > uint64(math.MaxInt64/unit) {
@@ -348,8 +353,24 @@ func (l *lexer) str(start Pos, depth int) Token {
 			lit.Reset()
 		}
 	}
+	// For recovery, remember the state at the first raw newline: an
+	// unterminated string ends there instead of swallowing the file.
+	type snapshot struct {
+		lx    lexer
+		parts int
+		lit   string
+		diags int
+	}
+	var firstNL *snapshot
 	for {
 		if l.off >= len(l.src) {
+			if firstNL != nil {
+				*l = firstNL.lx
+				parts = parts[:firstNL.parts]
+				lit.Reset()
+				lit.WriteString(firstNL.lit)
+				l.sink.diags = l.sink.diags[:firstNL.diags]
+			}
 			l.sink.errorf(CodeUnterminatedString, Span{Start: start, End: Pos{Line: start.Line, Col: start.Col + 1, Offset: start.Offset + 1}},
 				"string starts here", "unterminated string literal").
 				withHelp("Close the string with a double quote.")
@@ -357,6 +378,9 @@ func (l *lexer) str(start Pos, depth int) Token {
 			return Token{Kind: TokString, Span: l.spanFrom(start), Text: string(l.src[start.Offset:l.off]), Parts: parts}
 		}
 		c := l.src[l.off]
+		if c == '\n' && firstNL == nil {
+			firstNL = &snapshot{lx: *l, parts: len(parts), lit: lit.String(), diags: len(l.sink.diags)}
+		}
 		switch c {
 		case '"':
 			flush()
@@ -473,4 +497,11 @@ func (l *lexer) escape(b *strings.Builder) {
 	l.sink.errorf(CodeInvalidEscape, l.spanFrom(start), "unknown escape",
 		"invalid escape sequence `%s`", string(l.src[start.Offset:l.off])).
 		withHelp(`Valid escapes are \n \t \" \\ and \u{HEX}; write {{ and }} for literal braces.`)
+}
+
+func durationHelp(suffix string) string {
+	if suffix[0] == 'e' || suffix[0] == 'E' {
+		return "Duration units are ms, s, m, h and d; a float needs a fractional part, as in 1.0e5."
+	}
+	return "Duration units are ms, s, m, h and d."
 }
