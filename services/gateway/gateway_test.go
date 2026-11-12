@@ -16,7 +16,7 @@ import (
 )
 
 // fixtures creates one of each resource in t1 and returns their ids.
-func fixtures(t *testing.T, h *harness) map[string]string {
+func fixtures(t testing.TB, h *harness) map[string]string {
 	t.Helper()
 	ids := map[string]string{"pid": h.createProgram("t1")}
 	src := "workflow gated(roots: List<Fqdn>) { approve(\"x\"); }"
