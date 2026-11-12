@@ -185,7 +185,4 @@ func TestEngineService_ScopeEvents(t *testing.T) {
 		r, _ := st.Engine.GetRun(a, &pb.GetRunRequest{RunId: run.GetId()})
 		return r.GetStatus() == pb.RunStatus_RUN_STATUS_CANCELLED
 	})
-	// New target-facing work is refused while the switch is engaged.
-	_, err = st.Engine.SubmitRun(platform.WithIdempotencyKey(a, "nap-2"), &pb.SubmitRunRequest{WorkflowName: "nap", ProgramId: prog.GetId(), Input: in})
-	_ = err // nap is not target-facing; the kill switch applies to target-facing workflows only
 }
