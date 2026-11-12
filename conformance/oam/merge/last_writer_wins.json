@@ -1,0 +1,30 @@
+{
+  "description": "Content merge: non-empty wins; conflicting scalars are last-writer-wins by (observed_at, source, observation_id). katana (14:20) beats gau (14:15 for options; 14:20 ties on time and gau < katana). The entity_changed patches list effective changes only. Confidence 1 - (0.1)(0.4)(0.6) = 0.976.",
+  "steps": [
+    {"observation": {"observation_id": "u1", "program_id": "p", "tool": {"name": "httpx"}, "observed_at": "2026-11-12T14:10:00Z", "confidence": 0.9,
+      "entities": [{"ref": "u", "asset": {"type": "URL", "url": "https://api.acme.com/", "scheme": "https", "host": "api.acme.com", "options": "x=1"}}]}},
+    {"observation": {"observation_id": "u2", "program_id": "p", "tool": {"name": "katana"}, "observed_at": "2026-11-12T14:20:00Z", "confidence": 0.6,
+      "entities": [{"ref": "u", "asset": {"type": "URL", "url": "HTTPS://api.acme.com:443/", "path": "/", "options": "x=2"}}]}},
+    {"observation": {"observation_id": "u3", "program_id": "p", "tool": {"name": "gau"}, "observed_at": "2026-11-12T14:15:00Z", "confidence": 0.4,
+      "entities": [{"ref": "u", "asset": {"type": "URL", "url": "https://api.acme.com/", "options": "x=3", "fragment": "frag"}}]}},
+    {"observation": {"observation_id": "u4", "program_id": "p", "tool": {"name": "gau"}, "observed_at": "2026-11-12T14:20:00Z", "confidence": 0.4,
+      "entities": [{"ref": "u", "asset": {"type": "URL", "url": "https://api.acme.com/", "options": "x=4"}}]}}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "url:https://api.acme.com/", "asset_type": "URL",
+       "content": {"url": "https://api.acme.com/", "scheme": "https", "host": "api.acme.com", "path": "/", "options": "x=2", "fragment": "frag"},
+       "confidence": 0.976, "created_at": "2026-11-12T14:10:00Z", "last_seen": "2026-11-12T14:20:00Z",
+       "sources": {"httpx": 90, "katana": 60, "gau": 40}}
+    ],
+    "edges": [],
+    "changes": [
+      {"type": "entity_added", "entity": "url:https://api.acme.com/"},
+      {"type": "entity_changed", "entity": "url:https://api.acme.com/", "patch": [
+        {"op": "replace", "path": "/options", "value": "x=2"},
+        {"op": "add", "path": "/path", "value": "/"}]},
+      {"type": "entity_changed", "entity": "url:https://api.acme.com/", "patch": [
+        {"op": "add", "path": "/fragment", "value": "frag"}]}
+    ]
+  }
+}

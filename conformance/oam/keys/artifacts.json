@@ -1,0 +1,35 @@
+{
+  "description": "Canonical keys of the digital-artifact assets (spec 5.4).",
+  "cases": [
+    {"name": "url scheme/host case, default port, dot segments, unreserved escapes, fragment",
+     "spellings": [
+       {"type": "URL", "url": "https://api.acme.com/v1/users", "scheme": "https", "host": "api.acme.com", "port": 443},
+       {"type": "URL", "url": "HTTPS://API.Acme.com:443/v1/./x/../users#top", "fragment": "top"},
+       {"type": "URL", "url": "https://api.acme.com/v1/%75sers"}],
+     "key": "url:https://api.acme.com/v1/users"},
+    {"name": "url root path and non-default port",
+     "spellings": [{"type": "URL", "url": "http://acme.com:8080"}, {"type": "URL", "url": "http://ACME.com:8080/"}],
+     "key": "url:http://acme.com:8080/"},
+    {"name": "url ipv6 host", "spellings": [{"type": "URL", "url": "https://[2001:DB8::1]/"}], "key": "url:https://[2001:db8::1]/"},
+    {"name": "url with userinfo rejected", "spellings": [{"type": "URL", "url": "https://acme.com@evil.com/"}], "error": true},
+    {"name": "url non-http scheme rejected", "spellings": [{"type": "URL", "url": "ftp://acme.com/"}], "error": true},
+    {"name": "service unique_id, hex lowercased",
+     "spellings": [
+       {"type": "Service", "unique_id": "0045d8a86023c2844f6d8f6edddc3fe2ff6680750d28ce1db4151dc8a5181600", "service_type": "http"},
+       {"type": "Service", "unique_id": "0045D8A86023C2844F6D8F6EDDDC3FE2FF6680750D28CE1DB4151DC8A5181600", "output_length": 12}],
+     "key": "svc:0045d8a86023c2844f6d8f6edddc3fe2ff6680750d28ce1db4151dc8a5181600"},
+    {"name": "service missing unique_id rejected", "spellings": [{"type": "Service", "service_type": "http"}], "error": true},
+    {"name": "tls certificate by DER fingerprint",
+     "spellings": [
+       {"type": "TLSCertificate", "fingerprint_sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "subject_common_name": "api.acme.com"},
+       {"type": "TLSCertificate", "fingerprint_sha256": "9F:86:D0:81:88:4C:7D:65:9A:2F:EA:A0:C5:5A:D0:15:A3:BF:4F:1B:2B:0B:82:2C:D1:5D:6C:15:B0:F0:0A:08"}],
+     "key": "tls:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"},
+    {"name": "tls certificate without fingerprint rejected", "spellings": [{"type": "TLSCertificate", "serial_number": "01"}], "error": true},
+    {"name": "file keyed by sha256 of the normalized http url",
+     "spellings": [{"type": "File", "url": "https://acme.com/robots.txt", "name": "robots.txt"}, {"type": "File", "url": "HTTPS://ACME.COM:443/robots.txt", "file_type": "text/plain"}],
+     "key": "file:4ca44b7e6415fff8fdb7a4a1986b7cdf43fa9bc9b217e17f11c3c003df1c8f88"},
+    {"name": "file with a non-http url is hashed as given",
+     "spellings": [{"type": "File", "url": "s3://bucket/report.pdf"}],
+     "key": "file:b95e2da99c81cc89eea38c338022767d86f24280b35d510cc1d1025112b78d81"}
+  ]
+}

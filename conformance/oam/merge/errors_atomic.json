@@ -1,0 +1,47 @@
+{
+  "description": "Rejected observations have no effect at all (ingest is atomic): a docs-tagged label between disallowed types (oam_004), an edge to an unknown local ref, an edge to an entity id that does not exist, an unknown asset key on a strict request. An edge to an existing entity id (ent_...) then succeeds, and a label check against that stored entity's type rejects a bad one.",
+  "order_dependent": true,
+  "steps": [
+    {"observation": {"observation_id": "bad-label", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "nope.acme.com"}}, {"ref": "b", "asset": {"type": "IPAddress", "address": "203.0.113.99"}}],
+      "edges": [{"from": "a", "to": "b", "relation": {"type": "SimpleRelation", "label": "contains"}}]},
+     "error": "label_endpoints"},
+    {"observation": {"observation_id": "bad-ref", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "nope.acme.com"}}],
+      "edges": [{"from": "a", "to": "zz", "relation": {"type": "SimpleRelation", "label": "related_to"}}]},
+     "error": "unresolved_ref"},
+    {"observation": {"observation_id": "bad-id", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
+      "entities": [{"ref": "u", "asset": {"type": "URL", "url": "https://nope.acme.com/"}}],
+      "edges": [{"from": "u", "to": "ent_160YMM00PWGTPRMK676C7MC8PM", "relation": {"type": "SimpleRelation", "label": "domain"}}]},
+     "error": "unknown_entity"},
+    {"observation": {"observation_id": "bad-field", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "nope.acme.com", "colour": "red"}}]},
+     "error": "unknown_field"},
+    {"observation": {"observation_id": "ok-1", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "subfinder"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.8,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "api.acme.com"}}]}},
+    {"observation": {"observation_id": "ok-2", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "httpx"}, "observed_at": "2026-11-12T10:05:00Z", "confidence": 0.9,
+      "entities": [{"ref": "u1", "asset": {"type": "URL", "url": "https://api.acme.com/", "scheme": "https", "host": "api.acme.com", "port": 443}}],
+      "edges": [{"from": "u1", "to": "ent_6A7ZSTGD84HP29SMKFPGF2WJF0", "relation": {"type": "SimpleRelation", "label": "domain"}}],
+      "tags": [{"target": "u1", "property": {"type": "SimpleProperty", "name": "title", "value": "Acme API"}}]}},
+    {"observation": {"observation_id": "bad-ext-label", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:06:00Z", "confidence": 0.5,
+      "entities": [{"ref": "s", "asset": {"type": "Service", "unique_id": "s1"}}],
+      "edges": [{"from": "s", "to": "ent_6A7ZSTGD84HP29SMKFPGF2WJF0", "relation": {"type": "SimpleRelation", "label": "certificate"}}]},
+     "error": "label_endpoints"}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:api.acme.com", "confidence": 0.8},
+      {"key": "url:https://api.acme.com/", "confidence": 0.9,
+       "content": {"url": "https://api.acme.com/", "scheme": "https", "host": "api.acme.com", "port": 443},
+       "tags": [{"type": "SimpleProperty", "name": "title", "content": {"name": "title", "value": "Acme API"}}]}
+    ],
+    "edges": [
+      {"from": "url:https://api.acme.com/", "label": "domain", "to": "fqdn:api.acme.com", "relation_type": "SimpleRelation", "sources": {"httpx": 90}}
+    ],
+    "changes": [
+      {"type": "entity_added", "entity": "fqdn:api.acme.com"},
+      {"type": "entity_added", "entity": "url:https://api.acme.com/"},
+      {"type": "edge_added", "edge": {"from": "url:https://api.acme.com/", "label": "domain", "to": "fqdn:api.acme.com"}}
+    ]
+  }
+}

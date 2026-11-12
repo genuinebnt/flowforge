@@ -1,0 +1,39 @@
+{
+  "module": "oam",
+  "date": "2026-11-12",
+  "commit": "7e96de1",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkOAM01_Merge/obs=10000",
+      "package": "github.com/genuinebnt/flowforge/oam",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 67318085,
+        "allocs/op": 1129826,
+        "ns/op": 132804433,
+        "obs/s": 75299
+      }
+    },
+    {
+      "bench_id": "BenchmarkOAM01_Merge/obs=100000",
+      "package": "github.com/genuinebnt/flowforge/oam",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 675152253,
+        "allocs/op": 11213119,
+        "ns/op": 1378645045,
+        "obs/s": 72535
+      }
+    }
+  ]
+}

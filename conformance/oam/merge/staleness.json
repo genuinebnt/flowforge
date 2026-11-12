@@ -1,0 +1,61 @@
+{
+  "description": "oam_005 / spec 5.7: dnsx covers the same input in runs r1..r4. b.acme.com, its IP and its edge are missing from r2, r3 and r4, so after the third missed covering run (stale_after_runs 3) they become stale; subfinder (never a covering run) does not keep b alive. Seeing b again in r5 reactivates it; nothing is deleted.",
+  "stale_after_runs": 3,
+  "order_dependent": true,
+  "steps": [
+    {"observation": {"observation_id": "sf", "program_id": "p", "run_id": "r0", "tool": {"name": "subfinder"}, "observed_at": "2026-11-11T09:00:00Z", "confidence": 0.8,
+      "entities": [{"ref": "b", "asset": {"type": "FQDN", "name": "b.acme.com"}}]}},
+    {"observation": {"observation_id": "r1", "program_id": "p", "run_id": "r1", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T01:00:00Z", "confidence": 0.9,
+      "entities": [
+        {"ref": "a", "asset": {"type": "FQDN", "name": "a.acme.com"}},
+        {"ref": "ia", "asset": {"type": "IPAddress", "address": "203.0.113.10"}},
+        {"ref": "b", "asset": {"type": "FQDN", "name": "b.acme.com"}},
+        {"ref": "ib", "asset": {"type": "IPAddress", "address": "203.0.113.11"}}
+      ],
+      "edges": [
+        {"from": "a", "to": "ia", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 60}}},
+        {"from": "b", "to": "ib", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 60}}}
+      ]}},
+    {"complete_run": {"program_id": "p", "run_id": "r1", "tool": "dnsx", "completed_at": "2026-11-12T01:30:00Z"}},
+    {"observation": {"observation_id": "r2", "program_id": "p", "run_id": "r2", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T02:00:00Z", "confidence": 0.9,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "a.acme.com"}}, {"ref": "ia", "asset": {"type": "IPAddress", "address": "203.0.113.10"}}],
+      "edges": [{"from": "a", "to": "ia", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 60}}}]}},
+    {"complete_run": {"program_id": "p", "run_id": "r2", "tool": "dnsx", "completed_at": "2026-11-12T02:30:00Z"}},
+    {"observation": {"observation_id": "r3", "program_id": "p", "run_id": "r3", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T03:00:00Z", "confidence": 0.9,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "a.acme.com"}}, {"ref": "ia", "asset": {"type": "IPAddress", "address": "203.0.113.10"}}],
+      "edges": [{"from": "a", "to": "ia", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 60}}}]}},
+    {"complete_run": {"program_id": "p", "run_id": "r3", "tool": "dnsx", "completed_at": "2026-11-12T03:30:00Z"}},
+    {"observation": {"observation_id": "r4", "program_id": "p", "run_id": "r4", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T04:00:00Z", "confidence": 0.9,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "a.acme.com"}}, {"ref": "ia", "asset": {"type": "IPAddress", "address": "203.0.113.10"}}],
+      "edges": [{"from": "a", "to": "ia", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 60}}}]}},
+    {"complete_run": {"program_id": "p", "run_id": "r4", "tool": "dnsx", "completed_at": "2026-11-12T04:30:00Z"}},
+    {"complete_run": {"program_id": "p", "run_id": "r4", "tool": "dnsx", "completed_at": "2026-11-12T04:31:00Z"}},
+    {"observation": {"observation_id": "r5", "program_id": "p", "run_id": "r5", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T05:00:00Z", "confidence": 0.9,
+      "entities": [{"ref": "b", "asset": {"type": "FQDN", "name": "b.acme.com"}}]}}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:a.acme.com", "state": "active", "missed_runs": {"dnsx": 0}, "last_seen_run": "r4"},
+      {"key": "ip:203.0.113.10", "state": "active"},
+      {"key": "fqdn:b.acme.com", "state": "active", "missed_runs": {"dnsx": 0}, "first_seen_run": "r0", "last_seen_run": "r5",
+       "created_at": "2026-11-11T09:00:00Z", "last_seen": "2026-11-12T05:00:00Z"},
+      {"key": "ip:203.0.113.11", "state": "stale", "missed_runs": {"dnsx": 3}}
+    ],
+    "edges": [
+      {"from": "fqdn:a.acme.com", "label": "dns_record", "to": "ip:203.0.113.10", "state": "active"},
+      {"from": "fqdn:b.acme.com", "label": "dns_record", "to": "ip:203.0.113.11", "state": "stale"}
+    ],
+    "changes": [
+      {"type": "entity_added", "entity": "fqdn:b.acme.com"},
+      {"type": "entity_added", "entity": "fqdn:a.acme.com"},
+      {"type": "entity_added", "entity": "ip:203.0.113.10"},
+      {"type": "entity_added", "entity": "ip:203.0.113.11"},
+      {"type": "edge_added", "edge": {"from": "fqdn:a.acme.com", "label": "dns_record", "to": "ip:203.0.113.10"}},
+      {"type": "edge_added", "edge": {"from": "fqdn:b.acme.com", "label": "dns_record", "to": "ip:203.0.113.11"}},
+      {"type": "entity_stale", "entity": "fqdn:b.acme.com"},
+      {"type": "entity_stale", "entity": "ip:203.0.113.11"},
+      {"type": "edge_removed", "edge": {"from": "fqdn:b.acme.com", "label": "dns_record", "to": "ip:203.0.113.11"}},
+      {"type": "entity_reactivated", "entity": "fqdn:b.acme.com"}
+    ]
+  }
+}

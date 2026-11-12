@@ -1,0 +1,27 @@
+{
+  "description": "spec 5.7: scope status comes from the passive matcher (here a fixed key table). The IP resolved from an in-scope name stays unknown: unknown is never promoted to in-scope by inference.",
+  "scope": {"fqdn:api.acme.com": "in_scope", "fqdn:evil.example": "out_of_scope"},
+  "steps": [
+    {"observation": {"observation_id": "s1", "program_id": "p", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.9,
+      "entities": [
+        {"ref": "a", "asset": {"type": "FQDN", "name": "api.acme.com"}},
+        {"ref": "b", "asset": {"type": "IPAddress", "address": "203.0.113.10"}},
+        {"ref": "c", "asset": {"type": "FQDN", "name": "evil.example"}}
+      ],
+      "edges": [
+        {"from": "a", "to": "b", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 60}}},
+        {"from": "c", "to": "a", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 5, "class": 1, "ttl": 60}}}
+      ]}}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:api.acme.com", "scope_status": "in_scope"},
+      {"key": "ip:203.0.113.10", "scope_status": "unknown"},
+      {"key": "fqdn:evil.example", "scope_status": "out_of_scope"}
+    ],
+    "edges": [
+      {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10", "discriminator": "rr1"},
+      {"from": "fqdn:evil.example", "label": "dns_record", "to": "fqdn:api.acme.com", "discriminator": "rr5"}
+    ]
+  }
+}

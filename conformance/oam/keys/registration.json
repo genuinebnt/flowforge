@@ -1,0 +1,21 @@
+{
+  "description": "Canonical keys of the registration assets and Organization (spec 5.4).",
+  "cases": [
+    {"name": "domain record by normalized domain",
+     "spellings": [{"type": "DomainRecord", "domain": "acme.com", "whois_server": "whois.verisign-grs.com"}, {"type": "DomainRecord", "domain": "ACME.COM.", "status": ["clientTransferProhibited"], "dnssec": false}],
+     "key": "domrec:acme.com"},
+    {"name": "domain record without domain rejected", "spellings": [{"type": "DomainRecord", "name": "acme"}], "error": true},
+    {"name": "ipnet record by handle (case-insensitive)",
+     "spellings": [{"type": "IPNetRecord", "handle": "NET-203-0-113-0-1", "cidr": "203.0.113.0/24"}, {"type": "IPNetRecord", "handle": " net-203-0-113-0-1 "}],
+     "key": "ipnet:NET-203-0-113-0-1"},
+    {"name": "ipnet record by cidr when no handle",
+     "spellings": [{"type": "IPNetRecord", "cidr": "203.0.113.9/24", "ipnet_type": "ASSIGNED PA"}],
+     "key": "ipnet:203.0.113.0/24"},
+    {"name": "ipnet record without handle or cidr rejected", "spellings": [{"type": "IPNetRecord", "name": "ACME-NET"}], "error": true},
+    {"name": "autnum record", "spellings": [{"type": "AutnumRecord", "number": 64496, "handle": "AS64496"}], "key": "autnum:64496"},
+    {"name": "organization by unique_id",
+     "spellings": [{"type": "Organization", "unique_id": "acme-inc", "name": "Acme"}, {"type": "Organization", "unique_id": " acme-inc ", "active": true}],
+     "key": "org:acme-inc"},
+    {"name": "organization without unique_id rejected", "spellings": [{"type": "Organization", "name": "Acme"}], "error": true}
+  ]
+}

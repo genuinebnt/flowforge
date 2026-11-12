@@ -1,0 +1,19 @@
+{
+  "description": "spec 6.1: ingesting the same observation_id twice has no additional effect, even when the second copy differs.",
+  "steps": [
+    {"observation": {"observation_id": "dup", "program_id": "p", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.7,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "a.acme.com"}}]}},
+    {"observation": {"observation_id": "dup", "program_id": "p", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.7,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "a.acme.com"}}]}},
+    {"observation": {"observation_id": "dup", "program_id": "p", "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T12:00:00Z", "confidence": 0.99,
+      "entities": [{"ref": "b", "asset": {"type": "FQDN", "name": "b.acme.com"}}]}}
+  ],
+  "order_dependent": true,
+  "expect": {
+    "entities": [
+      {"key": "fqdn:a.acme.com", "confidence": 0.7, "created_at": "2026-11-12T10:00:00Z", "last_seen": "2026-11-12T10:00:00Z", "sources": {"dnsx": 70}}
+    ],
+    "edges": [],
+    "changes": [{"type": "entity_added", "entity": "fqdn:a.acme.com"}]
+  }
+}

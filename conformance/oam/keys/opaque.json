@@ -1,0 +1,15 @@
+{
+  "description": "Opaque assets (spec 5.2, 5.4): <lowercased type>:<sha256 of canonical JSON of the content without type>. Key order and whitespace do not matter.",
+  "cases": [
+    {"name": "product (no name-based key in v0.1)",
+     "spellings": [{"type": "Product", "name": "nginx"}, {"name": "nginx", "type": "Product"}],
+     "key": "product:6683d1da1790990235e930617aa3a662538fb4bd4630fc31989e4f397ceac6da"},
+    {"name": "person", "spellings": [{"type": "Person", "name": "Jane Doe"}], "key": "person:c288128220893c9e5d52ff74b66bf08c2935a661b6582d8c5fc4983936bc94a2"},
+    {"name": "location, keys reordered",
+     "spellings": [{"type": "Location", "city": "Berlin", "country": "DE"}, {"country": "DE", "type": "Location", "city": "Berlin"}],
+     "key": "location:70383141d3f185c5de04d1c9f6db7e0201874154386b7121b7c57f6cb4d5dfc1"},
+    {"name": "unknown future type is stored opaquely", "spellings": [{"type": "QuantumWidget"}], "key": "quantumwidget:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"},
+    {"name": "bad type name rejected", "spellings": [{"type": "no spaces allowed"}], "error": true},
+    {"name": "missing type rejected", "spellings": [{"name": "nginx"}], "error": true}
+  ]
+}

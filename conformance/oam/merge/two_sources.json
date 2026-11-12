@@ -1,0 +1,42 @@
+{
+  "description": "oam_002: two observations of one entity from two tools. created_at is the minimum, last_seen the maximum, tags are unioned, spellings merge into one key, and confidence is the noisy-or over distinct sources: 1 - (1-0.8)(1-0.5) = 0.9.",
+  "steps": [
+    {"observation": {
+      "observation_id": "obs-1", "tenant_id": "ten_acme", "program_id": "prg_acme", "run_id": "run-a",
+      "tool": {"name": "subfinder"}, "observed_at": "2026-11-12T14:00:00Z", "confidence": 0.8,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "api.acme.com"}}],
+      "tags": [{"target": "a", "property": {"type": "SimpleProperty", "name": "discovered_via", "value": "crt.sh"}}]
+    }},
+    {"observation": {
+      "observation_id": "obs-2", "tenant_id": "ten_acme", "program_id": "prg_acme", "run_id": "run-b",
+      "tool": {"name": "dnsx"}, "observed_at": "2026-11-12T13:50:00Z", "confidence": 0.5,
+      "entities": [
+        {"ref": "a", "asset": {"type": "FQDN", "name": "API.Acme.com."}},
+        {"ref": "b", "asset": {"type": "IPAddress", "address": "203.0.113.10"}}
+      ],
+      "edges": [{"from": "a", "to": "b", "relation": {"type": "BasicDNSRelation", "label": "dns_record", "header": {"rr_type": 1, "class": 1, "ttl": 300}}}],
+      "tags": [{"target": "a", "property": {"type": "SimpleProperty", "name": "resolver", "value": "1.1.1.1"}}]
+    }}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:api.acme.com", "content": {"name": "api.acme.com"}, "confidence": 0.9,
+       "created_at": "2026-11-12T13:50:00Z", "last_seen": "2026-11-12T14:00:00Z",
+       "first_seen_run": "run-b", "last_seen_run": "run-a",
+       "sources": {"subfinder": 80, "dnsx": 50},
+       "tags": [
+         {"type": "SimpleProperty", "name": "discovered_via", "content": {"name": "discovered_via", "value": "crt.sh"}},
+         {"type": "SimpleProperty", "name": "resolver", "content": {"name": "resolver", "value": "1.1.1.1"}}
+       ]},
+      {"key": "ip:203.0.113.10", "content": {"address": "203.0.113.10", "ip_version": "IPv4"}, "confidence": 0.5, "sources": {"dnsx": 50}}
+    ],
+    "edges": [
+      {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10", "confidence": 0.5}
+    ],
+    "changes": [
+      {"type": "entity_added", "entity": "fqdn:api.acme.com"},
+      {"type": "entity_added", "entity": "ip:203.0.113.10"},
+      {"type": "edge_added", "edge": {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10"}}
+    ]
+  }
+}

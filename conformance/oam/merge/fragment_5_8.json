@@ -1,0 +1,55 @@
+{
+  "description": "The spec 5.8 example fragment inside a spec 6.1 envelope from httpx. Also used by oam_006 (JSON -> model -> JSON round trip).",
+  "steps": [
+    {"observation": {
+      "observation_id": "obs_01JD8K3M2Q",
+      "tenant_id": "ten_acme", "program_id": "prg_acme", "run_id": "run_7f3a91",
+      "step": "probe", "effect_seq": 14,
+      "tool": {"name": "httpx", "version": "1.6.9"},
+      "observed_at": "2026-11-12T14:02:12.311Z",
+      "confidence": 0.9,
+      "entities": [
+        { "ref": "a", "asset": { "type": "FQDN", "name": "api.acme.com" } },
+        { "ref": "b", "asset": { "type": "IPAddress", "address": "203.0.113.10", "ip_version": "IPv4" } },
+        { "ref": "c", "asset": { "type": "Service", "unique_id": "5c1e...", "service_type": "http",
+                                  "output": "HTTP/1.1 200 OK ...", "output_length": 412,
+                                  "attributes": { "server": ["nginx/1.25.3"] } } },
+        { "ref": "d", "asset": { "type": "Product", "name": "nginx" } }
+      ],
+      "edges": [
+        { "from": "a", "to": "b", "relation": { "type": "BasicDNSRelation", "label": "dns_record", "header": { "rr_type": 1, "class": 1, "ttl": 300 } } },
+        { "from": "b", "to": "c", "relation": { "type": "PortRelation", "label": "port", "port_number": 443, "protocol": "tcp" } },
+        { "from": "c", "to": "d", "relation": { "type": "SimpleRelation", "label": "product_used" } }
+      ],
+      "raw_ref": "gs://flowforge-artifacts-prod/ten_acme/obs_01JD8K3M2Q.json.zst"
+    }}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:api.acme.com", "asset_type": "FQDN", "content": {"name": "api.acme.com"}, "confidence": 0.9,
+       "created_at": "2026-11-12T14:02:12.311Z", "last_seen": "2026-11-12T14:02:12.311Z", "state": "active", "scope_status": "unknown",
+       "first_seen_run": "run_7f3a91", "last_seen_run": "run_7f3a91", "sources": {"httpx": 90}, "tags": []},
+      {"key": "ip:203.0.113.10", "asset_type": "IPAddress", "content": {"address": "203.0.113.10", "ip_version": "IPv4"}, "confidence": 0.9, "sources": {"httpx": 90}},
+      {"key": "svc:5c1e...", "asset_type": "Service",
+       "content": {"unique_id": "5c1e...", "service_type": "http", "output": "HTTP/1.1 200 OK ...", "output_length": 412, "attributes": {"server": ["nginx/1.25.3"]}},
+       "confidence": 0.9},
+      {"key": "product:6683d1da1790990235e930617aa3a662538fb4bd4630fc31989e4f397ceac6da", "asset_type": "Product", "content": {"name": "nginx"}, "confidence": 0.9}
+    ],
+    "edges": [
+      {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10", "discriminator": "rr1", "relation_type": "BasicDNSRelation",
+       "content": {"header": {"rr_type": 1, "class": 1, "ttl": 300}}, "confidence": 0.9, "state": "active", "sources": {"httpx": 90}},
+      {"from": "ip:203.0.113.10", "label": "port", "to": "svc:5c1e...", "discriminator": "tcp/443", "relation_type": "PortRelation",
+       "content": {"port_number": 443, "protocol": "tcp"}},
+      {"from": "svc:5c1e...", "label": "product_used", "to": "product:6683d1da1790990235e930617aa3a662538fb4bd4630fc31989e4f397ceac6da", "relation_type": "SimpleRelation", "content": {}}
+    ],
+    "changes": [
+      {"type": "entity_added", "entity": "fqdn:api.acme.com"},
+      {"type": "entity_added", "entity": "ip:203.0.113.10"},
+      {"type": "entity_added", "entity": "svc:5c1e..."},
+      {"type": "entity_added", "entity": "product:6683d1da1790990235e930617aa3a662538fb4bd4630fc31989e4f397ceac6da"},
+      {"type": "edge_added", "edge": {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10"}},
+      {"type": "edge_added", "edge": {"from": "ip:203.0.113.10", "label": "port", "to": "svc:5c1e..."}},
+      {"type": "edge_added", "edge": {"from": "svc:5c1e...", "label": "product_used", "to": "product:6683d1da1790990235e930617aa3a662538fb4bd4630fc31989e4f397ceac6da"}}
+    ]
+  }
+}

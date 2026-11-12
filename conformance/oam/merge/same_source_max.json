@@ -1,0 +1,26 @@
+{
+  "description": "oam_003: subfinder reports the same entity twice (0.6, then 0.9) and amass once (0.5). subfinder counts once with its maximum: 1 - (1-0.9)(1-0.5) = 0.95, not 0.98. SourceProperty tags inside an observation add further distinct sources: crtsh 70 on www.",
+  "steps": [
+    {"observation": {"observation_id": "o1", "program_id": "p", "tool": {"name": "subfinder"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.6,
+      "entities": [{"ref": "x", "asset": {"type": "FQDN", "name": "api.acme.com"}}]}},
+    {"observation": {"observation_id": "o2", "program_id": "p", "tool": {"name": "subfinder"}, "observed_at": "2026-11-12T11:00:00Z", "confidence": 0.9,
+      "entities": [{"ref": "x", "asset": {"type": "FQDN", "name": "api.acme.com"}}]}},
+    {"observation": {"observation_id": "o3", "program_id": "p", "tool": {"name": "amass"}, "observed_at": "2026-11-12T09:00:00Z", "confidence": 0.5,
+      "entities": [{"ref": "x", "asset": {"type": "FQDN", "name": "api.acme.com"}}]}},
+    {"observation": {"observation_id": "o4", "program_id": "p", "tool": {"name": "subfinder"}, "observed_at": "2026-11-12T12:00:00Z", "confidence": 0.8,
+      "entities": [{"ref": "w", "asset": {"type": "FQDN", "name": "www.acme.com"}}],
+      "tags": [{"target": "w", "property": {"type": "SourceProperty", "name": "crtsh", "confidence": 70}}]}}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:api.acme.com", "confidence": 0.95, "sources": {"subfinder": 90, "amass": 50},
+       "created_at": "2026-11-12T09:00:00Z", "last_seen": "2026-11-12T11:00:00Z"},
+      {"key": "fqdn:www.acme.com", "confidence": 0.94, "sources": {"subfinder": 80, "crtsh": 70}, "tags": []}
+    ],
+    "edges": [],
+    "changes": [
+      {"type": "entity_added", "entity": "fqdn:api.acme.com"},
+      {"type": "entity_added", "entity": "fqdn:www.acme.com"}
+    ]
+  }
+}
