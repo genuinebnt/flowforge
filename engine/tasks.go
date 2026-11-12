@@ -291,9 +291,12 @@ func (r *runner) boundary(s vm.Suspended, path string) (*stepResult, error) {
 		return halt(haltTimeout, ""), nil
 	}
 	if v := r.pendingScopeChange(); v > 0 {
-		paused, err := r.revalidate(v, path)
+		paused, retry, err := r.revalidate(v, path)
 		if err != nil {
 			return nil, err
+		}
+		if retry {
+			return waitUntil(r.now().Add(r.e.cfg.RateLimitErrorBackoff), "scope_unavailable"), nil
 		}
 		if paused {
 			return halt(haltPause, ""), nil

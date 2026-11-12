@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/eventstore"
 	"github.com/genuinebnt/flowforge/scope"
@@ -288,15 +287,3 @@ func compareCalls(a, b ToolCall) int {
 	}
 	return 0
 }
-
-// run returns the record of a run id.
-func (h *History) run(id string) *RunRecord {
-	for i := range h.Runs {
-		if h.Runs[i].ID == id {
-			return &h.Runs[i]
-		}
-	}
-	return nil
-}
-
-func uuidText(u core.UUID) string { return u.String() }

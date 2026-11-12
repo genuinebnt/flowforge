@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/genuinebnt/flowforge/bytecode"
 	"github.com/genuinebnt/flowforge/core"
@@ -42,7 +44,7 @@ func (r *runner) timeoutFlow() (eventstore.Next, error) {
 	if r.log.status == StatusPaused {
 		evs = append(evs, ev(EvRunResumed, ActorEngine, ReasonPayload{Reason: "deadline"}))
 	}
-	evs = append(evs, r.closeOpenUnder("", "timeout", "run deadline exceeded", bytecode.FailTimeout)...)
+	evs = append(evs, r.closeOpenBody("timeout", "run deadline exceeded", bytecode.FailTimeout)...)
 	if err := r.append(evs...); err != nil {
 		return eventstore.Next{}, err
 	}
@@ -64,7 +66,7 @@ func (r *runner) cancelFlow(root *task) (eventstore.Next, error) {
 		return eventstore.Next{}, err
 	}
 	r.markApplied(RequestCancel)
-	if err := r.append(r.closeOpenUnder("", "cancelled", "run cancelled", bytecode.FailCancelled)...); err != nil {
+	if err := r.append(r.closeOpenBody("cancelled", "run cancelled", bytecode.FailCancelled)...); err != nil {
 		return eventstore.Next{}, err
 	}
 	r.cancelApprovals()
@@ -81,6 +83,29 @@ func (r *runner) cancelFlow(root *task) (eventstore.Next, error) {
 		return eventstore.Next{}, err
 	}
 	return eventstore.Next{Status: StatusCancelled}, nil
+}
+
+// closeOpenBody closes the open effects of the workflow body. Effects of
+// a compensation that already started are left alone: compensations run
+// to the end (OPEN_QUESTIONS 8), so when cancelFlow is re-entered by the
+// next owner after a crash mid-compensation, the in-flight compensation
+// effect must be continued, not failed with "cancelled"
+// (regress_comp_cancelled_on_resume).
+func (r *runner) closeOpenBody(code, msg string, fail bytecode.FailCode) []pending {
+	evs := r.closeOpenUnder("", code, msg, fail)
+	c := r.log.comp
+	if c == nil {
+		return evs
+	}
+	prefix := fmt.Sprintf("%d/", c.started.PathPrefix)
+	out := evs[:0]
+	for _, p := range evs {
+		if fp, ok := p.payload.(EffectFailedPayload); ok && strings.HasPrefix(fp.Path, prefix) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 // cancelSource names who cancels: the log, a queued request or a kill

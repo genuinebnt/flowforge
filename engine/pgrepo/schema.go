@@ -5,9 +5,10 @@ import (
 	"fmt"
 )
 
-// SchemaSQL creates the tables the engine needs beyond spec 10.4. It is a
-// proposed migration (0013_engine_ext); until it moves to the migrations
-// package, EnsureSchema applies it. Every statement is idempotent.
+// SchemaSQL creates the tables the engine needs beyond spec 10.4. The same
+// statements are migration 0013_engine_extras (migrations package);
+// EnsureSchema stays as an idempotent bootstrap for databases that predate
+// it. Every statement is idempotent.
 //
 //   - workflow_version_ext: the registering actor (workflow_versions.
 //     created_by is a uuid and cannot hold "apikey:<id>"), the program the

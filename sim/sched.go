@@ -152,10 +152,11 @@ type scheduler struct {
 	steps   uint64
 	running *actor
 	onDone  map[*actor]func()
+	live    map[*actor]struct{}
 }
 
 func newScheduler(clock *simClock) *scheduler {
-	return &scheduler{clock: clock, notify: make(chan actorMsg), onDone: map[*actor]func(){}}
+	return &scheduler{clock: clock, notify: make(chan actorMsg), onDone: map[*actor]func(){}, live: map[*actor]struct{}{}}
 }
 
 func (s *scheduler) now() time.Time { return s.clock.Now() }
@@ -194,16 +195,23 @@ func (s *scheduler) next(limit time.Time) bool {
 	return false
 }
 
-// spawn starts an actor running body and drives it to its first yield.
-// done, if set, runs on the scheduler when body returns.
-func (s *scheduler) spawn(base context.Context, name string, w *simWorker, body func(ctx context.Context), done func()) *actor {
+// newActor creates an actor that start will run.
+func (s *scheduler) newActor(name string, w *simWorker) *actor {
 	s.nextID++
+	return &actor{id: s.nextID, name: name, w: w, grant: make(chan grantMsg)}
+}
+
+// start runs body as actor a and drives it to its first yield. done, if
+// set, runs on the scheduler when body returns. It must be called on the
+// scheduler (from an event).
+func (s *scheduler) start(base context.Context, a *actor, body func(ctx context.Context), done func()) {
 	ctx, cancel := context.WithCancel(base)
-	a := &actor{id: s.nextID, name: name, w: w, grant: make(chan grantMsg), cancel: cancel}
+	a.cancel = cancel
 	ctx = context.WithValue(ctx, actorKey{}, a)
 	if done != nil {
 		s.onDone[a] = done
 	}
+	s.live[a] = struct{}{}
 	go func() {
 		g := <-a.grant
 		if g.crash {
@@ -215,7 +223,6 @@ func (s *scheduler) spawn(base context.Context, name string, w *simWorker, body 
 		s.notify <- actorMsg{a: a, done: true}
 	}()
 	s.resume(a, grantMsg{})
-	return a
 }
 
 // resume lets a run until it yields again or finishes.
@@ -226,6 +233,7 @@ func (s *scheduler) resume(a *actor, g grantMsg) {
 	m := <-s.notify
 	s.running = nil
 	if m.done {
+		delete(s.live, a)
 		if f := s.onDone[a]; f != nil {
 			delete(s.onDone, a)
 			f()
@@ -233,6 +241,24 @@ func (s *scheduler) resume(a *actor, g grantMsg) {
 		return
 	}
 	a.parked = s.at(m.readyAt, func() { s.resume(a, grantMsg{}) })
+}
+
+// shutdown crashes every actor still parked, so no goroutine outlives the
+// scenario.
+func (s *scheduler) shutdown() {
+	for len(s.live) > 0 {
+		var first *actor
+		for a := range s.live {
+			if first == nil || a.id < first.id {
+				first = a
+			}
+		}
+		if first.parked == nil {
+			delete(s.live, first) // cannot happen: only parked actors exist between events
+			continue
+		}
+		s.kill(first)
+	}
 }
 
 // kill crashes a parked actor: its pending call fails and so does every

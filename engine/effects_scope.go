@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -17,6 +18,10 @@ import (
 func (r *runner) checkClass() core.ActivityClass {
 	return max(r.ver.InferredClass, core.ClassPassive)
 }
+
+// reasonScopeUnavailable is the deny reason recorded when the scope
+// service could not be asked.
+const reasonScopeUnavailable = "scope_unavailable"
 
 // decideScope asks the scope service about one target and returns the
 // decision. Every failure is a deny (spec 2.4: no silent success).
@@ -38,7 +43,7 @@ func (r *runner) decideScope(target vm.Value, class core.ActivityClass, version 
 		Class: class, RunID: r.run, Path: path, Now: msTime(r.now()), DecisionID: id,
 	})
 	if err != nil {
-		return deny("scope_unavailable", normalizedTarget(r.mod, target))
+		return deny(reasonScopeUnavailable, normalizedTarget(r.mod, target))
 	}
 	if d.ID == "" {
 		d.ID = id
@@ -152,11 +157,21 @@ func (r *runner) recheck(spec ToolSpec, e *effectState, proofs []vm.Value) (*sco
 // run's class must fit the new max_class and every target the run holds
 // an allow decision for must still be allowed. The decisions are
 // recorded; the run then continues pinned to the new version or pauses.
-func (r *runner) revalidate(version int32, path string) (paused bool, err error) {
+//
+// If the scope service cannot be reached (the policy cannot be loaded for
+// any reason but not-found, or a re-decision is scope_unavailable),
+// nothing is recorded and retry is true: the run waits at the boundary
+// (fail closed, no effect runs) and re-validates later. Recording a pause
+// for an outage would leave the run paused until the next scope version,
+// although the new version may well allow it (regress_scope_outage_pause).
+func (r *runner) revalidate(version int32, path string) (paused, retry bool, err error) {
 	old := r.log.scopeVersion
 	ok := true
 	pol, perr := r.e.d.Scope.Policy(r.ctx, r.rec.Tenant, r.rec.ProgramID, version)
-	if perr != nil || pol.MaxClass() < r.ver.InferredClass {
+	switch {
+	case perr != nil && !errors.Is(perr, ErrNotFound):
+		return false, true, nil
+	case perr != nil || pol.MaxClass() < r.ver.InferredClass:
 		ok = false
 	}
 	var evs []pending
@@ -171,6 +186,9 @@ func (r *runner) revalidate(version int32, path string) (paused bool, err error)
 		targets = slices.Compact(targets)
 		for n, tgt := range targets {
 			d := r.decideScope(vm.Str(tgt), r.checkClass(), version, path, PurposeRevalidate, n)
+			if d.Reason == reasonScopeUnavailable {
+				return false, true, nil
+			}
 			evs = append(evs, ev(EvScopeDecision, ActorEngine, ScopeDecisionPayload{Path: path, Purpose: PurposeRevalidate, Decision: d}))
 			if !d.Allowed() {
 				ok = false
@@ -189,10 +207,10 @@ func (r *runner) revalidate(version int32, path string) (paused bool, err error)
 		evs = append(evs, ev(EvRunResumed, ActorEngine, ReasonPayload{Reason: "scope_changed"}))
 	}
 	if err := r.append(evs...); err != nil {
-		return false, err
+		return false, false, err
 	}
 	r.markApplied(RequestScopeChanged)
-	return !ok, nil
+	return !ok, false, nil
 }
 
 // scopeSnapshot backs scope.allows (spec 7.6) with the scope version

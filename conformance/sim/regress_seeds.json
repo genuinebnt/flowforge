@@ -1,0 +1,10 @@
+[
+  {"seed": 1, "profile": "lossy", "workload": "mixed",
+   "note": "regress_outbox_terminal_loss: a failed publish of the batch with the terminal event was never retried (the run was released as terminal); alerts lost (inv_08). Fixed in engine/advance.go finish."},
+  {"seed": 3, "profile": "chaos", "workload": "mixed",
+   "note": "regress_scope_outage_pause: a scope-service outage during re-validation after a scope change paused the run forever (inv_11). Fixed in engine/effects_scope.go revalidate. Also pinned the checker: a call re-executed after a crash may follow a revalidation decision committed after its effect_started (inv_06)."},
+  {"seed": 21, "profile": "chaos", "workload": "mixed",
+   "note": "regress_comp_cancelled_on_resume: the next owner of a cancelled run closed the in-flight compensation effect as cancelled; a zombie worker's late undo then ran out of reverse order (inv_07). Fixed in engine/compensate.go closeOpenBody."},
+  {"seed": 2, "profile": "crashy", "workload": "mixed",
+   "note": "checker: a par_map closed by the engine on cancel (effect_failed cancelled) must not be compared with its children's join (inv_05)."}
+]

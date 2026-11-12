@@ -33,8 +33,10 @@ Each choice is pinned by a test where it changes behaviour.
    `scope_changed{action: continue}` and the run is pinned to the new
    version. Otherwise `scope_changed{action: pause}` + `run_paused`; the
    run stays paused until a later version passes (`run_resumed`) or it is
-   cancelled. A run past its deadline that is woken while paused is resumed
-   and failed with `timeout`.
+   cancelled. If the scope service cannot be reached during re-validation,
+   nothing is recorded and the run waits at the boundary and retries (found
+   by `sim`; `TestRegress_ScopeOutagePause`). A run past its deadline that
+   is woken while paused is resumed and failed with `timeout`.
 7. **Kill switches** apply at every effect boundary of the body, for every
    run in reach (fail closed), and to submission of target-facing
    workflows (`KILL_SWITCH_ACTIVE`). The run is cancelled with reason
@@ -44,7 +46,9 @@ Each choice is pinned by a test where it changes behaviour.
    and watchdog interrupts do not apply once compensation started, and
    CancelRun on a compensating run returns RUN_NOT_CANCELLABLE. Their paths
    are `N/k/i` with N = the root VM's next sequence number at failure
-   (recorded as `path_prefix`).
+   (recorded as `path_prefix`). When a new owner re-enters the cancel or
+   timeout flow, open compensation effects are continued, not closed as
+   cancelled (found by `sim`; `TestRegress_CompCancelledOnResume`).
 9. **Nondeterminism** fails the run without running compensations (their
    replay cannot be trusted); if compensations were registered the run is
    marked `compensation_outcome = failed` (inv_07 "needs operator action").
@@ -94,11 +98,16 @@ Each choice is pinned by a test where it changes behaviour.
     watermark), `run_requests`, `approval_ext` (deciding actor). The uuid
     columns `created_by` and `decided_by` of spec 10.4 keep the uuid part
     of `user:<uuid>` actors. Tool "latest version" is the greatest version
-    text per name.
+    text per name. The tables are now migration
+    `migrations/sql/0013_engine_extras.sql` (SchemaSQL verbatim, every
+    statement idempotent); `EnsureSchema` is kept as a bootstrap.
 20. **Outbox.** Every appended event is published to run.events (and
     approval lifecycle events to approval.events) after the append, not in
     the same transaction (pgstore owns the append transaction). Envelope
     ids derive from (run, seq) and a per-run watermark republishes what a
-    crashed worker missed, so delivery is at-least-once without loss.
+    crashed worker missed, so delivery is at-least-once without loss. A run
+    whose watermark is below its head is released as `running` (woken after
+    `IdleBackoff`), not as terminal, so a failed publish of the last batch
+    is retried (found by `sim`; `TestRegress_OutboxTerminalLoss`).
 21. **Graceful shutdown** cancels in-flight executions like a crash: the
     next owner sees `effect_started` without a result.

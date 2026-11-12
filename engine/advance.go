@@ -113,6 +113,15 @@ func (r *runner) finish(next eventstore.Next) (eventstore.Next, error) {
 	if next.Status == "" {
 		next.Status = coarseStatus(r.log.status)
 	}
+	if Terminal(next.Status) && r.rec.PublishedSeq < r.log.head {
+		// The outbox has not taken every event (a publish failed, or the
+		// previous owner died before publishing). A terminal row is never
+		// scheduled again, so releasing it as terminal would lose those
+		// events for good (spec 23.7: duplicates, never losses). Keep it
+		// schedulable; the next advance republishes the backlog and then
+		// releases it as terminal (regress_outbox_terminal_loss).
+		next = eventstore.Next{Status: StatusRunning, WakeAt: r.now().Add(r.e.cfg.IdleBackoff)}
+	}
 	r.flushProjection()
 	if len(r.applied) > 0 {
 		ids := make([]int64, 0, len(r.applied))

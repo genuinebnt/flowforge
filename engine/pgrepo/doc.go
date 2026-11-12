@@ -6,6 +6,7 @@
 // the same database; Repo and pgstore share engine.runs.
 //
 // Tables the spec does not define (workflow_version_ext, run_ext,
-// run_requests, approval_ext) are created by EnsureSchema from SchemaSQL,
-// a proposed migration that belongs in the migrations package.
+// run_requests, approval_ext) are created by migration
+// 0013_engine_extras; EnsureSchema applies the same idempotent SchemaSQL for
+// databases that predate it.
 package pgrepo
