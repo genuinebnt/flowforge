@@ -1,0 +1,46 @@
+{
+  "description": "Hash64(key, worker) = fmix64(FNV-1a-64(uint64_le(len(key)) || key || worker)); fmix64 is the MurmurHash3 64-bit finalizer.",
+  "algorithm": "hash64",
+  "hash_vectors": [
+    {
+      "key_hex": "",
+      "worker": "",
+      "hash": "0x7bd3144f29c0cc9e"
+    },
+    {
+      "key_hex": "",
+      "worker": "w1",
+      "hash": "0x9492cc11b28f1cf8"
+    },
+    {
+      "key_hex": "6b",
+      "worker": "",
+      "hash": "0x49fd369c275361eb"
+    },
+    {
+      "key_hex": "72756e2d30303031",
+      "worker": "worker-01",
+      "hash": "0xfc59d63f14cecc6e"
+    },
+    {
+      "key_hex": "72756e2d30303031",
+      "worker": "worker-02",
+      "hash": "0x60bc09e5b0beba7c"
+    },
+    {
+      "key_hex": "00ff10",
+      "worker": "w",
+      "hash": "0x77a539b38f44d930"
+    },
+    {
+      "key_hex": "6170692e6578616d706c652e636f6d",
+      "worker": "tool-runner-7",
+      "hash": "0xee7384ec06ebf67c"
+    },
+    {
+      "key_hex": "30314a44384b3041",
+      "worker": "worker-a",
+      "hash": "0xf836bcd0e5fd497c"
+    }
+  ]
+}

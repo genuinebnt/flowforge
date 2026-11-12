@@ -1,0 +1,54 @@
+{
+  "description": "Spec 13.6 roles and permissions: every role against every endpoint class. Endpoints of spec 12.3 map to these classes; the 'Min. role' column of 12.3 is not a hierarchy (approver does not inherit analyst).",
+  "roles": ["viewer", "analyst", "approver", "admin", "owner"],
+  "classes": [
+    {
+      "permission": "read",
+      "description": "Read programs, runs, events, graph, alerts",
+      "endpoints": ["GET /programs", "GET /runs/{id}/events", "GET /graph/entities", "GET /alerts/events", "GET /approvals"],
+      "allowed": {"viewer": true, "analyst": true, "approver": true, "admin": true, "owner": true}
+    },
+    {
+      "permission": "workflows:write",
+      "description": "Check workflows, register workflows",
+      "endpoints": ["POST /workflows:check", "POST /workflows"],
+      "allowed": {"viewer": false, "analyst": true, "approver": false, "admin": true, "owner": true}
+    },
+    {
+      "permission": "runs:submit",
+      "description": "Submit and cancel runs",
+      "endpoints": ["POST /runs", "POST /runs/{id}:cancel"],
+      "allowed": {"viewer": false, "analyst": true, "approver": false, "admin": true, "owner": true}
+    },
+    {
+      "permission": "approvals:decide",
+      "description": "Decide approvals",
+      "endpoints": ["POST /approvals/{id}:decide"],
+      "allowed": {"viewer": false, "analyst": false, "approver": true, "admin": true, "owner": true}
+    },
+    {
+      "permission": "alerts:write",
+      "description": "Create and edit alert rules",
+      "endpoints": ["POST /alerts/rules", "PUT /alerts/rules/{id}", "DELETE /alerts/rules/{id}"],
+      "allowed": {"viewer": false, "analyst": true, "approver": false, "admin": true, "owner": true}
+    },
+    {
+      "permission": "programs:admin",
+      "description": "Edit programs and scope, use kill switch",
+      "endpoints": ["PATCH /programs/{id}", "PUT /programs/{id}/scope", "POST /programs/{id}/kill-switch"],
+      "allowed": {"viewer": false, "analyst": false, "approver": false, "admin": true, "owner": true}
+    },
+    {
+      "permission": "members:admin",
+      "description": "Manage members, API keys, channels",
+      "endpoints": ["POST /tenant/invites", "PATCH /tenant/members/{user_id}", "POST /api-keys", "POST /alerts/channels"],
+      "allowed": {"viewer": false, "analyst": false, "approver": false, "admin": true, "owner": true}
+    },
+    {
+      "permission": "tenant:owner",
+      "description": "Delete tenant, transfer ownership",
+      "endpoints": [],
+      "allowed": {"viewer": false, "analyst": false, "approver": false, "admin": false, "owner": true}
+    }
+  ]
+}

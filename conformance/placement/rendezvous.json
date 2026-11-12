@@ -1,0 +1,730 @@
+{
+  "description": "Rendezvous owner = argmax Hash64(key, w), ties by smaller id; ranking = score descending then id ascending, duplicates removed.",
+  "algorithm": "rendezvous",
+  "sets": [
+    {
+      "workers": [],
+      "cases": [
+        {
+          "key": "run-0001",
+          "ranking": []
+        },
+        {
+          "key": "run-0002",
+          "ranking": []
+        },
+        {
+          "key": "api.example.com",
+          "ranking": []
+        },
+        {
+          "key": "01JD8K0A",
+          "ranking": []
+        },
+        {
+          "ranking": []
+        },
+        {
+          "key_hex": "00ff10",
+          "ranking": []
+        },
+        {
+          "key": "key-000",
+          "ranking": []
+        },
+        {
+          "key": "key-037",
+          "ranking": []
+        },
+        {
+          "key": "key-074",
+          "ranking": []
+        },
+        {
+          "key": "key-111",
+          "ranking": []
+        },
+        {
+          "key": "key-148",
+          "ranking": []
+        },
+        {
+          "key": "key-185",
+          "ranking": []
+        }
+      ]
+    },
+    {
+      "workers": [
+        "solo"
+      ],
+      "cases": [
+        {
+          "key": "run-0001",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "run-0002",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "api.example.com",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "01JD8K0A",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key_hex": "00ff10",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "key-000",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "key-037",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "key-074",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "key-111",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "key-148",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        },
+        {
+          "key": "key-185",
+          "owner": "solo",
+          "ranking": [
+            "solo"
+          ]
+        }
+      ]
+    },
+    {
+      "workers": [
+        "worker-a",
+        "worker-b"
+      ],
+      "cases": [
+        {
+          "key": "run-0001",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key": "run-0002",
+          "owner": "worker-a",
+          "ranking": [
+            "worker-a",
+            "worker-b"
+          ]
+        },
+        {
+          "key": "api.example.com",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key": "01JD8K0A",
+          "owner": "worker-a",
+          "ranking": [
+            "worker-a",
+            "worker-b"
+          ]
+        },
+        {
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key_hex": "00ff10",
+          "owner": "worker-a",
+          "ranking": [
+            "worker-a",
+            "worker-b"
+          ]
+        },
+        {
+          "key": "key-000",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key": "key-037",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key": "key-074",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key": "key-111",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        },
+        {
+          "key": "key-148",
+          "owner": "worker-a",
+          "ranking": [
+            "worker-a",
+            "worker-b"
+          ]
+        },
+        {
+          "key": "key-185",
+          "owner": "worker-b",
+          "ranking": [
+            "worker-b",
+            "worker-a"
+          ]
+        }
+      ]
+    },
+    {
+      "workers": [
+        "worker-01",
+        "worker-02",
+        "worker-03",
+        "worker-04",
+        "worker-05"
+      ],
+      "cases": [
+        {
+          "key": "run-0001",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-04",
+            "worker-02",
+            "worker-05",
+            "worker-03"
+          ]
+        },
+        {
+          "key": "run-0002",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-02",
+            "worker-03",
+            "worker-05",
+            "worker-04"
+          ]
+        },
+        {
+          "key": "api.example.com",
+          "owner": "worker-02",
+          "ranking": [
+            "worker-02",
+            "worker-03",
+            "worker-01",
+            "worker-04",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "01JD8K0A",
+          "owner": "worker-03",
+          "ranking": [
+            "worker-03",
+            "worker-02",
+            "worker-05",
+            "worker-04",
+            "worker-01"
+          ]
+        },
+        {
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-05",
+            "worker-04",
+            "worker-02"
+          ]
+        },
+        {
+          "key_hex": "00ff10",
+          "owner": "worker-04",
+          "ranking": [
+            "worker-04",
+            "worker-02",
+            "worker-03",
+            "worker-05",
+            "worker-01"
+          ]
+        },
+        {
+          "key": "key-000",
+          "owner": "worker-02",
+          "ranking": [
+            "worker-02",
+            "worker-01",
+            "worker-04",
+            "worker-03",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "key-037",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-05",
+            "worker-02",
+            "worker-04"
+          ]
+        },
+        {
+          "key": "key-074",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-04",
+            "worker-03",
+            "worker-02",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "key-111",
+          "owner": "worker-05",
+          "ranking": [
+            "worker-05",
+            "worker-04",
+            "worker-03",
+            "worker-02",
+            "worker-01"
+          ]
+        },
+        {
+          "key": "key-148",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-05",
+            "worker-04",
+            "worker-02"
+          ]
+        },
+        {
+          "key": "key-185",
+          "owner": "worker-03",
+          "ranking": [
+            "worker-03",
+            "worker-01",
+            "worker-05",
+            "worker-04",
+            "worker-02"
+          ]
+        }
+      ]
+    },
+    {
+      "workers": [
+        "worker-05",
+        "worker-03",
+        "worker-01",
+        "worker-02"
+      ],
+      "cases": [
+        {
+          "key": "run-0001",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-02",
+            "worker-05",
+            "worker-03"
+          ]
+        },
+        {
+          "key": "run-0002",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-02",
+            "worker-03",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "api.example.com",
+          "owner": "worker-02",
+          "ranking": [
+            "worker-02",
+            "worker-03",
+            "worker-01",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "01JD8K0A",
+          "owner": "worker-03",
+          "ranking": [
+            "worker-03",
+            "worker-02",
+            "worker-05",
+            "worker-01"
+          ]
+        },
+        {
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-05",
+            "worker-02"
+          ]
+        },
+        {
+          "key_hex": "00ff10",
+          "owner": "worker-02",
+          "ranking": [
+            "worker-02",
+            "worker-03",
+            "worker-05",
+            "worker-01"
+          ]
+        },
+        {
+          "key": "key-000",
+          "owner": "worker-02",
+          "ranking": [
+            "worker-02",
+            "worker-01",
+            "worker-03",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "key-037",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-05",
+            "worker-02"
+          ]
+        },
+        {
+          "key": "key-074",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-02",
+            "worker-05"
+          ]
+        },
+        {
+          "key": "key-111",
+          "owner": "worker-05",
+          "ranking": [
+            "worker-05",
+            "worker-03",
+            "worker-02",
+            "worker-01"
+          ]
+        },
+        {
+          "key": "key-148",
+          "owner": "worker-01",
+          "ranking": [
+            "worker-01",
+            "worker-03",
+            "worker-05",
+            "worker-02"
+          ]
+        },
+        {
+          "key": "key-185",
+          "owner": "worker-03",
+          "ranking": [
+            "worker-03",
+            "worker-01",
+            "worker-05",
+            "worker-02"
+          ]
+        }
+      ]
+    },
+    {
+      "workers": [
+        "w9",
+        "w10",
+        "w1",
+        "w2",
+        "w3",
+        "w4",
+        "w5",
+        "w6",
+        "w7",
+        "w8",
+        "w10"
+      ],
+      "cases": [
+        {
+          "key": "run-0001",
+          "owner": "w10",
+          "ranking": [
+            "w10",
+            "w4",
+            "w8",
+            "w1",
+            "w2",
+            "w9",
+            "w6",
+            "w7",
+            "w5",
+            "w3"
+          ]
+        },
+        {
+          "key": "run-0002",
+          "owner": "w3",
+          "ranking": [
+            "w3",
+            "w8",
+            "w1",
+            "w6",
+            "w5",
+            "w9",
+            "w2",
+            "w10",
+            "w4",
+            "w7"
+          ]
+        },
+        {
+          "key": "api.example.com",
+          "owner": "w1",
+          "ranking": [
+            "w1",
+            "w10",
+            "w5",
+            "w2",
+            "w7",
+            "w6",
+            "w3",
+            "w9",
+            "w4",
+            "w8"
+          ]
+        },
+        {
+          "key": "01JD8K0A",
+          "owner": "w7",
+          "ranking": [
+            "w7",
+            "w8",
+            "w6",
+            "w2",
+            "w9",
+            "w4",
+            "w1",
+            "w5",
+            "w10",
+            "w3"
+          ]
+        },
+        {
+          "owner": "w7",
+          "ranking": [
+            "w7",
+            "w2",
+            "w9",
+            "w1",
+            "w10",
+            "w3",
+            "w6",
+            "w8",
+            "w5",
+            "w4"
+          ]
+        },
+        {
+          "key_hex": "00ff10",
+          "owner": "w5",
+          "ranking": [
+            "w5",
+            "w2",
+            "w8",
+            "w3",
+            "w1",
+            "w4",
+            "w10",
+            "w7",
+            "w6",
+            "w9"
+          ]
+        },
+        {
+          "key": "key-000",
+          "owner": "w5",
+          "ranking": [
+            "w5",
+            "w9",
+            "w1",
+            "w2",
+            "w8",
+            "w7",
+            "w3",
+            "w4",
+            "w10",
+            "w6"
+          ]
+        },
+        {
+          "key": "key-037",
+          "owner": "w1",
+          "ranking": [
+            "w1",
+            "w6",
+            "w3",
+            "w4",
+            "w9",
+            "w2",
+            "w8",
+            "w5",
+            "w7",
+            "w10"
+          ]
+        },
+        {
+          "key": "key-074",
+          "owner": "w4",
+          "ranking": [
+            "w4",
+            "w2",
+            "w10",
+            "w8",
+            "w1",
+            "w6",
+            "w7",
+            "w3",
+            "w5",
+            "w9"
+          ]
+        },
+        {
+          "key": "key-111",
+          "owner": "w1",
+          "ranking": [
+            "w1",
+            "w5",
+            "w6",
+            "w3",
+            "w8",
+            "w9",
+            "w4",
+            "w2",
+            "w7",
+            "w10"
+          ]
+        },
+        {
+          "key": "key-148",
+          "owner": "w9",
+          "ranking": [
+            "w9",
+            "w2",
+            "w6",
+            "w5",
+            "w7",
+            "w3",
+            "w4",
+            "w10",
+            "w1",
+            "w8"
+          ]
+        },
+        {
+          "key": "key-185",
+          "owner": "w2",
+          "ranking": [
+            "w2",
+            "w1",
+            "w7",
+            "w10",
+            "w3",
+            "w9",
+            "w6",
+            "w4",
+            "w5",
+            "w8"
+          ]
+        }
+      ]
+    }
+  ]
+}

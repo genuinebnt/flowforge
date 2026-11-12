@@ -1,0 +1,107 @@
+{
+  "module": "placement",
+  "date": "2026-11-12",
+  "commit": "434cadf",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "20x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkPlc01_Owner/rendezvous/workers=10",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 155.4
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/consistent/workers=10",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 146.8
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/ring/workers=10",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 190.8
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/rendezvous/workers=100",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 826.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/consistent/workers=100",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 479.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/ring/workers=100",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 534.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/rendezvous/workers=1000",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 7276
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/consistent/workers=1000",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 1752
+      }
+    },
+    {
+      "bench_id": "BenchmarkPlc01_Owner/ring/workers=1000",
+      "package": "github.com/genuinebnt/flowforge/placement",
+      "iterations": 20,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 578.3
+      }
+    }
+  ]
+}

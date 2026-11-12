@@ -1,0 +1,35 @@
+{
+  "description": "nbf two minutes in the future.",
+  "now": 1794489700,
+  "issuer": "https://api.flowforge.example",
+  "audience": "flowforge-api",
+  "keys": [
+    {
+      "kid": "2026-11",
+      "seed_hex": "ba50f4ccaa0615bd4f67baedf4876720764655431cdbf6ec1de8d06c32276cad",
+      "state": "active"
+    },
+    {
+      "kid": "2026-08",
+      "seed_hex": "17bee04f10391ad5e89f0dfffb9b05e5631e7d329b6f2e92105bdb9207ba33bb",
+      "state": "retiring"
+    },
+    {
+      "kid": "2026-05",
+      "seed_hex": "910ae1f375079f464f542f12e3f49482abdaaafa8b8b54a45aa26479aacbf77d",
+      "state": "retired"
+    }
+  ],
+  "unlisted_keys": [
+    {
+      "kid": "2027-02",
+      "seed_hex": "0080cd9725142bf3d2e0b588c722bf857f62c453fe38b9dc4e6e73b6316d12c6",
+      "state": "active"
+    }
+  ],
+  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IjIwMjYtMTEifQ.eyJpc3MiOiJodHRwczovL2FwaS5mbG93Zm9yZ2UuZXhhbXBsZSIsImF1ZCI6ImZsb3dmb3JnZS1hcGkiLCJzdWIiOiJ1c3JfMDFKRDhLMEEiLCJ0aWQiOiJ0ZW5fMDFKRDhLMEIiLCJyb2xlIjoib3duZXIiLCJzaWQiOiJzZXNfMDFKRDhLMEUiLCJzdiI6MSwianRpIjoiMDFKRDhLMEY5WiIsImlhdCI6MTc5NDQ4OTcwMCwiZXhwIjoxNzk0NDkwMzAwLCJuYmYiOjE3OTQ0ODk4MjB9.sDuVNh5q2muh-vu_-a-YuGfQf4Rg78y7L2pYqFzwNtwntjYxsZHPwTW6Jlr_c1cGpDx2pJ95hwzJJl6kyHrhBQ",
+  "expect": {
+    "accept": false,
+    "reason": "not_yet_valid"
+  }
+}
