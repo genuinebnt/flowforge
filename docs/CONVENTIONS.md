@@ -14,8 +14,8 @@ which satisfies spec 24.5 without a multi-module `go.work`.
 
 | Layer | Packages | May import (besides stdlib and lower layers' listed packages) |
 |------:|----------|------|
-| 0 | `core` | stdlib only |
-| 1 | `scope`, `oam`, `limiter`, `csr`, `placement`, `auth` | `core` (+ `golang.org/x/net/idna` for scope, `golang.org/x/crypto` for auth) |
+| 0 | `core`, `core/netnorm` | stdlib only (`core/netnorm` also uses `golang.org/x/net` for IDNA and the public suffix list) |
+| 1 | `scope`, `oam`, `limiter`, `csr`, `placement`, `auth` | `core`, `core/netnorm` (+ `golang.org/x/crypto` for auth) |
 | 2 | `dsl`, `bytecode`, `vecindex`, `alerts` | `core`; `dsl` may import `scope` and `oam` for types only; `alerts` may import `oam` |
 | 3 | `vm`, `eventstore` | `core`, `bytecode` (vm); `core` (eventstore). CBOR via `github.com/fxamacker/cbor/v2` |
 | 4 | `engine`, `agent` | layers 0-3 |
