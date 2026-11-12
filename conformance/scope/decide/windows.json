@@ -1,0 +1,238 @@
+{
+ "description": "Testing windows: boundaries (start inclusive, end exclusive), a window across midnight in a DST zone, a 24:00 end, and passive checks ignoring windows. Checks here do not resolve.",
+ "scope": {
+  "version": 1,
+  "rules": [
+   {
+    "id": "sub",
+    "effect": "allow",
+    "kind": "wildcard_domain",
+    "value": "*.acme.com"
+   }
+  ],
+  "activity": {
+   "max_class": "active",
+   "windows": [
+    {
+     "days": [
+      "mon",
+      "tue",
+      "wed",
+      "thu",
+      "fri"
+     ],
+     "start": "09:00",
+     "end": "18:00",
+     "tz": "UTC"
+    },
+    {
+     "days": [
+      "sat"
+     ],
+     "start": "22:00",
+     "end": "02:00",
+     "tz": "America/New_York"
+    },
+    {
+     "days": [
+      "sun"
+     ],
+     "start": "20:00",
+     "end": "24:00",
+     "tz": "Asia/Kolkata"
+    }
+   ]
+  }
+ },
+ "cases": [
+  {
+   "id": "scope_013a",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-12T08:59:59.999Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "scope_013b",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-12T09:00:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "weekday_last_minute",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-12T17:59:59.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "weekday_end_exclusive",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-12T18:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "weekend_utc",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-14T12:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "passive_outside_window",
+   "target": "www.acme.com",
+   "class": "passive",
+   "now": "2026-11-14T12:00:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "window_before_rules",
+   "target": "evil.example",
+   "class": "active",
+   "now": "2026-11-14T12:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "overnight_evening",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T03:30:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "overnight_before_start",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T02:59:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "overnight_morning",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T06:59:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "overnight_end_exclusive",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T07:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "overnight_wrong_start_day",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-14T06:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "overnight_sunday_evening",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-16T03:30:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "dst_start_last_minute",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-03-08T06:59:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "dst_start_jump",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-03-08T07:00:00.000Z",
+   "note": "01:59 EST is followed by 03:00 EDT, after the 02:00 end",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "midnight_end_inside",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T18:29:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  },
+  {
+   "id": "midnight_end_exclusive",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T18:30:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "midnight_end_start",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-15T14:30:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub"
+   }
+  }
+ ]
+}

@@ -1,0 +1,269 @@
+{
+ "description": "Active checks of names resolve once, deny on a denied resolved address, pin the answer, and fail closed on resolution problems.",
+ "scope": {
+  "version": 4,
+  "rules": [
+   {
+    "id": "sub",
+    "effect": "allow",
+    "kind": "wildcard_domain",
+    "value": "*.acme.com"
+   },
+   {
+    "id": "apex",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "acme.com"
+   },
+   {
+    "id": "internal",
+    "effect": "deny",
+    "kind": "cidr",
+    "value": "192.0.2.0/24"
+   },
+   {
+    "id": "v6bad",
+    "effect": "deny",
+    "kind": "cidr",
+    "value": "2001:db8:bad::/48"
+   }
+  ],
+  "activity": {
+   "max_class": "intrusive",
+   "windows": []
+  }
+ },
+ "resolver": {
+  "www.acme.com": [
+   "203.0.113.5",
+   "203.0.113.6"
+  ],
+  "internal.acme.com": [
+   "203.0.113.7",
+   "192.0.2.10"
+  ],
+  "v6.acme.com": [
+   "2001:db8:bad::1"
+  ],
+  "mapped.acme.com": [
+   "::ffff:192.0.2.1"
+  ],
+  "dup.acme.com": [
+   "203.0.113.5",
+   "203.0.113.5",
+   "::ffff:203.0.113.5"
+  ],
+  "empty.acme.com": [],
+  "outside.example": [
+   "198.51.100.1"
+  ],
+  "acme.com": [
+   "2001:db8:1::1",
+   "203.0.113.1"
+  ]
+ },
+ "resolver_errors": [
+  "broken.acme.com"
+ ],
+ "cases": [
+  {
+   "id": "scope_010a",
+   "target": "internal.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolved_ip_denied",
+    "rule_id": "internal",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "scope_010b",
+   "target": "internal.acme.com",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "scope_010c",
+   "target": "https://internal.acme.com/login",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolved_ip_denied",
+    "rule_id": "internal"
+   }
+  },
+  {
+   "id": "scope_010d",
+   "target": "v6.acme.com",
+   "class": "intrusive",
+   "expect": {
+    "result": "deny",
+    "reason": "resolved_ip_denied",
+    "rule_id": "v6bad"
+   }
+  },
+  {
+   "id": "scope_010e",
+   "target": "mapped.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolved_ip_denied",
+    "rule_id": "internal"
+   }
+  },
+  {
+   "id": "scope_014a",
+   "target": "www.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": [
+     "203.0.113.5",
+     "203.0.113.6"
+    ]
+   }
+  },
+  {
+   "id": "scope_014b",
+   "target": "dup.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": [
+     "203.0.113.5"
+    ]
+   }
+  },
+  {
+   "id": "scope_014c",
+   "target": "https://www.acme.com/x",
+   "kind": "url",
+   "class": "intrusive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": [
+     "203.0.113.5",
+     "203.0.113.6"
+    ]
+   }
+  },
+  {
+   "id": "scope_014d",
+   "target": "acme.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "apex",
+    "pinned_ips": [
+     "2001:db8:1::1",
+     "203.0.113.1"
+    ]
+   }
+  },
+  {
+   "id": "resolution_empty",
+   "target": "empty.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolution_failed"
+   }
+  },
+  {
+   "id": "resolution_error",
+   "target": "broken.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolution_failed"
+   }
+  },
+  {
+   "id": "resolution_unknown",
+   "target": "nx.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolution_failed"
+   }
+  },
+  {
+   "id": "resolution_before_allow",
+   "target": "nx.example",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "resolution_failed"
+   }
+  },
+  {
+   "id": "resolved_but_not_allowed",
+   "target": "outside.example",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "passive_never_resolves",
+   "target": "nx.acme.com",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "ip_literal_not_resolved",
+   "target": "192.0.2.10",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "internal"
+   }
+  },
+  {
+   "id": "ip_literal_url",
+   "target": "https://192.0.2.10/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "internal"
+   }
+  },
+  {
+   "id": "skip_resolution",
+   "target": "internal.acme.com",
+   "class": "active",
+   "resolve": false,
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": []
+   }
+  }
+ ]
+}

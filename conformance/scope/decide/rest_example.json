@@ -1,0 +1,195 @@
+{
+ "description": "The scope document of spec 4.1 at version 2, with the scope:check example of spec 12.5.",
+ "now": "2026-11-12T14:00:00.000Z",
+ "scope": {
+  "program_id": "prg_01JD8K2XH3",
+  "version": 2,
+  "name": "Acme public bug bounty",
+  "effective_from": "2026-11-01T00:00:00.000Z",
+  "rules": [
+   {
+    "id": "r1",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "acme.com",
+    "note": "apex only"
+   },
+   {
+    "id": "r2",
+    "effect": "allow",
+    "kind": "wildcard_domain",
+    "value": "*.acme.com",
+    "note": "all subdomains, any depth"
+   },
+   {
+    "id": "r3",
+    "effect": "allow",
+    "kind": "cidr",
+    "value": "203.0.113.0/24"
+   },
+   {
+    "id": "r4",
+    "effect": "deny",
+    "kind": "domain",
+    "value": "payments.acme.com",
+    "note": "explicitly excluded"
+   },
+   {
+    "id": "r5",
+    "effect": "deny",
+    "kind": "wildcard_domain",
+    "value": "*.corp.acme.com"
+   },
+   {
+    "id": "r6",
+    "effect": "allow",
+    "kind": "url_prefix",
+    "value": "https://api.acme.com/v2/"
+   }
+  ],
+  "activity": {
+   "max_class": "active",
+   "prohibited": [
+    "dos",
+    "social_engineering",
+    "credential_stuffing"
+   ],
+   "rate": {
+    "requests_per_second": 5,
+    "burst": 10,
+    "concurrency": 4
+   },
+   "windows": [
+    {
+     "days": [
+      "mon",
+      "tue",
+      "wed",
+      "thu",
+      "fri"
+     ],
+     "start": "09:00",
+     "end": "18:00",
+     "tz": "UTC"
+    }
+   ]
+  }
+ },
+ "resolver": {
+  "acme.com": [
+   "203.0.113.1"
+  ],
+  "x.acme.com": [
+   "203.0.113.2"
+  ],
+  "corp.acme.com": [
+   "203.0.113.3"
+  ],
+  "api.acme.com": [
+   "203.0.113.4"
+  ]
+ },
+ "cases": [
+  {
+   "id": "rest_check",
+   "target": "https://Admin.Corp.Acme.com:443/login",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "r5",
+    "target": "https://admin.corp.acme.com/login",
+    "scope_version": 2,
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "excluded_name",
+   "target": "payments.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "r4"
+   }
+  },
+  {
+   "id": "apex",
+   "target": "acme.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "r1",
+    "pinned_ips": [
+     "203.0.113.1"
+    ]
+   }
+  },
+  {
+   "id": "subdomain",
+   "target": "x.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "r2"
+   }
+  },
+  {
+   "id": "wildcard_parent_allowed",
+   "target": "corp.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "r2"
+   }
+  },
+  {
+   "id": "cidr_ip",
+   "target": "203.0.113.50",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "r3"
+   }
+  },
+  {
+   "id": "url_wildcard_first",
+   "target": "https://api.acme.com/v2/users",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "r2",
+    "pinned_ips": [
+     "203.0.113.4"
+    ]
+   }
+  },
+  {
+   "id": "intrusive",
+   "target": "acme.com",
+   "class": "intrusive",
+   "expect": {
+    "result": "deny",
+    "reason": "class_exceeds_program"
+   }
+  },
+  {
+   "id": "outside_window",
+   "target": "acme.com",
+   "class": "active",
+   "now": "2026-11-12T19:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  }
+ ]
+}

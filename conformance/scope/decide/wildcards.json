@@ -1,0 +1,14 @@
+{
+  "scope": { "rules": [
+    { "id": "a", "effect": "allow", "kind": "wildcard_domain", "value": "*.acme.com" },
+    { "id": "d", "effect": "deny",  "kind": "domain",          "value": "pay.acme.com" } ],
+    "activity": { "max_class": "active", "windows": [] } },
+  "cases": [
+    { "target": "api.acme.com",          "class": "active",  "expect": { "result": "allow", "rule_id": "a" } },
+    { "target": "acme.com",              "class": "active",  "expect": { "result": "deny",  "reason": "no_matching_allow" } },
+    { "target": "a.b.acme.com.",         "class": "passive", "expect": { "result": "allow", "rule_id": "a" } },
+    { "target": "PAY.ACME.COM",          "class": "active",  "expect": { "result": "deny",  "reason": "explicit_deny", "rule_id": "d" } },
+    { "target": "https://acme.com@evil.com/", "kind": "url", "class": "active", "expect": { "result": "deny", "reason": "invalid_target" } },
+    { "target": "acme.com.evil.com",     "class": "active",  "expect": { "result": "deny",  "reason": "no_matching_allow" } }
+  ]
+}

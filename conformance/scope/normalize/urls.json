@@ -1,0 +1,137 @@
+[
+ {
+  "id": "scope_004a",
+  "input": "https://acme.com@evil.com/",
+  "kind": "url",
+  "invalid": true,
+  "note": "userinfo"
+ },
+ {
+  "id": "scope_004b",
+  "input": "https://user:pass@acme.com/",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "scope_004c",
+  "input": "https://acme.com@evil.com/",
+  "kind": "",
+  "invalid": true,
+  "note": "inferred url, still userinfo"
+ },
+ {
+  "id": "scope_005a",
+  "input": "https://acme.com.evil.com/",
+  "kind": "url",
+  "expect": "https://acme.com.evil.com/"
+ },
+ {
+  "id": "scope_006a",
+  "input": "https://Acme.COM:443/a/b/../c#frag",
+  "kind": "url",
+  "expect": "https://acme.com/a/c"
+ },
+ {
+  "id": "scope_006b",
+  "input": "HTTP://acme.com:80",
+  "kind": "url",
+  "expect": "http://acme.com/"
+ },
+ {
+  "id": "scope_006c",
+  "input": "https://acme.com:8443/./x/./y/",
+  "kind": "url",
+  "expect": "https://acme.com:8443/x/y/"
+ },
+ {
+  "id": "scope_006d",
+  "input": "https://acme.com/%7Euser/%2fx",
+  "kind": "url",
+  "expect": "https://acme.com/~user/%2Fx"
+ },
+ {
+  "id": "scope_006e",
+  "input": "https://acme.com/a/b/..",
+  "kind": "url",
+  "expect": "https://acme.com/a/"
+ },
+ {
+  "id": "scope_006f",
+  "input": "https://acme.com/../../x",
+  "kind": "url",
+  "expect": "https://acme.com/x"
+ },
+ {
+  "id": "scope_006g",
+  "input": "https://acme.com:80/",
+  "kind": "url",
+  "expect": "https://acme.com:80/",
+  "note": "80 is not the https default"
+ },
+ {
+  "id": "scope_006h",
+  "input": "https://acme.com/?q=%41&r=%2f",
+  "kind": "url",
+  "expect": "https://acme.com/?q=A&r=%2F"
+ },
+ {
+  "id": "url_v6",
+  "input": "https://[2001:DB8::1]:8080/p",
+  "kind": "url",
+  "expect": "https://[2001:db8::1]:8080/p"
+ },
+ {
+  "id": "url_v6_mapped",
+  "input": "http://[::ffff:192.0.2.1]/",
+  "kind": "url",
+  "expect": "http://192.0.2.1/"
+ },
+ {
+  "id": "url_v6_zone",
+  "input": "https://[fe80::1%25eth0]/",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "url_scheme",
+  "input": "ftp://acme.com/",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "url_decimal_ip",
+  "input": "https://2130706433/",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "url_hex_ip",
+  "input": "http://0x7f.1/",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "url_no_scheme",
+  "input": "acme.com/path",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "url_bad_port",
+  "input": "https://acme.com:99999/",
+  "kind": "url",
+  "invalid": true
+ },
+ {
+  "id": "url_idn",
+  "input": "https://Bücher.example/",
+  "kind": "url",
+  "expect": "https://xn--bcher-kva.example/"
+ },
+ {
+  "id": "url_trailing_dot",
+  "input": "https://WWW.acme.com./x",
+  "kind": "url",
+  "expect": "https://www.acme.com/x"
+ }
+]

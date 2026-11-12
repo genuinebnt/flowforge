@@ -1,0 +1,372 @@
+{
+ "description": "CIDR rules for IPv4, IPv6, mapped addresses, URL IP hosts and CIDR targets; deny precedence and document order.",
+ "scope": {
+  "version": 1,
+  "rules": [
+   {
+    "id": "net10",
+    "effect": "allow",
+    "kind": "cidr",
+    "value": "10.0.0.0/8"
+   },
+   {
+    "id": "lab",
+    "effect": "deny",
+    "kind": "cidr",
+    "value": "10.9.0.0/16"
+   },
+   {
+    "id": "v6",
+    "effect": "allow",
+    "kind": "cidr",
+    "value": "2001:db8::/32"
+   },
+   {
+    "id": "v6deny",
+    "effect": "deny",
+    "kind": "cidr",
+    "value": "2001:db8:dead::/48"
+   },
+   {
+    "id": "tiny",
+    "effect": "allow",
+    "kind": "cidr",
+    "value": "198.51.100.0/24"
+   },
+   {
+    "id": "tinydeny",
+    "effect": "deny",
+    "kind": "cidr",
+    "value": "198.51.100.128/25"
+   },
+   {
+    "id": "wild",
+    "effect": "allow",
+    "kind": "wildcard_domain",
+    "value": "*.example.com"
+   },
+   {
+    "id": "shop",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "shop.example.com"
+   },
+   {
+    "id": "admin",
+    "effect": "deny",
+    "kind": "domain",
+    "value": "admin.example.com"
+   }
+  ],
+  "activity": {
+   "max_class": "intrusive",
+   "windows": []
+  }
+ },
+ "resolver": {
+  "shop.example.com": [
+   "198.51.100.20"
+  ]
+ },
+ "cases": [
+  {
+   "id": "scope_008a",
+   "target": "::ffff:10.0.0.1",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net10",
+    "target": "10.0.0.1",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "scope_008b",
+   "target": "[::ffff:10.0.0.1]",
+   "kind": "host",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net10",
+    "target": "10.0.0.1"
+   }
+  },
+  {
+   "id": "scope_008c",
+   "target": "::ffff:10.9.1.1",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "ip_v4_deny_edge",
+   "target": "10.9.255.255",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "ip_v4_outside",
+   "target": "11.0.0.1",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "ip_v6_allow",
+   "target": "2001:DB8::1",
+   "kind": "ip",
+   "class": "intrusive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v6",
+    "target": "2001:db8::1"
+   }
+  },
+  {
+   "id": "ip_v6_deny",
+   "target": "2001:db8:dead::1",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "v6deny"
+   }
+  },
+  {
+   "id": "ip_v6_outside",
+   "target": "2001:db9::1",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "url_v6_host",
+   "target": "https://[2001:db8::5]:8443/x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v6",
+    "target": "https://[2001:db8::5]:8443/x"
+   }
+  },
+  {
+   "id": "url_v4_deny",
+   "target": "http://10.9.0.1/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "cidr_contained",
+   "target": "10.1.0.0/16",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net10"
+   }
+  },
+  {
+   "id": "cidr_overlaps_deny",
+   "target": "10.0.0.0/8",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "cidr_inside_deny",
+   "target": "10.9.3.0/24",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "cidr_everything",
+   "target": "0.0.0.0/0",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "cidr_allowed_half",
+   "target": "198.51.100.0/25",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "tiny"
+   }
+  },
+  {
+   "id": "cidr_partly_denied",
+   "target": "198.51.100.0/24",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "tinydeny"
+   }
+  },
+  {
+   "id": "cidr_wider_than_allow",
+   "target": "198.51.0.0/16",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "tinydeny"
+   }
+  },
+  {
+   "id": "cidr_not_contained",
+   "target": "10.0.0.0/7",
+   "kind": "cidr",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "lab"
+   }
+  },
+  {
+   "id": "cidr_outside",
+   "target": "172.16.0.0/12",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "cidr_v6_contained",
+   "target": "2001:db8:1::/48",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v6"
+   }
+  },
+  {
+   "id": "cidr_v6_overlap",
+   "target": "2001:db8::/32",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "v6deny"
+   }
+  },
+  {
+   "id": "cidr_single_host",
+   "target": "10.0.0.1/32",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net10",
+    "target": "10.0.0.1/32"
+   }
+  },
+  {
+   "id": "scope_009a",
+   "target": "admin.example.com",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "scope_009b",
+   "target": "ADMIN.example.com.",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "scope_009c",
+   "target": "https://admin.example.com/x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "first_rule_wins",
+   "target": "shop.example.com",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "wild",
+    "pinned_ips": [
+     "198.51.100.20"
+    ]
+   }
+  },
+  {
+   "id": "name_is_not_ip",
+   "target": "10.0.0.1.example.com",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "wild"
+   }
+  }
+ ]
+}

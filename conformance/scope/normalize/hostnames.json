@@ -1,0 +1,202 @@
+[
+ {
+  "id": "scope_001a",
+  "input": " WWW.Acme.COM. ",
+  "kind": "hostname",
+  "expect": "www.acme.com",
+  "note": "spec 25.9 example: trim, lowercase, one trailing dot removed"
+ },
+ {
+  "id": "scope_001b",
+  "input": "API.ACME.COM.",
+  "kind": "host",
+  "expect": "api.acme.com"
+ },
+ {
+  "id": "scope_001c",
+  "input": "\tacme.com\n",
+  "kind": "host",
+  "expect": "acme.com"
+ },
+ {
+  "id": "scope_001d",
+  "input": "acme.com",
+  "kind": "host",
+  "expect": "acme.com"
+ },
+ {
+  "id": "scope_002a",
+  "input": "аpple.com",
+  "kind": "host",
+  "expect": "xn--pple-43d.com",
+  "note": "Cyrillic a: compared in A-label form"
+ },
+ {
+  "id": "scope_002b",
+  "input": "xn--pple-43d.com",
+  "kind": "host",
+  "expect": "xn--pple-43d.com"
+ },
+ {
+  "id": "scope_002c",
+  "input": "BÜCHER.example",
+  "kind": "host",
+  "expect": "xn--bcher-kva.example"
+ },
+ {
+  "id": "scope_002d",
+  "input": "XN--BCHER-KVA.example",
+  "kind": "host",
+  "expect": "xn--bcher-kva.example"
+ },
+ {
+  "id": "scope_003a",
+  "input": "a..b.com",
+  "kind": "host",
+  "invalid": true,
+  "note": "empty label"
+ },
+ {
+  "id": "scope_003b",
+  "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.acme.com",
+  "kind": "host",
+  "invalid": true,
+  "note": "label of 64 octets"
+ },
+ {
+  "id": "scope_003c",
+  "input": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "kind": "host",
+  "invalid": true,
+  "note": "name of 254 octets"
+ },
+ {
+  "id": "scope_003d",
+  "input": "acme.com..",
+  "kind": "host",
+  "invalid": true,
+  "note": "only one trailing dot is removed"
+ },
+ {
+  "id": "scope_003e",
+  "input": "",
+  "kind": "host",
+  "invalid": true
+ },
+ {
+  "id": "scope_003f",
+  "input": "   ",
+  "kind": "host",
+  "invalid": true
+ },
+ {
+  "id": "scope_003g",
+  "input": ".acme.com",
+  "kind": "host",
+  "invalid": true
+ },
+ {
+  "id": "scope_003h",
+  "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.acme.com",
+  "kind": "host",
+  "expect": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.acme.com",
+  "note": "63-octet label is the limit"
+ },
+ {
+  "id": "scope_003i",
+  "input": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "kind": "host",
+  "expect": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "note": "253-octet name is the limit"
+ },
+ {
+  "id": "scope_003j",
+  "input": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.",
+  "kind": "host",
+  "expect": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "note": "trailing dot does not count"
+ },
+ {
+  "id": "scope_007a",
+  "input": "2130706433",
+  "kind": "host",
+  "invalid": true,
+  "note": "decimal-integer IPv4"
+ },
+ {
+  "id": "scope_007b",
+  "input": "0177.0.0.1",
+  "kind": "host",
+  "invalid": true,
+  "note": "octal IPv4"
+ },
+ {
+  "id": "scope_007c",
+  "input": "0x7f.1",
+  "kind": "host",
+  "invalid": true,
+  "note": "hex IPv4"
+ },
+ {
+  "id": "scope_007d",
+  "input": "127.1",
+  "kind": "host",
+  "invalid": true,
+  "note": "short-form IPv4"
+ },
+ {
+  "id": "scope_007e",
+  "input": "0177.0.0.1",
+  "kind": "ip",
+  "invalid": true
+ },
+ {
+  "id": "scope_007f",
+  "input": "2130706433",
+  "kind": "ip",
+  "invalid": true
+ },
+ {
+  "id": "scope_007g",
+  "input": "0x7f.0.0.1",
+  "kind": "ip",
+  "invalid": true
+ },
+ {
+  "id": "host_ip_literal",
+  "input": "127.0.0.1",
+  "kind": "host",
+  "expect": "127.0.0.1"
+ },
+ {
+  "id": "host_underscore",
+  "input": "_dmarc.Acme.com",
+  "kind": "host",
+  "expect": "_dmarc.acme.com"
+ },
+ {
+  "id": "host_with_port",
+  "input": "acme.com:443",
+  "kind": "host",
+  "invalid": true
+ },
+ {
+  "id": "host_inner_space",
+  "input": "acme .com",
+  "kind": "host",
+  "invalid": true
+ },
+ {
+  "id": "host_bracketed_v6",
+  "input": "[2001:DB8::1]",
+  "kind": "host",
+  "expect": "2001:db8::1"
+ },
+ {
+  "id": "host_inferred",
+  "input": "WWW.acme.com",
+  "kind": "",
+  "expect": "www.acme.com",
+  "note": "unspecified kind infers host"
+ }
+]

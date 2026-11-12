@@ -1,0 +1,169 @@
+{
+ "description": "Activity classes, max_class, passive checks skipping windows, and the kill switch.",
+ "now": "2026-11-14T12:00:00.000Z",
+ "scope": {
+  "version": 1,
+  "rules": [
+   {
+    "id": "sub",
+    "effect": "allow",
+    "kind": "wildcard_domain",
+    "value": "*.acme.com"
+   },
+   {
+    "id": "pay",
+    "effect": "deny",
+    "kind": "domain",
+    "value": "pay.acme.com"
+   }
+  ],
+  "activity": {
+   "max_class": "active",
+   "windows": [
+    {
+     "days": [
+      "mon",
+      "tue",
+      "wed",
+      "thu",
+      "fri"
+     ],
+     "start": "09:00",
+     "end": "18:00",
+     "tz": "UTC"
+    }
+   ]
+  }
+ },
+ "resolver": {
+  "www.acme.com": [
+   "203.0.113.5"
+  ],
+  "evil.example": [
+   "198.51.100.1"
+  ]
+ },
+ "cases": [
+  {
+   "id": "scope_011a",
+   "target": "evil.example",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "scope_011b",
+   "target": "www.acme.com",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "scope_011c",
+   "target": "pay.acme.com",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "pay"
+   }
+  },
+  {
+   "id": "scope_011d",
+   "target": "evil.example",
+   "class": "active",
+   "now": "2026-11-12T10:00:00.000Z",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "scope_012a",
+   "target": "www.acme.com",
+   "class": "intrusive",
+   "expect": {
+    "result": "deny",
+    "reason": "class_exceeds_program"
+   }
+  },
+  {
+   "id": "scope_012b",
+   "target": "www..acme.com",
+   "class": "intrusive",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_012c",
+   "target": "pay.acme.com",
+   "class": "intrusive",
+   "expect": {
+    "result": "deny",
+    "reason": "class_exceeds_program"
+   }
+  },
+  {
+   "id": "active_outside_window",
+   "target": "www.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "outside_window"
+   }
+  },
+  {
+   "id": "active_inside_window",
+   "target": "www.acme.com",
+   "class": "active",
+   "now": "2026-11-12T10:00:00.000Z",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": [
+     "203.0.113.5"
+    ]
+   }
+  },
+  {
+   "id": "class_none",
+   "target": "www.acme.com",
+   "class": "none",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_class"
+   }
+  },
+  {
+   "id": "kill_switch_passive",
+   "target": "www.acme.com",
+   "class": "passive",
+   "kill_switch": true,
+   "expect": {
+    "result": "deny",
+    "reason": "kill_switch",
+    "target": "www.acme.com"
+   }
+  },
+  {
+   "id": "kill_switch_first",
+   "target": "www..acme.com",
+   "class": "passive",
+   "kill_switch": true,
+   "expect": {
+    "result": "deny",
+    "reason": "kill_switch",
+    "target": ""
+   }
+  }
+ ]
+}

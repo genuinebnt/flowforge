@@ -1,0 +1,83 @@
+{
+  "module": "scope",
+  "date": "2026-11-12",
+  "commit": "d4a240f",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "2000x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkScope01_Decide/indexed/rules=10",
+      "package": "github.com/genuinebnt/flowforge/scope",
+      "iterations": 2000,
+      "metrics": {
+        "B/op": 348,
+        "allocs/op": 6,
+        "allow-ratio": 0.453,
+        "ns/op": 1053
+      }
+    },
+    {
+      "bench_id": "BenchmarkScope01_Decide/naive/rules=10",
+      "package": "github.com/genuinebnt/flowforge/scope",
+      "iterations": 2000,
+      "metrics": {
+        "B/op": 348,
+        "allocs/op": 6,
+        "allow-ratio": 0.453,
+        "ns/op": 854.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkScope01_Decide/indexed/rules=1000",
+      "package": "github.com/genuinebnt/flowforge/scope",
+      "iterations": 2000,
+      "metrics": {
+        "B/op": 388,
+        "allocs/op": 7,
+        "allow-ratio": 0.344,
+        "ns/op": 1101
+      }
+    },
+    {
+      "bench_id": "BenchmarkScope01_Decide/naive/rules=1000",
+      "package": "github.com/genuinebnt/flowforge/scope",
+      "iterations": 2000,
+      "metrics": {
+        "B/op": 388,
+        "allocs/op": 7,
+        "allow-ratio": 0.344,
+        "ns/op": 6255
+      }
+    },
+    {
+      "bench_id": "BenchmarkScope01_Decide/indexed/rules=10000",
+      "package": "github.com/genuinebnt/flowforge/scope",
+      "iterations": 2000,
+      "metrics": {
+        "B/op": 386,
+        "allocs/op": 7,
+        "allow-ratio": 0.3445,
+        "ns/op": 1207
+      }
+    },
+    {
+      "bench_id": "BenchmarkScope01_Decide/naive/rules=10000",
+      "package": "github.com/genuinebnt/flowforge/scope",
+      "iterations": 2000,
+      "metrics": {
+        "B/op": 386,
+        "allocs/op": 7,
+        "allow-ratio": 0.3445,
+        "ns/op": 121460
+      }
+    }
+  ]
+}

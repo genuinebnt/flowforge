@@ -1,0 +1,99 @@
+[
+ {
+  "id": "scope_008a",
+  "input": "::ffff:10.0.0.1",
+  "kind": "ip",
+  "expect": "10.0.0.1"
+ },
+ {
+  "id": "scope_008b",
+  "input": "[::ffff:10.0.0.1]",
+  "kind": "host",
+  "expect": "10.0.0.1"
+ },
+ {
+  "id": "scope_008c",
+  "input": "::ffff:10.0.0.0/104",
+  "kind": "cidr",
+  "expect": "10.0.0.0/8"
+ },
+ {
+  "id": "ip_v6_case",
+  "input": "2001:DB8::1",
+  "kind": "ip",
+  "expect": "2001:db8::1"
+ },
+ {
+  "id": "ip_v6_long",
+  "input": "2001:0db8:0000:0000:0000:0000:0000:0001",
+  "kind": "ip",
+  "expect": "2001:db8::1"
+ },
+ {
+  "id": "ip_v6_zone",
+  "input": "fe80::1%eth0",
+  "kind": "ip",
+  "invalid": true
+ },
+ {
+  "id": "ip_v4_overflow",
+  "input": "10.0.0.256",
+  "kind": "ip",
+  "invalid": true
+ },
+ {
+  "id": "ip_v4_leading_zero",
+  "input": "010.0.0.1",
+  "kind": "ip",
+  "invalid": true
+ },
+ {
+  "id": "ip_space",
+  "input": " 192.0.2.1 ",
+  "kind": "ip",
+  "expect": "192.0.2.1"
+ },
+ {
+  "id": "cidr_host_bits",
+  "input": "10.0.0.1/8",
+  "kind": "cidr",
+  "expect": "10.0.0.0/8"
+ },
+ {
+  "id": "cidr_v6",
+  "input": "2001:DB8::/32",
+  "kind": "cidr",
+  "expect": "2001:db8::/32"
+ },
+ {
+  "id": "cidr_v6_host_bits",
+  "input": "2001:db8::1/48",
+  "kind": "cidr",
+  "expect": "2001:db8::/48"
+ },
+ {
+  "id": "cidr_too_long",
+  "input": "10.0.0.0/33",
+  "kind": "cidr",
+  "invalid": true
+ },
+ {
+  "id": "cidr_no_bits",
+  "input": "10.0.0.0",
+  "kind": "cidr",
+  "invalid": true
+ },
+ {
+  "id": "cidr_mapped_short",
+  "input": "::ffff:0:0/80",
+  "kind": "cidr",
+  "invalid": true
+ },
+ {
+  "id": "cidr_inferred",
+  "input": "192.0.2.0/24",
+  "kind": "",
+  "expect": "192.0.2.0/24",
+  "note": "unspecified kind with a slash infers cidr"
+ }
+]

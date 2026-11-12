@@ -1,0 +1,288 @@
+{
+ "description": "Normalization before matching (spec 4.2, 4.5): case, trailing dots, IDNA lookalikes, bad names, URL tricks, non-canonical IPv4.",
+ "scope": {
+  "version": 3,
+  "rules": [
+   {
+    "id": "apex",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "acme.com"
+   },
+   {
+    "id": "sub",
+    "effect": "allow",
+    "kind": "wildcard_domain",
+    "value": "*.acme.com"
+   },
+   {
+    "id": "apple",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "apple.com"
+   },
+   {
+    "id": "idn",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "bücher.example",
+    "note": "written in Unicode, stored as an A-label"
+   }
+  ],
+  "activity": {
+   "max_class": "active",
+   "windows": []
+  }
+ },
+ "resolver": {
+  "acme.com": [
+   "203.0.113.10"
+  ],
+  "www.acme.com": [
+   "203.0.113.11"
+  ]
+ },
+ "cases": [
+  {
+   "id": "scope_001a",
+   "target": " WWW.Acme.COM. ",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "target": "www.acme.com"
+   }
+  },
+  {
+   "id": "scope_001b",
+   "target": "www.acme.com",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "target": "www.acme.com"
+   }
+  },
+  {
+   "id": "scope_001c",
+   "target": "ACME.COM.",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "apex",
+    "target": "acme.com",
+    "pinned_ips": [
+     "203.0.113.10"
+    ]
+   }
+  },
+  {
+   "id": "scope_001d",
+   "target": "  Www.ACME.com.  ",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "target": "www.acme.com",
+    "pinned_ips": [
+     "203.0.113.11"
+    ]
+   }
+  },
+  {
+   "id": "scope_002a",
+   "target": "xn--pple-43d.com",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow",
+    "rule_id": "",
+    "target": "xn--pple-43d.com"
+   }
+  },
+  {
+   "id": "scope_002b",
+   "target": "аpple.com",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow",
+    "rule_id": "",
+    "target": "xn--pple-43d.com"
+   }
+  },
+  {
+   "id": "scope_002c",
+   "target": "apple.com",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "apple",
+    "target": "apple.com"
+   }
+  },
+  {
+   "id": "scope_002d",
+   "target": "xn--bcher-kva.example",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "idn"
+   }
+  },
+  {
+   "id": "scope_002e",
+   "target": "BÜCHER.example",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "idn",
+    "target": "xn--bcher-kva.example"
+   }
+  },
+  {
+   "id": "scope_003a",
+   "target": "a..acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target",
+    "target": ""
+   }
+  },
+  {
+   "id": "scope_003b",
+   "target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.acme.com",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_003c",
+   "target": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_004a",
+   "target": "https://acme.com@evil.com/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_004b",
+   "target": "https://acme.com@evil.com/",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_005a",
+   "target": "https://acme.com.evil.com/",
+   "kind": "url",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow",
+    "target": "https://acme.com.evil.com/"
+   }
+  },
+  {
+   "id": "scope_005b",
+   "target": "acme.com.evil.com",
+   "kind": "host",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "scope_007a",
+   "target": "2130706433",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_007b",
+   "target": "0177.0.0.1",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_007c",
+   "target": "0x7f.1",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_007d",
+   "target": "0x7f.0.0.1",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "scope_007e",
+   "target": "http://2130706433/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "ipv6_zone",
+   "target": "fe80::1%eth0",
+   "kind": "ip",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  },
+  {
+   "id": "url_host_allowed",
+   "target": "https://WWW.acme.com:443/a/../b#x",
+   "kind": "url",
+   "class": "passive",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "target": "https://www.acme.com/b"
+   }
+  }
+ ]
+}

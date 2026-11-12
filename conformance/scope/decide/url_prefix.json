@@ -1,0 +1,408 @@
+{
+ "description": "url_prefix rules: scheme, host and port must match; the path prefix matches on a segment boundary; a deny url_prefix also denies host-level checks of its host. Checks here do not resolve.",
+ "scope": {
+  "version": 1,
+  "rules": [
+   {
+    "id": "v2",
+    "effect": "allow",
+    "kind": "url_prefix",
+    "value": "https://api.acme.com/v2/"
+   },
+   {
+    "id": "docs",
+    "effect": "allow",
+    "kind": "url_prefix",
+    "value": "https://api.acme.com/docs"
+   },
+   {
+    "id": "alt",
+    "effect": "allow",
+    "kind": "url_prefix",
+    "value": "http://api.acme.com:8080/"
+   },
+   {
+    "id": "admin",
+    "effect": "deny",
+    "kind": "url_prefix",
+    "value": "https://api.acme.com/v2/admin"
+   },
+   {
+    "id": "ipapp",
+    "effect": "allow",
+    "kind": "url_prefix",
+    "value": "https://203.0.113.9/app/"
+   },
+   {
+    "id": "net",
+    "effect": "allow",
+    "kind": "cidr",
+    "value": "203.0.113.0/24"
+   },
+   {
+    "id": "www",
+    "effect": "allow",
+    "kind": "domain",
+    "value": "www.acme.com"
+   },
+   {
+    "id": "careers",
+    "effect": "deny",
+    "kind": "url_prefix",
+    "value": "https://www.acme.com/careers/"
+   },
+   {
+    "id": "v6root",
+    "effect": "allow",
+    "kind": "url_prefix",
+    "value": "https://[2001:db8::7]/"
+   },
+   {
+    "id": "ipsecret",
+    "effect": "deny",
+    "kind": "url_prefix",
+    "value": "https://203.0.113.66/secret/"
+   }
+  ],
+  "activity": {
+   "max_class": "active",
+   "windows": []
+  }
+ },
+ "cases": [
+  {
+   "id": "url_v2_child",
+   "target": "https://api.acme.com/v2/users",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v2"
+   }
+  },
+  {
+   "id": "url_v2_exact",
+   "target": "https://api.acme.com/v2/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v2"
+   }
+  },
+  {
+   "id": "url_v2_no_slash",
+   "target": "https://api.acme.com/v2",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "url_v2_sibling",
+   "target": "https://api.acme.com/v2x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "url_docs_exact",
+   "target": "https://api.acme.com/docs",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "docs"
+   }
+  },
+  {
+   "id": "url_docs_child",
+   "target": "https://api.acme.com/docs/intro",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "docs"
+   }
+  },
+  {
+   "id": "url_docs_sibling",
+   "target": "https://api.acme.com/docsx",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "url_query_ignored",
+   "target": "https://api.acme.com/docs?x=1",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "docs",
+    "target": "https://api.acme.com/docs?x=1"
+   }
+  },
+  {
+   "id": "url_default_port",
+   "target": "https://API.acme.com:443/v2/a#frag",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v2",
+    "target": "https://api.acme.com/v2/a"
+   }
+  },
+  {
+   "id": "url_other_scheme",
+   "target": "http://api.acme.com/v2/a",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "url_other_port",
+   "target": "https://api.acme.com:8443/v2/a",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "url_alt_port",
+   "target": "http://api.acme.com:8080/anything",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "alt"
+   }
+  },
+  {
+   "id": "url_deny_exact",
+   "target": "https://api.acme.com/v2/admin",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "url_deny_child",
+   "target": "https://api.acme.com/v2/admin/x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "url_deny_boundary",
+   "target": "https://api.acme.com/v2/administrator",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v2"
+   }
+  },
+  {
+   "id": "url_dotdot_into_deny",
+   "target": "https://api.acme.com/v2/x/../admin/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "url_escape_into_deny",
+   "target": "https://api.acme.com/v2/%61dmin",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "host_level_deny",
+   "target": "api.acme.com",
+   "kind": "host",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "admin"
+   }
+  },
+  {
+   "id": "host_level_deny_passive",
+   "target": "www.acme.com",
+   "class": "passive",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "careers"
+   }
+  },
+  {
+   "id": "domain_rule_matches_url",
+   "target": "https://www.acme.com/",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "www"
+   }
+  },
+  {
+   "id": "url_careers_child",
+   "target": "https://www.acme.com/careers/jobs",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "careers"
+   }
+  },
+  {
+   "id": "url_careers_no_slash",
+   "target": "https://www.acme.com/careers",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "www"
+   }
+  },
+  {
+   "id": "url_ip_first_rule",
+   "target": "https://203.0.113.9/app/x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "ipapp"
+   }
+  },
+  {
+   "id": "url_ip_cidr",
+   "target": "https://203.0.113.9/other",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net"
+   }
+  },
+  {
+   "id": "ip_host_level_deny",
+   "target": "203.0.113.66",
+   "kind": "ip",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "ipsecret"
+   }
+  },
+  {
+   "id": "cidr_contains_url_deny",
+   "target": "203.0.113.0/24",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "explicit_deny",
+    "rule_id": "ipsecret"
+   }
+  },
+  {
+   "id": "cidr_beside_url_deny",
+   "target": "203.0.113.0/26",
+   "kind": "cidr",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net"
+   }
+  },
+  {
+   "id": "url_ip_other_path",
+   "target": "https://203.0.113.66/public",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "net"
+   }
+  },
+  {
+   "id": "url_v6_root",
+   "target": "https://[2001:db8::7]/x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "v6root"
+   }
+  },
+  {
+   "id": "url_v6_other",
+   "target": "https://[2001:db8::8]/x",
+   "kind": "url",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow"
+   }
+  },
+  {
+   "id": "inferred_cidr",
+   "target": "api.acme.com/v2/",
+   "class": "active",
+   "expect": {
+    "result": "deny",
+    "reason": "invalid_target"
+   }
+  }
+ ]
+}
