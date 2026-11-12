@@ -100,7 +100,13 @@ func (p *parser) prevEnd() Pos {
 	return p.toks[p.pos-1].Span.End
 }
 
-func (p *parser) spanFrom(start Pos) Span { return Span{Start: start, End: p.prevEnd()} }
+func (p *parser) spanFrom(start Pos) Span {
+	end := p.prevEnd()
+	if end.Offset < start.Offset {
+		end = start // nothing was consumed (error recovery)
+	}
+	return Span{Start: start, End: end}
+}
 
 func (p *parser) errCount() int { return len(p.sink.diags) }
 
