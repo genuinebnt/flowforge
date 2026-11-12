@@ -1,0 +1,29 @@
+{
+  "module": "alerts",
+  "date": "2026-11-12",
+  "commit": "aa85576",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472084,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v378",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkAlr01_Evaluate",
+      "package": "github.com/genuinebnt/flowforge/alerts",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 8592,
+        "allocs/op": 47,
+        "events/s": 4763,
+        "matches/event": 6.333,
+        "ns/op": 209964
+      }
+    }
+  ]
+}

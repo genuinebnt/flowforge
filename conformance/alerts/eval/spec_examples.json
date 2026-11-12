@@ -1,0 +1,493 @@
+{
+ "description": "alr_001: the three rules of spec 15.2 and the REST example rule of spec 12.7 against event sequences; outcomes are per step (alert, suppressed, none, duplicate) and steps with the same key label share a dedupe key.",
+ "cases": [
+  {
+   "name": "spec 15.2 new_admin_host",
+   "rule": "alert new_admin_host\n  when change.type == \"entity_added\" && entity.asset_type == \"FQDN\"\n       && entity.scope_status == \"in_scope\" && entity.name matches \"^(admin|jenkins|grafana)\\\\.\"\n  -> slack(\"sec-recon\"), email(\"lead@example.com\")\n  severity = High  throttle 1h  group_by entity.name",
+   "severity": "high",
+   "actions": [
+    "slack:sec-recon",
+    "email:lead@example.com"
+   ],
+   "steps": [
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_01JD8K3F",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkins.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "alert",
+     "key": "jenkins",
+     "entity_name": "jenkins.acme.com"
+    },
+    {
+     "advance": "10m",
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_01JD8K3F",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkins.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "jenkins"
+    },
+    {
+     "advance": "1m",
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_2",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "grafana.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "alert",
+     "key": "grafana"
+    },
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_3",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "admin.acme.com"
+       },
+       "scope_status": "out_of_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_4",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "www.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_5",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkinsx.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "graph.entity_changed",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_changed",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_01JD8K3F",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkins.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "change": {
+       "type": "entity_added"
+      },
+      "entity": {
+       "id": "ent_6",
+       "asset_type": "IPAddress",
+       "content": {
+        "address": "203.0.113.10"
+       },
+       "scope_status": "in_scope"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "advance": "49m",
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_01JD8K3F",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkins.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "alert",
+     "key": "jenkins",
+     "suppressed_count": 1
+    }
+   ]
+  },
+  {
+   "name": "spec 15.2 approval_waiting_long",
+   "rule": "alert approval_waiting_long\n  when event.type == \"approval.requested\" && approval.expires_at - event.occurred_at > 6h\n  -> slack(\"approvals\")  digest 15m",
+   "severity": "medium",
+   "actions": [
+    "slack:approvals"
+   ],
+   "steps": [
+    {
+     "event": {
+      "type": "approval.requested",
+      "tenant_id": "ten_1",
+      "occurred_at": "2026-11-12T14:00:00Z",
+      "approval": {
+       "id": "apr_1",
+       "run_id": "run_1",
+       "role": "lead",
+       "status": "pending",
+       "reason": "intrusive scan",
+       "expires_at": "2026-11-13T14:00:00Z"
+      }
+     },
+     "outcome": "alert",
+     "key": "all"
+    },
+    {
+     "event": {
+      "type": "approval.requested",
+      "tenant_id": "ten_1",
+      "occurred_at": "2026-11-12T14:00:00Z",
+      "approval": {
+       "id": "apr_1",
+       "run_id": "run_1",
+       "role": "lead",
+       "status": "pending",
+       "reason": "intrusive scan",
+       "expires_at": "2026-11-12T15:00:00Z"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "approval.requested",
+      "tenant_id": "ten_1",
+      "occurred_at": "2026-11-12T14:00:00Z",
+      "approval": {
+       "id": "apr_1",
+       "run_id": "run_1",
+       "role": "lead",
+       "status": "pending",
+       "reason": "intrusive scan",
+       "expires_at": "2026-11-12T20:00:00Z"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "approval.requested",
+      "tenant_id": "ten_1",
+      "occurred_at": "2026-11-12T14:00:00Z",
+      "approval": {
+       "id": "apr_1",
+       "run_id": "run_1",
+       "role": "lead",
+       "status": "pending",
+       "reason": "intrusive scan",
+       "expires_at": "2026-11-12T20:00:01Z"
+      }
+     },
+     "outcome": "alert",
+     "key": "all"
+    },
+    {
+     "event": {
+      "type": "approval.decided",
+      "tenant_id": "ten_1",
+      "occurred_at": "2026-11-12T14:00:00Z",
+      "approval": {
+       "id": "apr_1",
+       "run_id": "run_1",
+       "role": "lead",
+       "status": "pending",
+       "reason": "intrusive scan",
+       "expires_at": "2026-11-13T14:00:00Z"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": ""
+      }
+     },
+     "outcome": "none"
+    }
+   ]
+  },
+  {
+   "name": "spec 15.2 run_failed",
+   "rule": "alert run_failed\n  when event.type == \"run.run_failed\" -> webhook(\"pagerduty-bridge\") severity = Critical",
+   "severity": "critical",
+   "actions": [
+    "webhook:pagerduty-bridge"
+   ],
+   "steps": [
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "TOOL_TIMEOUT"
+      },
+      "event_id": "evt_fail_1"
+     },
+     "outcome": "alert",
+     "key": "all"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "TOOL_TIMEOUT"
+      },
+      "event_id": "evt_fail_1"
+     },
+     "outcome": "duplicate"
+    },
+    {
+     "event": {
+      "type": "run.run_succeeded",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_succeeded",
+       "workflow_name": "recon",
+       "code": ""
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "SCOPE_DENIED"
+      }
+     },
+     "outcome": "alert",
+     "key": "all"
+    }
+   ]
+  },
+  {
+   "name": "spec 12.7 REST rule new_jenkins",
+   "rule": "alert new_jenkins when change.type == \"entity_added\" && entity.asset_type == \"FQDN\" && entity.name contains \"jenkins\" -> slack(\"sec-recon\", severity = High) throttle 1h group_by entity.name",
+   "severity": "high",
+   "actions": [
+    "slack:sec-recon"
+   ],
+   "steps": [
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_01JD8K3F",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkins.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "alert",
+     "key": "jenkins",
+     "entity_name": "jenkins.acme.com"
+    },
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_7",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "ci-jenkins.acme.com"
+       },
+       "scope_status": "unknown",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "alert",
+     "key": "ci"
+    },
+    {
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_8",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "admin.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "none"
+    },
+    {
+     "advance": "30m",
+     "event": {
+      "type": "graph.entity_added",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "entity_added",
+       "run_id": "run_7f3a91"
+      },
+      "entity": {
+       "id": "ent_01JD8K3F",
+       "asset_type": "FQDN",
+       "content": {
+        "name": "jenkins.acme.com"
+       },
+       "scope_status": "in_scope",
+       "confidence": 0.9,
+       "state": "active"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "jenkins"
+    }
+   ]
+  }
+ ]
+}

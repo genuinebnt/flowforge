@@ -1,0 +1,333 @@
+{
+ "description": "alr_001: invalid rules and the diagnostic codes (in source order) they must produce; a rule with errors does not compile and cannot be enabled.",
+ "cases": [
+  {
+   "name": "unknown field",
+   "rule": "alert bad when entity.nam == \"x\" -> slack()",
+   "diagnostics": [
+    "A0202"
+   ]
+  },
+  {
+   "name": "whole record",
+   "rule": "alert bad when entity == 1 -> slack()",
+   "diagnostics": [
+    "A0202"
+   ]
+  },
+  {
+   "name": "patch subfield",
+   "rule": "alert bad when change.patch.name == \"x\" -> slack()",
+   "diagnostics": [
+    "A0202"
+   ]
+  },
+  {
+   "name": "unknown variable",
+   "rule": "alert bad when foo.bar == 1 -> slack()",
+   "diagnostics": [
+    "A0201"
+   ]
+  },
+  {
+   "name": "unknown function",
+   "rule": "alert bad when lower(entity.name) == \"x\" -> slack()",
+   "diagnostics": [
+    "A0203"
+   ]
+  },
+  {
+   "name": "unknown action",
+   "rule": "alert bad when true -> pager(\"x\")",
+   "diagnostics": [
+    "A0204"
+   ]
+  },
+  {
+   "name": "unknown severity",
+   "rule": "alert bad when true -> slack() severity = high",
+   "diagnostics": [
+    "A0205"
+   ]
+  },
+  {
+   "name": "unknown action argument",
+   "rule": "alert bad when true -> slack(\"x\", priority = High)",
+   "diagnostics": [
+    "A0206"
+   ]
+  },
+  {
+   "name": "type mismatch",
+   "rule": "alert bad when entity.name == 1 -> slack()",
+   "diagnostics": [
+    "A0301"
+   ]
+  },
+  {
+   "name": "time plus time",
+   "rule": "alert bad when change.at + event.occurred_at > 1h -> slack()",
+   "diagnostics": [
+    "A0301"
+   ]
+  },
+  {
+   "name": "logical on string",
+   "rule": "alert bad when entity.name && true -> slack()",
+   "diagnostics": [
+    "A0301"
+   ]
+  },
+  {
+   "name": "condition not bool",
+   "rule": "alert bad when entity.name -> slack()",
+   "diagnostics": [
+    "A0302"
+   ]
+  },
+  {
+   "name": "arity",
+   "rule": "alert bad when len(entity.name, 1) == 1 -> slack()",
+   "diagnostics": [
+    "A0303"
+   ]
+  },
+  {
+   "name": "action arity",
+   "rule": "alert bad when true -> email()",
+   "diagnostics": [
+    "A0303"
+   ]
+  },
+  {
+   "name": "argument type",
+   "rule": "alert bad when len(entity.confidence) == 1 -> slack()",
+   "diagnostics": [
+    "A0304"
+   ]
+  },
+  {
+   "name": "pattern not literal",
+   "rule": "alert bad when entity.name matches entity.key -> slack()",
+   "diagnostics": [
+    "A0304"
+   ]
+  },
+  {
+   "name": "group_by not scalar",
+   "rule": "alert bad when true -> slack() group_by change.patch",
+   "diagnostics": [
+    "A0305"
+   ]
+  },
+  {
+   "name": "action argument not literal",
+   "rule": "alert bad when true -> slack(entity.name)",
+   "diagnostics": [
+    "A0306"
+   ]
+  },
+  {
+   "name": "severity conflict",
+   "rule": "alert bad when true -> slack(\"x\", severity = High) severity = Low",
+   "diagnostics": [
+    "A0307"
+   ]
+  },
+  {
+   "name": "invalid regex",
+   "rule": "alert bad when entity.name matches \"(\" -> slack()",
+   "diagnostics": [
+    "A0401"
+   ]
+  },
+  {
+   "name": "regex too large",
+   "rule": "alert bad when entity.name matches \"x{{1000}}y{{1000}}z{{1000}}w{{1000}}v{{1000}}\" -> slack()",
+   "diagnostics": [
+    "A0402"
+   ]
+  },
+  {
+   "name": "zero throttle",
+   "rule": "alert bad when true -> slack() throttle 0s",
+   "diagnostics": [
+    "A0403"
+   ]
+  },
+  {
+   "name": "bad quiet hours",
+   "rule": "alert bad when true -> slack() quiet_hours \"25:00-07:00 UTC\"",
+   "diagnostics": [
+    "A0404"
+   ]
+  },
+  {
+   "name": "empty quiet hours",
+   "rule": "alert bad when true -> slack() quiet_hours \"22:00-22:00\"",
+   "diagnostics": [
+    "A0404"
+   ]
+  },
+  {
+   "name": "unknown zone",
+   "rule": "alert bad when true -> slack() quiet_hours \"22:00-07:00 Mars/Olympus_Mons\"",
+   "diagnostics": [
+    "A0405"
+   ]
+  },
+  {
+   "name": "bad email",
+   "rule": "alert bad when true -> email(\"nobody\")",
+   "diagnostics": [
+    "A0406"
+   ]
+  },
+  {
+   "name": "duplicate clause",
+   "rule": "alert bad when true -> slack() throttle 1h throttle 2h",
+   "diagnostics": [
+    "A0104"
+   ]
+  },
+  {
+   "name": "throttle without unit",
+   "rule": "alert bad when true -> slack() throttle 5",
+   "diagnostics": [
+    "A0102"
+   ]
+  },
+  {
+   "name": "non associative relational",
+   "rule": "alert bad when change.seq < 1 < 2 -> slack()",
+   "diagnostics": [
+    "A0103"
+   ]
+  },
+  {
+   "name": "non associative equality",
+   "rule": "alert bad when true == true == true -> slack()",
+   "diagnostics": [
+    "A0103"
+   ]
+  },
+  {
+   "name": "unterminated string",
+   "rule": "alert bad when entity.name == \"abc",
+   "diagnostics": [
+    "A0001"
+   ]
+  },
+  {
+   "name": "invalid escape",
+   "rule": "alert bad when entity.name == \"\\q\" -> slack()",
+   "diagnostics": [
+    "A0002"
+   ]
+  },
+  {
+   "name": "integer too large",
+   "rule": "alert bad when change.seq == 99999999999999999999 -> slack()",
+   "diagnostics": [
+    "A0003"
+   ]
+  },
+  {
+   "name": "unknown duration unit",
+   "rule": "alert bad when 6h > 5w -> slack()",
+   "diagnostics": [
+    "A0004"
+   ]
+  },
+  {
+   "name": "unexpected character",
+   "rule": "alert bad when entity.name == @ -> slack()",
+   "diagnostics": [
+    "A0005",
+    "A0101"
+   ]
+  },
+  {
+   "name": "unterminated comment",
+   "rule": "alert bad when true -> slack() /* open",
+   "diagnostics": [
+    "A0006"
+   ]
+  },
+  {
+   "name": "interpolation",
+   "rule": "alert bad when entity.name == \"{x}\" -> slack()",
+   "diagnostics": [
+    "A0007",
+    "A0007"
+   ]
+  },
+  {
+   "name": "unsupported index",
+   "rule": "alert bad when entity.status[0] == \"x\" -> slack()",
+   "diagnostics": [
+    "A0105"
+   ]
+  },
+  {
+   "name": "range outside in",
+   "rule": "alert bad when 1..2 == 1 -> slack()",
+   "diagnostics": [
+    "A0105"
+   ]
+  },
+  {
+   "name": "missing when",
+   "rule": "alert bad true -> slack()",
+   "diagnostics": [
+    "A0102"
+   ]
+  },
+  {
+   "name": "missing alert",
+   "rule": "rule bad when true -> slack()",
+   "diagnostics": [
+    "A0102"
+   ]
+  },
+  {
+   "name": "empty source",
+   "rule": "",
+   "diagnostics": [
+    "A0102"
+   ]
+  },
+  {
+   "name": "missing arrow",
+   "rule": "alert bad when true slack()",
+   "diagnostics": [
+    "A0101"
+   ]
+  },
+  {
+   "name": "trailing junk",
+   "rule": "alert bad when true -> slack() garbage",
+   "diagnostics": [
+    "A0101"
+   ]
+  },
+  {
+   "name": "too deep",
+   "rule": "alert bad when ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((true)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) -> slack()",
+   "diagnostics": [
+    "A0106"
+   ]
+  },
+  {
+   "name": "several errors in source order",
+   "rule": "alert bad when foo.x == 1 && entity.nope -> pager() severity = Loud throttle 0s",
+   "diagnostics": [
+    "A0201",
+    "A0202",
+    "A0204",
+    "A0205",
+    "A0403"
+   ]
+  }
+ ]
+}

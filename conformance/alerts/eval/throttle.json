@@ -1,0 +1,344 @@
+{
+ "description": "alr_002 data: dedupe keys and throttle windows with a FakeClock (advance is applied before the step's event).",
+ "cases": [
+  {
+   "name": "throttle without group_by uses one key",
+   "rule": "alert th when event.type == \"run.run_failed\" -> slack() throttle 1h",
+   "steps": [
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "a",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k"
+    },
+    {
+     "advance": "1m",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "b",
+       "code": "X"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "k"
+    },
+    {
+     "advance": "58m59s",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "c",
+       "code": "X"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "k"
+    },
+    {
+     "advance": "1s",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "d",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k",
+     "suppressed_count": 2
+    }
+   ]
+  },
+  {
+   "name": "group_by splits keys",
+   "rule": "alert th when event.type == \"run.run_failed\" -> slack() group_by run.workflow_name, run.code throttle 10m",
+   "steps": [
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "a",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "aX"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "a",
+       "code": "Y"
+      }
+     },
+     "outcome": "alert",
+     "key": "aY"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "b",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "bX"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "a",
+       "code": "X"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "aX"
+    },
+    {
+     "advance": "10m",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "a",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "aX"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "a",
+       "code": "Y"
+      }
+     },
+     "outcome": "alert",
+     "key": "aY"
+    }
+   ]
+  },
+  {
+   "name": "no throttle alerts every match with the same key",
+   "rule": "alert th when event.type == \"run.run_failed\" -> slack()",
+   "steps": [
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k"
+    }
+   ]
+  },
+  {
+   "name": "transport duplicates neither alert nor count as suppressed",
+   "rule": "alert th when event.type == \"run.run_failed\" -> slack() throttle 1h",
+   "steps": [
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      },
+      "event_id": "evt_dup"
+     },
+     "outcome": "alert",
+     "key": "k"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      },
+      "event_id": "evt_dup"
+     },
+     "outcome": "duplicate"
+    },
+    {
+     "advance": "2h",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      },
+      "event_id": "evt_dup"
+     },
+     "outcome": "duplicate"
+    },
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      },
+      "event_id": "evt_new"
+     },
+     "outcome": "alert",
+     "key": "k",
+     "suppressed_count": 0
+    }
+   ]
+  },
+  {
+   "name": "throttle window restarts at each fired alert",
+   "rule": "alert th when event.type == \"run.run_failed\" -> slack() throttle 30m",
+   "steps": [
+    {
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k"
+    },
+    {
+     "advance": "29m",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "k"
+    },
+    {
+     "advance": "1m",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k",
+     "suppressed_count": 1
+    },
+    {
+     "advance": "29m",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "suppressed",
+     "key": "k"
+    },
+    {
+     "advance": "31m",
+     "event": {
+      "type": "run.run_failed",
+      "tenant_id": "ten_1",
+      "run": {
+       "id": "run_1",
+       "type": "run_failed",
+       "workflow_name": "recon",
+       "code": "X"
+      }
+     },
+     "outcome": "alert",
+     "key": "k",
+     "suppressed_count": 1
+    }
+   ]
+  }
+ ]
+}

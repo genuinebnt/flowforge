@@ -1,0 +1,481 @@
+{
+ "description": "alr_001: every operator, function and literal form of the alert language against a fixed event; rules are built as `alert <name> when <when> -> slack()`.",
+ "event": {
+  "event_id": "evt_base",
+  "type": "graph.entity_added",
+  "schema_version": 1,
+  "tenant_id": "ten_1",
+  "program_id": "prg_1",
+  "occurred_at": "2026-11-12T14:02:12.311Z",
+  "change": {
+   "id": "chg_01JD8K7A",
+   "seq": 4411,
+   "type": "entity_added",
+   "entity_id": "ent_01JD8K3F",
+   "run_id": "run_7f3a91",
+   "patch": {
+    "name": "jenkins.acme.com"
+   },
+   "at": "2026-11-12T14:02:12.311Z"
+  },
+  "entity": {
+   "id": "ent_01JD8K3F",
+   "asset_type": "FQDN",
+   "key": "fqdn:jenkins.acme.com",
+   "content": {
+    "name": "jenkins.acme.com"
+   },
+   "scope_status": "in_scope",
+   "confidence": 0.93,
+   "state": "active"
+  }
+ },
+ "cases": [
+  {
+   "name": "eq string",
+   "when": "change.type == \"entity_added\"",
+   "match": true
+  },
+  {
+   "name": "ne string",
+   "when": "change.type != \"entity_added\"",
+   "match": false
+  },
+  {
+   "name": "gt float",
+   "when": "entity.confidence > 0.9",
+   "match": true
+  },
+  {
+   "name": "ge float",
+   "when": "entity.confidence >= 0.93",
+   "match": true
+  },
+  {
+   "name": "lt float",
+   "when": "entity.confidence < 0.5",
+   "match": false
+  },
+  {
+   "name": "le float",
+   "when": "entity.confidence <= 0.93",
+   "match": true
+  },
+  {
+   "name": "int float promotion",
+   "when": "entity.confidence > 0",
+   "match": true
+  },
+  {
+   "name": "eq int",
+   "when": "change.seq == 4411",
+   "match": true
+  },
+  {
+   "name": "add",
+   "when": "change.seq + 1 == 4412",
+   "match": true
+  },
+  {
+   "name": "sub",
+   "when": "change.seq - 11 == 4400",
+   "match": true
+  },
+  {
+   "name": "mul",
+   "when": "change.seq * 2 == 8822",
+   "match": true
+  },
+  {
+   "name": "div truncates",
+   "when": "change.seq / 10 == 441",
+   "match": true
+  },
+  {
+   "name": "mod",
+   "when": "change.seq % 10 == 1",
+   "match": true
+  },
+  {
+   "name": "unary minus",
+   "when": "-change.seq < 0",
+   "match": true
+  },
+  {
+   "name": "precedence mul over add",
+   "when": "1 + 2 * 3 == 7",
+   "match": true
+  },
+  {
+   "name": "parentheses",
+   "when": "(1 + 2) * 3 == 9",
+   "match": true
+  },
+  {
+   "name": "left assoc sub",
+   "when": "10 - 3 - 2 == 5",
+   "match": true
+  },
+  {
+   "name": "contains infix",
+   "when": "entity.name contains \"jenkins\"",
+   "match": true
+  },
+  {
+   "name": "contains call",
+   "when": "contains(entity.name, \"admin\")",
+   "match": false
+  },
+  {
+   "name": "starts_with infix",
+   "when": "entity.name starts_with \"jenkins.\"",
+   "match": true
+  },
+  {
+   "name": "starts_with call",
+   "when": "starts_with(entity.name, \"grafana\")",
+   "match": false
+  },
+  {
+   "name": "ends_with infix",
+   "when": "entity.name ends_with \".com\"",
+   "match": true
+  },
+  {
+   "name": "ends_with call",
+   "when": "ends_with(entity.name, \".org\")",
+   "match": false
+  },
+  {
+   "name": "matches infix",
+   "when": "entity.name matches \"^(admin|jenkins|grafana)\\\\.\"",
+   "match": true
+  },
+  {
+   "name": "matches call",
+   "when": "matches(entity.name, \"^admin\")",
+   "match": false
+  },
+  {
+   "name": "matches braces",
+   "when": "entity.name matches \"^[a-z]{{7}}\\\\.\"",
+   "match": true
+  },
+  {
+   "name": "in list",
+   "when": "entity.asset_type in [\"FQDN\", \"IPAddress\"]",
+   "match": true
+  },
+  {
+   "name": "in call",
+   "when": "in(entity.asset_type, [\"URL\"])",
+   "match": false
+  },
+  {
+   "name": "in empty list",
+   "when": "entity.asset_type in []",
+   "match": false
+  },
+  {
+   "name": "in numeric list promotion",
+   "when": "change.seq in [1.5, 4411]",
+   "match": true
+  },
+  {
+   "name": "in range",
+   "when": "change.seq in 4000..5000",
+   "match": true
+  },
+  {
+   "name": "in range half open",
+   "when": "change.seq in 0..4411",
+   "match": false
+  },
+  {
+   "name": "in object key",
+   "when": "\"name\" in change.patch",
+   "match": true
+  },
+  {
+   "name": "contains object key",
+   "when": "contains(change.patch, \"address\")",
+   "match": false
+  },
+  {
+   "name": "in substring",
+   "when": "\"kins\" in entity.name",
+   "match": true
+  },
+  {
+   "name": "len string",
+   "when": "len(entity.name) == 16",
+   "match": true
+  },
+  {
+   "name": "len object",
+   "when": "len(change.patch) == 1",
+   "match": true
+  },
+  {
+   "name": "len list literal",
+   "when": "len([\"a\", \"b\", \"c\"]) == 3",
+   "match": true
+  },
+  {
+   "name": "pipe",
+   "when": "entity.name |> starts_with(\"jen\")",
+   "match": true
+  },
+  {
+   "name": "pipe bare",
+   "when": "(entity.name |> len) > 10",
+   "match": true
+  },
+  {
+   "name": "and not",
+   "when": "true && !false",
+   "match": true
+  },
+  {
+   "name": "or",
+   "when": "false || entity.state == \"active\"",
+   "match": true
+  },
+  {
+   "name": "not group",
+   "when": "!(entity.state == \"active\")",
+   "match": false
+  },
+  {
+   "name": "and binds tighter than or",
+   "when": "true || false && false",
+   "match": true
+  },
+  {
+   "name": "time minus time",
+   "when": "event.occurred_at - change.at == 0s",
+   "match": true
+  },
+  {
+   "name": "time plus duration",
+   "when": "event.occurred_at + 1h > change.at",
+   "match": true
+  },
+  {
+   "name": "time minus duration",
+   "when": "event.occurred_at - 1h < change.at",
+   "match": true
+  },
+  {
+   "name": "duration units",
+   "when": "1h == 60m && 1m == 60s && 1s == 1000ms && 1d == 24h",
+   "match": true
+  },
+  {
+   "name": "duration mul div",
+   "when": "250ms * 4 == 1s && 2h / 2 == 1h && 2 * 30m == 1h",
+   "match": true
+  },
+  {
+   "name": "duration compare",
+   "when": "6h > 15m",
+   "match": true
+  },
+  {
+   "name": "envelope fields",
+   "when": "event.tenant == \"ten_1\" && event.program == \"prg_1\" && event.id == \"evt_base\"",
+   "match": true
+  },
+  {
+   "name": "schema version",
+   "when": "event.schema_version == 1",
+   "match": true
+  },
+  {
+   "name": "event type",
+   "when": "event.type == \"graph.entity_added\"",
+   "match": true
+  },
+  {
+   "name": "string concat",
+   "when": "\"a\" + \"b\" == \"ab\"",
+   "match": true
+  },
+  {
+   "name": "string order",
+   "when": "\"a\" < \"b\"",
+   "match": true
+  },
+  {
+   "name": "bool equality",
+   "when": "(1 < 2) == true",
+   "match": true
+  },
+  {
+   "name": "hex and underscores",
+   "when": "0x10 == 16 && 1_000 == 1000",
+   "match": true
+  },
+  {
+   "name": "float exponent",
+   "when": "1.5e3 == 1500",
+   "match": true
+  },
+  {
+   "name": "absent section eq",
+   "when": "approval.status == \"pending\"",
+   "match": false
+  },
+  {
+   "name": "absent section ne",
+   "when": "approval.status != \"pending\"",
+   "match": false
+  },
+  {
+   "name": "absent or true",
+   "when": "approval.status == \"x\" || entity.state == \"active\"",
+   "match": true
+  },
+  {
+   "name": "absent and false",
+   "when": "!(approval.status == \"x\" && false)",
+   "match": true
+  },
+  {
+   "name": "absent not",
+   "when": "!(approval.status == \"x\")",
+   "match": false
+  },
+  {
+   "name": "absent content field",
+   "when": "entity.port == 443",
+   "match": false
+  },
+  {
+   "name": "absent content field negated",
+   "when": "!(entity.port == 443)",
+   "match": false
+  },
+  {
+   "name": "comments",
+   "when": "/* c /* nested */ */ entity.state == \"active\" // trailing\n",
+   "match": true
+  },
+  {
+   "name": "escapes",
+   "when": "\"a\\tb\" contains \"\\t\" && \"\\u{41}\" == \"A\" && \"q\\\"q\" == \"q\\\"q\"",
+   "match": true
+  },
+  {
+   "name": "literal braces",
+   "when": "\"{{x}}\" == \"{{\" + \"x}}\"",
+   "match": true
+  },
+  {
+   "name": "overflow fails closed",
+   "when": "change.seq * 9223372036854775807 > 0",
+   "match": false
+  },
+  {
+   "name": "division by zero fails closed",
+   "when": "change.seq / 0 == 1",
+   "match": false
+  },
+  {
+   "name": "entity fixed fields",
+   "when": "entity.id == \"ent_01JD8K3F\" && entity.key starts_with \"fqdn:\" && entity.scope_status == \"in_scope\"",
+   "match": true
+  },
+  {
+   "name": "change fields",
+   "when": "change.run_id == \"run_7f3a91\" && change.entity_id == \"ent_01JD8K3F\" && change.id == \"chg_01JD8K7A\"",
+   "match": true
+  },
+  {
+   "name": "edge fields",
+   "when": "edge.label == \"dns_record\" && edge.confidence > 0.5 && change.type == \"edge_added\"",
+   "event": {
+    "event_id": "evt_edge",
+    "type": "graph.edge_added",
+    "tenant_id": "ten_1",
+    "occurred_at": "2026-11-12T14:00:00Z",
+    "change": {
+     "type": "edge_added",
+     "edge_id": "edg_1",
+     "at": "2026-11-12T14:00:00Z"
+    },
+    "edge": {
+     "id": "edg_1",
+     "relation_type": "BasicDNSRelation",
+     "label": "dns_record",
+     "from_entity_id": "ent_a",
+     "to_entity_id": "ent_b",
+     "confidence": 0.97,
+     "state": "active"
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "run fields",
+   "when": "run.code == \"TOOL_TIMEOUT\" && run.workflow_name == \"recon\" && run.seq > 10",
+   "event": {
+    "event_id": "evt_run",
+    "type": "run.run_failed",
+    "tenant_id": "ten_1",
+    "occurred_at": "2026-11-12T14:00:00Z",
+    "run": {
+     "id": "run_1",
+     "seq": 42,
+     "type": "run_failed",
+     "workflow_name": "recon",
+     "code": "TOOL_TIMEOUT",
+     "message": "x"
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "ip content fields",
+   "when": "entity.address starts_with \"203.0.113.\" && entity.ip_version == \"IPv4\"",
+   "event": {
+    "event_id": "evt_ip",
+    "type": "graph.entity_added",
+    "tenant_id": "ten_1",
+    "occurred_at": "2026-11-12T14:00:00Z",
+    "entity": {
+     "id": "ent_ip",
+     "asset_type": "IPAddress",
+     "content": {
+      "address": "203.0.113.10",
+      "ip_version": "IPv4"
+     }
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "typed content fields",
+   "when": "entity.port == 8443 && entity.is_ca == false && \"digital_signature\" in entity.key_usage && entity.not_after < event.occurred_at + 720h",
+   "event": {
+    "event_id": "evt_cert",
+    "type": "graph.entity_changed",
+    "tenant_id": "ten_1",
+    "occurred_at": "2026-11-12T14:00:00Z",
+    "entity": {
+     "id": "ent_c",
+     "asset_type": "TLSCertificate",
+     "content": {
+      "port": 8443,
+      "is_ca": false,
+      "key_usage": [
+       "digital_signature"
+      ],
+      "not_after": "2026-12-01T00:00:00Z"
+     }
+    }
+   },
+   "match": true
+  }
+ ]
+}
