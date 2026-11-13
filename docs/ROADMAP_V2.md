@@ -1,14 +1,15 @@
 # Flowforge v2 roadmap (`feat_v2`)
 
 v1 implements the whole specification except the agent step. v2 closes the
-three biggest gaps v1 left. Each one is also chosen for what you learn by
-building it:
+biggest gaps v1 left and adds content change monitoring. Each track is also
+chosen for what you learn by building it:
 
 | Track | Closes this v1 gap | You learn |
 |---|---|---|
 | **A. Real tools and a sandbox** | Only offline demo adapters, run in-process with no isolation (spec 6, 18.2) | Linux isolation (namespaces, seccomp, rlimits, cgroups), process supervision, streaming parsers, safe egress |
 | **B. Distributed systems** | Single-owner leases only; no placement, no fairness, no replicated log (spec 23.3, 23.4 B, 23.9 D1–D4) | Leases and fencing at scale, linearizability, Raft, deterministic simulation |
 | **C. Performance engineering** | The VM is slower than the tree-walker on list code; "SIMD" is unrolled Go; benchmarks are scaled down (spec 25.8) | Profiling, allocation control, interpreter design, SIMD assembly, ANN on SSD, write-ups |
+| **D. Content capture, change diffs and diff search** | The graph records *that* a URL exists, not *what it serves* or how that changes; there is no way to ask "what changed in this program's JavaScript this week?" | HTML parsing, JavaScript lexing, diff algorithms, noise-robust normalization, inverted and trigram indexes, ranking |
 
 The agent step stays deferred (`docs/DECISIONS.md` D1).
 
@@ -253,6 +254,140 @@ deadline or cancel.
 
 ---
 
+## Track D — Content capture, change diffs and diff search
+
+The goal: every time a workflow fetches a page or script, keep what it
+served, compute what changed since the last capture, turn meaningful
+changes into graph changes and alerts, and make the history of changes
+searchable ("new endpoints containing `/admin` since Monday", "where did
+the CSP header disappear", "which bundles started calling `/api/v3`").
+
+### D1. Content store and the collector tool
+
+* **Content-addressed blob store:** bodies are stored once by SHA-256
+  (compressed), so an unchanged page costs nothing to keep. It sits behind
+  the existing `BlobStore` port: local directory and memory now, GCS
+  later.
+* **Snapshot records** (new graph-schema tables, a migration): `(tenant,
+  program, url entity, run, effect path, fetched_at, status, selected
+  headers, mime, body_sha256, size, parent snapshot)`, plus retention
+  rules per program.
+* **The `collect` tool** (active, through the egress proxy, sandboxed once
+  A1 lands): `collect(InScope<Url>) -> Snapshot`. It fetches with redirect
+  re-checks, caps size and time, and follows referenced scripts, styles,
+  source maps and manifests up to a per-run budget, each one scope-checked.
+  It emits `URL` and `File` observations and a `ContentProperty` tag
+  (hash, size, mime) on the entity. The snapshot is the tool's recorded
+  result, so replay is exact without refetching.
+* **DSL surface:** `collect`, plus a pure-data `diff(prev, next)` tool
+  served by the content service. A monitoring workflow is then plain DSL
+  that runs on a Cloud Scheduler trigger:
+  `urls |> par_map(u => collect(scope.check(u)?), limit = 8) |> map(s => diff_latest(s))`.
+
+### D2. Parsers and extraction (`content` package)
+
+* **HTML:** parse with `golang.org/x/net/html` (already a dependency; the
+  HTML5 tree-building algorithm is enormous and correctness matters more
+  than reinventing it). Extract links, script and style references, inline
+  scripts, forms (action, method, inputs), meta tags, comments, iframes,
+  and security-relevant headers (CSP, HSTS, CORS) from the snapshot.
+  *Learning option:* write our own HTML **tokenizer** from the WHATWG state
+  machine and differential-test it against `x/net/html`.
+* **JavaScript: our own lexer and a light parser.** This is a real learning
+  piece:
+  * Full ES2023 tokenization: regex-literal versus division ambiguity,
+    template literals with nested `${}`, ASI-relevant newlines, Unicode
+    escapes in identifiers, numeric separators, and hashbang.
+  * A light structural parser on top: string and template literals with
+    their call context, `fetch`/`XMLHttpRequest`/`axios` calls,
+    `import()`, route tables, GraphQL operation strings, `sourceMappingURL`.
+  * Fuzzing for hangs and panics, with a test262 lexer subset as
+    conformance data.
+* **Extracted features become graph data:** new endpoints and paths become
+  `URL` entities; a script becomes a `File` with a `file` edge from its
+  page; library banners become `Product`/`ProductRelease` with
+  `product_used`. The ingest path stays the existing graph store, so dedupe
+  and confidence come for free.
+* **Secret and leak detection:** a rule set of named patterns plus entropy
+  checks for keys and tokens in bundles. Findings are `VulnProperty` tags
+  marked as hypotheses until verified (spec 16.1 fact/hypothesis rule).
+
+### D3. Diff engine (`diff` package)
+
+* **Algorithms from scratch:** Myers O(ND) (with the linear-space
+  divide-and-conquer refinement), patience diff and histogram diff, with
+  hunks, context and unified-diff rendering. Each is property-tested:
+  applying the edit script to the old text gives the new text, edit
+  distance is minimal for Myers, and two diffs agree on the edit-distance
+  bound.
+* **Noise-robust normalization before diffing.** Most raw diffs of web
+  content are noise, so:
+  * HTML is compared as a normalized token or DOM text stream, not bytes.
+  * Minified JS is diffed on its token stream, re-printed one statement
+    per line.
+  * Volatile values are masked: nonces, CSRF tokens, timestamps,
+    cache-busting hashes in file names, and session ids. This uses rules
+    plus learned masks, where a token that changes on every capture of an
+    unchanged page is marked volatile.
+* **Three levels of change, each a different signal:**
+  1. hash changed (cheap, always);
+  2. text or token hunks (what a human reads);
+  3. **semantic changes**: the set difference of extracted features (new or
+     removed endpoint, form, parameter, script, header, library version).
+     These are what drive alerts and graph changes.
+* *Optional stretch:* tree diff for the DOM (Zhang–Shasha, or a
+  GumTree-style matcher) to report moved and edited elements rather than
+  line hunks.
+
+### D4. Change events, alerts and the pipeline
+
+* New change-event types in `graph.change_events` (migration):
+  `content_changed`, `endpoint_added`, `endpoint_removed`,
+  `header_changed`, `secret_suspected`, carrying a compact patch and a
+  pointer to the stored diff.
+* The alert language gains a `diff` variable (`diff.kind`, `diff.added`,
+  `diff.removed`, `diff.url`, `diff.feature`), so rules like
+  `alert new_admin_route when diff.kind == "endpoint_added" && diff.added
+  contains "/admin"` work with the existing throttle, digest and dedupe.
+* Monitoring as a scheduled workflow, with per-program schedules and the
+  existing idempotency (`schedule:<id>:<fire time>`), rate limits and
+  scope checks.
+
+### D5. Search over change history (`textindex` package)
+
+* **An inverted index built from scratch:** tokenization tuned for code and
+  URLs (split on case, punctuation and path segments, keeping originals),
+  delta- and varint-compressed posting lists, an immutable segment format
+  with checksums, and segment merging. It follows the shape of
+  `vecindex`'s segments, so the two can share ideas.
+* **Query types:**
+  * term and phrase queries with BM25 ranking;
+  * filters for program, time range, URL prefix, change kind (added or
+    removed) and feature type;
+  * **regex search with a trigram prefilter**, as in Google Code Search: a
+    regex compiles to a trigram AND/OR query, candidates come from the
+    trigram index, and exact matching runs on survivors.
+* **Hybrid search:** lexical results fused with `vecindex` semantic results
+  through the existing RRF (spec 22.6). Each diff hunk is embedded as it is
+  indexed.
+* Postgres keeps the system of record (`pg_trgm` covers the simple cases).
+  The custom index is the fast path and the learning piece, and it can
+  always be rebuilt from stored diffs.
+* REST: `GET /v1/programs/{pid}/changes/search?q=...&kind=added&since=...`,
+  `GET /v1/snapshots/{id}`, `GET /v1/snapshots/{a}/diff/{b}`.
+* *Read:* "Introduction to Information Retrieval" (chapters 1–6); Russ Cox,
+  "Regular Expression Matching with a Trigram Index"; Lucene's segment and
+  merge design.
+
+### D6. Rendering single-page apps (stretch, after A1)
+
+* Pages that build their content in JavaScript need a browser. Run headless
+  Chromium inside the A1 sandbox with all traffic forced through the egress
+  proxy, capture the rendered DOM and the network requests it made, and
+  feed both into the same snapshot and diff pipeline. A headless browser
+  is the most dangerous tool in the project, which is why it comes only
+  after the sandbox and the attack lab.
+
 ## Suggested order
 
 Tracks are interleaved so that each step builds on finished work and every
@@ -262,18 +397,23 @@ week ends with something measurable:
 2. **A1** sandbox runtime
 3. **B1** rendezvous claiming and heartbeats
 4. **C1** faster VM
-5. **A3** passive adapters (CT, RDAP, ASN)
-6. **B3** linearizability checker
-7. **A2 + A4** binary tool framework, httpx and subfinder
-8. **C2** SIMD kernels
-9. **B2** tenant fairness
-10. **A5** attack lab end-to-end
-11. **C4** engine and ingest throughput
-12. **B4** Raft library
-13. **C3** DiskANN at SIFT1M scale
-14. **B5** Raft event store
-15. **C5** CSR at scale
-16. **B6** whole-cluster simulation
+5. **D1 + D2** content store, collector, HTML extraction and the JS lexer
+6. **D3** diff engine and noise-robust normalization
+7. **A3** passive adapters (CT, RDAP, ASN)
+8. **D4** change events, alert rules on diffs, monitoring workflow
+9. **B3** linearizability checker
+10. **D5** inverted and trigram index, search over change history
+11. **A2 + A4** binary tool framework, httpx and subfinder
+12. **C2** SIMD kernels
+13. **B2** tenant fairness
+14. **A5** attack lab end-to-end
+15. **C4** engine and ingest throughput
+16. **B4** Raft library
+17. **D6** headless rendering in the sandbox (stretch)
+18. **C3** DiskANN at SIFT1M scale
+19. **B5** Raft event store
+20. **C5** CSR at scale
+21. **B6** whole-cluster simulation
 
 ## Risks and decisions to make along the way
 
@@ -289,4 +429,13 @@ week ends with something measurable:
 * **New dependencies.** `golang.org/x/sys` (already indirect) becomes
   direct for seccomp, rlimits and CPU detection. Nothing else is planned.
 * **Scope safety.** Real tools make the egress proxy's guarantees matter.
-  A5 must pass before any real tool is enabled outside the lab.
+  A5 must pass before any real tool is enabled outside the lab. The
+  collector follows links and script references, so every follow-up fetch
+  is its own scope decision. Nothing is fetched just because a page
+  referenced it.
+* **Untrusted content.** Captured HTML and JS are data: never executed
+  outside the D6 sandbox, never fed raw to a model, size-capped and
+  stored compressed. Diff and search output escape everything they show.
+* **Storage growth.** Content-addressed storage plus retention per program
+  keeps this bounded. The snapshot and diff tables need a retention job
+  (spec 10.7 style) from day one.
