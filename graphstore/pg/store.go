@@ -127,5 +127,5 @@ func (s *Store) tryTx(ctx context.Context, tenant graphstore.ID, mode txMode, fn
 
 func retryable(err error) bool {
 	var pe *pgconn.PgError
-	return errors.As(err, &pe) && (pe.Code == "40001" || pe.Code == "40P01")
+	return errors.Is(err, errRetry) || errors.As(err, &pe) && (pe.Code == "40001" || pe.Code == "40P01")
 }

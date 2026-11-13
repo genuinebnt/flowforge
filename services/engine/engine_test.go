@@ -17,6 +17,7 @@ import (
 	"github.com/genuinebnt/flowforge/services/devstack"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
 	"github.com/genuinebnt/flowforge/services/internal/servicetest"
+	"github.com/genuinebnt/flowforge/services/toolrunner"
 )
 
 const echoSource = `workflow echo(x: String) -> String { mock(x) }`
@@ -27,8 +28,13 @@ func TestEngineService_Postgres(t *testing.T) { runEngine(t, servicetest.FreshDB
 func runEngine(t *testing.T, dsn string) {
 	st, a, b := servicetest.Stack(t, devstack.Options{DBDSN: dsn})
 	tools, err := st.ToolRunner.ListTools(a, &pb.ListToolsRequest{})
-	if err != nil || len(tools.GetTools()) != 4 || tools.GetTools()[0].GetSpecSha256() == "" {
+	if err != nil || len(tools.GetTools()) != len(toolrunner.DefaultAdapters(toolrunner.HTTPProbe{})) {
 		t.Fatalf("tools %v %v", tools, err)
+	}
+	for _, tl := range tools.GetTools() {
+		if tl.GetSpecSha256() == "" {
+			t.Fatalf("tool %s has no spec_sha256", tl.GetName())
+		}
 	}
 
 	// Source errors come back as DSL_DIAGNOSTICS with the diagnostics.

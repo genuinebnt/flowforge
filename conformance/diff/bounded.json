@@ -1,0 +1,90 @@
+{
+ "bounded": [
+  {
+   "name": "tokens_default",
+   "old": "fetch('/api/v1/users');\nconst x = 1;\nconsole.log(x);\n",
+   "new": "fetch('/api/v2/users');\nconst x = 2;\nconsole.log(x);\n",
+   "bounds": [
+    0,
+    0,
+    0
+   ],
+   "level": "tokens",
+   "fallback": "none",
+   "capped": false,
+   "script": "=6 -1 +1 =12 -1 +1 =10"
+  },
+  {
+   "name": "identical",
+   "old": "fetch('/api/v1/users');\nconst x = 1;\nconsole.log(x);\n",
+   "new": "fetch('/api/v1/users');\nconst x = 1;\nconsole.log(x);\n",
+   "bounds": [
+    0,
+    0,
+    0
+   ],
+   "level": "tokens",
+   "fallback": "none",
+   "capped": false,
+   "script": "=30"
+  },
+  {
+   "name": "edit_distance_cap_to_lines",
+   "old": "fetch('/api/v1/users');\nconst x = 1;\nconsole.log(x);\n",
+   "new": "fetch('/api/v2/users');\nconst x = 2;\nconsole.log(x);\n",
+   "bounds": [
+    2,
+    0,
+    0
+   ],
+   "level": "lines",
+   "fallback": "edit_distance",
+   "capped": false,
+   "script": "-2 +2 =1"
+  },
+  {
+   "name": "input_size_to_lines",
+   "old": "fetch('/api/v1/users');\nconst x = 1;\nconsole.log(x);\n",
+   "new": "fetch('/api/v2/users');\nconst x = 2;\nconsole.log(x);\n",
+   "bounds": [
+    0,
+    16,
+    0
+   ],
+   "level": "lines",
+   "fallback": "input_size",
+   "capped": false,
+   "script": "-2 +2 =1"
+  },
+  {
+   "name": "input_size_to_hash",
+   "old": "fetch('/api/v1/users');\nconst x = 1;\nconsole.log(x);\n",
+   "new": "fetch('/api/v2/users');\nconst x = 2;\nconsole.log(x);\n",
+   "bounds": [
+    0,
+    16,
+    16
+   ],
+   "level": "hash",
+   "fallback": "input_size",
+   "capped": false,
+   "script": ""
+  },
+  {
+   "name": "lines_capped",
+   "old": "a\nb\nc\nd\n",
+   "new": "w\nx\ny\nz\n",
+   "bounds": [
+    1,
+    0,
+    0
+   ],
+   "level": "lines",
+   "fallback": "edit_distance",
+   "capped": false,
+   "script": "-4 +4"
+  }
+ ],
+ "description": "BoundedDiff levels (V2_DESIGN §5). bounds = [MaxEditDistance, MaxInputBytes, MaxLineInputBytes], 0 meaning the default (10000, 4 MiB, 64 MiB). level is tokens (Myers over SplitWords), lines (histogram over SplitLines) or hash; fallback is none, edit_distance or input_size; script is EditScript.String() at that level (empty for hash).",
+ "id": "diff_bounded_001"
+}

@@ -1,0 +1,30 @@
+{
+  "description": "The \"mappings\" field (ECMA-426 §Mappings structure). expected rows are [genLine, genCol, source, origLine, origCol, name] with -1 for absent fields, in encoded order; lines is the generated line count. canonical says whether re-encoding gives the input back.",
+  "cases": [
+    {"name": "ECMA-426 example", "mappings": "A,AAAC;;AACDE", "sources": 2, "names": 4, "lines": 3, "canonical": true,
+     "expected": [[0, 0, -1, -1, -1, -1], [0, 0, 0, 0, 1, -1], [2, 0, 0, 1, 0, 2]]},
+    {"name": "empty", "mappings": "", "sources": 0, "names": 0, "lines": 1, "canonical": true, "expected": []},
+    {"name": "only separators", "mappings": ";;;", "sources": 0, "names": 0, "lines": 4, "canonical": true, "expected": []},
+    {"name": "column resets per line, others carry over", "mappings": "IAAM,EAAE;EACA", "sources": 1, "names": 0, "lines": 2, "canonical": true,
+     "expected": [[0, 4, 0, 0, 6, -1], [0, 6, 0, 0, 8, -1], [1, 2, 0, 1, 8, -1]]},
+    {"name": "negative deltas within a line keep order", "mappings": "KAAA,DAAA", "sources": 1, "names": 0, "lines": 1, "canonical": true,
+     "expected": [[0, 5, 0, 0, 0, -1], [0, 4, 0, 0, 0, -1]]},
+    {"name": "names carry across segments", "mappings": "AAAAA,CAAAC,CAAAD", "sources": 1, "names": 2, "lines": 1, "canonical": true,
+     "expected": [[0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 1], [0, 2, 0, 0, 0, 0]]},
+    {"name": "non-canonical VLQ accepted", "mappings": "gA,B", "sources": 0, "names": 0, "lines": 1, "canonical": false,
+     "expected": [[0, 0, -1, -1, -1, -1], [0, 0, -1, -1, -1, -1]]},
+    {"name": "two-field segment", "mappings": "AA", "sources": 1, "names": 0, "error": "invalid_segment", "offset": 0},
+    {"name": "three-field segment", "mappings": "AAAA,AAA", "sources": 1, "names": 0, "error": "invalid_segment", "offset": 5},
+    {"name": "six-field segment", "mappings": "AAAAAA", "sources": 1, "names": 1, "error": "invalid_segment", "offset": 0},
+    {"name": "empty segment between commas", "mappings": "A,,A", "sources": 0, "names": 0, "error": "invalid_segment", "offset": 2},
+    {"name": "trailing comma", "mappings": "A,", "sources": 0, "names": 0, "error": "invalid_segment", "offset": 2},
+    {"name": "comma before semicolon", "mappings": "A,;A", "sources": 0, "names": 0, "error": "invalid_segment", "offset": 2},
+    {"name": "truncated VLQ", "mappings": "AAAg", "sources": 1, "names": 0, "error": "vlq_truncated", "offset": 4},
+    {"name": "bad character", "mappings": "AA*A", "sources": 1, "names": 0, "error": "invalid_vlq_char", "offset": 2},
+    {"name": "source index out of range", "mappings": "ACAA", "sources": 1, "names": 0, "error": "index_out_of_range", "offset": 0},
+    {"name": "name index out of range", "mappings": "AAAAC", "sources": 1, "names": 1, "error": "index_out_of_range", "offset": 0},
+    {"name": "negative column", "mappings": "D", "sources": 0, "names": 0, "error": "negative_value", "offset": 0},
+    {"name": "negative original line", "mappings": "AADA", "sources": 1, "names": 0, "error": "negative_value", "offset": 0},
+    {"name": "overflowing value", "mappings": "AAAgggggggA", "sources": 1, "names": 0, "error": "vlq_overflow", "offset": 10}
+  ]
+}

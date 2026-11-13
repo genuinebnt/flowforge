@@ -1,0 +1,471 @@
+{
+ "description": "Authoritative staleness gated on coverage (V2 3.4): a complete capture withdraws edges and tags of its covered rule families at once (edge_removed, tag removal), keeps families it did not cover (forms), a newer partial capture re-adds without withdrawing, and entities lose liveness with their last authoritative edge. State converges under reordering and duplication.",
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "c1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c1",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:01:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "A",
+      "asset": {
+       "type": "File",
+       "url": "https://acme.com/a.js",
+       "name": "a.js"
+      }
+     },
+     {
+      "ref": "B",
+      "asset": {
+       "type": "File",
+       "url": "https://acme.com/b.js",
+       "name": "b.js"
+      }
+     },
+     {
+      "ref": "E",
+      "asset": {
+       "type": "Endpoint",
+       "method": "POST",
+       "url_template": "https://acme.com/login",
+       "source": "html_form"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "A",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "loads_script"
+      }
+     },
+     {
+      "from": "P",
+      "to": "B",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "loads_script"
+      }
+     },
+     {
+      "from": "P",
+      "to": "E",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "form_action"
+      }
+     }
+    ],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "content-security-policy",
+       "value": "default-src 'self'"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "scripts",
+      "forms",
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "c2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c2",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:02:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "A",
+      "asset": {
+       "type": "File",
+       "url": "https://acme.com/a.js",
+       "name": "a.js"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "A",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "loads_script"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "scripts",
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "p3",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-p3",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:03:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "B",
+      "asset": {
+       "type": "File",
+       "url": "https://acme.com/b.js",
+       "name": "b.js"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "B",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "loads_script"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "partial"
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "c4",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c4",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:04:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "A",
+      "asset": {
+       "type": "File",
+       "url": "https://acme.com/a.js",
+       "name": "a.js"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "A",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "loads_script"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "scripts"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "t5",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-t5",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:05:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "partial",
+     "covered_rules": [
+      "scripts"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "c2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c2",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:02:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "A",
+      "asset": {
+       "type": "File",
+       "url": "https://acme.com/a.js",
+       "name": "a.js"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "A",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "loads_script"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "scripts",
+      "headers"
+     ]
+    }
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://acme.com/",
+    "state": "active",
+    "tags": []
+   },
+   {
+    "key": "file:e109a33e2ecae3560d05acd677684eb4189d9ea1ea2bf4b6a72ecd8df48829cb",
+    "state": "active"
+   },
+   {
+    "key": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751",
+    "state": "stale"
+   },
+   {
+    "key": "ep:POST https://acme.com/login",
+    "state": "active"
+   }
+  ],
+  "edges": [
+   {
+    "from": "url:https://acme.com/",
+    "label": "loads_script",
+    "to": "file:e109a33e2ecae3560d05acd677684eb4189d9ea1ea2bf4b6a72ecd8df48829cb",
+    "state": "active"
+   },
+   {
+    "from": "url:https://acme.com/",
+    "label": "loads_script",
+    "to": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751",
+    "state": "stale"
+   },
+   {
+    "from": "url:https://acme.com/",
+    "label": "form_action",
+    "to": "ep:POST https://acme.com/login",
+    "state": "active"
+   }
+  ],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/"
+   },
+   {
+    "type": "entity_added",
+    "entity": "file:e109a33e2ecae3560d05acd677684eb4189d9ea1ea2bf4b6a72ecd8df48829cb"
+   },
+   {
+    "type": "entity_added",
+    "entity": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+   },
+   {
+    "type": "entity_added",
+    "entity": "ep:POST https://acme.com/login"
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "loads_script",
+     "to": "file:e109a33e2ecae3560d05acd677684eb4189d9ea1ea2bf4b6a72ecd8df48829cb"
+    }
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "loads_script",
+     "to": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+    }
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "form_action",
+     "to": "ep:POST https://acme.com/login"
+    }
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/content-security-policy",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "content-security-policy",
+       "value": "default-src 'self'"
+      }
+     }
+    ]
+   },
+   {
+    "type": "edge_removed",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "loads_script",
+     "to": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+    }
+   },
+   {
+    "type": "entity_stale",
+    "entity": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/content-security-policy",
+    "patch": [
+     {
+      "op": "remove",
+      "path": ""
+     }
+    ]
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "loads_script",
+     "to": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+    }
+   },
+   {
+    "type": "entity_reactivated",
+    "entity": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+   },
+   {
+    "type": "edge_removed",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "loads_script",
+     "to": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+    }
+   },
+   {
+    "type": "entity_stale",
+    "entity": "file:75cecb007571df5a3899a2090fb5b7696cd0f886bae4b5ee906d9af2935fe751"
+   }
+  ]
+ }
+}

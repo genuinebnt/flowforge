@@ -1,0 +1,87 @@
+{
+  "module": "chunkstore",
+  "date": "2026-11-13",
+  "commit": "ccc7b7f",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "2x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkChunk",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 1.252,
+        "MB/s": 1252.45,
+        "allocs/op": 0,
+        "ns/op": 53582116
+      }
+    },
+    {
+      "bench_id": "BenchmarkPut/1MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 4941752,
+        "MB/s": 46.49,
+        "allocs/op": 285,
+        "ns/op": 22556148
+      }
+    },
+    {
+      "bench_id": "BenchmarkPut/100MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 355051908,
+        "MB/s": 100.01,
+        "allocs/op": 11654,
+        "ns/op": 1048461332
+      }
+    },
+    {
+      "bench_id": "BenchmarkGet/1MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 1754928,
+        "MB/s": 285.53,
+        "allocs/op": 849,
+        "ns/op": 3672434
+      }
+    },
+    {
+      "bench_id": "BenchmarkGet/100MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 154926212,
+        "MB/s": 211.19,
+        "allocs/op": 78465,
+        "ns/op": 496502145
+      }
+    },
+    {
+      "bench_id": "BenchmarkAcceptance50Versions",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 691090184,
+        "MB/s": 144.12,
+        "allocs/op": 161390,
+        "compression_x": 2.682,
+        "dedupe_x": 27.55,
+        "ns/op": 729275071,
+        "stored_%": 1.552
+      }
+    }
+  ]
+}

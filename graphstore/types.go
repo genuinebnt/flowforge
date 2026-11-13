@@ -109,6 +109,64 @@ type ChangeEvent struct {
 	Patch     []oam.PatchOp  `json:"patch,omitempty"`
 	At        time.Time      `json:"at"`
 	Entity    *Entity        `json:"entity,omitempty"`
+	// TagType and TagName name the tag of a tag_changed event.
+	TagType string `json:"tag_type,omitempty"`
+	TagName string `json:"tag_name,omitempty"`
+	// Base is the record's state at creation (entity_added, and the
+	// edge_added that created an edge); AsOf reads replay from it.
+	Base map[string]any `json:"base,omitempty"`
+	// ContentChange is the patch of a content_changed event.
+	ContentChange *oam.ContentChangePatch `json:"content_change,omitempty"`
+	// Cause ("" = target, "parser", "normalizer") and Baseline come from
+	// the observation or content change that produced the event.
+	Cause    string `json:"cause,omitempty"`
+	Baseline bool   `json:"baseline,omitempty"`
+}
+
+// ContentChange is the RecordContentChange request (V2 §3.4): the
+// content service reports that two snapshots of an entity differ. At
+// zero means the store clock.
+type ContentChange struct {
+	EntityID string
+	RunID    string
+	At       time.Time
+	Patch    oam.ContentChangePatch
+}
+
+// GetEntityAsOfRequest reads an entity as it was right after the change
+// event with seq Seq of its program (Seq >= 1).
+type GetEntityAsOfRequest struct {
+	EntityID    string
+	Seq         int64
+	IncludeTags bool
+}
+
+// NeighborsAsOfRequest is a NeighborsRequest evaluated on the graph as
+// it was right after change event Seq. Since must be zero (last_seen is
+// not reconstructed).
+type NeighborsAsOfRequest struct {
+	NeighborsRequest
+	Seq int64
+}
+
+// CommonnessRequest asks how widely an entity is shared.
+type CommonnessRequest struct {
+	EntityID string
+}
+
+// CommonThreshold is the holder count above which a node is common (V2
+// §3.4): pivots and leads ignore it, and sharing it never implies
+// ownership.
+const CommonThreshold = 50
+
+// Commonness reports how many distinct sources (entities) and holders
+// (hosts of those entities) point at an entity over active edges, and
+// whether it is common (Holders > CommonThreshold).
+type Commonness struct {
+	EntityID string `json:"entity_id"`
+	Sources  int    `json:"sources"`
+	Holders  int    `json:"holders"`
+	Common   bool   `json:"common"`
 }
 
 // IngestRequest carries one observation (proto IngestRequest). TenantID

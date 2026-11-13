@@ -35,9 +35,9 @@ func (s Stamp) Compare(o Stamp) int {
 // PatchOp is one RFC 6902 operation of an entity_changed patch. Paths are
 // JSON pointers into the asset content, for example "/title".
 type PatchOp struct {
-	Op    string `json:"op"` // "add" or "replace"
+	Op    string `json:"op"` // "add", "replace" or (tag_changed only) "remove"
 	Path  string `json:"path"`
-	Value any    `json:"value"`
+	Value any    `json:"value,omitempty"`
 }
 
 // Content is an asset (or relation, or property) content object together

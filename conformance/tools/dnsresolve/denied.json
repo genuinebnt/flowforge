@@ -1,0 +1,24 @@
+{
+ "description": "Out-of-scope input: skipped, no query.",
+ "input": "evil.test",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "dns": [],
+ "expect": {
+  "output": [],
+  "skipped": [
+   {
+    "target": "evil.test",
+    "reason": "no_matching_allow"
+   }
+  ],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Assurance bounds: element depth and input size. A limit hit grades the result partial, with the tree read so far.",
+  "cases": [
+    {"name": "depth at limit", "input": "<a><b/></a>", "options": {"max_depth": 2}, "canonical": "<a><b></b></a>", "grade": "complete"},
+    {"name": "depth over limit at the name byte", "input": "<a><b><c/></b></a>", "options": {"max_depth": 2}, "error": "depth_limit", "offset": 7, "grade": "partial", "canonical": "<a><b></b></a>"},
+    {"name": "default depth 64 allows 64", "repeat_open": 64, "grade": "complete"},
+    {"name": "default depth 64 refuses 65", "repeat_open": 65, "error": "depth_limit", "offset": 193, "grade": "partial"},
+    {"name": "input over limit", "input": "<a>0123456789</a>", "options": {"max_input_bytes": 8}, "error": "input_too_large", "offset": 8, "grade": "partial", "canonical": "<a>01234</a>"},
+    {"name": "complete document but trailing bytes over limit", "input": "<a/>      ", "options": {"max_input_bytes": 6}, "error": "input_too_large", "offset": 6, "grade": "partial", "canonical": "<a></a>"}
+  ]
+}

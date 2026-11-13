@@ -1,0 +1,5 @@
+//go:build !race
+
+package cssparse
+
+const raceEnabled = false

@@ -14,18 +14,36 @@ import (
 )
 
 const changeCols = `c.id::text, c.seq, c.tenant_id::text, c.program_id::text, c.type, c.entity_id::text, c.edge_id::text,
-	c.run_id::text, c.patch, c.at`
+	c.run_id::text, c.patch, c.at, c.tag_type, c.tag_name, c.base, c.cause, c.baseline`
 
 func scanChange(rows scanner) (graphstore.ChangeEvent, error) {
 	var (
 		ev                       graphstore.ChangeEvent
 		id, tenant, program, typ string
 		entity, edge, run        *string
-		patch                    []byte
+		patch, base              []byte
 		at                       time.Time
+		tagType, tagName, cause  *string
 	)
-	if err := rows.Scan(&id, &ev.Seq, &tenant, &program, &typ, &entity, &edge, &run, &patch, &at); err != nil {
+	if err := rows.Scan(&id, &ev.Seq, &tenant, &program, &typ, &entity, &edge, &run, &patch, &at,
+		&tagType, &tagName, &base, &cause, &ev.Baseline); err != nil {
 		return ev, err
+	}
+	if tagType != nil {
+		ev.TagType = *tagType
+	}
+	if tagName != nil {
+		ev.TagName = *tagName
+	}
+	if cause != nil {
+		ev.Cause = *cause
+	}
+	if len(base) > 0 {
+		b, err := kernel.DecodeObject(base)
+		if err != nil {
+			return ev, err
+		}
+		ev.Base = b
 	}
 	var err error
 	for _, f := range []struct {
@@ -41,6 +59,10 @@ func scanChange(rows scanner) (graphstore.ChangeEvent, error) {
 		}
 	}
 	ev.Type, ev.At = oam.ChangeType(typ), at.UTC()
+	if ev.Type == oam.ChangeContentChanged {
+		ev.ContentChange, err = kernel.DecodeContentChange(patch)
+		return ev, err
+	}
 	ev.Patch, err = kernel.DecodePatch(patch)
 	return ev, err
 }

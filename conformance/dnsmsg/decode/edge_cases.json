@@ -1,0 +1,296 @@
+{
+ "suite": "dnsmsg",
+ "description": "Decode vectors: malformed and edge-case messages with the expected error code, or the expected message and lenient diagnostics.",
+ "cases": [
+  {
+   "id": "short_header",
+   "description": "five octets",
+   "hex": "1234010000",
+   "mode": "strict",
+   "error": "short_message"
+  },
+  {
+   "id": "short_question",
+   "description": "question count 1 but the type field is missing",
+   "hex": "000100000001000000000000076578616d706c6503636f6d0000",
+   "mode": "strict",
+   "error": "short_message"
+  },
+  {
+   "id": "pointer_self",
+   "description": "a name that is a pointer to itself",
+   "hex": "000100000001000000000000c00c00010001",
+   "mode": "strict",
+   "error": "pointer_loop"
+  },
+  {
+   "id": "pointer_cycle_forward",
+   "description": "two pointers pointing at each other (the first points forward)",
+   "hex": "000100000001000000000000c00ec00c00010001",
+   "mode": "strict",
+   "error": "pointer_loop"
+  },
+  {
+   "id": "pointer_cycle_backward",
+   "description": "a label followed by a pointer back to that label: the name would contain itself",
+   "hex": "0001000000010000000000000161c00c00010001",
+   "mode": "strict",
+   "error": "pointer_loop"
+  },
+  {
+   "id": "pointer_out_of_bounds",
+   "description": "pointer past the end of the message",
+   "hex": "000100000001000000000000c0ff00010001",
+   "mode": "strict",
+   "error": "pointer_out_of_bounds"
+  },
+  {
+   "id": "reserved_label_type",
+   "description": "length octet 0x41 (retired extended label type)",
+   "hex": "000100000001000000000000416162630000010001",
+   "mode": "strict",
+   "error": "bad_label_type"
+  },
+  {
+   "id": "name_too_long",
+   "description": "four 63-octet labels: 257 octets in wire form",
+   "hex": "0001000000010000000000003f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161610000010001",
+   "mode": "strict",
+   "error": "name_too_long"
+  },
+  {
+   "id": "name_exactly_255",
+   "description": "a name of exactly 255 octets decodes",
+   "hex": "0001000000010000000000003f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613d616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161610000010001",
+   "mode": "strict",
+   "message": {
+    "header": {
+     "id": 1
+    },
+    "questions": [
+     {
+      "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+      "type": 1,
+      "class": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "name_too_long_via_pointer",
+   "description": "two labels plus a pointer to a 129-octet name: 257 octets",
+   "hex": "0001000000020000000000003f6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161613f61616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616100000100013f6262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262623f626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262c00c00010001",
+   "mode": "strict",
+   "error": "name_too_long"
+  },
+  {
+   "id": "trailing_strict",
+   "description": "an octet after the last record",
+   "hex": "000100000001000000000000076578616d706c6503636f6d000001000100",
+   "mode": "strict",
+   "error": "trailing_data"
+  },
+  {
+   "id": "trailing_lenient",
+   "description": "lenient mode ignores trailing octets",
+   "hex": "000100000001000000000000076578616d706c6503636f6d000001000100",
+   "mode": "lenient",
+   "message": {
+    "header": {
+     "id": 1
+    },
+    "questions": [
+     {
+      "name": "example.com.",
+      "type": 1,
+      "class": 1
+     }
+    ]
+   },
+   "diagnostics": [
+    "trailing_data"
+   ]
+  },
+  {
+   "id": "rr_short_rdata",
+   "description": "RDLENGTH runs past the end",
+   "hex": "00018000000000010000000000000100010000000000040102",
+   "mode": "strict",
+   "error": "short_message"
+  },
+  {
+   "id": "bad_a_strict",
+   "description": "A record with 3 octets",
+   "hex": "0001800000000001000000000000010001000000000003010203",
+   "mode": "strict",
+   "error": "bad_rdata"
+  },
+  {
+   "id": "bad_a_lenient",
+   "description": "A record with 3 octets kept raw",
+   "hex": "0001800000000001000000000000010001000000000003010203",
+   "mode": "lenient",
+   "message": {
+    "header": {
+     "id": 1,
+     "qr": true
+    },
+    "answers": [
+     {
+      "name": ".",
+      "type": 1,
+      "class": 1,
+      "ttl": 0,
+      "data": {
+       "kind": "raw",
+       "raw_hex": "010203"
+      }
+     }
+    ]
+   },
+   "diagnostics": [
+    "bad_rdata"
+   ]
+  },
+  {
+   "id": "rdlength_mismatch_strict",
+   "description": "CNAME data longer than its name",
+   "hex": "000180000000000100000000000005000100000000000c0178076578616d706c650000",
+   "mode": "strict",
+   "error": "rdlength_mismatch"
+  },
+  {
+   "id": "rdlength_mismatch_lenient",
+   "description": "CNAME data longer than its name kept raw",
+   "hex": "000180000000000100000000000005000100000000000c0178076578616d706c650000",
+   "mode": "lenient",
+   "message": {
+    "header": {
+     "id": 1,
+     "qr": true
+    },
+    "answers": [
+     {
+      "name": ".",
+      "type": 5,
+      "class": 1,
+      "ttl": 0,
+      "data": {
+       "kind": "raw",
+       "raw_hex": "0178076578616d706c650000"
+      }
+     }
+    ]
+   },
+   "diagnostics": [
+    "rdlength_mismatch"
+   ]
+  },
+  {
+   "id": "name_overruns_rdata",
+   "description": "CNAME target runs past RDLENGTH",
+   "hex": "000180000000000100000000000005000100000000000405616263646500",
+   "mode": "strict",
+   "error": "bad_rdata"
+  },
+  {
+   "id": "opt_in_answer_strict",
+   "description": "OPT record in the answer section",
+   "hex": "0001800000000001000000000000290200000000000000",
+   "mode": "strict",
+   "error": "bad_opt"
+  },
+  {
+   "id": "opt_in_answer_lenient",
+   "description": "OPT record in the answer section is kept",
+   "hex": "0001800000000001000000000000290200000000000000",
+   "mode": "lenient",
+   "message": {
+    "header": {
+     "id": 1,
+     "qr": true
+    },
+    "answers": [
+     {
+      "name": ".",
+      "type": 41,
+      "class": 512,
+      "ttl": 0,
+      "data": {
+       "kind": "opt"
+      }
+     }
+    ]
+   },
+   "diagnostics": [
+    "bad_opt"
+   ]
+  },
+  {
+   "id": "two_opt_strict",
+   "description": "two OPT records",
+   "hex": "00010000000000000000000200002902000000000000000000290200000000000000",
+   "mode": "strict",
+   "error": "bad_opt"
+  },
+  {
+   "id": "txt_empty_strict",
+   "description": "TXT without character-strings",
+   "hex": "0001800000000001000000000000100001000000000000",
+   "mode": "strict",
+   "error": "bad_rdata"
+  },
+  {
+   "id": "txt_empty_lenient",
+   "description": "TXT without character-strings decodes to no strings",
+   "hex": "0001800000000001000000000000100001000000000000",
+   "mode": "lenient",
+   "message": {
+    "header": {
+     "id": 1,
+     "qr": true
+    },
+    "answers": [
+     {
+      "name": ".",
+      "type": 16,
+      "class": 1,
+      "ttl": 0,
+      "data": {
+       "kind": "txt",
+       "strings_hex": []
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "txt_string_overrun",
+   "description": "TXT string length past RDLENGTH",
+   "hex": "000180000000000100000000000010000100000000000405616263",
+   "mode": "strict",
+   "error": "bad_rdata"
+  },
+  {
+   "id": "caa_bad_tag",
+   "description": "CAA tag with a hyphen",
+   "hex": "00018000000000010000000000010100010000000000050002612d78",
+   "mode": "strict",
+   "error": "bad_rdata"
+  },
+  {
+   "id": "opt_option_overrun",
+   "description": "OPT option length past RDLENGTH",
+   "hex": "0001000000000000000000010000290200000000000006000a00080102",
+   "mode": "strict",
+   "error": "bad_rdata"
+  },
+  {
+   "id": "count_lies",
+   "description": "ANCOUNT 65535 with no records",
+   "hex": "000180000000ffff00000000",
+   "mode": "strict",
+   "error": "short_message"
+  }
+ ]
+}

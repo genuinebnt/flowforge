@@ -1,0 +1,17 @@
+{
+  "description": "Pinned writer settings. Informative only: the format never depends on compressed bytes (ids hash raw data; any RFC 8878 encoder may write records). The frame hash pins the Go writer's reproducibility for this library version.",
+  "settings": {
+    "dictionary": "none",
+    "encoder_concurrency": "1",
+    "frame_checksum": "on",
+    "gc_recompress_level": "19 (klauspost SpeedBestCompression)",
+    "keep_compressed_if": "8*stored_len <= 7*raw_len",
+    "level": "3 (klauspost SpeedDefault)",
+    "library": "github.com/klauspost/compress v1.20.4",
+    "single_segment": "true",
+    "window_log": "23"
+  },
+  "input_generator": "splitmix64_ascii seed 7 length 65536",
+  "go_klauspost_frame_sha256": "ef033c50caccbd093c1422dae0eef3d3840274cc7c148baa38bfe59f546e0c51",
+  "go_klauspost_frame_len": 65550
+}

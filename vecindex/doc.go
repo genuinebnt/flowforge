@@ -31,10 +31,11 @@
 //   - Per-(tenant, program, model) isolation (22.3): Registry (registry.go).
 //   - Hybrid search by reciprocal rank fusion (22.6, rrf.go).
 //   - Near-duplicate detection without embeddings (22.8): SimHash with
-//     multi-index hashing and MinHash with banded LSH (simhash.go,
-//     minhash.go).
+//     multi-index hashing and MinHash with banded LSH. The algorithms live
+//     in package sketch (shared with content); simhash.go and minhash.go
+//     are thin wrappers keeping this package's API and errors.
 //
 // Everything is deterministic: every random choice comes from a seeded
 // core.Rng, and no code reads the clock or the environment. The package
-// imports only the standard library and core.
+// imports only the standard library, core and sketch.
 package vecindex

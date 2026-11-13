@@ -167,6 +167,78 @@ func TestGraphSnapshot_Deterministic(t *testing.T) {
 }
 func TestGraphAddTag(t *testing.T) { storetest.AddTag(t, pgFactory) }
 
+func TestOAMInv05_AuthoritativeConvergence(t *testing.T) {
+	dsn(t)
+	storetest.AuthConvergence(t, pgFactory, testkit.Rng(t), max(testkit.Cases()/20, 10), memFactory)
+}
+func TestOAMInv12_AsOf(t *testing.T) {
+	dsn(t)
+	storetest.AsOf(t, pgFactory, testkit.Rng(t), max(testkit.Cases()/100, 5))
+}
+
+// TestOAMInv13_MemEqualsPG checks OAM-INV-13: Postgres and Mem end with
+// byte-identical canonical state and change logs on random v2 histories.
+func TestOAMInv13_MemEqualsPG(t *testing.T) {
+	dsn(t)
+	storetest.SameHistory(t, pgFactory, testkit.Rng(t), max(testkit.Cases()/50, 10), memFactory)
+}
+func TestOAMInv14_Commonness(t *testing.T) { storetest.Commonness(t, pgFactory) }
+func TestGraphContentChanges(t *testing.T) { storetest.ContentChanges(t, pgFactory) }
+
+// TestGraphIngest_ConcurrentAuthority ingests authoritative captures of
+// the same pages from 8 goroutines (with duplicates) and compares the
+// result with Mem: the head preload and retry keep concurrent
+// replacements convergent.
+func TestGraphIngest_ConcurrentAuthority(t *testing.T) {
+	pool, _ := freshPool(t)
+	s := pg.New(pool, pg.Config{})
+	mem := graphstore.NewMem(graphstore.Config{})
+	r := testkit.Rng(t)
+	tenant, prog := storetest.TenantID("ca"), storetest.ProgramID("ca")
+	var list []graphstore.IngestRequest
+	for i := range 120 {
+		list = append(list, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: storetest.RandomAuthObservation(r, i, "", "")})
+	}
+	ctx := context.Background()
+	for _, req := range list {
+		if _, err := mem.IngestObservation(ctx, req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for w := range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range list {
+				if _, err := s.IngestObservation(ctx, list[(i*(w+3))%len(list)]); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	c := graphstore.Caller{TenantID: tenant}
+	a, _ := s.Export(ctx, c, prog)
+	b, _ := mem.Export(ctx, c, prog)
+	if storetest.Canon(t, a) != storetest.Canon(t, b) {
+		t.Fatal("concurrent authoritative ingest diverged from Mem")
+	}
+}
+
+// BenchmarkGraphAuth_Ingest is the authoritative ingest benchmark on
+// Postgres (5 pages x 200 edges; -benchtime 1000x for 1,000 re-captures).
+func BenchmarkGraphAuth_Ingest(b *testing.B) {
+	pool, _ := freshPool(b)
+	storetest.BenchAuthoritative(b, pg.New(pool, pg.Config{}), 5, 200)
+}
+
 // TestGraphIngest_ConcurrentConvergence ingests the same observation
 // multiset from many goroutines (with duplicates) and compares the result
 // with Mem: concurrent writers converge (spec 23.5).

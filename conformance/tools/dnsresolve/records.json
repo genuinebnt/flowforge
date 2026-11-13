@@ -1,0 +1,266 @@
+{
+ "description": "www.example.com through the DNS forwarder: a CNAME to an in-scope name (re-checked), A and AAAA on the target, MX, NS and a two-string TXT record.",
+ "input": "www.example.com",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "dns": [
+  {
+   "name": "www.example.com.",
+   "type": 1,
+   "answers": [
+    {
+     "name": "www.example.com.",
+     "type": 5,
+     "ttl": 300,
+     "target": "web.example.com."
+    },
+    {
+     "name": "web.example.com.",
+     "type": 1,
+     "ttl": 60,
+     "ip": "93.184.216.34"
+    },
+    {
+     "name": "web.example.com.",
+     "type": 1,
+     "ttl": 60,
+     "ip": "93.184.216.35"
+    }
+   ]
+  },
+  {
+   "name": "www.example.com.",
+   "type": 28,
+   "answers": [
+    {
+     "name": "www.example.com.",
+     "type": 5,
+     "ttl": 300,
+     "target": "web.example.com."
+    },
+    {
+     "name": "web.example.com.",
+     "type": 28,
+     "ttl": 60,
+     "ip": "2606:2800:220:1:248:1893:25c8:1946"
+    }
+   ]
+  },
+  {
+   "name": "www.example.com.",
+   "type": 15,
+   "answers": [
+    {
+     "name": "www.example.com.",
+     "type": 15,
+     "ttl": 3600,
+     "preference": 10,
+     "target": "mail.example.com."
+    }
+   ]
+  },
+  {
+   "name": "www.example.com.",
+   "type": 2,
+   "answers": []
+  },
+  {
+   "name": "www.example.com.",
+   "type": 16,
+   "answers": [
+    {
+     "name": "www.example.com.",
+     "type": 16,
+     "ttl": 300,
+     "txt": [
+      "v=spf1 include:_spf.example.com ",
+      "-all"
+     ]
+    },
+    {
+     "name": "www.example.com.",
+     "type": 16,
+     "ttl": 300,
+     "txt": [
+      "google-site-verification=abc123"
+     ]
+    }
+   ]
+  }
+ ],
+ "expect": {
+  "output": [
+   "93.184.216.34",
+   "93.184.216.35",
+   "2606:2800:220:1:248:1893:25c8:1946"
+  ],
+  "skipped": [],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [
+   "www.example.com. 1",
+   "www.example.com. 28",
+   "www.example.com. 15",
+   "www.example.com. 2",
+   "www.example.com. 16"
+  ],
+  "observations": [
+   {
+    "confidence": 0.95,
+    "edges": [
+     {
+      "from": "e0",
+      "relation": {
+       "header": {
+        "class": 1,
+        "rr_type": 5,
+        "ttl": 300
+       },
+       "label": "dns_record",
+       "type": "BasicDNSRelation"
+      },
+      "to": "e1"
+     },
+     {
+      "from": "e1",
+      "relation": {
+       "header": {
+        "class": 1,
+        "rr_type": 1,
+        "ttl": 60
+       },
+       "label": "dns_record",
+       "type": "BasicDNSRelation"
+      },
+      "to": "e2"
+     },
+     {
+      "from": "e1",
+      "relation": {
+       "header": {
+        "class": 1,
+        "rr_type": 1,
+        "ttl": 60
+       },
+       "label": "dns_record",
+       "type": "BasicDNSRelation"
+      },
+      "to": "e3"
+     },
+     {
+      "from": "e1",
+      "relation": {
+       "header": {
+        "class": 1,
+        "rr_type": 28,
+        "ttl": 60
+       },
+       "label": "dns_record",
+       "type": "BasicDNSRelation"
+      },
+      "to": "e4"
+     },
+     {
+      "from": "e0",
+      "relation": {
+       "header": {
+        "class": 1,
+        "rr_type": 15,
+        "ttl": 3600
+       },
+       "label": "dns_record",
+       "preference": 10,
+       "type": "PrefDNSRelation"
+      },
+      "to": "e5"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "name": "www.example.com",
+       "type": "FQDN"
+      },
+      "ref": "e0"
+     },
+     {
+      "asset": {
+       "name": "web.example.com",
+       "type": "FQDN"
+      },
+      "ref": "e1"
+     },
+     {
+      "asset": {
+       "address": "93.184.216.34",
+       "ip_version": "IPv4",
+       "type": "IPAddress"
+      },
+      "ref": "e2"
+     },
+     {
+      "asset": {
+       "address": "93.184.216.35",
+       "ip_version": "IPv4",
+       "type": "IPAddress"
+      },
+      "ref": "e3"
+     },
+     {
+      "asset": {
+       "address": "2606:2800:220:1:248:1893:25c8:1946",
+       "ip_version": "IPv6",
+       "type": "IPAddress"
+      },
+      "ref": "e4"
+     },
+     {
+      "asset": {
+       "name": "mail.example.com",
+       "type": "FQDN"
+      },
+      "ref": "e5"
+     }
+    ],
+    "observation_id": "obs_03K0WY1MD0HB6AJKFJTZSFB9MS",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tags": [
+     {
+      "property": {
+       "data": "v=spf1 include:_spf.example.com -all",
+       "header": {
+        "class": 1,
+        "rr_type": 16,
+        "ttl": 300
+       },
+       "property_name": "dns_record",
+       "type": "DNSRecordProperty"
+      },
+      "target": "e0"
+     },
+     {
+      "property": {
+       "data": "google-site-verification=abc123",
+       "header": {
+        "class": 1,
+        "rr_type": 16,
+        "ttl": 300
+       },
+       "property_name": "dns_record",
+       "type": "DNSRecordProperty"
+      },
+      "target": "e0"
+     }
+    ],
+    "tool": {
+     "name": "dnsresolve",
+     "version": "2.0.0"
+    }
+   }
+  ]
+ }
+}

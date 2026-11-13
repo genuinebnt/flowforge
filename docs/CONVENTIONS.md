@@ -84,6 +84,16 @@ stays light: `eventstore/pgstore` (pgx), `limiter/redislimiter` (go-redis),
   the most conservative behaviour (fail closed for anything touching scope)
   and pin the choice with a test.
 
+## Portability rules (v2)
+
+Packages added in v2 (parsers, diff, chunk store, text index, content)
+follow the portability rules in `docs/V2_DESIGN.md` §1: explicit state
+machines named after the governing spec, arenas with index ids instead of
+pointer trees, no `any` or reflection in data paths, byte-specified binary
+formats, zstd for compression, stable error codes, determinism, and
+numbered invariants (`<PKG>-INV-NN` → `Test<Pkg>Inv<NN>_<Name>`) that the
+Rust port reimplements.
+
 ## Pluggable algorithms
 
 When several algorithms or strategies were benchmarked and one was chosen,

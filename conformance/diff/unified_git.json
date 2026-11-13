@@ -1,0 +1,2566 @@
+{
+ "description": "Unified hunks produced by git 2.43 'git diff --no-index --no-indent-heuristic --diff-algorithm=<algorithm> -U<context>' (file headers and the section heading after the second '@@' removed). The implementation must reproduce them byte for byte with SplitLines, Diff(Options{Algorithm, GitCompact: true}) and Unified(Context). Histogram cases (constructed and random) always match git; patience cases are those without a Myers fallback range; myers-linear cases (git's --diff-algorithm=myers) are those whose shortest alignment git and MyersLinearSpace agree on (see diff/OPEN_QUESTIONS.md).",
+ "id": "diff_unified_git_001",
+ "unified": [
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -0,0 +1 @@\n+new\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1 +1,2 @@\n+new\n 1\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,3 +1,4 @@\n+new\n 1\n 2\n 3\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -0,0 +1 @@\n+new\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1 +1,2 @@\n+new\n 1\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,3 +1,4 @@\n+new\n 1\n 2\n 3\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -0,0 +1 @@\n+new\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1 +1,2 @@\n+new\n 1\n"
+  },
+  {
+   "name": "insert_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "new\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,3 +1,4 @@\n+new\n 1\n 2\n 3\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -10,0 +11 @@\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -10 +10,2 @@\n 10\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -8,3 +8,4 @@\n 8\n 9\n 10\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -10,0 +11 @@\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -10 +10,2 @@\n 10\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -8,3 +8,4 @@\n 8\n 9\n 10\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -10,0 +11 @@\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -10 +10,2 @@\n 10\n+new\n"
+  },
+  {
+   "name": "insert_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\nnew\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -8,3 +8,4 @@\n 8\n 9\n 10\n+new\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -1 +0,0 @@\n-1\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1,2 +1 @@\n-1\n 2\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,4 +1,3 @@\n-1\n 2\n 3\n 4\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -1 +0,0 @@\n-1\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1,2 +1 @@\n-1\n 2\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,4 +1,3 @@\n-1\n 2\n 3\n 4\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -1 +0,0 @@\n-1\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1,2 +1 @@\n-1\n 2\n"
+  },
+  {
+   "name": "delete_top",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,4 +1,3 @@\n-1\n 2\n 3\n 4\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -10 +9,0 @@\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -9,2 +9 @@\n 9\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -7,4 +7,3 @@\n 7\n 8\n 9\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -10 +9,0 @@\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -9,2 +9 @@\n 9\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -7,4 +7,3 @@\n 7\n 8\n 9\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -10 +9,0 @@\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -9,2 +9 @@\n 9\n-10\n"
+  },
+  {
+   "name": "delete_bottom",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+   "new": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -7,4 +7,3 @@\n 7\n 8\n 9\n-10\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -6 +6 @@\n-6\n+six\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -5,3 +5,3 @@\n 5\n-6\n+six\n 7\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -3,7 +3,7 @@\n 3\n 4\n 5\n-6\n+six\n 7\n 8\n 9\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -6 +6 @@\n-6\n+six\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -5,3 +5,3 @@\n 5\n-6\n+six\n 7\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -3,7 +3,7 @@\n 3\n 4\n 5\n-6\n+six\n 7\n 8\n 9\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -6 +6 @@\n-6\n+six\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -5,3 +5,3 @@\n 5\n-6\n+six\n 7\n"
+  },
+  {
+   "name": "replace_middle",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -3,7 +3,7 @@\n 3\n 4\n 5\n-6\n+six\n 7\n 8\n 9\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -1 +1 @@\n-1\n+one\n@@ -20 +20 @@\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1,2 +1,2 @@\n-1\n+one\n 2\n@@ -19,2 +19,2 @@\n 19\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,4 +1,4 @@\n-1\n+one\n 2\n 3\n 4\n@@ -17,4 +17,4 @@\n 17\n 18\n 19\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -1 +1 @@\n-1\n+one\n@@ -20 +20 @@\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1,2 +1,2 @@\n-1\n+one\n 2\n@@ -19,2 +19,2 @@\n 19\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,4 +1,4 @@\n-1\n+one\n 2\n 3\n 4\n@@ -17,4 +17,4 @@\n 17\n 18\n 19\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -1 +1 @@\n-1\n+one\n@@ -20 +20 @@\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1,2 +1,2 @@\n-1\n+one\n 2\n@@ -19,2 +19,2 @@\n 19\n-20\n+twenty\n"
+  },
+  {
+   "name": "two_hunks_far",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\ntwenty\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,4 +1,4 @@\n-1\n+one\n 2\n 3\n 4\n@@ -17,4 +17,4 @@\n 17\n 18\n 19\n-20\n+twenty\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -4 +4 @@\n-4\n+x\n@@ -11 +11 @@\n-11\n+y\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -3,3 +3,3 @@\n 3\n-4\n+x\n 5\n@@ -10,3 +10,3 @@\n 10\n-11\n+y\n 12\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,14 +1,14 @@\n 1\n 2\n 3\n-4\n+x\n 5\n 6\n 7\n 8\n 9\n 10\n-11\n+y\n 12\n 13\n 14\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -4 +4 @@\n-4\n+x\n@@ -11 +11 @@\n-11\n+y\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -3,3 +3,3 @@\n 3\n-4\n+x\n 5\n@@ -10,3 +10,3 @@\n 10\n-11\n+y\n 12\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,14 +1,14 @@\n 1\n 2\n 3\n-4\n+x\n 5\n 6\n 7\n 8\n 9\n 10\n-11\n+y\n 12\n 13\n 14\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -4 +4 @@\n-4\n+x\n@@ -11 +11 @@\n-11\n+y\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -3,3 +3,3 @@\n 3\n-4\n+x\n 5\n@@ -10,3 +10,3 @@\n 10\n-11\n+y\n 12\n"
+  },
+  {
+   "name": "gap_exactly_2c",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\ny\n12\n13\n14\n15\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,14 +1,14 @@\n 1\n 2\n 3\n-4\n+x\n 5\n 6\n 7\n 8\n 9\n 10\n-11\n+y\n 12\n 13\n 14\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -4 +4 @@\n-4\n+x\n@@ -12 +12 @@\n-12\n+y\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -3,3 +3,3 @@\n 3\n-4\n+x\n 5\n@@ -11,3 +11,3 @@\n 11\n-12\n+y\n 13\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,7 +1,7 @@\n 1\n 2\n 3\n-4\n+x\n 5\n 6\n 7\n@@ -9,7 +9,7 @@\n 9\n 10\n 11\n-12\n+y\n 13\n 14\n 15\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -4 +4 @@\n-4\n+x\n@@ -12 +12 @@\n-12\n+y\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -3,3 +3,3 @@\n 3\n-4\n+x\n 5\n@@ -11,3 +11,3 @@\n 11\n-12\n+y\n 13\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,7 +1,7 @@\n 1\n 2\n 3\n-4\n+x\n 5\n 6\n 7\n@@ -9,7 +9,7 @@\n 9\n 10\n 11\n-12\n+y\n 13\n 14\n 15\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -4 +4 @@\n-4\n+x\n@@ -12 +12 @@\n-12\n+y\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -3,3 +3,3 @@\n 3\n-4\n+x\n 5\n@@ -11,3 +11,3 @@\n 11\n-12\n+y\n 13\n"
+  },
+  {
+   "name": "gap_2c_plus_1",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n",
+   "new": "1\n2\n3\nx\n5\n6\n7\n8\n9\n10\n11\ny\n13\n14\n15\n16\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,7 +1,7 @@\n 1\n 2\n 3\n-4\n+x\n 5\n 6\n 7\n@@ -9,7 +9,7 @@\n 9\n 10\n 11\n-12\n+y\n 13\n 14\n 15\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_old",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\n5\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n\\ No newline at end of file\n+5\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_new",
+   "old": "1\n2\n3\n4\n5\n",
+   "new": "1\n2\n3\n4\n5",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n+5\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -4,2 +4,2 @@\n 4\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_both_changed",
+   "old": "1\n2\n3\n4\n5",
+   "new": "1\n2\n3\n4\nfive",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -2,4 +2,4 @@\n 2\n 3\n 4\n-5\n\\ No newline at end of file\n+five\n\\ No newline at end of file\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -0,0 +1 @@\n+zero\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1 +1,2 @@\n+zero\n 1\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,3 +1,4 @@\n+zero\n 1\n 2\n 3\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -0,0 +1 @@\n+zero\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1 +1,2 @@\n+zero\n 1\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,3 +1,4 @@\n+zero\n 1\n 2\n 3\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -0,0 +1 @@\n+zero\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1 +1,2 @@\n+zero\n 1\n"
+  },
+  {
+   "name": "no_newline_unchanged_tail",
+   "old": "1\n2\n3\n4\n5\n6",
+   "new": "zero\n1\n2\n3\n4\n5\n6",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,3 +1,4 @@\n+zero\n 1\n 2\n 3\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_old",
+   "old": "",
+   "new": "a\nb\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -0,0 +1,2 @@\n+a\n+b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "empty_new",
+   "old": "a\nb\n",
+   "new": "",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,2 +0,0 @@\n-a\n-b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "single_line_change",
+   "old": "a\n",
+   "new": "b\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1 +1 @@\n-a\n+b\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -2 +2 @@\n-b\r\n+B\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1,3 +1,3 @@\n a\r\n-b\r\n+B\r\n c\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,3 +1,3 @@\n a\r\n-b\r\n+B\r\n c\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -2 +2 @@\n-b\r\n+B\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1,3 +1,3 @@\n a\r\n-b\r\n+B\r\n c\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,3 +1,3 @@\n a\r\n-b\r\n+B\r\n c\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -2 +2 @@\n-b\r\n+B\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1,3 +1,3 @@\n a\r\n-b\r\n+B\r\n c\r\n"
+  },
+  {
+   "name": "crlf",
+   "old": "a\r\nb\r\nc\r\n",
+   "new": "a\r\nB\r\nc\r\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,3 +1,3 @@\n a\r\n-b\r\n+B\r\n c\r\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -3,2 +2,0 @@\n-b\n-\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -2,4 +2,2 @@\n \n-b\n-\n c\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,5 +1,3 @@\n a\n \n-b\n-\n c\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -3,2 +2,0 @@\n-b\n-\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -2,4 +2,2 @@\n \n-b\n-\n c\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,5 +1,3 @@\n a\n \n-b\n-\n c\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -3,2 +2,0 @@\n-b\n-\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -2,4 +2,2 @@\n \n-b\n-\n c\n"
+  },
+  {
+   "name": "blank_lines",
+   "old": "a\n\nb\n\nc\n",
+   "new": "a\n\nc\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,5 +1,3 @@\n a\n \n-b\n-\n c\n"
+  },
+  {
+   "name": "patience_c_functions",
+   "old": "#include <stdio.h>\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"Your answer is: \");\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint fact(int n)\n{\n    if(n > 1)\n    {\n        return fact(n-1) * n;\n    }\n    return 1;\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fact(10));\n}\n",
+   "new": "#include <stdio.h>\n\nint fib(int n)\n{\n    if(n > 2)\n    {\n        return fib(n-1) + fib(n-2);\n    }\n    return 1;\n}\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fib(10));\n}\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -2,0 +3,9 @@\n+int fib(int n)\n+{\n+    if(n > 2)\n+    {\n+        return fib(n-1) + fib(n-2);\n+    }\n+    return 1;\n+}\n+\n@@ -9 +17,0 @@\n-        printf(\"Your answer is: \");\n@@ -14,9 +21,0 @@\n-int fact(int n)\n-{\n-    if(n > 1)\n-    {\n-        return fact(n-1) * n;\n-    }\n-    return 1;\n-}\n-\n@@ -25 +24 @@\n-    frobnitz(fact(10));\n+    frobnitz(fib(10));\n"
+  },
+  {
+   "name": "patience_c_functions",
+   "old": "#include <stdio.h>\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"Your answer is: \");\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint fact(int n)\n{\n    if(n > 1)\n    {\n        return fact(n-1) * n;\n    }\n    return 1;\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fact(10));\n}\n",
+   "new": "#include <stdio.h>\n\nint fib(int n)\n{\n    if(n > 2)\n    {\n        return fib(n-1) + fib(n-2);\n    }\n    return 1;\n}\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fib(10));\n}\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -2,2 +2,11 @@\n \n+int fib(int n)\n+{\n+    if(n > 2)\n+    {\n+        return fib(n-1) + fib(n-2);\n+    }\n+    return 1;\n+}\n+\n // Frobs foo heartily\n@@ -8,3 +17,2 @@\n     {\n-        printf(\"Your answer is: \");\n         printf(\"%d\\n\", foo);\n@@ -13,14 +21,5 @@\n \n-int fact(int n)\n-{\n-    if(n > 1)\n-    {\n-        return fact(n-1) * n;\n-    }\n-    return 1;\n-}\n-\n int main(int argc, char **argv)\n {\n-    frobnitz(fact(10));\n+    frobnitz(fib(10));\n }\n"
+  },
+  {
+   "name": "patience_c_functions",
+   "old": "#include <stdio.h>\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"Your answer is: \");\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint fact(int n)\n{\n    if(n > 1)\n    {\n        return fact(n-1) * n;\n    }\n    return 1;\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fact(10));\n}\n",
+   "new": "#include <stdio.h>\n\nint fib(int n)\n{\n    if(n > 2)\n    {\n        return fib(n-1) + fib(n-2);\n    }\n    return 1;\n}\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fib(10));\n}\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,26 +1,25 @@\n #include <stdio.h>\n \n+int fib(int n)\n+{\n+    if(n > 2)\n+    {\n+        return fib(n-1) + fib(n-2);\n+    }\n+    return 1;\n+}\n+\n // Frobs foo heartily\n int frobnitz(int foo)\n {\n     int i;\n     for(i = 0; i < 10; i++)\n     {\n-        printf(\"Your answer is: \");\n         printf(\"%d\\n\", foo);\n     }\n }\n \n-int fact(int n)\n-{\n-    if(n > 1)\n-    {\n-        return fact(n-1) * n;\n-    }\n-    return 1;\n-}\n-\n int main(int argc, char **argv)\n {\n-    frobnitz(fact(10));\n+    frobnitz(fib(10));\n }\n"
+  },
+  {
+   "name": "patience_c_functions",
+   "old": "#include <stdio.h>\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"Your answer is: \");\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint fact(int n)\n{\n    if(n > 1)\n    {\n        return fact(n-1) * n;\n    }\n    return 1;\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fact(10));\n}\n",
+   "new": "#include <stdio.h>\n\nint fib(int n)\n{\n    if(n > 2)\n    {\n        return fib(n-1) + fib(n-2);\n    }\n    return 1;\n}\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fib(10));\n}\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -2,0 +3,9 @@\n+int fib(int n)\n+{\n+    if(n > 2)\n+    {\n+        return fib(n-1) + fib(n-2);\n+    }\n+    return 1;\n+}\n+\n@@ -9 +17,0 @@\n-        printf(\"Your answer is: \");\n@@ -14,9 +21,0 @@\n-int fact(int n)\n-{\n-    if(n > 1)\n-    {\n-        return fact(n-1) * n;\n-    }\n-    return 1;\n-}\n-\n@@ -25 +24 @@\n-    frobnitz(fact(10));\n+    frobnitz(fib(10));\n"
+  },
+  {
+   "name": "patience_c_functions",
+   "old": "#include <stdio.h>\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"Your answer is: \");\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint fact(int n)\n{\n    if(n > 1)\n    {\n        return fact(n-1) * n;\n    }\n    return 1;\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fact(10));\n}\n",
+   "new": "#include <stdio.h>\n\nint fib(int n)\n{\n    if(n > 2)\n    {\n        return fib(n-1) + fib(n-2);\n    }\n    return 1;\n}\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fib(10));\n}\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -2,2 +2,11 @@\n \n+int fib(int n)\n+{\n+    if(n > 2)\n+    {\n+        return fib(n-1) + fib(n-2);\n+    }\n+    return 1;\n+}\n+\n // Frobs foo heartily\n@@ -8,3 +17,2 @@\n     {\n-        printf(\"Your answer is: \");\n         printf(\"%d\\n\", foo);\n@@ -13,14 +21,5 @@\n \n-int fact(int n)\n-{\n-    if(n > 1)\n-    {\n-        return fact(n-1) * n;\n-    }\n-    return 1;\n-}\n-\n int main(int argc, char **argv)\n {\n-    frobnitz(fact(10));\n+    frobnitz(fib(10));\n }\n"
+  },
+  {
+   "name": "patience_c_functions",
+   "old": "#include <stdio.h>\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"Your answer is: \");\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint fact(int n)\n{\n    if(n > 1)\n    {\n        return fact(n-1) * n;\n    }\n    return 1;\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fact(10));\n}\n",
+   "new": "#include <stdio.h>\n\nint fib(int n)\n{\n    if(n > 2)\n    {\n        return fib(n-1) + fib(n-2);\n    }\n    return 1;\n}\n\n// Frobs foo heartily\nint frobnitz(int foo)\n{\n    int i;\n    for(i = 0; i < 10; i++)\n    {\n        printf(\"%d\\n\", foo);\n    }\n}\n\nint main(int argc, char **argv)\n{\n    frobnitz(fib(10));\n}\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,26 +1,25 @@\n #include <stdio.h>\n \n+int fib(int n)\n+{\n+    if(n > 2)\n+    {\n+        return fib(n-1) + fib(n-2);\n+    }\n+    return 1;\n+}\n+\n // Frobs foo heartily\n int frobnitz(int foo)\n {\n     int i;\n     for(i = 0; i < 10; i++)\n     {\n-        printf(\"Your answer is: \");\n         printf(\"%d\\n\", foo);\n     }\n }\n \n-int fact(int n)\n-{\n-    if(n > 1)\n-    {\n-        return fact(n-1) * n;\n-    }\n-    return 1;\n-}\n-\n int main(int argc, char **argv)\n {\n-    frobnitz(fact(10));\n+    frobnitz(fib(10));\n }\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-b\n+x\n@@ -9,0 +10,3 @@\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -4,3 +4,3 @@\n {\n-b\n+x\n }\n@@ -9 +9,4 @@\n }\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -2,8 +2,11 @@\n a\n }\n {\n-b\n+x\n }\n {\n c\n }\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-b\n+x\n@@ -9,0 +10,3 @@\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -4,3 +4,3 @@\n {\n-b\n+x\n }\n@@ -9 +9,4 @@\n }\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -2,8 +2,11 @@\n a\n }\n {\n-b\n+x\n }\n {\n c\n }\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -5 +5 @@\n-b\n+x\n@@ -9,0 +10,3 @@\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -4,3 +4,3 @@\n {\n-b\n+x\n }\n@@ -9 +9,4 @@\n }\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "histogram_low_occurrence",
+   "old": "{\na\n}\n{\nb\n}\n{\nc\n}\n",
+   "new": "{\na\n}\n{\nx\n}\n{\nc\n}\n{\nd\n}\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -2,8 +2,11 @@\n a\n }\n {\n-b\n+x\n }\n {\n c\n }\n+{\n+d\n+}\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "all_replaced",
+   "old": "a\nb\nc\n",
+   "new": "x\ny\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,3 +1,2 @@\n-a\n-b\n-c\n+x\n+y\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -2 +2 @@\n-b\n+x\n@@ -4 +4 @@\n-d\n+y\n@@ -6 +6 @@\n-f\n+z\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1,7 +1,7 @@\n a\n-b\n+x\n c\n-d\n+y\n e\n-f\n+z\n g\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,7 +1,7 @@\n a\n-b\n+x\n c\n-d\n+y\n e\n-f\n+z\n g\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -2 +2 @@\n-b\n+x\n@@ -4 +4 @@\n-d\n+y\n@@ -6 +6 @@\n-f\n+z\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1,7 +1,7 @@\n a\n-b\n+x\n c\n-d\n+y\n e\n-f\n+z\n g\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,7 +1,7 @@\n a\n-b\n+x\n c\n-d\n+y\n e\n-f\n+z\n g\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -2 +2 @@\n-b\n+x\n@@ -4 +4 @@\n-d\n+y\n@@ -6 +6 @@\n-f\n+z\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1,7 +1,7 @@\n a\n-b\n+x\n c\n-d\n+y\n e\n-f\n+z\n g\n"
+  },
+  {
+   "name": "interleaved",
+   "old": "a\nb\nc\nd\ne\nf\ng\n",
+   "new": "a\nx\nc\ny\ne\nz\ng\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,7 +1,7 @@\n a\n-b\n+x\n c\n-d\n+y\n e\n-f\n+z\n g\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "myers-linear",
+   "context": 0,
+   "expect": "@@ -0,0 +1,3 @@\n+7\n+8\n+9\n@@ -7,3 +9,0 @@\n-7\n-8\n-9\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "myers-linear",
+   "context": 1,
+   "expect": "@@ -1 +1,4 @@\n+7\n+8\n+9\n 1\n@@ -6,5 +9,2 @@\n 6\n-7\n-8\n-9\n 10\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "myers-linear",
+   "context": 3,
+   "expect": "@@ -1,12 +1,12 @@\n+7\n+8\n+9\n 1\n 2\n 3\n 4\n 5\n 6\n-7\n-8\n-9\n 10\n 11\n 12\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "patience",
+   "context": 0,
+   "expect": "@@ -0,0 +1,3 @@\n+7\n+8\n+9\n@@ -7,3 +9,0 @@\n-7\n-8\n-9\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "patience",
+   "context": 1,
+   "expect": "@@ -1 +1,4 @@\n+7\n+8\n+9\n 1\n@@ -6,5 +9,2 @@\n 6\n-7\n-8\n-9\n 10\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "patience",
+   "context": 3,
+   "expect": "@@ -1,12 +1,12 @@\n+7\n+8\n+9\n 1\n 2\n 3\n 4\n 5\n 6\n-7\n-8\n-9\n 10\n 11\n 12\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "histogram",
+   "context": 0,
+   "expect": "@@ -0,0 +1,3 @@\n+7\n+8\n+9\n@@ -7,3 +9,0 @@\n-7\n-8\n-9\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "histogram",
+   "context": 1,
+   "expect": "@@ -1 +1,4 @@\n+7\n+8\n+9\n 1\n@@ -6,5 +9,2 @@\n 6\n-7\n-8\n-9\n 10\n"
+  },
+  {
+   "name": "move_block",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n",
+   "new": "7\n8\n9\n1\n2\n3\n4\n5\n6\n10\n11\n12\n",
+   "algorithm": "histogram",
+   "context": 3,
+   "expect": "@@ -1,12 +1,12 @@\n+7\n+8\n+9\n 1\n 2\n 3\n 4\n 5\n 6\n-7\n-8\n-9\n 10\n 11\n 12\n"
+  },
+  {
+   "name": "random_0",
+   "old": "b\n{\n\na\na\nx\n}\na\nc\n}\na\n}\nb\na\na\n{\n{\na\nb\na\n}\n{\na\nx\n}\na\nb\n\n\n}\n",
+   "new": "}\n{\na\nb\na\n}\nx\nb\nc\n{\nb\n}\na\n}\nc\n}\nx\n\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,30 +1,18 @@\n-b\n+}\n {\n-\n a\n+b\n a\n+}\n x\n+b\n+c\n+{\n+b\n }\n a\n+}\n c\n }\n-a\n-}\n-b\n-a\n-a\n-{\n-{\n-a\n-b\n-a\n-}\n-{\n-a\n x\n-}\n-a\n-b\n \n-\n-}\n"
+  },
+  {
+   "name": "random_1",
+   "old": "b\nc\na\n",
+   "new": "c\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,3 +1,2 @@\n-b\n c\n a\n"
+  },
+  {
+   "name": "random_1",
+   "old": "b\nc\na\n",
+   "new": "c\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,3 +1,2 @@\n-b\n c\n a\n"
+  },
+  {
+   "name": "random_1",
+   "old": "b\nc\na\n",
+   "new": "c\na\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,3 +1,2 @@\n-b\n c\n a\n"
+  },
+  {
+   "name": "random_2",
+   "old": "}\n{\nc\n{\n}\n{\nc\nc\nb\nb\nb\na\n}\nc\n}\n",
+   "new": "}\n{\nc\n{\n}\n{\n}\nb\nb\na\nb\na\n}\nc\n}\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -5,8 +5,8 @@\n }\n {\n-c\n-c\n+}\n b\n b\n+a\n b\n a\n"
+  },
+  {
+   "name": "random_2",
+   "old": "}\n{\nc\n{\n}\n{\nc\nc\nb\nb\nb\na\n}\nc\n}\n",
+   "new": "}\n{\nc\n{\n}\n{\n}\nb\nb\na\nb\na\n}\nc\n}\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -5,8 +5,8 @@\n }\n {\n-c\n-c\n+}\n b\n b\n+a\n b\n a\n"
+  },
+  {
+   "name": "random_2",
+   "old": "}\n{\nc\n{\n}\n{\nc\nc\nb\nb\nb\na\n}\nc\n}\n",
+   "new": "}\n{\nc\n{\n}\n{\n}\nb\nb\na\nb\na\n}\nc\n}\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -5,8 +5,8 @@\n }\n {\n-c\n-c\n+}\n b\n b\n+a\n b\n a\n"
+  },
+  {
+   "name": "random_3",
+   "old": "c\nb\n{\n{\na\na\nc\nc\nc\n{\n{\na\na\nc\n{\na\na\nc\n{\nc\n{\nc\na\n{\n",
+   "new": "c\n{\n{\n{\nc\na\nc\nc\n{\n{\na\na\n{\nc\nb\na\na\nc\n{\nc\n{\nc\na\n{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,17 +1,17 @@\n c\n+{\n+{\n+{\n+c\n+a\n+c\n+c\n+{\n+{\n+a\n+a\n+{\n+c\n b\n-{\n-{\n-a\n-a\n-c\n-c\n-c\n-{\n-{\n-a\n-a\n-c\n-{\n a\n a\n"
+  },
+  {
+   "name": "random_3",
+   "old": "c\nb\n{\n{\na\na\nc\nc\nc\n{\n{\na\na\nc\n{\na\na\nc\n{\nc\n{\nc\na\n{\n",
+   "new": "c\n{\n{\n{\nc\na\nc\nc\n{\n{\na\na\n{\nc\nb\na\na\nc\n{\nc\n{\nc\na\n{\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,17 +1,17 @@\n c\n+{\n+{\n+{\n+c\n+a\n+c\n+c\n+{\n+{\n+a\n+a\n+{\n+c\n b\n-{\n-{\n-a\n-a\n-c\n-c\n-c\n-{\n-{\n-a\n-a\n-c\n-{\n a\n a\n"
+  },
+  {
+   "name": "random_3",
+   "old": "c\nb\n{\n{\na\na\nc\nc\nc\n{\n{\na\na\nc\n{\na\na\nc\n{\nc\n{\nc\na\n{\n",
+   "new": "c\n{\n{\n{\nc\na\nc\nc\n{\n{\na\na\n{\nc\nb\na\na\nc\n{\nc\n{\nc\na\n{\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n c\n-b\n {\n {\n-a\n-a\n+{\n c\n+a\n c\n c\n@@ -12,6 +11,7 @@\n a\n a\n-c\n {\n+c\n+b\n a\n a\n"
+  },
+  {
+   "name": "random_4",
+   "old": "}\nc\nx\n}\nx\n\nx\n{\nc\nb\nc\nc\n{\n{\na\nreturn 1;\nc\n",
+   "new": "}\nc\nx\n}\nx\n\nx\n{\nc\nb\nc\nx\n{\n{\na\nreturn 1;\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -10,5 +10,5 @@\n b\n c\n-c\n+x\n {\n {\n"
+  },
+  {
+   "name": "random_4",
+   "old": "}\nc\nx\n}\nx\n\nx\n{\nc\nb\nc\nc\n{\n{\na\nreturn 1;\nc\n",
+   "new": "}\nc\nx\n}\nx\n\nx\n{\nc\nb\nc\nx\n{\n{\na\nreturn 1;\nc\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -10,5 +10,5 @@\n b\n c\n-c\n+x\n {\n {\n"
+  },
+  {
+   "name": "random_4",
+   "old": "}\nc\nx\n}\nx\n\nx\n{\nc\nb\nc\nc\n{\n{\na\nreturn 1;\nc\n",
+   "new": "}\nc\nx\n}\nx\n\nx\n{\nc\nb\nc\nx\n{\n{\na\nreturn 1;\nc\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -10,5 +10,5 @@\n b\n c\n-c\n+x\n {\n {\n"
+  },
+  {
+   "name": "random_5",
+   "old": "b\n\nx\n}\n}\n\n\n\na\n{\nx\nx\nx\n\nx\n}\n{\n{\n{\n{\na\n{\n\n{\na\nb\na\nb\n{\nb\n",
+   "new": "a\n\nx\n\n\n\nx\n{\nx\nx\nx\n\nx\n}\n{\n{\n{\n{\na\na\n{\n\n{\na\nb\na\nb\n{\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,11 +1,9 @@\n-b\n+a\n \n x\n-}\n-}\n \n \n \n-a\n+x\n {\n x\n@@ -20,4 +18,5 @@\n {\n a\n+a\n {\n \n"
+  },
+  {
+   "name": "random_5",
+   "old": "b\n\nx\n}\n}\n\n\n\na\n{\nx\nx\nx\n\nx\n}\n{\n{\n{\n{\na\n{\n\n{\na\nb\na\nb\n{\nb\n",
+   "new": "a\n\nx\n\n\n\nx\n{\nx\nx\nx\n\nx\n}\n{\n{\n{\n{\na\na\n{\n\n{\na\nb\na\nb\n{\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,11 +1,9 @@\n-b\n+a\n \n x\n-}\n-}\n \n \n \n-a\n+x\n {\n x\n@@ -20,4 +18,5 @@\n {\n a\n+a\n {\n \n"
+  },
+  {
+   "name": "random_5",
+   "old": "b\n\nx\n}\n}\n\n\n\na\n{\nx\nx\nx\n\nx\n}\n{\n{\n{\n{\na\n{\n\n{\na\nb\na\nb\n{\nb\n",
+   "new": "a\n\nx\n\n\n\nx\n{\nx\nx\nx\n\nx\n}\n{\n{\n{\n{\na\na\n{\n\n{\na\nb\na\nb\n{\nb\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,11 +1,9 @@\n-b\n+a\n \n x\n-}\n-}\n \n \n \n-a\n+x\n {\n x\n@@ -20,4 +18,5 @@\n {\n a\n+a\n {\n \n"
+  },
+  {
+   "name": "random_6",
+   "old": "}\n\n\nreturn 1;\n",
+   "new": "c\n}\n\nc\n\nreturn 1;\n\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,4 +1,7 @@\n+c\n }\n \n+c\n \n return 1;\n+\n"
+  },
+  {
+   "name": "random_6",
+   "old": "}\n\n\nreturn 1;\n",
+   "new": "c\n}\n\nc\n\nreturn 1;\n\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,4 +1,7 @@\n+c\n }\n \n+c\n \n return 1;\n+\n"
+  },
+  {
+   "name": "random_6",
+   "old": "}\n\n\nreturn 1;\n",
+   "new": "c\n}\n\nc\n\nreturn 1;\n\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,4 +1,7 @@\n+c\n }\n \n+c\n \n return 1;\n+\n"
+  },
+  {
+   "name": "random_7",
+   "old": "b\na\na\nb\na\nb\n",
+   "new": "b\na\na\nb\nb\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -3,4 +3,4 @@\n a\n b\n-a\n b\n+a\n"
+  },
+  {
+   "name": "random_7",
+   "old": "b\na\na\nb\na\nb\n",
+   "new": "b\na\na\nb\nb\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -3,4 +3,4 @@\n a\n b\n-a\n b\n+a\n"
+  },
+  {
+   "name": "random_7",
+   "old": "b\na\na\nb\na\nb\n",
+   "new": "b\na\na\nb\nb\na\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -3,4 +3,4 @@\n a\n b\n-a\n b\n+a\n"
+  },
+  {
+   "name": "random_8",
+   "old": "b\n}\nx\nx\nx\nx\nb\nx\nb\nx\n{\n\nx\nb\nb\n}\n{\nc\n\na\n",
+   "new": "c\n{\nc\nb\n\n}\nc\n{\nx\n\nc\nc\na\nb\na\nb\n{\nb\nc\nb\n{\n}\n}\nx\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,20 +1,25 @@\n-b\n-}\n-x\n-x\n-x\n-x\n-b\n-x\n-b\n-x\n-{\n-\n-x\n-b\n-b\n-}\n+c\n {\n c\n+b\n \n+}\n+c\n+{\n+x\n+\n+c\n+c\n+a\n+b\n+a\n+b\n+{\n+b\n+c\n+b\n+{\n+}\n+}\n+x\n a\n"
+  },
+  {
+   "name": "random_8",
+   "old": "b\n}\nx\nx\nx\nx\nb\nx\nb\nx\n{\n\nx\nb\nb\n}\n{\nc\n\na\n",
+   "new": "c\n{\nc\nb\n\n}\nc\n{\nx\n\nc\nc\na\nb\na\nb\n{\nb\nc\nb\n{\n}\n}\nx\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,20 +1,25 @@\n+c\n+{\n+c\n b\n+\n }\n+c\n+{\n x\n-x\n-x\n-x\n+\n+c\n+c\n+a\n b\n-x\n+a\n b\n-x\n {\n-\n-x\n b\n+c\n b\n-}\n {\n-c\n-\n+}\n+}\n+x\n a\n"
+  },
+  {
+   "name": "random_8",
+   "old": "b\n}\nx\nx\nx\nx\nb\nx\nb\nx\n{\n\nx\nb\nb\n}\n{\nc\n\na\n",
+   "new": "c\n{\nc\nb\n\n}\nc\n{\nx\n\nc\nc\na\nb\na\nb\n{\nb\nc\nb\n{\n}\n}\nx\na\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,20 +1,25 @@\n+c\n+{\n+c\n b\n+\n }\n+c\n+{\n x\n-x\n-x\n-x\n+\n+c\n+c\n+a\n b\n-x\n+a\n b\n-x\n {\n-\n-x\n b\n+c\n b\n-}\n {\n-c\n-\n+}\n+}\n+x\n a\n"
+  },
+  {
+   "name": "random_9",
+   "old": "\nb\nb\nx\n{\nreturn 1;\nc\nx\n\nb\nx\nreturn 1;\nx\nb\nc\nc\nc\na\nc\nreturn 1;\nc\nreturn 1;\n\nc\nint i;\nint i;\nc\na\na\n",
+   "new": "b\nint i;\nc\nx\n{\n{\na\n}\n{\n}\nint i;\n{\n\n}\nint i;\nx\nc\na\n\nreturn 1;\nint i;\nx\nint i;\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,29 +1,23 @@\n-\n-b\n b\n+int i;\n+c\n x\n {\n-return 1;\n-c\n-x\n-\n-b\n-x\n-return 1;\n-x\n-b\n-c\n-c\n-c\n+{\n a\n-c\n-return 1;\n-c\n-return 1;\n-\n-c\n+}\n+{\n+}\n int i;\n+{\n+\n+}\n int i;\n+x\n c\n a\n-a\n+\n+return 1;\n+int i;\n+x\n+int i;\n"
+  },
+  {
+   "name": "random_9",
+   "old": "\nb\nb\nx\n{\nreturn 1;\nc\nx\n\nb\nx\nreturn 1;\nx\nb\nc\nc\nc\na\nc\nreturn 1;\nc\nreturn 1;\n\nc\nint i;\nint i;\nc\na\na\n",
+   "new": "b\nint i;\nc\nx\n{\n{\na\n}\n{\n}\nint i;\n{\n\n}\nint i;\nx\nc\na\n\nreturn 1;\nint i;\nx\nint i;\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,29 +1,23 @@\n-\n-b\n b\n-x\n-{\n-return 1;\n+int i;\n c\n x\n+{\n+{\n+a\n+}\n+{\n+}\n+int i;\n+{\n \n-b\n-x\n-return 1;\n+}\n+int i;\n x\n-b\n-c\n-c\n c\n a\n-c\n-return 1;\n-c\n-return 1;\n \n-c\n+return 1;\n int i;\n+x\n int i;\n-c\n-a\n-a\n"
+  },
+  {
+   "name": "random_9",
+   "old": "\nb\nb\nx\n{\nreturn 1;\nc\nx\n\nb\nx\nreturn 1;\nx\nb\nc\nc\nc\na\nc\nreturn 1;\nc\nreturn 1;\n\nc\nint i;\nint i;\nc\na\na\n",
+   "new": "b\nint i;\nc\nx\n{\n{\na\n}\n{\n}\nint i;\n{\n\n}\nint i;\nx\nc\na\n\nreturn 1;\nint i;\nx\nint i;\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,29 +1,23 @@\n-\n-b\n b\n-x\n-{\n-return 1;\n+int i;\n c\n x\n+{\n+{\n+a\n+}\n+{\n+}\n+int i;\n+{\n \n-b\n-x\n-return 1;\n+}\n+int i;\n x\n-b\n-c\n-c\n c\n a\n-c\n-return 1;\n-c\n-return 1;\n \n-c\n+return 1;\n int i;\n+x\n int i;\n-c\n-a\n-a\n"
+  },
+  {
+   "name": "random_10",
+   "old": "b\na\n{\nb\na\nb\nb\nb\n{\na\na\nc\n{\na\na\nb\nb\n",
+   "new": "b\na\n{\nb\na\nb\nb\nb\n{\na\na\nc\n{\na\nb\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -13,5 +13,4 @@\n {\n a\n-a\n b\n b\n"
+  },
+  {
+   "name": "random_10",
+   "old": "b\na\n{\nb\na\nb\nb\nb\n{\na\na\nc\n{\na\na\nb\nb\n",
+   "new": "b\na\n{\nb\na\nb\nb\nb\n{\na\na\nc\n{\na\nb\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -13,5 +13,4 @@\n {\n a\n-a\n b\n b\n"
+  },
+  {
+   "name": "random_10",
+   "old": "b\na\n{\nb\na\nb\nb\nb\n{\na\na\nc\n{\na\na\nb\nb\n",
+   "new": "b\na\n{\nb\na\nb\nb\nb\n{\na\na\nc\n{\na\nb\nb\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -13,5 +13,4 @@\n {\n a\n-a\n b\n b\n"
+  },
+  {
+   "name": "random_11",
+   "old": "a\nb\nb\na\nb\nb\nb\na\nb\na\nb\na\nb\na\nb\nb\nb\na\na\nb\na\na\nb\na\n",
+   "new": "b\na\nb\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,24 +1,4 @@\n-a\n-b\n-b\n-a\n-b\n-b\n b\n a\n b\n a\n-b\n-a\n-b\n-a\n-b\n-b\n-b\n-a\n-a\n-b\n-a\n-a\n-b\n-a\n"
+  },
+  {
+   "name": "random_11",
+   "old": "a\nb\nb\na\nb\nb\nb\na\nb\na\nb\na\nb\na\nb\nb\nb\na\na\nb\na\na\nb\na\n",
+   "new": "b\na\nb\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,24 +1,4 @@\n-a\n-b\n-b\n-a\n-b\n-b\n-b\n-a\n-b\n-a\n b\n a\n b\n a\n-b\n-b\n-b\n-a\n-a\n-b\n-a\n-a\n-b\n-a\n"
+  },
+  {
+   "name": "random_11",
+   "old": "a\nb\nb\na\nb\nb\nb\na\nb\na\nb\na\nb\na\nb\nb\nb\na\na\nb\na\na\nb\na\n",
+   "new": "b\na\nb\na\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,24 +1,4 @@\n-a\n-b\n-b\n-a\n-b\n-b\n-b\n-a\n-b\n-a\n b\n a\n b\n a\n-b\n-b\n-b\n-a\n-a\n-b\n-a\n-a\n-b\n-a\n"
+  },
+  {
+   "name": "random_12",
+   "old": "b\nx\nreturn 1;\nc\n{\nc\nx\n",
+   "new": "\nx\n{\n\n\nb\n\na\n\nint i;\nreturn 1;\nreturn 1;\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,7 +1,12 @@\n-b\n+\n x\n-return 1;\n-c\n {\n-c\n-x\n+\n+\n+b\n+\n+a\n+\n+int i;\n+return 1;\n+return 1;\n"
+  },
+  {
+   "name": "random_12",
+   "old": "b\nx\nreturn 1;\nc\n{\nc\nx\n",
+   "new": "\nx\n{\n\n\nb\n\na\n\nint i;\nreturn 1;\nreturn 1;\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,7 +1,12 @@\n-b\n+\n x\n-return 1;\n-c\n {\n-c\n-x\n+\n+\n+b\n+\n+a\n+\n+int i;\n+return 1;\n+return 1;\n"
+  },
+  {
+   "name": "random_13",
+   "old": "b\nb\na\na\na\na\na\nb\nb\na\na\nb\n",
+   "new": "b\nb\nb\na\nb\nb\na\nb\na\na\nb\na\nb\na\na\nb\na\na\na\nb\na\nb\na\nb\nb\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,12 +1,26 @@\n b\n b\n-a\n-a\n-a\n-a\n+b\n a\n b\n b\n a\n+b\n+a\n a\n b\n+a\n+b\n+a\n+a\n+b\n+a\n+a\n+a\n+b\n+a\n+b\n+a\n+b\n+b\n+b\n"
+  },
+  {
+   "name": "random_13",
+   "old": "b\nb\na\na\na\na\na\nb\nb\na\na\nb\n",
+   "new": "b\nb\nb\na\nb\nb\na\nb\na\na\nb\na\nb\na\na\nb\na\na\na\nb\na\nb\na\nb\nb\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,12 +1,26 @@\n b\n b\n+b\n a\n+b\n+b\n a\n+b\n+a\n+a\n+b\n a\n+b\n a\n a\n b\n+a\n+a\n+a\n b\n a\n+b\n a\n b\n+b\n+b\n"
+  },
+  {
+   "name": "random_13",
+   "old": "b\nb\na\na\na\na\na\nb\nb\na\na\nb\n",
+   "new": "b\nb\nb\na\nb\nb\na\nb\na\na\nb\na\nb\na\na\nb\na\na\na\nb\na\nb\na\nb\nb\nb\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,12 +1,26 @@\n b\n b\n+b\n a\n+b\n+b\n a\n+b\n+a\n+a\n+b\n a\n+b\n a\n a\n b\n+a\n+a\n+a\n b\n a\n+b\n a\n b\n+b\n+b\n"
+  },
+  {
+   "name": "random_14",
+   "old": "b\n",
+   "new": "c\na\nb\nb\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1 +1,5 @@\n+c\n+a\n b\n+b\n+c\n"
+  },
+  {
+   "name": "random_14",
+   "old": "b\n",
+   "new": "c\na\nb\nb\nc\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1 +1,5 @@\n+c\n+a\n b\n+b\n+c\n"
+  },
+  {
+   "name": "random_14",
+   "old": "b\n",
+   "new": "c\na\nb\nb\nc\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1 +1,5 @@\n+c\n+a\n b\n+b\n+c\n"
+  },
+  {
+   "name": "random_15",
+   "old": "b\nc\n{\n}\n\nb\nc\nc\na\nc\na\na\na\n\n}\n}\n",
+   "new": "{\nb\n{\na\n\n\n{\n\n{\n}\n{\n}\nc\n\nb\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,16 +1,16 @@\n+{\n b\n-c\n+{\n+a\n+\n+\n+{\n+\n {\n }\n+{\n+}\n+c\n \n b\n-c\n-c\n-a\n-c\n-a\n-a\n-a\n-\n-}\n-}\n+b\n"
+  },
+  {
+   "name": "random_15",
+   "old": "b\nc\n{\n}\n\nb\nc\nc\na\nc\na\na\na\n\n}\n}\n",
+   "new": "{\nb\n{\na\n\n\n{\n\n{\n}\n{\n}\nc\n\nb\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,16 +1,16 @@\n-b\n-c\n {\n-}\n-\n b\n-c\n-c\n-a\n-c\n-a\n-a\n+{\n a\n \n+\n+{\n+\n+{\n }\n+{\n }\n+c\n+\n+b\n+b\n"
+  },
+  {
+   "name": "random_15",
+   "old": "b\nc\n{\n}\n\nb\nc\nc\na\nc\na\na\na\n\n}\n}\n",
+   "new": "{\nb\n{\na\n\n\n{\n\n{\n}\n{\n}\nc\n\nb\nb\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,16 +1,16 @@\n-b\n-c\n {\n-}\n-\n b\n-c\n-c\n-a\n-c\n-a\n-a\n+{\n a\n \n+\n+{\n+\n+{\n }\n+{\n }\n+c\n+\n+b\n+b\n"
+  },
+  {
+   "name": "random_16",
+   "old": "x\n\n\n\nb\n{\n",
+   "new": "x\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,6 +1 @@\n x\n-\n-\n-\n-b\n-{\n"
+  },
+  {
+   "name": "random_16",
+   "old": "x\n\n\n\nb\n{\n",
+   "new": "x\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,6 +1 @@\n x\n-\n-\n-\n-b\n-{\n"
+  },
+  {
+   "name": "random_16",
+   "old": "x\n\n\n\nb\n{\n",
+   "new": "x\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,6 +1 @@\n x\n-\n-\n-\n-b\n-{\n"
+  },
+  {
+   "name": "random_17",
+   "old": "",
+   "new": "",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": ""
+  },
+  {
+   "name": "random_17",
+   "old": "",
+   "new": "",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": ""
+  },
+  {
+   "name": "random_17",
+   "old": "",
+   "new": "",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": ""
+  },
+  {
+   "name": "random_18",
+   "old": "{\n",
+   "new": "c\na\n}\n{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1 +1,4 @@\n+c\n+a\n+}\n {\n"
+  },
+  {
+   "name": "random_18",
+   "old": "{\n",
+   "new": "c\na\n}\n{\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1 +1,4 @@\n+c\n+a\n+}\n {\n"
+  },
+  {
+   "name": "random_18",
+   "old": "{\n",
+   "new": "c\na\n}\n{\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1 +1,4 @@\n+c\n+a\n+}\n {\n"
+  },
+  {
+   "name": "random_19",
+   "old": "c\nb\na\nc\n{\na\n",
+   "new": "{\na\nc\n{\n{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,6 +1,5 @@\n-c\n-b\n+{\n a\n c\n {\n-a\n+{\n"
+  },
+  {
+   "name": "random_19",
+   "old": "c\nb\na\nc\n{\na\n",
+   "new": "{\na\nc\n{\n{\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,6 +1,5 @@\n-c\n-b\n+{\n a\n c\n {\n-a\n+{\n"
+  },
+  {
+   "name": "random_19",
+   "old": "c\nb\na\nc\n{\na\n",
+   "new": "{\na\nc\n{\n{\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,6 +1,5 @@\n-c\n-b\n+{\n a\n c\n {\n-a\n+{\n"
+  },
+  {
+   "name": "random_20",
+   "old": "\nb\na\n}\n}\nb\n\n\n}\n",
+   "new": "\nb\nc\n}\n}\nb\n\n}\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n \n b\n-a\n+c\n }\n }\n b\n \n-\n }\n"
+  },
+  {
+   "name": "random_20",
+   "old": "\nb\na\n}\n}\nb\n\n\n}\n",
+   "new": "\nb\nc\n}\n}\nb\n\n}\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n \n b\n-a\n+c\n }\n }\n b\n \n-\n }\n"
+  },
+  {
+   "name": "random_20",
+   "old": "\nb\na\n}\n}\nb\n\n\n}\n",
+   "new": "\nb\nc\n}\n}\nb\n\n}\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n \n b\n-a\n+c\n }\n }\n b\n \n-\n }\n"
+  },
+  {
+   "name": "random_21",
+   "old": "a\nb\na\na\na\nb\nc\na\n{\n{\na\na\nb\n{\nc\na\n{\na\na\na\n{\nc\na\nc\nb\nb\nb\n{\n{\n",
+   "new": "{\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,29 +1,2 @@\n-a\n-b\n-a\n-a\n-a\n-b\n-c\n-a\n-{\n-{\n-a\n-a\n-b\n {\n c\n-a\n-{\n-a\n-a\n-a\n-{\n-c\n-a\n-c\n-b\n-b\n-b\n-{\n-{\n"
+  },
+  {
+   "name": "random_21",
+   "old": "a\nb\na\na\na\nb\nc\na\n{\n{\na\na\nb\n{\nc\na\n{\na\na\na\n{\nc\na\nc\nb\nb\nb\n{\n{\n",
+   "new": "{\nc\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,29 +1,2 @@\n-a\n-b\n-a\n-a\n-a\n-b\n-c\n-a\n-{\n-{\n-a\n-a\n-b\n {\n c\n-a\n-{\n-a\n-a\n-a\n-{\n-c\n-a\n-c\n-b\n-b\n-b\n-{\n-{\n"
+  },
+  {
+   "name": "random_21",
+   "old": "a\nb\na\na\na\nb\nc\na\n{\n{\na\na\nb\n{\nc\na\n{\na\na\na\n{\nc\na\nc\nb\nb\nb\n{\n{\n",
+   "new": "{\nc\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,29 +1,2 @@\n-a\n-b\n-a\n-a\n-a\n-b\n-c\n-a\n-{\n-{\n-a\n-a\n-b\n {\n c\n-a\n-{\n-a\n-a\n-a\n-{\n-c\n-a\n-c\n-b\n-b\n-b\n-{\n-{\n"
+  },
+  {
+   "name": "random_22",
+   "old": "a\na\na\nb\nb\nb\na\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\nb\n",
+   "new": "a\na\na\nb\nb\nb\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -6,5 +6,4 @@\n b\n a\n-a\n b\n a\n"
+  },
+  {
+   "name": "random_22",
+   "old": "a\na\na\nb\nb\nb\na\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\nb\n",
+   "new": "a\na\na\nb\nb\nb\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -6,5 +6,4 @@\n b\n a\n-a\n b\n a\n"
+  },
+  {
+   "name": "random_22",
+   "old": "a\na\na\nb\nb\nb\na\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\nb\n",
+   "new": "a\na\na\nb\nb\nb\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\nb\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -6,5 +6,4 @@\n b\n a\n-a\n b\n a\n"
+  },
+  {
+   "name": "random_23",
+   "old": "{\na\n",
+   "new": "{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,2 +1 @@\n {\n-a\n"
+  },
+  {
+   "name": "random_23",
+   "old": "{\na\n",
+   "new": "{\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,2 +1 @@\n {\n-a\n"
+  },
+  {
+   "name": "random_23",
+   "old": "{\na\n",
+   "new": "{\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,2 +1 @@\n {\n-a\n"
+  },
+  {
+   "name": "random_24",
+   "old": "b\nb\na\n}\na\nb\n\n}\nc\nc\nb\n}\n",
+   "new": "c\na\n\nc\nb\n{\n{\n{\na\nb\na\n{\n\n{\n{\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,12 +1,16 @@\n-b\n-b\n+c\n a\n-}\n-a\n-b\n \n-}\n-c\n c\n b\n-}\n+{\n+{\n+{\n+a\n+b\n+a\n+{\n+\n+{\n+{\n+c\n"
+  },
+  {
+   "name": "random_25",
+   "old": "c\n{\nc\na\nc\na\nc\nc\n{\na\nb\na\nc\n",
+   "new": "c\n{\nc\na\nc\na\na\nc\nc\n{\na\nb\na\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -5,4 +5,5 @@\n c\n a\n+a\n c\n c\n"
+  },
+  {
+   "name": "random_25",
+   "old": "c\n{\nc\na\nc\na\nc\nc\n{\na\nb\na\nc\n",
+   "new": "c\n{\nc\na\nc\na\na\nc\nc\n{\na\nb\na\nc\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -5,4 +5,5 @@\n c\n a\n+a\n c\n c\n"
+  },
+  {
+   "name": "random_25",
+   "old": "c\n{\nc\na\nc\na\nc\nc\n{\na\nb\na\nc\n",
+   "new": "c\n{\nc\na\nc\na\na\nc\nc\n{\na\nb\na\nc\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -5,4 +5,5 @@\n c\n a\n+a\n c\n c\n"
+  },
+  {
+   "name": "random_26",
+   "old": "{\nx\nc\nx\na\nc\na\na\nx\n\nc\n\nb\nb\nc\n{\n}\nc\nb\nx\nc\nx\n{\na\nx\nx\n\n{\n}\n",
+   "new": "{\nx\nc\nx\nc\na\na\nx\n\nc\n\nb\nb\n{\na\nc\n{\n}\nc\nb\nx\nc\nx\n{\na\nx\nx\n\n{\n}\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -3,5 +3,4 @@\n c\n x\n-a\n c\n a\n@@ -13,4 +12,6 @@\n b\n b\n+{\n+a\n c\n {\n"
+  },
+  {
+   "name": "random_26",
+   "old": "{\nx\nc\nx\na\nc\na\na\nx\n\nc\n\nb\nb\nc\n{\n}\nc\nb\nx\nc\nx\n{\na\nx\nx\n\n{\n}\n",
+   "new": "{\nx\nc\nx\nc\na\na\nx\n\nc\n\nb\nb\n{\na\nc\n{\n}\nc\nb\nx\nc\nx\n{\na\nx\nx\n\n{\n}\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -3,5 +3,4 @@\n c\n x\n-a\n c\n a\n@@ -13,4 +12,6 @@\n b\n b\n+{\n+a\n c\n {\n"
+  },
+  {
+   "name": "random_26",
+   "old": "{\nx\nc\nx\na\nc\na\na\nx\n\nc\n\nb\nb\nc\n{\n}\nc\nb\nx\nc\nx\n{\na\nx\nx\n\n{\n}\n",
+   "new": "{\nx\nc\nx\nc\na\na\nx\n\nc\n\nb\nb\n{\na\nc\n{\n}\nc\nb\nx\nc\nx\n{\na\nx\nx\n\n{\n}\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -3,5 +3,4 @@\n c\n x\n-a\n c\n a\n@@ -13,4 +12,6 @@\n b\n b\n+{\n+a\n c\n {\n"
+  },
+  {
+   "name": "random_27",
+   "old": "c\nc\n\n\n\nc\n{\n\nb\n",
+   "new": "c\nc\nb\n\nc\nx\n\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n c\n c\n-\n-\n+b\n \n c\n-{\n+x\n \n b\n"
+  },
+  {
+   "name": "random_27",
+   "old": "c\nc\n\n\n\nc\n{\n\nb\n",
+   "new": "c\nc\nb\n\nc\nx\n\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n c\n c\n-\n-\n+b\n \n c\n-{\n+x\n \n b\n"
+  },
+  {
+   "name": "random_27",
+   "old": "c\nc\n\n\n\nc\n{\n\nb\n",
+   "new": "c\nc\nb\n\nc\nx\n\nb\n",
+   "algorithm": "myers-linear",
+   "context": 2,
+   "expect": "@@ -1,9 +1,8 @@\n c\n c\n-\n-\n+b\n \n c\n-{\n+x\n \n b\n"
+  },
+  {
+   "name": "random_28",
+   "old": "c\nint i;\n{\n{\nb\nc\n\nint i;\nb\n\n{\n\n}\n",
+   "new": "a\nx\nx\nx\nint i;\n{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,13 +1,6 @@\n-c\n+a\n+x\n+x\n+x\n int i;\n {\n-{\n-b\n-c\n-\n-int i;\n-b\n-\n-{\n-\n-}\n"
+  },
+  {
+   "name": "random_28",
+   "old": "c\nint i;\n{\n{\nb\nc\n\nint i;\nb\n\n{\n\n}\n",
+   "new": "a\nx\nx\nx\nint i;\n{\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,13 +1,6 @@\n-c\n+a\n+x\n+x\n+x\n int i;\n {\n-{\n-b\n-c\n-\n-int i;\n-b\n-\n-{\n-\n-}\n"
+  },
+  {
+   "name": "random_29",
+   "old": "\na\nreturn 1;\n}\n\nc\n{\nb\n",
+   "new": "\na\nreturn 1;\n}\na\n\nc\nreturn 1;\n{\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -3,6 +3,8 @@\n return 1;\n }\n+a\n \n c\n+return 1;\n {\n b\n"
+  },
+  {
+   "name": "random_29",
+   "old": "\na\nreturn 1;\n}\n\nc\n{\nb\n",
+   "new": "\na\nreturn 1;\n}\na\n\nc\nreturn 1;\n{\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -3,6 +3,8 @@\n return 1;\n }\n+a\n \n c\n+return 1;\n {\n b\n"
+  },
+  {
+   "name": "random_30",
+   "old": "{\n",
+   "new": "{\n{\na\na\n{\n{\n{\nb\na\nb\nb\nb\na\n{\na\na\na\nb\nb\na\nc\nb\nc\n{\na\na\na\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1 +1,28 @@\n {\n+{\n+a\n+a\n+{\n+{\n+{\n+b\n+a\n+b\n+b\n+b\n+a\n+{\n+a\n+a\n+a\n+b\n+b\n+a\n+c\n+b\n+c\n+{\n+a\n+a\n+a\n+c\n"
+  },
+  {
+   "name": "random_30",
+   "old": "{\n",
+   "new": "{\n{\na\na\n{\n{\n{\nb\na\nb\nb\nb\na\n{\na\na\na\nb\nb\na\nc\nb\nc\n{\na\na\na\nc\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1 +1,28 @@\n {\n+{\n+a\n+a\n+{\n+{\n+{\n+b\n+a\n+b\n+b\n+b\n+a\n+{\n+a\n+a\n+a\n+b\n+b\n+a\n+c\n+b\n+c\n+{\n+a\n+a\n+a\n+c\n"
+  },
+  {
+   "name": "random_31",
+   "old": "c\nb\n}\na\na\n}\nc\n{\nc\nc\nb\n{\n",
+   "new": "a\nc\nb\n}\na\na\na\n{\nc\n{\n{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,2 +1,3 @@\n+a\n c\n b\n@@ -4,9 +5,7 @@\n a\n a\n-}\n-c\n+a\n {\n c\n-c\n-b\n+{\n {\n"
+  },
+  {
+   "name": "random_32",
+   "old": "a\nc\nb\nb\na\nb\na\nc\n",
+   "new": "a\nc\nb\nb\na\nb\na\na\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -6,3 +6,4 @@\n b\n a\n-c\n+a\n+b\n"
+  },
+  {
+   "name": "random_32",
+   "old": "a\nc\nb\nb\na\nb\na\nc\n",
+   "new": "a\nc\nb\nb\na\nb\na\na\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -6,3 +6,4 @@\n b\n a\n-c\n+a\n+b\n"
+  },
+  {
+   "name": "random_33",
+   "old": "b\nc\nc\na\n}\n{\n}\nb\nb\n{\n{\na\n}\nb\n",
+   "new": "b\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,14 +1 @@\n b\n-c\n-c\n-a\n-}\n-{\n-}\n-b\n-b\n-{\n-{\n-a\n-}\n-b\n"
+  },
+  {
+   "name": "random_33",
+   "old": "b\nc\nc\na\n}\n{\n}\nb\nb\n{\n{\na\n}\nb\n",
+   "new": "b\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,14 +1 @@\n b\n-c\n-c\n-a\n-}\n-{\n-}\n-b\n-b\n-{\n-{\n-a\n-}\n-b\n"
+  },
+  {
+   "name": "random_34",
+   "old": "a\nb\na\na\na\nb\nb\nb\na\na\na\nb\na\na\nb\na\nb\nb\nb\n",
+   "new": "a\na\na\na\nb\na\nb\nb\na\na\nb\nb\nb\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,15 +1,5 @@\n a\n-b\n-a\n a\n a\n-b\n-b\n-b\n-a\n-a\n-a\n-b\n-a\n a\n b\n@@ -17,3 +7,8 @@\n b\n b\n+a\n+a\n+b\n+b\n+b\n b\n"
+  },
+  {
+   "name": "random_35",
+   "old": "c\n",
+   "new": "c\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": ""
+  },
+  {
+   "name": "random_35",
+   "old": "c\n",
+   "new": "c\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": ""
+  },
+  {
+   "name": "random_36",
+   "old": "",
+   "new": "x\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -0,0 +1 @@\n+x\n"
+  },
+  {
+   "name": "random_36",
+   "old": "",
+   "new": "x\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -0,0 +1 @@\n+x\n"
+  },
+  {
+   "name": "random_37",
+   "old": "a\na\nb\na\na\nb\nb\nb\nb\na\nb\nb\nb\nb\n",
+   "new": "a\na\na\na\nb\nb\nb\nb\na\nb\nb\nb\nb\nb\nb\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,5 +1,4 @@\n a\n a\n-b\n a\n a\n@@ -13,2 +12,5 @@\n b\n b\n+b\n+b\n+a\n"
+  },
+  {
+   "name": "random_37",
+   "old": "a\na\nb\na\na\nb\nb\nb\nb\na\nb\nb\nb\nb\n",
+   "new": "a\na\na\na\nb\nb\nb\nb\na\nb\nb\nb\nb\nb\nb\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,5 +1,4 @@\n a\n a\n-b\n a\n a\n@@ -13,2 +12,5 @@\n b\n b\n+b\n+b\n+a\n"
+  },
+  {
+   "name": "random_38",
+   "old": "a\n}\nc\n{\n\n",
+   "new": "\nb\nint i;\n{\nx\nc\n{\nx\nb\na\nreturn 1;\nint i;\nint i;\n\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,5 +1,14 @@\n-a\n-}\n+\n+b\n+int i;\n+{\n+x\n c\n {\n+x\n+b\n+a\n+return 1;\n+int i;\n+int i;\n \n"
+  },
+  {
+   "name": "random_38",
+   "old": "a\n}\nc\n{\n\n",
+   "new": "\nb\nint i;\n{\nx\nc\n{\nx\nb\na\nreturn 1;\nint i;\nint i;\n\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,5 +1,14 @@\n-a\n-}\n+\n+b\n+int i;\n+{\n+x\n c\n {\n+x\n+b\n+a\n+return 1;\n+int i;\n+int i;\n \n"
+  },
+  {
+   "name": "random_39",
+   "old": "a\na\nc\na\nb\na\n{\n{\n{\nb\nb\nb\n{\n",
+   "new": "a\na\nc\nb\nc\nb\na\n{\n{\n{\nb\nb\nb\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -2,5 +2,6 @@\n a\n c\n-a\n+b\n+c\n b\n a\n@@ -11,3 +12,3 @@\n b\n b\n-{\n+a\n"
+  },
+  {
+   "name": "random_39",
+   "old": "a\na\nc\na\nb\na\n{\n{\n{\nb\nb\nb\n{\n",
+   "new": "a\na\nc\nb\nc\nb\na\n{\n{\n{\nb\nb\nb\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -2,5 +2,6 @@\n a\n c\n-a\n+b\n+c\n b\n a\n@@ -11,3 +12,3 @@\n b\n b\n-{\n+a\n"
+  },
+  {
+   "name": "random_40",
+   "old": "b\nc\na\n{\nc\nb\nb\na\n{\n",
+   "new": "a\n{\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,9 +1,3 @@\n-b\n-c\n a\n {\n-c\n b\n-b\n-a\n-{\n"
+  },
+  {
+   "name": "random_41",
+   "old": "\na\n}\n{\nb\na\n{\n{\nb\n\nint i;\nc\nreturn 1;\n}\na\nb\n\n{\na\n\n\nc\na\n{\n}\na\n{\na\n\n",
+   "new": "\na\n}\n{\nb\na\n{\n{\nb\n\nint i;\nc\nreturn 1;\n}\na\nb\n\nreturn 1;\n{\na\n\n\nc\na\n{\n}\na\n{\na\n\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -16,4 +16,5 @@\n b\n \n+return 1;\n {\n a\n"
+  },
+  {
+   "name": "random_41",
+   "old": "\na\n}\n{\nb\na\n{\n{\nb\n\nint i;\nc\nreturn 1;\n}\na\nb\n\n{\na\n\n\nc\na\n{\n}\na\n{\na\n\n",
+   "new": "\na\n}\n{\nb\na\n{\n{\nb\n\nint i;\nc\nreturn 1;\n}\na\nb\n\nreturn 1;\n{\na\n\n\nc\na\n{\n}\na\n{\na\n\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -16,4 +16,5 @@\n b\n \n+return 1;\n {\n a\n"
+  },
+  {
+   "name": "random_42",
+   "old": "a\nb\nc\nc\na\nc\nc\na\nc\na\nb\nc\nb\n",
+   "new": "b\na\nb\nc\nc\nc\nc\na\nc\nb\nc\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,12 +1,11 @@\n+b\n a\n b\n c\n c\n-a\n c\n c\n a\n c\n-a\n b\n c\n"
+  },
+  {
+   "name": "random_42",
+   "old": "a\nb\nc\nc\na\nc\nc\na\nc\na\nb\nc\nb\n",
+   "new": "b\na\nb\nc\nc\nc\nc\na\nc\nb\nc\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,12 +1,11 @@\n+b\n a\n b\n c\n c\n-a\n c\n c\n a\n c\n-a\n b\n c\n"
+  },
+  {
+   "name": "random_43",
+   "old": "{\na\nx\nx\nx\nc\n\nb\n{\n\n{\nb\na\n",
+   "new": "{\nx\na\nx\nx\nx\nc\n\nb\n{\n\n{\nb\na\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,3 +1,4 @@\n {\n+x\n a\n x\n"
+  },
+  {
+   "name": "random_43",
+   "old": "{\na\nx\nx\nx\nc\n\nb\n{\n\n{\nb\na\n",
+   "new": "{\nx\na\nx\nx\nx\nc\n\nb\n{\n\n{\nb\na\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,3 +1,4 @@\n {\n+x\n a\n x\n"
+  },
+  {
+   "name": "random_44",
+   "old": "x\nb\nb\na\na\n}\nb\n\nx\n{\na\n}\n}\nc\n",
+   "new": "b\nc\nc\nb\n}\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,14 +1,5 @@\n-x\n b\n-b\n-a\n-a\n-}\n-b\n-\n-x\n-{\n-a\n-}\n-}\n c\n+c\n+b\n+}\n"
+  },
+  {
+   "name": "random_45",
+   "old": "a\na\n{\n{\nb\nc\nb\na\n{\nc\na\n{\na\nb\nb\n{\nb\n{\nb\nb\na\n{\nb\n{\nc\na\nb\nb\nb\n",
+   "new": "a\n{\n{\n{\nb\nc\nb\na\n{\nc\na\n{\na\nb\n{\nb\n{\nb\nb\na\nb\n{\nc\na\nb\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,4 +1,4 @@\n a\n-a\n+{\n {\n {\n@@ -13,5 +13,4 @@\n a\n b\n-b\n {\n b\n@@ -20,5 +19,4 @@\n b\n a\n-{\n b\n {\n@@ -27,3 +25,2 @@\n b\n b\n-b\n"
+  },
+  {
+   "name": "random_45",
+   "old": "a\na\n{\n{\nb\nc\nb\na\n{\nc\na\n{\na\nb\nb\n{\nb\n{\nb\nb\na\n{\nb\n{\nc\na\nb\nb\nb\n",
+   "new": "a\n{\n{\n{\nb\nc\nb\na\n{\nc\na\n{\na\nb\n{\nb\n{\nb\nb\na\nb\n{\nc\na\nb\nb\n",
+   "algorithm": "patience",
+   "context": 2,
+   "expect": "@@ -1,4 +1,4 @@\n a\n-a\n+{\n {\n {\n@@ -13,5 +13,4 @@\n a\n b\n-b\n {\n b\n@@ -20,5 +19,4 @@\n b\n a\n-{\n b\n {\n@@ -27,3 +25,2 @@\n b\n b\n-b\n"
+  },
+  {
+   "name": "random_46",
+   "old": "{\nc\n}\nb\n{\n{\n\nc\n{\n}\n{\nb\na\na\n}\n{\n{\nb\n{\n}\n",
+   "new": "b\n{\n{\na\na\nb\nc\n{\nc\na\n{\n}\n}\n\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,20 +1,14 @@\n-{\n-c\n-}\n b\n {\n {\n+a\n+a\n+b\n+c\n+{\n+c\n+a\n+{\n+}\n+}\n \n-c\n-{\n-}\n-{\n-b\n-a\n-a\n-}\n-{\n-{\n-b\n-{\n-}\n"
+  },
+  {
+   "name": "random_47",
+   "old": "a\n",
+   "new": "",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1 +0,0 @@\n-a\n"
+  },
+  {
+   "name": "random_48",
+   "old": "a\nb\nb\na\nc\nc\n",
+   "new": "b\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,6 +1,2 @@\n-a\n b\n-b\n-a\n-c\n c\n"
+  },
+  {
+   "name": "random_49",
+   "old": "c\n}\nc\n{\nb\n",
+   "new": "c\nb\nc\n{\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,5 +1,4 @@\n c\n-}\n+b\n c\n {\n-b\n"
+  },
+  {
+   "name": "random_50",
+   "old": "}\n\nx\nc\n}\n",
+   "new": "\nx\n\n\n\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,5 +1,5 @@\n-}\n \n x\n-c\n-}\n+\n+\n+\n"
+  },
+  {
+   "name": "random_51",
+   "old": "c\na\n{\nb\nb\na\nc\nc\nc\nc\na\n",
+   "new": "b\nc\n{\n{\nc\na\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,11 +1,7 @@\n+b\n c\n-a\n {\n-b\n-b\n-a\n-c\n-c\n-c\n+{\n c\n a\n+b\n"
+  },
+  {
+   "name": "random_52",
+   "old": "a\na\na\na\n\n}\nb\n",
+   "new": "a\na\na\na\nx\n}\nc\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -3,5 +3,6 @@\n a\n a\n-\n+x\n }\n+c\n b\n"
+  },
+  {
+   "name": "random_53",
+   "old": "b\nc\n}\n",
+   "new": "b\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,3 +1 @@\n b\n-c\n-}\n"
+  },
+  {
+   "name": "random_54",
+   "old": "c\na\na\na\nint i;\na\nx\n",
+   "new": "b\na\na\na\na\nx\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,7 +1,6 @@\n-c\n+b\n a\n a\n a\n-int i;\n a\n x\n"
+  },
+  {
+   "name": "random_55",
+   "old": "{\nb\n}\n}\n",
+   "new": "",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,4 +0,0 @@\n-{\n-b\n-}\n-}\n"
+  },
+  {
+   "name": "random_56",
+   "old": "b\nb\na\nb\na\na\na\nb\na\na\na\nb\n",
+   "new": "b\na\nb\nb\nb\nb\na\na\na\na\nb\na\na\na\nb\na\nb\nb\na\nb\nb\nb\na\na\nb\na\nb\na\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,4 +1,11 @@\n b\n+a\n+b\n b\n+b\n+b\n+a\n+a\n+a\n a\n b\n@@ -8,5 +15,15 @@\n b\n a\n+b\n+b\n+a\n+b\n+b\n+b\n a\n a\n b\n+a\n+b\n+a\n+b\n"
+  },
+  {
+   "name": "random_57",
+   "old": "a\na\na\na\na\na\nc\na\nb\na\nc\na\na\na\na\nc\nc\nc\n",
+   "new": "a\na\na\na\na\nc\na\nb\na\nc\na\na\na\na\nc\nc\nc\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -4,5 +4,4 @@\n a\n a\n-a\n c\n a\n"
+  },
+  {
+   "name": "random_58",
+   "old": "c\nb\na\nc\nc\na\nc\nb\na\na\na\na\na\na\na\nc\na\nc\nc\nb\nb\na\na\na\nc\na\nb\n",
+   "new": "b\nc\nb\na\nc\nc\na\nc\nb\na\nc\na\na\na\na\na\na\na\nc\na\nc\nc\nb\nb\na\na\nc\na\nb\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,2 +1,3 @@\n+b\n c\n b\n@@ -8,4 +9,6 @@\n b\n a\n+c\n+a\n a\n a\n@@ -22,5 +25,4 @@\n a\n a\n-a\n c\n a\n"
+  },
+  {
+   "name": "random_59",
+   "old": "}\na\nx\na\nx\nint i;\nb\n\nreturn 1;\na\nint i;\n{\nb\n}\nc\nx\na\nint i;\n{\n}\na\na\n\nreturn 1;\nb\nreturn 1;\nc\n",
+   "new": "\nint i;\n}\nc\n}\n{\n{\nreturn 1;\nc\nb\nb\nreturn 1;\nint i;\nb\n\n\nb\nx\n",
+   "algorithm": "histogram",
+   "context": 2,
+   "expect": "@@ -1,27 +1,18 @@\n+\n+int i;\n }\n-a\n-x\n-a\n-x\n+c\n+}\n+{\n+{\n+return 1;\n+c\n+b\n+b\n+return 1;\n int i;\n b\n \n-return 1;\n-a\n-int i;\n-{\n-b\n-}\n-c\n-x\n-a\n-int i;\n-{\n-}\n-a\n-a\n \n-return 1;\n b\n-return 1;\n-c\n+x\n"
+  }
+ ]
+}

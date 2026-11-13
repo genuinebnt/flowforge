@@ -1,0 +1,22 @@
+{
+  "description": "Canonical keys of the Flowforge Endpoint asset (V2 design 3.1): ep:<METHOD> <url_template>.",
+  "cases": [
+    {"name": "method upper-cased, template normalized, source not part of the key",
+     "spellings": [
+       {"type": "Endpoint", "method": "GET", "url_template": "https://api.acme.com/v1/users/42", "source": "observed"},
+       {"type": "Endpoint", "method": "get", "url_template": "HTTPS://API.acme.com:443/v1/users/{id}", "source": "js_literal"},
+       {"type": "Endpoint", "method": " Get ", "url_template": "https://api.acme.com/v1/users/{id}?verbose=1"}],
+     "key": "ep:GET https://api.acme.com/v1/users/{id}"},
+    {"name": "any method", "spellings": [{"type": "Endpoint", "method": "*", "url_template": "https://api.acme.com/graphql", "source": "graphql"}],
+     "key": "ep:* https://api.acme.com/graphql"},
+    {"name": "extension method", "spellings": [{"type": "Endpoint", "method": "propfind", "url_template": "https://dav.acme.com/files/"}],
+     "key": "ep:PROPFIND https://dav.acme.com/files/"},
+    {"name": "form target", "spellings": [{"type": "Endpoint", "method": "POST", "url_template": "https://acme.com/login", "source": "html_form"}],
+     "key": "ep:POST https://acme.com/login"},
+    {"name": "missing method rejected", "spellings": [{"type": "Endpoint", "url_template": "https://acme.com/x"}], "error": true},
+    {"name": "bad method rejected", "spellings": [{"type": "Endpoint", "method": "GE T", "url_template": "https://acme.com/x"}], "error": true},
+    {"name": "missing template rejected", "spellings": [{"type": "Endpoint", "method": "GET"}], "error": true},
+    {"name": "relative template rejected", "spellings": [{"type": "Endpoint", "method": "GET", "url_template": "/api/users"}], "error": true},
+    {"name": "unknown source rejected", "spellings": [{"type": "Endpoint", "method": "GET", "url_template": "https://acme.com/x", "source": "guess"}], "error": true}
+  ]
+}

@@ -126,8 +126,18 @@ func (p DNSRecordProperty) Validate() error {
 	return nil
 }
 
-// Validate implements Property.
-func (p VulnProperty) Validate() error { return requireName(PropertyVuln, "id", p.ID) }
+// Validate implements Property. A VulnProperty with category
+// CategoryExposedSecret must follow the secret conventions (see
+// ValidateExposedSecret).
+func (p VulnProperty) Validate() error {
+	if err := requireName(PropertyVuln, "id", p.ID); err != nil {
+		return err
+	}
+	if p.Category == CategoryExposedSecret {
+		return ValidateExposedSecret(p)
+	}
+	return nil
+}
 
 // Validate implements Property.
 func (p FlowforgeProperty) Validate() error {
@@ -189,6 +199,12 @@ func DecodeProperty(data []byte, mode DecodeMode) (Property, error) {
 		return decodeProperty[VulnProperty](data, mode)
 	case PropertyFlowforge:
 		return decodeProperty[FlowforgeProperty](data, mode)
+	case PropertyContent:
+		return decodeProperty[ContentProperty](data, mode)
+	case PropertyHTTPHeader:
+		return decodeProperty[HTTPHeaderProperty](data, mode)
+	case PropertyParameter:
+		return decodeProperty[ParameterProperty](data, mode)
 	}
 	return nil, fmt.Errorf("%w: %q", ErrUnknownPropertyType, typ)
 }

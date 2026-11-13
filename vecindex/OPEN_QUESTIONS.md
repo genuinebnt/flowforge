@@ -105,3 +105,16 @@ that pins it.
     signature is all `0xffffffffffffffff`, and two empty sets have Jaccard
     similarity 1. LSH band keys are FNV-1a over the rows' little-endian
     bytes. All are pinned by `conformance/vecindex/minhash`.
+
+## Move to package sketch (v2)
+
+21. **SimHash and MinHash moved to `sketch`** (V2_DESIGN §2) with the same
+    formulas, seeds and outputs; `simhash.go` and `minhash.go` now wrap it.
+    `SimHashIndex`, `SimHashMatch` and `MinHasher` are type aliases of the
+    sketch types (keyed by `core.UUID`, ordered bytewise), `LSH` is a
+    wrapper so its errors keep wrapping `ErrDimension` and
+    `ErrInvalidConfig`. `MinHasher`'s coefficients are read through
+    `Coefficients()` instead of unexported fields. The pre-refactor outputs
+    are pinned by `conformance/sketch/vecindex_compat.json` (recorded from
+    this package before the move) and the unchanged
+    `conformance/vecindex/{simhash,minhash}`.

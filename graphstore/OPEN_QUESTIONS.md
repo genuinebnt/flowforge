@@ -164,3 +164,59 @@ test that pins it. Merge semantics themselves are oam's (see
     third-party allowance, so `TestArchDeps` fails until an adapter entry
     is added before the `graphstore` one:
     `{prefix: "graphstore/pg", layer: layerAdapters, adapter: true, thirdParty: []string{"github.com/jackc/"}}`.
+
+## v2 graph expansion (V2 design §3)
+
+Merge semantics (authority, coverage gate, tag_changed, base, cause) are
+oam's: `oam/OPEN_QUESTIONS.md` 22-35. This section covers the stores.
+
+31. **Authority bookkeeping in Postgres** lives in hidden tag rows next to
+    `ff:meta` and `ff:run`, not in new columns: `ff:live` (name `""`) per
+    record holds classic staleness, the profiles holding an edge
+    (`auth_in`), an entity's authoritative references (`auth_refs`) and the
+    support of every non-classic tag; `ff:auth` (name
+    `<profile>/<family>`) on the source entity holds one unit (latest
+    complete stamp, its members, newer partial members with stamps, and
+    the target of every edge member). A row without `ff:live` was written
+    before migration 0030 and loads as classic (`classic_stale = state =
+    'stale'`, every tag classic). Reads drop withdrawn tags
+    (`kernel.PublicTagRows`).
+32. **Locking with authority.** A complete capture may withdraw edges the
+    observation does not name. The store reads the source's `ff:auth`
+    rows before taking the record locks (no lock), adds their members and
+    targets to the lock set, then loads under lock; if the heads changed in
+    between, the kernel reports `ErrMissingRecords` and the transaction is
+    retried (up to `MaxRetries`). Lock order stays sorted, so this cannot
+    deadlock. (`TestGraphIngest_ConcurrentAuthority`.)
+33. **Covering runs** load only state, run rows and `ff:live`; they write
+    back `ff:live` merged with its stored tag entries (`MergedLiveTag`), so
+    a covering run never touches tag liveness.
+34. **AsOf** replays from the empty graph, not from a CSR snapshot (the
+    design's "nearest snapshot"): snapshots hold no content or tags. Reads
+    use the `(entity_id, seq)` / `(edge_id, seq)` indexes of 0030 and
+    replay only the records a read touches, so cost is proportional to
+    their history. Not reconstructed (no events): confidence, times, runs,
+    SourceProperty tags, edge content after creation; they are zero in the
+    result. `since` is rejected by `NeighborsAsOf`. Seqs are per program in
+    Mem and global in Postgres; both are comparable within a program.
+35. **content_changed storage.** The `patch` column holds the
+    `ContentChangePatch` object (not an op list); Go exposes it as
+    `ChangeEvent.ContentChange`. The row is inserted under the program lock
+    (seq order) with `ON CONFLICT (id) DO NOTHING`; a repeat returns the
+    stored event. `At` zero means the clock. The gRPC/REST conversion in
+    `services/` does not yet map `content_change`, `base`, `tag_type`,
+    `tag_name`, `cause` or `baseline` (owned by the services agent).
+36. **Cause and baseline** are stored as `change_events.cause` (NULL =
+    target) and `change_events.baseline`; feeds filter on them. The
+    `graph.observations` row does not record them.
+37. **Commonness** is computed per request (`ComputeCommonness`): sources
+    are distinct active entities with an active edge into the node (self
+    loops excluded), holders their distinct hosts (`HolderHost`: URL, File
+    and Endpoint by URL host, FQDN by name, IP by address, other types by
+    entity id). Nothing is stored; `common` is `holders > 50`. Pivots and
+    leads are expected to call it; no traversal filters on it yet.
+38. **Migration numbering.** The v2 migration is `0030_graph_v2.sql`
+    (0015-0029 are reserved for v1 fixes). The runner
+    (`migrations.Load`) still requires versions without gaps, so until
+    0015-0029 exist (or the runner allows gaps) `migrations.Apply` fails
+    with `ErrBadFile`. Owner: migrations runner.

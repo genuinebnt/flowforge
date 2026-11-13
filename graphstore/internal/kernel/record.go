@@ -31,7 +31,14 @@ type TagKey struct{ PType, Name string }
 type TagState struct {
 	Content           oam.Content
 	Created, LastSeen time.Time
+	// Classic is set once a non-authoritative observation reported the
+	// tag; AuthIn lists the profiles whose unit holds it (oam rule).
+	Classic bool
+	AuthIn  []string
 }
+
+// Visible reports whether the tag is part of the graph state.
+func (t *TagState) Visible() bool { return t.Classic || len(t.AuthIn) > 0 }
 
 // RunState is one tool's covering-run bookkeeping on a record: its latest
 // sighting, and once the tool has run a covering run over the record, the
@@ -52,8 +59,25 @@ type Record struct {
 	Sources             map[string]*Source
 	Tags                map[TagKey]*TagState
 	Runs                map[string]*RunState
+	// ClassicStale, AuthIn (edges) and AuthRefs (entities) are oam's
+	// liveness bookkeeping (oam/authority.go).
+	ClassicStale bool
+	AuthIn       []string
+	AuthRefs     int
 	// Dirty marks a record the operation changed, to be written back.
 	Dirty bool
+	// LiveRaw is the stored liveness row as loaded by a partial load (a
+	// covering run, which loads no tags); MergedLiveTag keeps its tag
+	// entries.
+	LiveRaw []byte
+}
+
+// Head is one authority unit of a source entity: oam's AuthUnit plus the
+// target entity of every edge member (so a store can load and lock them
+// before applying a replacement).
+type Head struct {
+	oam.AuthUnit
+	Targets map[string]string // edge member -> to entity id
 }
 
 // Entity is a graph node record.
@@ -61,6 +85,11 @@ type Entity struct {
 	Record
 	AssetType, Key string
 	Scope          oam.ScopeStatus
+	// Heads are the authority units of which the entity is the source,
+	// by oam.UnitKey.
+	Heads map[string]*Head
+	// HeadsDirty marks heads to write back.
+	HeadsDirty bool
 }
 
 // Edge is a graph edge record.
@@ -79,22 +108,25 @@ type State struct {
 // NewState returns an empty State.
 func NewState() *State { return &State{Entities: map[string]*Entity{}, Edges: map[string]*Edge{}} }
 
-func newRecord(id, tenant, program string, p *Prepared, content map[string]any) Record {
+func newRecord(id, tenant, program string, p *Prepared, content map[string]any, classic bool) Record {
 	s := Sighting{p.Stamp, p.Obs.RunID}
 	r := Record{
 		ID: id, Tenant: tenant, Program: program,
 		Content: oam.NewContent(content, p.Stamp), State: oam.StateActive,
 		First: s, Last: s,
-		Sources: map[string]*Source{}, Tags: map[TagKey]*TagState{},
-		Runs:  map[string]*RunState{p.Stamp.Source: {Last: s}},
+		Sources: map[string]*Source{}, Tags: map[TagKey]*TagState{}, Runs: map[string]*RunState{},
 		Dirty: true,
+	}
+	if classic {
+		r.Runs[p.Stamp.Source] = &RunState{Last: s}
 	}
 	r.addSource(p.Stamp.Source, p.Percent, p.Stamp.At)
 	return r
 }
 
-// see records a sighting and reports whether it reactivated the record.
-func (r *Record) see(p *Prepared) bool {
+// see records a sighting (oam rule): a classic sighting also registers
+// the tool for covering runs and clears classic staleness.
+func (r *Record) see(p *Prepared, classic bool) {
 	s := Sighting{p.Stamp, p.Obs.RunID}
 	r.Dirty = true
 	if s.Stamp.Compare(r.First.Stamp) < 0 {
@@ -105,6 +137,9 @@ func (r *Record) see(p *Prepared) bool {
 	}
 	tool := p.Stamp.Source
 	r.addSource(tool, p.Percent, p.Stamp.At)
+	if !classic {
+		return
+	}
 	rs, ok := r.Runs[tool]
 	if !ok {
 		rs = &RunState{Last: s}
@@ -115,11 +150,25 @@ func (r *Record) see(p *Prepared) bool {
 	if rs.Covered {
 		rs.Missed = 0
 	}
-	if r.State == oam.StateStale {
-		r.State = oam.StateActive
-		return true
+	r.ClassicStale = false
+}
+
+// Live is oam's liveness rule.
+func (r *Record) Live() bool {
+	return (len(r.Runs) > 0 && !r.ClassicStale) || len(r.AuthIn) > 0 || r.AuthRefs > 0
+}
+
+// settle sets the state from Live and reports whether it changed.
+func (r *Record) settle() bool {
+	want := oam.StateStale
+	if r.Live() {
+		want = oam.StateActive
 	}
-	return false
+	if r.State == want {
+		return false
+	}
+	r.State, r.Dirty = want, true
+	return true
 }
 
 func (r *Record) addSource(name string, percent int, at time.Time) {
@@ -132,7 +181,7 @@ func (r *Record) addSource(name string, percent int, at time.Time) {
 	s.Created, s.LastSeen = oam.MinTime(s.Created, at), oam.MaxTime(s.LastSeen, at)
 }
 
-func (r *Record) tag(t PTag, stamp oam.Stamp) {
+func (r *Record) tag(t PTag, stamp oam.Stamp, classic bool) {
 	r.Dirty = true
 	if t.Source != nil {
 		r.addSource(t.Source.Name, t.Source.Confidence, stamp.At)
@@ -141,11 +190,12 @@ func (r *Record) tag(t PTag, stamp oam.Stamp) {
 	k := TagKey{t.PType, t.Name}
 	ts, ok := r.Tags[k]
 	if !ok {
-		r.Tags[k] = &TagState{Content: oam.NewContent(t.Content, stamp), Created: stamp.At, LastSeen: stamp.At}
+		r.Tags[k] = &TagState{Content: oam.NewContent(t.Content, stamp), Created: stamp.At, LastSeen: stamp.At, Classic: classic}
 		return
 	}
 	ts.Content.Merge(t.Content, stamp)
 	ts.Created, ts.LastSeen = oam.MinTime(ts.Created, stamp.At), oam.MaxTime(ts.LastSeen, stamp.At)
+	ts.Classic = ts.Classic || classic
 }
 
 // Confidence is the noisy-or over the record's sources (oam rule).
@@ -196,6 +246,9 @@ func (r *Record) TagViews() []oam.Tag {
 		})
 	}
 	for k, t := range r.Tags {
+		if !t.Visible() {
+			continue
+		}
 		out = append(out, oam.Tag{PropertyType: k.PType, Name: k.Name, Content: maps.Clone(t.Content.Values), CreatedAt: t.Created, LastSeen: t.LastSeen})
 	}
 	slices.SortFunc(out, func(a, b oam.Tag) int {

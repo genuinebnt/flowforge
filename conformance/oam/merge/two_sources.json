@@ -35,8 +35,12 @@
     ],
     "changes": [
       {"type": "entity_added", "entity": "fqdn:api.acme.com"},
+      {"type": "tag_changed", "entity": "fqdn:api.acme.com", "tag": "SimpleProperty/discovered_via",
+       "patch": [{"op": "add", "path": "", "value": {"name": "discovered_via", "value": "crt.sh"}}]},
       {"type": "entity_added", "entity": "ip:203.0.113.10"},
-      {"type": "edge_added", "edge": {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10"}}
+      {"type": "edge_added", "edge": {"from": "fqdn:api.acme.com", "label": "dns_record", "to": "ip:203.0.113.10"}},
+      {"type": "tag_changed", "entity": "fqdn:api.acme.com", "tag": "SimpleProperty/resolver",
+       "patch": [{"op": "add", "path": "", "value": {"name": "resolver", "value": "1.1.1.1"}}]}
     ]
   }
 }

@@ -1,0 +1,259 @@
+{
+ "description": "Covering-run staleness (spec 5.7) is unchanged for classic support and never stales a record a complete authoritative reading holds (q stays active after the crawler's covering run misses it); once the authority withdraws it the record is stale at once. Each operation makes at most one entity and one edge stale so the event order does not depend on derived ids.",
+ "stale_after_runs": 1,
+ "order_dependent": true,
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "k0",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-k0",
+    "tool": {
+     "name": "crawl",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:02:30Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": []
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "k1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-k1",
+    "tool": {
+     "name": "crawl",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:01:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "Q",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/q"
+      }
+     },
+     {
+      "ref": "R",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/r"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "Q",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     },
+     {
+      "from": "P",
+      "to": "R",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "x2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-x2",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:02:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "Q",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/q"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "Q",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "links"
+     ]
+    }
+   }
+  },
+  {
+   "complete_run": {
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-k0",
+    "tool": "crawl",
+    "completed_at": "2026-11-12T11:00:00Z"
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "x3",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-x3",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:03:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "links"
+     ]
+    }
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://acme.com/",
+    "state": "active"
+   },
+   {
+    "key": "url:https://acme.com/q",
+    "state": "stale"
+   },
+   {
+    "key": "url:https://acme.com/r",
+    "state": "stale"
+   }
+  ],
+  "edges": [
+   {
+    "from": "url:https://acme.com/",
+    "label": "links_to",
+    "to": "url:https://acme.com/q",
+    "state": "stale"
+   },
+   {
+    "from": "url:https://acme.com/",
+    "label": "links_to",
+    "to": "url:https://acme.com/r",
+    "state": "stale"
+   }
+  ],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/"
+   },
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/q"
+   },
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/r"
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/q"
+    }
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/r"
+    }
+   },
+   {
+    "type": "entity_stale",
+    "entity": "url:https://acme.com/r"
+   },
+   {
+    "type": "edge_removed",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/r"
+    }
+   },
+   {
+    "type": "edge_removed",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/q"
+    }
+   },
+   {
+    "type": "entity_stale",
+    "entity": "url:https://acme.com/q"
+   }
+  ]
+ }
+}

@@ -340,6 +340,13 @@ type minhashCase struct {
 	Tolerance float64 `json:"tolerance"`
 }
 
+// coefEqual reports whether two hashers have the same coefficients.
+func coefEqual(x, y *MinHasher) bool {
+	xa, xb := x.Coefficients()
+	ya, yb := y.Coefficients()
+	return slices.Equal(xa, ya) && slices.Equal(xb, yb)
+}
+
 // MinHash signatures, Jaccard estimates, LSH banding and the collision
 // probability 1 - (1 - s^4)^32 (spec 22.8).
 func TestVecConformance_MinHash(t *testing.T) {
@@ -351,18 +358,19 @@ func TestVecConformance_MinHash(t *testing.T) {
 				t.Fatal(err)
 			}
 			if uint64(c.Seed) == DefaultMinHashSeed && c.Permutations == DefaultMinHashPermutations {
-				if d := DefaultMinHasher(); !slices.Equal(d.a, m.a) || !slices.Equal(d.b, m.b) {
+				if d := DefaultMinHasher(); !coefEqual(d, m) {
 					t.Fatal("DefaultMinHasher differs from NewMinHasher(128, DefaultMinHashSeed)")
 				}
 			}
+			ma, mb := m.Coefficients()
 			for i, a := range c.CoefficientsPrefix["a"] {
-				if m.a[i] != uint64(a) {
-					t.Errorf("a[%d] = %016x, want %016x", i, m.a[i], uint64(a))
+				if ma[i] != uint64(a) {
+					t.Errorf("a[%d] = %016x, want %016x", i, ma[i], uint64(a))
 				}
 			}
 			for i, b := range c.CoefficientsPrefix["b"] {
-				if m.b[i] != uint64(b) {
-					t.Errorf("b[%d] = %016x, want %016x", i, m.b[i], uint64(b))
+				if mb[i] != uint64(b) {
+					t.Errorf("b[%d] = %016x, want %016x", i, mb[i], uint64(b))
 				}
 			}
 			sigs := map[string][]uint64{}

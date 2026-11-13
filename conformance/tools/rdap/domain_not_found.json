@@ -1,0 +1,76 @@
+{
+ "description": "The registry has no such domain (404 with an RDAP error object): no observation but the empty list.",
+ "input": "unregistered-name.com",
+ "scope": {
+  "allow": [
+   "unregistered-name.com"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://data.iana.org/rdap/dns.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": {
+    "description": "RDAP bootstrap file for Domain Name System registrations",
+    "publication": "2026-10-01T18:00:01Z",
+    "services": [
+     [
+      [
+       "com",
+       "net"
+      ],
+      [
+       "https://rdap.verisign.com/com/v1/"
+      ]
+     ],
+     [
+      [
+       "org"
+      ],
+      [
+       "https://rdap.publicinterestregistry.org/rdap/"
+      ]
+     ],
+     [
+      [
+       "xn--p1ai",
+       "ru"
+      ],
+      [
+       "https://rdap.tcinet.ru/"
+      ]
+     ]
+    ],
+    "version": "1.0"
+   }
+  },
+  {
+   "url": "https://rdap.verisign.com/com/v1/domain/unregistered-name.com",
+   "status": 404,
+   "headers": {
+    "Content-Type": "application/rdap+json"
+   },
+   "body": {
+    "errorCode": 404,
+    "title": "Not Found",
+    "rdapConformance": [
+     "rdap_level_0"
+    ]
+   }
+  }
+ ],
+ "expect": {
+  "output": [],
+  "skipped": [],
+  "requests": [
+   "https://data.iana.org/rdap/dns.json",
+   "https://rdap.verisign.com/com/v1/domain/unregistered-name.com"
+  ],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

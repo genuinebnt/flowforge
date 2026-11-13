@@ -13,8 +13,15 @@ the identity the clients mint tokens for. `cmd/flowforge dev` and the
 gateway's tests use it.
 
 Options for tests: `Resolver` (scope checks, dnsresolve, webhook
-destinations), `ProbePorts` (httpprobe), `Secrets`, `AllowInsecureWebhooks`,
-`Engine` (poll intervals), `Ports`.
+destinations, intel sources, DNS forwarder A/AAAA), `ProbePorts`
+(httpprobe), `EgressPorts` (port policy, default `CommonPorts`),
+`IntelSources` (default `DefaultIntelSources()`), `DNSUpstream`,
+`EgressClock` (fake clock for the per-target limiter), `Secrets`,
+`AllowInsecureWebhooks`, `Engine` (poll intervals), `Ports`.
+
+The egress proxy's SOCKS5 listener and DNS forwarder (UDP and TCP on the
+same port) are in `Addrs["egress-socks5"]` and `Addrs["egress-dns"]`; the
+proxy records `intel_source` decisions in the scope repository.
 
 `e2e_test.go` is the end-to-end test (see services/README.md);
 `auth_test.go` checks that every service rejects missing or invalid tokens.

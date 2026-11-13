@@ -189,3 +189,13 @@ depends = ["core", "eventstore", "engine", "compiler", "vm", "scope", "limiter",
 tests = { prefix = "Inv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11"] }
 conformance = ["sim"]
 bench = ["BenchmarkSim"]
+
+[module.chunkstore]
+layer = 1
+spec = ["V2_DESIGN 6.1"]
+dir = "chunkstore"
+depends = ["core"]
+tests = { prefix = "ChunkInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"] }
+conformance = ["chunkstore"]
+fuzz = ["FuzzChunker", "FuzzPackDecode", "FuzzIndexDecode", "FuzzManifestDecode"]
+bench = ["BenchmarkChunk", "BenchmarkPut"]

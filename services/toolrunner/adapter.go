@@ -93,18 +93,50 @@ type ToolCtx struct {
 	// Check re-checks one concrete target with the scope service (resolving
 	// and pinning addresses for active classes). Errors are denials.
 	Check func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error)
+	// CheckPinned is Check with resolution and pinning whatever the class
+	// (passive tools that open a connection, such as tlscert). Nil: Check.
+	CheckPinned func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error)
 	// Egress is the only way out for active tools; nil when the runner has
 	// no proxy configured (active tools then fail with no_egress).
 	Egress *Egress
-	// Resolver serves passive name resolution (dnsresolve).
+	// Net, when set, replaces Egress as the route out (tests use recorded
+	// fixtures).
+	Net Network
+	// Resolver serves passive name resolution when the proxy has no DNS
+	// forwarder (dnsresolve's A/AAAA fallback).
 	Resolver scope.Resolver
+}
+
+// Network returns the route out: Net, else Egress, else nil.
+func (tc *ToolCtx) Network() Network {
+	if tc.Net != nil {
+		return tc.Net
+	}
+	if tc.Egress != nil {
+		return tc.Egress
+	}
+	return nil
+}
+
+// AllowedPinned is Allowed with a resolving, pinning check (CheckPinned).
+func (tc *ToolCtx) AllowedPinned(ctx context.Context, out Emitter, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, bool, error) {
+	check := tc.CheckPinned
+	if check == nil {
+		check = tc.Check
+	}
+	return allowedWith(ctx, check, out, target, kind, class)
 }
 
 // Allowed re-checks target and, when it is denied (or the check fails),
 // reports it as Skipped and returns false. The adapter must not contact a
 // target for which Allowed returned false.
 func (tc *ToolCtx) Allowed(ctx context.Context, out Emitter, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, bool, error) {
-	d, err := tc.Check(ctx, target, kind, class)
+	return allowedWith(ctx, tc.Check, out, target, kind, class)
+}
+
+func allowedWith(ctx context.Context, check func(context.Context, string, scope.TargetKind, core.ActivityClass) (scope.Decision, error),
+	out Emitter, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, bool, error) {
+	d, err := check(ctx, target, kind, class)
 	if err != nil {
 		if ctx.Err() != nil {
 			return d, false, ctx.Err()
@@ -142,6 +174,28 @@ func decodeString(input json.RawMessage) (string, error) {
 		return obj.Name, nil
 	}
 	return s, nil
+}
+
+// decodeHost accepts a JSON string, {"name": s} or the DSL Host enum
+// {"variant": "Name"|"Ip", "values": [s]}.
+func decodeHost(input json.RawMessage) (string, error) {
+	var v struct {
+		Variant string   `json:"variant"`
+		Values  []string `json:"values"`
+	}
+	if err := json.Unmarshal(input, &v); err == nil && v.Variant != "" && len(v.Values) == 1 {
+		return v.Values[0], nil
+	}
+	return decodeString(input)
+}
+
+// decodeArgs splits a tuple input [a, b] into exactly n raw values.
+func decodeArgs(input json.RawMessage, n int) ([]json.RawMessage, error) {
+	var args []json.RawMessage
+	if err := json.Unmarshal(input, &args); err != nil || len(args) != n {
+		return nil, Errorf("invalid_input", false, "input must be a tuple of "+string(rune('0'+n))+" values")
+	}
+	return args, nil
 }
 
 func isToolError(err error) (*ToolError, bool) {

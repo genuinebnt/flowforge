@@ -1,0 +1,5533 @@
+{
+  "description": "Query parse vectors: query -> AST (canonical JSON with byte spans) and canonical print, or error code and span.",
+  "cases": [
+    {
+      "query": "foo",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          3
+        ],
+        "value": "foo"
+      },
+      "print": "foo"
+    },
+    {
+      "query": "getUserById",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          11
+        ],
+        "value": "getUserById"
+      },
+      "print": "getUserById"
+    },
+    {
+      "query": "foo bar",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          7
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              3
+            ],
+            "value": "foo"
+          },
+          {
+            "kind": "term",
+            "span": [
+              4,
+              7
+            ],
+            "value": "bar"
+          }
+        ]
+      },
+      "print": "foo bar"
+    },
+    {
+      "query": "foo AND bar",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          11
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              3
+            ],
+            "value": "foo"
+          },
+          {
+            "kind": "term",
+            "span": [
+              8,
+              11
+            ],
+            "value": "bar"
+          }
+        ]
+      },
+      "print": "foo bar"
+    },
+    {
+      "query": "foo OR bar",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          10
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              3
+            ],
+            "value": "foo"
+          },
+          {
+            "kind": "term",
+            "span": [
+              7,
+              10
+            ],
+            "value": "bar"
+          }
+        ]
+      },
+      "print": "foo OR bar"
+    },
+    {
+      "query": "a b OR c d",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          10
+        ],
+        "children": [
+          {
+            "kind": "and",
+            "span": [
+              0,
+              3
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  0,
+                  1
+                ],
+                "value": "a"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  2,
+                  3
+                ],
+                "value": "b"
+              }
+            ]
+          },
+          {
+            "kind": "and",
+            "span": [
+              7,
+              10
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  7,
+                  8
+                ],
+                "value": "c"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  9,
+                  10
+                ],
+                "value": "d"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "a b OR c d"
+    },
+    {
+      "query": "a (b OR c) d",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          12
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              1
+            ],
+            "value": "a"
+          },
+          {
+            "kind": "or",
+            "span": [
+              2,
+              10
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  3,
+                  4
+                ],
+                "value": "b"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  8,
+                  9
+                ],
+                "value": "c"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              11,
+              12
+            ],
+            "value": "d"
+          }
+        ]
+      },
+      "print": "a (b OR c) d"
+    },
+    {
+      "query": "-foo",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          4
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              4
+            ],
+            "value": "foo"
+          }
+        ]
+      },
+      "print": "-foo"
+    },
+    {
+      "query": "-(a OR b)",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          9
+        ],
+        "children": [
+          {
+            "kind": "or",
+            "span": [
+              1,
+              9
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  2,
+                  3
+                ],
+                "value": "a"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  7,
+                  8
+                ],
+                "value": "b"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "-(a OR b)"
+    },
+    {
+      "query": "-(-a)",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          5
+        ],
+        "children": [
+          {
+            "kind": "not",
+            "span": [
+              1,
+              5
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  3,
+                  4
+                ],
+                "value": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "-(-a)"
+    },
+    {
+      "query": "\"exact phrase\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          14
+        ],
+        "value": "exact phrase"
+      },
+      "print": "\"exact phrase\""
+    },
+    {
+      "query": "\"esc \\\" quote \\\\ slash\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          23
+        ],
+        "value": "esc \" quote \\ slash"
+      },
+      "print": "\"esc \\\" quote \\\\ slash\""
+    },
+    {
+      "query": "/get[A-Z]\\w+/",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          13
+        ],
+        "value": "get[A-Z]\\w+"
+      },
+      "print": "/get[A-Z]\\w+/"
+    },
+    {
+      "query": "/a\\/b/i",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          7
+        ],
+        "value": "a/b",
+        "flags": "i"
+      },
+      "print": "/a\\/b/i"
+    },
+    {
+      "query": "/x/ims",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          6
+        ],
+        "value": "x",
+        "flags": "ims"
+      },
+      "print": "/x/ims"
+    },
+    {
+      "query": "/x/smi",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          6
+        ],
+        "value": "x",
+        "flags": "ims"
+      },
+      "print": "/x/ims"
+    },
+    {
+      "query": "kind:endpoint_added",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          19
+        ],
+        "field": "kind",
+        "value": "endpoint_added"
+      },
+      "print": "kind:endpoint_added"
+    },
+    {
+      "query": "side:added",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          10
+        ],
+        "field": "side",
+        "value": "added"
+      },
+      "print": "side:added"
+    },
+    {
+      "query": "url:\"api v2\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          12
+        ],
+        "field": "url",
+        "value": "api v2"
+      },
+      "print": "url:\"api v2\""
+    },
+    {
+      "query": "url:/v\\d+/",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          10
+        ],
+        "field": "url",
+        "value": "v\\d+"
+      },
+      "print": "url:/v\\d+/"
+    },
+    {
+      "query": "since:7d",
+      "ast": {
+        "kind": "since",
+        "span": [
+          0,
+          8
+        ],
+        "value": "7d"
+      },
+      "print": "since:7d"
+    },
+    {
+      "query": "since:2026-11-01",
+      "ast": {
+        "kind": "since",
+        "span": [
+          0,
+          16
+        ],
+        "value": "2026-11-01"
+      },
+      "print": "since:2026-11-01"
+    },
+    {
+      "query": "until:2026-11-01T10:20:30.5Z",
+      "ast": {
+        "kind": "until",
+        "span": [
+          0,
+          28
+        ],
+        "value": "2026-11-01T10:20:30.5Z"
+      },
+      "print": "until:2026-11-01T10:20:30.5Z"
+    },
+    {
+      "query": "since:\"12h\"",
+      "ast": {
+        "kind": "since",
+        "span": [
+          0,
+          11
+        ],
+        "value": "12h"
+      },
+      "print": "since:12h"
+    },
+    {
+      "query": "(a)",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          3
+        ],
+        "value": "a"
+      },
+      "print": "a"
+    },
+    {
+      "query": "((a b))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          7
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              2,
+              3
+            ],
+            "value": "a"
+          },
+          {
+            "kind": "term",
+            "span": [
+              4,
+              5
+            ],
+            "value": "b"
+          }
+        ]
+      },
+      "print": "a b"
+    },
+    {
+      "query": "a AND (b c)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          11
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              1
+            ],
+            "value": "a"
+          },
+          {
+            "kind": "term",
+            "span": [
+              7,
+              8
+            ],
+            "value": "b"
+          },
+          {
+            "kind": "term",
+            "span": [
+              9,
+              10
+            ],
+            "value": "c"
+          }
+        ]
+      },
+      "print": "a b c"
+    },
+    {
+      "query": "program:p1 kind:endpoint_added -side:removed (token OR secret) since:30d",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          72
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              10
+            ],
+            "field": "program",
+            "value": "p1"
+          },
+          {
+            "kind": "term",
+            "span": [
+              11,
+              30
+            ],
+            "field": "kind",
+            "value": "endpoint_added"
+          },
+          {
+            "kind": "not",
+            "span": [
+              31,
+              44
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  32,
+                  44
+                ],
+                "field": "side",
+                "value": "removed"
+              }
+            ]
+          },
+          {
+            "kind": "or",
+            "span": [
+              45,
+              62
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  46,
+                  51
+                ],
+                "value": "token"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  55,
+                  61
+                ],
+                "value": "secret"
+              }
+            ]
+          },
+          {
+            "kind": "since",
+            "span": [
+              63,
+              72
+            ],
+            "value": "30d"
+          }
+        ]
+      },
+      "print": "program:p1 kind:endpoint_added -side:removed (token OR secret) since:30d"
+    },
+    {
+      "query": "field:-x",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          8
+        ],
+        "field": "field",
+        "value": "-x"
+      },
+      "print": "field:-x"
+    },
+    {
+      "query": "kind:AND",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          8
+        ],
+        "field": "kind",
+        "value": "AND"
+      },
+      "print": "kind:AND"
+    },
+    {
+      "query": "a:b:c",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          5
+        ],
+        "field": "a",
+        "value": "b:c"
+      },
+      "print": "a:b:c"
+    },
+    {
+      "query": "9:x",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          3
+        ],
+        "value": "9:x"
+      },
+      "print": "9:x"
+    },
+    {
+      "query": "https://example.com",
+      "error": {
+        "code": "EMPTY_REGEX",
+        "span": [
+          6,
+          8
+        ]
+      }
+    },
+    {
+      "query": "\"https://example.com/a\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          23
+        ],
+        "value": "https://example.com/a"
+      },
+      "print": "\"https://example.com/a\""
+    },
+    {
+      "query": "a-b",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          3
+        ],
+        "value": "a-b"
+      },
+      "print": "a-b"
+    },
+    {
+      "query": "foo(bar)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          8
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              3
+            ],
+            "value": "foo"
+          },
+          {
+            "kind": "term",
+            "span": [
+              3,
+              8
+            ],
+            "value": "bar"
+          }
+        ]
+      },
+      "print": "foo bar"
+    },
+    {
+      "query": "and or",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          6
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              3
+            ],
+            "value": "and"
+          },
+          {
+            "kind": "term",
+            "span": [
+              4,
+              6
+            ],
+            "value": "or"
+          }
+        ]
+      },
+      "print": "and or"
+    },
+    {
+      "query": "AND",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          0,
+          3
+        ]
+      }
+    },
+    {
+      "query": "OR foo",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          0,
+          2
+        ]
+      }
+    },
+    {
+      "query": "foo OR",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          6,
+          6
+        ]
+      }
+    },
+    {
+      "query": "foo AND",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          7,
+          7
+        ]
+      }
+    },
+    {
+      "query": "(",
+      "error": {
+        "code": "UNBALANCED_PAREN",
+        "span": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "query": ")",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "query": "(foo",
+      "error": {
+        "code": "UNBALANCED_PAREN",
+        "span": [
+          0,
+          4
+        ]
+      }
+    },
+    {
+      "query": "foo)",
+      "error": {
+        "code": "UNEXPECTED_TOKEN",
+        "span": [
+          3,
+          4
+        ]
+      }
+    },
+    {
+      "query": "()",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "query": "- foo",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "query": "--foo",
+      "error": {
+        "code": "UNEXPECTED_TOKEN",
+        "span": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "query": "\"open",
+      "error": {
+        "code": "UNTERMINATED_PHRASE",
+        "span": [
+          0,
+          5
+        ]
+      }
+    },
+    {
+      "query": "/open",
+      "error": {
+        "code": "UNTERMINATED_REGEX",
+        "span": [
+          0,
+          5
+        ]
+      }
+    },
+    {
+      "query": "//",
+      "error": {
+        "code": "EMPTY_REGEX",
+        "span": [
+          0,
+          2
+        ]
+      }
+    },
+    {
+      "query": "/x/q",
+      "error": {
+        "code": "BAD_REGEX_FLAG",
+        "span": [
+          3,
+          4
+        ]
+      }
+    },
+    {
+      "query": "/x/ii",
+      "error": {
+        "code": "BAD_REGEX_FLAG",
+        "span": [
+          4,
+          5
+        ]
+      }
+    },
+    {
+      "query": "/(/",
+      "error": {
+        "code": "BAD_REGEX",
+        "span": [
+          0,
+          3
+        ]
+      }
+    },
+    {
+      "query": "kind:",
+      "error": {
+        "code": "EXPECTED_VALUE",
+        "span": [
+          5,
+          5
+        ]
+      }
+    },
+    {
+      "query": "kind: x",
+      "error": {
+        "code": "EXPECTED_VALUE",
+        "span": [
+          5,
+          6
+        ]
+      }
+    },
+    {
+      "query": "since:7y",
+      "error": {
+        "code": "BAD_TIME",
+        "span": [
+          6,
+          8
+        ]
+      }
+    },
+    {
+      "query": "since:2026-02-30",
+      "error": {
+        "code": "BAD_TIME",
+        "span": [
+          6,
+          16
+        ]
+      }
+    },
+    {
+      "query": "since:/x/",
+      "error": {
+        "code": "BAD_TIME",
+        "span": [
+          6,
+          9
+        ]
+      }
+    },
+    {
+      "query": "",
+      "error": {
+        "code": "EMPTY_QUERY",
+        "span": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "query": "   ",
+      "error": {
+        "code": "EMPTY_QUERY",
+        "span": [
+          0,
+          3
+        ]
+      }
+    },
+    {
+      "query": "a\u0000b",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          3
+        ],
+        "value": "a\u0000b"
+      },
+      "print": "a\u0000b"
+    },
+    {
+      "query": "a /b/ \"c\" d:e",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          13
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              1
+            ],
+            "value": "a"
+          },
+          {
+            "kind": "regex",
+            "span": [
+              2,
+              5
+            ],
+            "value": "b"
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              6,
+              9
+            ],
+            "value": "c"
+          },
+          {
+            "kind": "term",
+            "span": [
+              10,
+              13
+            ],
+            "field": "d",
+            "value": "e"
+          }
+        ]
+      },
+      "print": "a /b/ \"c\" d:e"
+    },
+    {
+      "query": "(((url:fetchId AND -secretXml) OR (-kind:script_added OR until:24h)) OR (text:V2GRAPHQLTOKEN OR url:\"jsonidstraße/KKApi\") OR program:p2)",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          141
+        ],
+        "children": [
+          {
+            "kind": "and",
+            "span": [
+              2,
+              30
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  3,
+                  14
+                ],
+                "field": "url",
+                "value": "fetchId"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  19,
+                  29
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      20,
+                      29
+                    ],
+                    "value": "secretXml"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "not",
+            "span": [
+              35,
+              53
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  36,
+                  53
+                ],
+                "field": "kind",
+                "value": "script_added"
+              }
+            ]
+          },
+          {
+            "kind": "until",
+            "span": [
+              57,
+              66
+            ],
+            "value": "24h"
+          },
+          {
+            "kind": "term",
+            "span": [
+              73,
+              92
+            ],
+            "field": "text",
+            "value": "V2GRAPHQLTOKEN"
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              96,
+              125
+            ],
+            "field": "url",
+            "value": "jsonidstraße/KKApi"
+          },
+          {
+            "kind": "term",
+            "span": [
+              130,
+              140
+            ],
+            "field": "program",
+            "value": "p2"
+          }
+        ]
+      },
+      "print": "url:fetchId -secretXml OR -kind:script_added OR until:24h OR text:V2GRAPHQLTOKEN OR url:\"jsonidstraße/KKApi\" OR program:p2"
+    },
+    {
+      "query": "(-(kind:endpoint_removed -(Σigmav2 é) -(-IDAPI -side:added)) AND -(-/user/s (auth text:httpHttpK)))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          103
+        ],
+        "children": [
+          {
+            "kind": "not",
+            "span": [
+              1,
+              62
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  2,
+                  62
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      3,
+                      24
+                    ],
+                    "field": "kind",
+                    "value": "endpoint_removed"
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      25,
+                      39
+                    ],
+                    "children": [
+                      {
+                        "kind": "and",
+                        "span": [
+                          26,
+                          39
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              27,
+                              35
+                            ],
+                            "value": "Σigmav2"
+                          },
+                          {
+                            "kind": "term",
+                            "span": [
+                              36,
+                              38
+                            ],
+                            "value": "é"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      40,
+                      61
+                    ],
+                    "children": [
+                      {
+                        "kind": "and",
+                        "span": [
+                          41,
+                          61
+                        ],
+                        "children": [
+                          {
+                            "kind": "not",
+                            "span": [
+                              42,
+                              48
+                            ],
+                            "children": [
+                              {
+                                "kind": "term",
+                                "span": [
+                                  43,
+                                  48
+                                ],
+                                "value": "IDAPI"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "not",
+                            "span": [
+                              49,
+                              60
+                            ],
+                            "children": [
+                              {
+                                "kind": "term",
+                                "span": [
+                                  50,
+                                  60
+                                ],
+                                "field": "side",
+                                "value": "added"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "not",
+            "span": [
+              67,
+              102
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  68,
+                  102
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      69,
+                      77
+                    ],
+                    "children": [
+                      {
+                        "kind": "regex",
+                        "span": [
+                          70,
+                          77
+                        ],
+                        "value": "user",
+                        "flags": "s"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      79,
+                      83
+                    ],
+                    "value": "auth"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      84,
+                      100
+                    ],
+                    "field": "text",
+                    "value": "httpHttpK"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "-(kind:endpoint_removed -(Σigmav2 é) -(-IDAPI -side:added)) -(-/user/s auth text:httpHttpK)"
+    },
+    {
+      "query": "\"xauth_id\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          10
+        ],
+        "value": "xauth_id"
+      },
+      "print": "\"xauth_id\""
+    },
+    {
+      "query": "kind:scrip_added (url:Σigma (kind:endpoint_added AND program:p2))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          66
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              16
+            ],
+            "field": "kind",
+            "value": "scrip_added"
+          },
+          {
+            "kind": "term",
+            "span": [
+              18,
+              28
+            ],
+            "field": "url",
+            "value": "Σigma"
+          },
+          {
+            "kind": "term",
+            "span": [
+              30,
+              49
+            ],
+            "field": "kind",
+            "value": "endpoint_added"
+          },
+          {
+            "kind": "term",
+            "span": [
+              54,
+              64
+            ],
+            "field": "program",
+            "value": "p2"
+          }
+        ]
+      },
+      "print": "kind:scrip_added url:Σigma kind:endpoint_added program:p2"
+    },
+    {
+      "query": "kind:endpoint_added text:vi2secretK",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          37
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              19
+            ],
+            "field": "kind",
+            "value": "endpoint_added"
+          },
+          {
+            "kind": "term",
+            "span": [
+              20,
+              37
+            ],
+            "field": "text",
+            "value": "vi2secretK"
+          }
+        ]
+      },
+      "print": "kind:endpoint_added text:vi2secretK"
+    },
+    {
+      "query": "kind:script_added -\"key_secret_v2(ΣIGMA\"",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          41
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              17
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "not",
+            "span": [
+              18,
+              41
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  19,
+                  41
+                ],
+                "value": "key_secret_v2(ΣIGMA"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:script_added -\"key_secret_v2(ΣIGMA\""
+    },
+    {
+      "query": "program:p1",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          10
+        ],
+        "field": "program",
+        "value": "p1"
+      },
+      "print": "program:p1"
+    },
+    {
+      "query": "kind:script_added ((-(id_secret AND -userV2Server AND since:17h) OR program:p1) OR (program:p2 AND (user_get_xml OR K) AND -é))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          130
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              17
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "or",
+            "span": [
+              18,
+              130
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  20,
+                  64
+                ],
+                "children": [
+                  {
+                    "kind": "and",
+                    "span": [
+                      21,
+                      64
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          22,
+                          31
+                        ],
+                        "value": "id_secret"
+                      },
+                      {
+                        "kind": "not",
+                        "span": [
+                          36,
+                          49
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              37,
+                              49
+                            ],
+                            "value": "userV2Server"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "since",
+                        "span": [
+                          54,
+                          63
+                        ],
+                        "value": "17h"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  68,
+                  78
+                ],
+                "field": "program",
+                "value": "p1"
+              },
+              {
+                "kind": "and",
+                "span": [
+                  83,
+                  129
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      84,
+                      94
+                    ],
+                    "field": "program",
+                    "value": "p2"
+                  },
+                  {
+                    "kind": "or",
+                    "span": [
+                      99,
+                      120
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          100,
+                          112
+                        ],
+                        "value": "user_get_xml"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          116,
+                          119
+                        ],
+                        "value": "K"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      125,
+                      128
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          126,
+                          128
+                        ],
+                        "value": "é"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:script_added (-(id_secret -userV2Server since:17h) OR program:p1 OR program:p2 (user_get_xml OR K) -é)"
+    },
+    {
+      "query": "kind:endpoint_removed (-key AND ((idIdServer OR -until:24d OR /s.rvesince:r/s) url:\"secret/GETJSONGRAPHQL\" (\"xmlsecret\" OR \"http, httpstraßeurl\" OR \"serverstraße=http_K\")))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          176
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              21
+            ],
+            "field": "kind",
+            "value": "endpoint_removed"
+          },
+          {
+            "kind": "not",
+            "span": [
+              23,
+              27
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  24,
+                  27
+                ],
+                "value": "key"
+              }
+            ]
+          },
+          {
+            "kind": "or",
+            "span": [
+              33,
+              78
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  34,
+                  44
+                ],
+                "value": "idIdServer"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  48,
+                  58
+                ],
+                "children": [
+                  {
+                    "kind": "until",
+                    "span": [
+                      49,
+                      58
+                    ],
+                    "value": "24d"
+                  }
+                ]
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  62,
+                  77
+                ],
+                "value": "s.rvesince:r",
+                "flags": "s"
+              }
+            ]
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              79,
+              106
+            ],
+            "field": "url",
+            "value": "secret/GETJSONGRAPHQL"
+          },
+          {
+            "kind": "or",
+            "span": [
+              107,
+              174
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  108,
+                  119
+                ],
+                "value": "xmlsecret"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  123,
+                  145
+                ],
+                "value": "http, httpstraßeurl"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  149,
+                  173
+                ],
+                "value": "serverstraße=http_K"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:endpoint_removed -key (idIdServer OR -until:24d OR /s.rvesince:r/s) url:\"secret/GETJSONGRAPHQL\" (\"xmlsecret\" OR \"http, httpstraßeurl\" OR \"serverstraße=http_K\")"
+    },
+    {
+      "query": "kind:script_added \"KEYIDBY\"",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          27
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              17
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              18,
+              27
+            ],
+            "value": "KEYIDBY"
+          }
+        ]
+      },
+      "print": "kind:script_added \"KEYIDBY\""
+    },
+    {
+      "query": "\"KEY\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          5
+        ],
+        "value": "KEY"
+      },
+      "print": "\"KEY\""
+    },
+    {
+      "query": "(ΣigmA ((until:10w AND xmlXml AND side:x) AD (sid:removed OR \"geturladmin_42\" OR xmlKKey) AND straßE))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          106
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              7
+            ],
+            "value": "ΣigmA"
+          },
+          {
+            "kind": "until",
+            "span": [
+              10,
+              19
+            ],
+            "value": "10w"
+          },
+          {
+            "kind": "term",
+            "span": [
+              24,
+              30
+            ],
+            "value": "xmlXml"
+          },
+          {
+            "kind": "term",
+            "span": [
+              35,
+              41
+            ],
+            "field": "side",
+            "value": "x"
+          },
+          {
+            "kind": "term",
+            "span": [
+              43,
+              45
+            ],
+            "value": "AD"
+          },
+          {
+            "kind": "or",
+            "span": [
+              46,
+              92
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  47,
+                  58
+                ],
+                "field": "sid",
+                "value": "removed"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  62,
+                  78
+                ],
+                "value": "geturladmin_42"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  82,
+                  91
+                ],
+                "value": "xmlKKey"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              97,
+              104
+            ],
+            "value": "straßE"
+          }
+        ]
+      },
+      "print": "ΣigmA until:10w xmlXml side:x AD (sid:removed OR \"geturladmin_42\" OR xmlKKey) straßE"
+    },
+    {
+      "query": "-(/user/ OR kind:endpoint_added)",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          32
+        ],
+        "children": [
+          {
+            "kind": "or",
+            "span": [
+              1,
+              32
+            ],
+            "children": [
+              {
+                "kind": "regex",
+                "span": [
+                  2,
+                  8
+                ],
+                "value": "user"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  12,
+                  31
+                ],
+                "field": "kind",
+                "value": "endpoint_added"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "-(/user/ OR kind:endpoint_added)"
+    },
+    {
+      "query": "(-((Σigma AND adminToken42) /[xy]ml/ serverkey) -((PIURLV2 OR V2 OR \"secret?server\")(\" OR -get))",
+      "error": {
+        "code": "UNTERMINATED_PHRASE",
+        "span": [
+          86,
+          97
+        ]
+      }
+    },
+    {
+      "query": "(url ((user_x1 side:x text:é) (sErver OR \"hTTp_K/Σigma\" OR -fetch) -(auth_straße_token AND /json|./im)) ((-/a*/ OR server42token OR side:x) OR \"42\"))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          154
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              4
+            ],
+            "value": "url"
+          },
+          {
+            "kind": "term",
+            "span": [
+              7,
+              14
+            ],
+            "value": "user_x1"
+          },
+          {
+            "kind": "term",
+            "span": [
+              15,
+              21
+            ],
+            "field": "side",
+            "value": "x"
+          },
+          {
+            "kind": "term",
+            "span": [
+              22,
+              29
+            ],
+            "field": "text",
+            "value": "é"
+          },
+          {
+            "kind": "or",
+            "span": [
+              31,
+              70
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  32,
+                  38
+                ],
+                "value": "sErver"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  42,
+                  59
+                ],
+                "value": "hTTp_K/Σigma"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  63,
+                  69
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      64,
+                      69
+                    ],
+                    "value": "fetch"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "not",
+            "span": [
+              71,
+              107
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  72,
+                  107
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      73,
+                      91
+                    ],
+                    "value": "auth_straße_token"
+                  },
+                  {
+                    "kind": "regex",
+                    "span": [
+                      96,
+                      106
+                    ],
+                    "value": "json|.",
+                    "flags": "im"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "or",
+            "span": [
+              109,
+              153
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  111,
+                  116
+                ],
+                "children": [
+                  {
+                    "kind": "regex",
+                    "span": [
+                      112,
+                      116
+                    ],
+                    "value": "a*"
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  120,
+                  133
+                ],
+                "value": "server42token"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  137,
+                  143
+                ],
+                "field": "side",
+                "value": "x"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  148,
+                  152
+                ],
+                "value": "42"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "url user_x1 side:x text:é (sErver OR \"hTTp_K/Σigma\" OR -fetch) -(auth_straße_token /json|./im) (-/a*/ OR server42token OR side:x OR \"42\")"
+    },
+    {
+      "query": "kind:endpoint_removed (((url:\"SERVERHTTPSERVER/iD\" AND program:p2) \"é-v2, straßeK\" (until:10w strAße)) OR \"secrettokenv2\nstraßeΣigmaBy, v2server\")",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          153
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              21
+            ],
+            "field": "kind",
+            "value": "endpoint_removed"
+          },
+          {
+            "kind": "or",
+            "span": [
+              22,
+              153
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  23,
+                  107
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      25,
+                      50
+                    ],
+                    "field": "url",
+                    "value": "SERVERHTTPSERVER/iD"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      55,
+                      65
+                    ],
+                    "field": "program",
+                    "value": "p2"
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      67,
+                      86
+                    ],
+                    "value": "é-v2, straßeK"
+                  },
+                  {
+                    "kind": "until",
+                    "span": [
+                      88,
+                      97
+                    ],
+                    "value": "10w"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      98,
+                      105
+                    ],
+                    "value": "strAße"
+                  }
+                ]
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  111,
+                  152
+                ],
+                "value": "secrettokenv2\u000astraßeΣigmaBy, v2server"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:endpoint_removed (url:\"SERVERHTTPSERVER/iD\" program:p2 \"é-v2, straßeK\" until:10w strAße OR \"secrettokenv2\nstraßeΣigmaBy, v2server\")"
+    },
+    {
+      "query": "v2http",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          6
+        ],
+        "value": "v2http"
+      },
+      "print": "v2http"
+    },
+    {
+      "query": "(((side:x OR \"serverApiJson\" OR/\\d\\d/i) (url:\"v2Id(V2\" tokengetstraße side:added) (/straße/ /\\w/))(side:remove AND -(\"xml\nkey\" ÉGETV2 \"éGraphqlV2)token_url\ntoken\")))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          169
+        ],
+        "children": [
+          {
+            "kind": "or",
+            "span": [
+              2,
+              39
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  3,
+                  9
+                ],
+                "field": "side",
+                "value": "x"
+              },
+              {
+                "kind": "and",
+                "span": [
+                  13,
+                  38
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      13,
+                      28
+                    ],
+                    "value": "serverApiJson"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      29,
+                      38
+                    ],
+                    "value": "OR/\\d\\d/i"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              41,
+              54
+            ],
+            "field": "url",
+            "value": "v2Id(V2"
+          },
+          {
+            "kind": "term",
+            "span": [
+              55,
+              70
+            ],
+            "value": "tokengetstraße"
+          },
+          {
+            "kind": "term",
+            "span": [
+              71,
+              81
+            ],
+            "field": "side",
+            "value": "added"
+          },
+          {
+            "kind": "regex",
+            "span": [
+              84,
+              93
+            ],
+            "value": "straße"
+          },
+          {
+            "kind": "regex",
+            "span": [
+              94,
+              98
+            ],
+            "value": "\\w"
+          },
+          {
+            "kind": "term",
+            "span": [
+              101,
+              112
+            ],
+            "field": "side",
+            "value": "remove"
+          },
+          {
+            "kind": "not",
+            "span": [
+              117,
+              167
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  118,
+                  167
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      119,
+                      128
+                    ],
+                    "value": "xml\u000akey"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      129,
+                      136
+                    ],
+                    "value": "ÉGETV2"
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      137,
+                      166
+                    ],
+                    "value": "éGraphqlV2)token_url\u000atoken"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "(side:x OR \"serverApiJson\" OR/\\d\\d/i) url:\"v2Id(V2\" tokengetstraße side:added /straße/ /\\w/ side:remove -(\"xml\nkey\" ÉGETV2 \"éGraphqlV2)token_url\ntoken\")"
+    },
+    {
+      "query": "kind:script_added (-((-kind:script_added AND side:removed AND url:\"auth_auth X1\") -(side:added AND url:\"adMin(key\") since:15h) OR v2Secret)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          139
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              17
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "or",
+            "span": [
+              18,
+              139
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  19,
+                  126
+                ],
+                "children": [
+                  {
+                    "kind": "and",
+                    "span": [
+                      20,
+                      126
+                    ],
+                    "children": [
+                      {
+                        "kind": "not",
+                        "span": [
+                          22,
+                          40
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              23,
+                              40
+                            ],
+                            "field": "kind",
+                            "value": "script_added"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          45,
+                          57
+                        ],
+                        "field": "side",
+                        "value": "removed"
+                      },
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          62,
+                          80
+                        ],
+                        "field": "url",
+                        "value": "auth_auth X1"
+                      },
+                      {
+                        "kind": "not",
+                        "span": [
+                          82,
+                          115
+                        ],
+                        "children": [
+                          {
+                            "kind": "and",
+                            "span": [
+                              83,
+                              115
+                            ],
+                            "children": [
+                              {
+                                "kind": "term",
+                                "span": [
+                                  84,
+                                  94
+                                ],
+                                "field": "side",
+                                "value": "added"
+                              },
+                              {
+                                "kind": "phrase",
+                                "span": [
+                                  99,
+                                  114
+                                ],
+                                "field": "url",
+                                "value": "adMin(key"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "since",
+                        "span": [
+                          116,
+                          125
+                        ],
+                        "value": "15h"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  130,
+                  138
+                ],
+                "value": "v2Secret"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:script_added (-(-kind:script_added side:removed url:\"auth_auth X1\" -(side:added url:\"adMin(key\") since:15h) OR v2Secret)"
+    },
+    {
+      "query": "strße_secet\u0000",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          13
+        ],
+        "value": "strße_secet\u0000"
+      },
+      "print": "strße_secet\u0000"
+    },
+    {
+      "query": "secrEt",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          6
+        ],
+        "value": "secrEt"
+      },
+      "print": "secrEt"
+    },
+    {
+      "query": "((program:p2 AND (ToKen /a*/i) AND program:p1) OR (\"KEY\" (SECRETHTTPV2 -program:p1 until:18h) /\\x{212a}/) OR -(/get[A-Z]\\w+\"/ OR /tok(en)?/s))",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          142
+        ],
+        "children": [
+          {
+            "kind": "and",
+            "span": [
+              1,
+              46
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  2,
+                  12
+                ],
+                "field": "program",
+                "value": "p2"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  18,
+                  23
+                ],
+                "value": "ToKen"
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  24,
+                  29
+                ],
+                "value": "a*",
+                "flags": "i"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  35,
+                  45
+                ],
+                "field": "program",
+                "value": "p1"
+              }
+            ]
+          },
+          {
+            "kind": "and",
+            "span": [
+              50,
+              105
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  51,
+                  56
+                ],
+                "value": "KEY"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  58,
+                  70
+                ],
+                "value": "SECRETHTTPV2"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  71,
+                  82
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      72,
+                      82
+                    ],
+                    "field": "program",
+                    "value": "p1"
+                  }
+                ]
+              },
+              {
+                "kind": "until",
+                "span": [
+                  83,
+                  92
+                ],
+                "value": "18h"
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  94,
+                  104
+                ],
+                "value": "\\x{212a}"
+              }
+            ]
+          },
+          {
+            "kind": "not",
+            "span": [
+              109,
+              141
+            ],
+            "children": [
+              {
+                "kind": "or",
+                "span": [
+                  110,
+                  141
+                ],
+                "children": [
+                  {
+                    "kind": "regex",
+                    "span": [
+                      111,
+                      125
+                    ],
+                    "value": "get[A-Z]\\w+\""
+                  },
+                  {
+                    "kind": "regex",
+                    "span": [
+                      129,
+                      140
+                    ],
+                    "value": "tok(en)?",
+                    "flags": "s"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "program:p2 ToKen /a*/i program:p1 OR \"KEY\" SECRETHTTPV2 -program:p1 until:18h /\\x{212a}/ OR -(/get[A-Z]\\w+\"/ OR /tok(en)?/s)"
+    },
+    {
+      "query": "(\"xml=url=xml_Σigma\" OR /[xy]ml/im OR -(-(until:15w /json|./) -(-xMl Oauth_é OR GETAPI) (-serverapiv2 OR kind:scORript_added OR /\\w/i)))",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          138
+        ],
+        "children": [
+          {
+            "kind": "phrase",
+            "span": [
+              1,
+              21
+            ],
+            "value": "xml=url=xml_Σigma"
+          },
+          {
+            "kind": "regex",
+            "span": [
+              25,
+              35
+            ],
+            "value": "[xy]ml",
+            "flags": "im"
+          },
+          {
+            "kind": "not",
+            "span": [
+              39,
+              137
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  40,
+                  137
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      41,
+                      62
+                    ],
+                    "children": [
+                      {
+                        "kind": "and",
+                        "span": [
+                          42,
+                          62
+                        ],
+                        "children": [
+                          {
+                            "kind": "until",
+                            "span": [
+                              43,
+                              52
+                            ],
+                            "value": "15w"
+                          },
+                          {
+                            "kind": "regex",
+                            "span": [
+                              53,
+                              61
+                            ],
+                            "value": "json|."
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      63,
+                      89
+                    ],
+                    "children": [
+                      {
+                        "kind": "or",
+                        "span": [
+                          64,
+                          89
+                        ],
+                        "children": [
+                          {
+                            "kind": "and",
+                            "span": [
+                              65,
+                              78
+                            ],
+                            "children": [
+                              {
+                                "kind": "not",
+                                "span": [
+                                  65,
+                                  69
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "term",
+                                    "span": [
+                                      66,
+                                      69
+                                    ],
+                                    "value": "xMl"
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "term",
+                                "span": [
+                                  70,
+                                  78
+                                ],
+                                "value": "Oauth_é"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "term",
+                            "span": [
+                              82,
+                              88
+                            ],
+                            "value": "GETAPI"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "or",
+                    "span": [
+                      90,
+                      136
+                    ],
+                    "children": [
+                      {
+                        "kind": "not",
+                        "span": [
+                          91,
+                          103
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              92,
+                              103
+                            ],
+                            "value": "serverapiv2"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          107,
+                          126
+                        ],
+                        "field": "kind",
+                        "value": "scORript_added"
+                      },
+                      {
+                        "kind": "regex",
+                        "span": [
+                          130,
+                          135
+                        ],
+                        "value": "\\w",
+                        "flags": "i"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "\"xml=url=xml_Σigma\" OR /[xy]ml/im OR -(-(until:15w /json|./) -(-xMl Oauth_é OR GETAPI) (-serverapiv2 OR kind:scORript_added OR /\\w/i))"
+    },
+    {
+      "query": "\"hTtp\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          6
+        ],
+        "value": "hTtp"
+      },
+      "print": "\"hTtp\""
+    },
+    {
+      "query": "((url:gEt OR (GRAPHQLΣIGMA AND side:added)) OR admin)",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          54
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              2,
+              9
+            ],
+            "field": "url",
+            "value": "gEt"
+          },
+          {
+            "kind": "and",
+            "span": [
+              13,
+              43
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  14,
+                  27
+                ],
+                "value": "GRAPHQLΣIGMA"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  32,
+                  42
+                ],
+                "field": "side",
+                "value": "added"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              48,
+              53
+            ],
+            "value": "admin"
+          }
+        ]
+      },
+      "print": "url:gEt OR GRAPHQLΣIGMA side:added OR admin"
+    },
+    {
+      "query": "(((text:getuse AND until:20h AND serverkind:UserFetch) OR /^get/ OR kind:script_added) OR auth42)",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          97
+        ],
+        "children": [
+          {
+            "kind": "and",
+            "span": [
+              2,
+              54
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  3,
+                  14
+                ],
+                "field": "text",
+                "value": "getuse"
+              },
+              {
+                "kind": "until",
+                "span": [
+                  19,
+                  28
+                ],
+                "value": "20h"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  33,
+                  53
+                ],
+                "field": "serverkind",
+                "value": "UserFetch"
+              }
+            ]
+          },
+          {
+            "kind": "regex",
+            "span": [
+              58,
+              64
+            ],
+            "value": "^get"
+          },
+          {
+            "kind": "term",
+            "span": [
+              68,
+              85
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "term",
+            "span": [
+              90,
+              96
+            ],
+            "value": "auth42"
+          }
+        ]
+      },
+      "print": "text:getuse until:20h serverkind:UserFetch OR /^get/ OR kind:script_added OR auth42"
+    },
+    {
+      "query": "kind:endpoint_added -(-(kind:endpoint_added AND by AND since:18d) AND ((by OR /straße/im) AND url:\"SERVERK)K\") AND ((url:\"SERVERHTTPSERVER.api\" KGet -text:apifetch) authfetchapi IDSECRETAPI))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          198
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              19
+            ],
+            "field": "kind",
+            "value": "endpoint_added"
+          },
+          {
+            "kind": "not",
+            "span": [
+              20,
+              198
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  21,
+                  198
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      22,
+                      65
+                    ],
+                    "children": [
+                      {
+                        "kind": "and",
+                        "span": [
+                          23,
+                          65
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              24,
+                              43
+                            ],
+                            "field": "kind",
+                            "value": "endpoint_added"
+                          },
+                          {
+                            "kind": "term",
+                            "span": [
+                              48,
+                              50
+                            ],
+                            "value": "by"
+                          },
+                          {
+                            "kind": "since",
+                            "span": [
+                              55,
+                              64
+                            ],
+                            "value": "18d"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "or",
+                    "span": [
+                      71,
+                      90
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          72,
+                          74
+                        ],
+                        "value": "by"
+                      },
+                      {
+                        "kind": "regex",
+                        "span": [
+                          78,
+                          89
+                        ],
+                        "value": "straße",
+                        "flags": "im"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      95,
+                      114
+                    ],
+                    "field": "url",
+                    "value": "SERVERK)K"
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      122,
+                      148
+                    ],
+                    "field": "url",
+                    "value": "SERVERHTTPSERVER.api"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      149,
+                      155
+                    ],
+                    "value": "KGet"
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      156,
+                      170
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          157,
+                          170
+                        ],
+                        "field": "text",
+                        "value": "apifetch"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      172,
+                      184
+                    ],
+                    "value": "authfetchapi"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      185,
+                      196
+                    ],
+                    "value": "IDSECRETAPI"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:endpoint_added -(-(kind:endpoint_added by since:18d) (by OR /straße/im) url:\"SERVERK)K\" url:\"SERVERHTTPSERVER.api\" KGet -text:apifetch authfetchapi IDSECRETAPI)"
+    },
+    {
+      "query": "-(-/json|./im ((url:BY get_xml_get until:21w) AND (program:p2 OR until:11w) AND (get_key_K unil:12h program:p1)) (-(kindheader_change OR admin) AND -getTokenId AND (/[^ ]+/ AND \"http\")))",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          188
+        ],
+        "children": [
+          {
+            "kind": "and",
+            "span": [
+              1,
+              188
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  2,
+                  13
+                ],
+                "children": [
+                  {
+                    "kind": "regex",
+                    "span": [
+                      3,
+                      13
+                    ],
+                    "value": "json|.",
+                    "flags": "im"
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  16,
+                  22
+                ],
+                "field": "url",
+                "value": "BY"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  23,
+                  34
+                ],
+                "value": "get_xml_get"
+              },
+              {
+                "kind": "until",
+                "span": [
+                  35,
+                  44
+                ],
+                "value": "21w"
+              },
+              {
+                "kind": "or",
+                "span": [
+                  50,
+                  75
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      51,
+                      61
+                    ],
+                    "field": "program",
+                    "value": "p2"
+                  },
+                  {
+                    "kind": "until",
+                    "span": [
+                      65,
+                      74
+                    ],
+                    "value": "11w"
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  81,
+                  92
+                ],
+                "value": "get_key_K"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  93,
+                  101
+                ],
+                "field": "unil",
+                "value": "12h"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  102,
+                  112
+                ],
+                "field": "program",
+                "value": "p1"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  116,
+                  145
+                ],
+                "children": [
+                  {
+                    "kind": "or",
+                    "span": [
+                      117,
+                      145
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          118,
+                          135
+                        ],
+                        "value": "kindheader_change"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          139,
+                          144
+                        ],
+                        "value": "admin"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "not",
+                "span": [
+                  150,
+                  161
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      151,
+                      161
+                    ],
+                    "value": "getTokenId"
+                  }
+                ]
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  167,
+                  174
+                ],
+                "value": "[^ ]+"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  179,
+                  185
+                ],
+                "value": "http"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "-(-/json|./im url:BY get_xml_get until:21w (program:p2 OR until:11w) get_key_K unil:12h program:p1 -(kindheader_change OR admin) -getTokenId /[^ ]+/ \"http\")"
+    },
+    {
+      "query": "(ΣigMA OR (-(tOken OR -\"STRAßE'ADMINURL\" OR program:p2) AND -kind:header_changed AND url:\"x1admin=ΣIGMAFETCHGET\") OR ((\"auth\" AND \"authurlv2=42\" AND API) (kind:endpoint_removed OR ΣIgma)))",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          192
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              7
+            ],
+            "value": "ΣigMA"
+          },
+          {
+            "kind": "and",
+            "span": [
+              11,
+              116
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  12,
+                  57
+                ],
+                "children": [
+                  {
+                    "kind": "or",
+                    "span": [
+                      13,
+                      57
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          14,
+                          19
+                        ],
+                        "value": "tOken"
+                      },
+                      {
+                        "kind": "not",
+                        "span": [
+                          23,
+                          42
+                        ],
+                        "children": [
+                          {
+                            "kind": "phrase",
+                            "span": [
+                              24,
+                              42
+                            ],
+                            "value": "STRAßE'ADMINURL"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          46,
+                          56
+                        ],
+                        "field": "program",
+                        "value": "p2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "not",
+                "span": [
+                  62,
+                  82
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      63,
+                      82
+                    ],
+                    "field": "kind",
+                    "value": "header_changed"
+                  }
+                ]
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  87,
+                  115
+                ],
+                "field": "url",
+                "value": "x1admin=ΣIGMAFETCHGET"
+              }
+            ]
+          },
+          {
+            "kind": "and",
+            "span": [
+              120,
+              191
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  122,
+                  128
+                ],
+                "value": "auth"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  133,
+                  147
+                ],
+                "value": "authurlv2=42"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  152,
+                  155
+                ],
+                "value": "API"
+              },
+              {
+                "kind": "or",
+                "span": [
+                  157,
+                  190
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      158,
+                      179
+                    ],
+                    "field": "kind",
+                    "value": "endpoint_removed"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      183,
+                      189
+                    ],
+                    "value": "ΣIgma"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "ΣigMA OR -(tOken OR -\"STRAßE'ADMINURL\" OR program:p2) -kind:header_changed url:\"x1admin=ΣIGMAFETCHGET\" OR \"auth\" \"authurlv2=42\" API (kind:endpoint_removed OR ΣIgma)"
+    },
+    {
+      "query": "/auth\\.admin/",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          13
+        ],
+        "value": "auth\\.admin"
+      },
+      "print": "/auth\\.admin/"
+    },
+    {
+      "query": "/[^ ]+/i",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          8
+        ],
+        "value": "[^ ]+",
+        "flags": "i"
+      },
+      "print": "/[^ ]+/i"
+    },
+    {
+      "query": "kind:endpoint_removed -(((url:useradminstraße AND url:\"42\nget\" AND /fetch.*json/) \"keyuser\") OR -\"x1userv2, AUTH42XML\" OR Σigma)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          130
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              21
+            ],
+            "field": "kind",
+            "value": "endpoint_removed"
+          },
+          {
+            "kind": "not",
+            "span": [
+              22,
+              130
+            ],
+            "children": [
+              {
+                "kind": "or",
+                "span": [
+                  23,
+                  130
+                ],
+                "children": [
+                  {
+                    "kind": "and",
+                    "span": [
+                      24,
+                      93
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          26,
+                          46
+                        ],
+                        "field": "url",
+                        "value": "useradminstraße"
+                      },
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          51,
+                          63
+                        ],
+                        "field": "url",
+                        "value": "42\u000aget"
+                      },
+                      {
+                        "kind": "regex",
+                        "span": [
+                          68,
+                          81
+                        ],
+                        "value": "fetch.*json"
+                      },
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          83,
+                          92
+                        ],
+                        "value": "keyuser"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      97,
+                      119
+                    ],
+                    "children": [
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          98,
+                          119
+                        ],
+                        "value": "x1userv2, AUTH42XML"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      123,
+                      129
+                    ],
+                    "value": "Σigma"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:endpoint_removed -(url:useradminstraße url:\"42\nget\" /fetch.*json/ \"keyuser\" OR -\"x1userv2, AUTH42XML\" OR Σigma)"
+    },
+    {
+      "query": "((/s.rver/im AND url:KEYBY AND -url:\"É&USERÉ\") OR url:42ΣIGMAÉ OR (-(/tok(en)?/i OR kind:straße) (/auth\\.admin/im AND -text:xmlxmlé AND \"iD\") -(side:adde\u0000d OR É OR -text:ΣiGma)):)",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          187
+        ],
+        "children": [
+          {
+            "kind": "and",
+            "span": [
+              1,
+              48
+            ],
+            "children": [
+              {
+                "kind": "regex",
+                "span": [
+                  2,
+                  12
+                ],
+                "value": "s.rver",
+                "flags": "im"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  17,
+                  26
+                ],
+                "field": "url",
+                "value": "KEYBY"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  31,
+                  47
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      32,
+                      47
+                    ],
+                    "field": "url",
+                    "value": "É&USERÉ"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              52,
+              66
+            ],
+            "field": "url",
+            "value": "42ΣIGMAÉ"
+          },
+          {
+            "kind": "and",
+            "span": [
+              70,
+              186
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  71,
+                  101
+                ],
+                "children": [
+                  {
+                    "kind": "or",
+                    "span": [
+                      72,
+                      101
+                    ],
+                    "children": [
+                      {
+                        "kind": "regex",
+                        "span": [
+                          73,
+                          84
+                        ],
+                        "value": "tok(en)?",
+                        "flags": "i"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          88,
+                          100
+                        ],
+                        "field": "kind",
+                        "value": "straße"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  103,
+                  118
+                ],
+                "value": "auth\\.admin",
+                "flags": "im"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  123,
+                  137
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      124,
+                      137
+                    ],
+                    "field": "text",
+                    "value": "xmlxmlé"
+                  }
+                ]
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  142,
+                  146
+                ],
+                "value": "iD"
+              },
+              {
+                "kind": "not",
+                "span": [
+                  148,
+                  184
+                ],
+                "children": [
+                  {
+                    "kind": "or",
+                    "span": [
+                      149,
+                      184
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          150,
+                          161
+                        ],
+                        "field": "side",
+                        "value": "adde\u0000d"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          165,
+                          167
+                        ],
+                        "value": "É"
+                      },
+                      {
+                        "kind": "not",
+                        "span": [
+                          171,
+                          183
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              172,
+                              183
+                            ],
+                            "field": "text",
+                            "value": "ΣiGma"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  185,
+                  186
+                ],
+                "value": ":"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "/s.rver/im url:KEYBY -url:\"É&USERÉ\" OR url:42ΣIGMAÉ OR -(/tok(en)?/i OR kind:straße) /auth\\.admin/im -text:xmlxmlé \"iD\" -(side:adde\u0000d OR É OR -text:ΣiGma) :"
+    },
+    {
+      "query": "((/tok(en)?/s (-auth AND kind:script_added AND /\\w/s) side:added) url -((url:\"TOKEN&urlgetjson\" Σigma_key key) \"JSON, getGet42://JSON42XML\"))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          142
+        ],
+        "children": [
+          {
+            "kind": "regex",
+            "span": [
+              2,
+              13
+            ],
+            "value": "tok(en)?",
+            "flags": "s"
+          },
+          {
+            "kind": "not",
+            "span": [
+              15,
+              20
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  16,
+                  20
+                ],
+                "value": "auth"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              25,
+              42
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "regex",
+            "span": [
+              47,
+              52
+            ],
+            "value": "\\w",
+            "flags": "s"
+          },
+          {
+            "kind": "term",
+            "span": [
+              54,
+              64
+            ],
+            "field": "side",
+            "value": "added"
+          },
+          {
+            "kind": "term",
+            "span": [
+              66,
+              69
+            ],
+            "value": "url"
+          },
+          {
+            "kind": "not",
+            "span": [
+              70,
+              141
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  71,
+                  141
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      73,
+                      95
+                    ],
+                    "field": "url",
+                    "value": "TOKEN&urlgetjson"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      96,
+                      106
+                    ],
+                    "value": "Σigma_key"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      107,
+                      110
+                    ],
+                    "value": "key"
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      112,
+                      140
+                    ],
+                    "value": "JSON, getGet42://JSON42XML"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "/tok(en)?/s -auth kind:script_added /\\w/s side:added url -(url:\"TOKEN&urlgetjson\" Σigma_key key \"JSON, getGet42://JSON42XML\")"
+    },
+    {
+      "query": "side:added",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          10
+        ],
+        "field": "side",
+        "value": "added"
+      },
+      "print": "side:added"
+    },
+    {
+      "query": "/x1|42/i",
+      "ast": {
+        "kind": "regex",
+        "span": [
+          0,
+          8
+        ],
+        "value": "x1|42",
+        "flags": "i"
+      },
+      "print": "/x1|42/i"
+    },
+    {
+      "query": "((-(/secret|key/s program:p2 -42_admin) OR /ü?ser/) AND program:p1)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          68
+        ],
+        "children": [
+          {
+            "kind": "or",
+            "span": [
+              1,
+              52
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  2,
+                  39
+                ],
+                "children": [
+                  {
+                    "kind": "and",
+                    "span": [
+                      3,
+                      39
+                    ],
+                    "children": [
+                      {
+                        "kind": "regex",
+                        "span": [
+                          4,
+                          17
+                        ],
+                        "value": "secret|key",
+                        "flags": "s"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          18,
+                          28
+                        ],
+                        "field": "program",
+                        "value": "p2"
+                      },
+                      {
+                        "kind": "not",
+                        "span": [
+                          29,
+                          38
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              30,
+                              38
+                            ],
+                            "value": "42_admin"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  43,
+                  51
+                ],
+                "value": "ü?ser"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              57,
+              67
+            ],
+            "field": "program",
+            "value": "p1"
+          }
+        ]
+      },
+      "print": "(-(/secret|key/s program:p2 -42_admin) OR /ü?ser/) program:p1"
+    },
+    {
+      "query": "(sTrAße OR ((graphql OR text:éadmin) \"api_admin\" url:\"v2api get\"))",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          68
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              8
+            ],
+            "value": "sTrAße"
+          },
+          {
+            "kind": "and",
+            "span": [
+              12,
+              67
+            ],
+            "children": [
+              {
+                "kind": "or",
+                "span": [
+                  13,
+                  38
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      14,
+                      21
+                    ],
+                    "value": "graphql"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      25,
+                      37
+                    ],
+                    "field": "text",
+                    "value": "éadmin"
+                  }
+                ]
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  39,
+                  50
+                ],
+                "value": "api_admin"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  51,
+                  66
+                ],
+                "field": "url",
+                "value": "v2api get"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "sTrAße OR (graphql OR text:éadmin) \"api_admin\" url:\"v2api get\""
+    },
+    {
+      "query": "(until:7h OR /(?:api|graphql)\\/v2/im OR ((program:p2 /[a-z]+_[a-z]+/im) AND (\"x1IdAuth\" OR program:p1 OR /(?:api|graphql)\\/v2/im) AND url:\"auth-SECRETK\"))",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          156
+        ],
+        "children": [
+          {
+            "kind": "until",
+            "span": [
+              1,
+              9
+            ],
+            "value": "7h"
+          },
+          {
+            "kind": "regex",
+            "span": [
+              13,
+              36
+            ],
+            "value": "(?:api|graphql)/v2",
+            "flags": "im"
+          },
+          {
+            "kind": "and",
+            "span": [
+              40,
+              155
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  42,
+                  52
+                ],
+                "field": "program",
+                "value": "p2"
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  53,
+                  70
+                ],
+                "value": "[a-z]+_[a-z]+",
+                "flags": "im"
+              },
+              {
+                "kind": "or",
+                "span": [
+                  76,
+                  129
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      77,
+                      87
+                    ],
+                    "value": "x1IdAuth"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      91,
+                      101
+                    ],
+                    "field": "program",
+                    "value": "p1"
+                  },
+                  {
+                    "kind": "regex",
+                    "span": [
+                      105,
+                      128
+                    ],
+                    "value": "(?:api|graphql)/v2",
+                    "flags": "im"
+                  }
+                ]
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  134,
+                  154
+                ],
+                "field": "url",
+                "value": "auth-SECRETK"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "until:7h OR /(?:api|graphql)\\/v2/im OR program:p2 /[a-z]+_[a-z]+/im (\"x1IdAuth\" OR program:p1 OR /(?:api|graphql)\\/v2/im) url:\"auth-SECRETK\""
+    },
+    {
+      "query": "kind:header_changed -(((/user/i OR \"http_Σigma_http://urlX1V2, BY\") AND key AND (side:added OR program:p1 OR \"usertokenurl&xmlixd42 idAdm:inToken\")) AND graphqltoken)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          167
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              19
+            ],
+            "field": "kind",
+            "value": "header_changed"
+          },
+          {
+            "kind": "not",
+            "span": [
+              20,
+              167
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  21,
+                  167
+                ],
+                "children": [
+                  {
+                    "kind": "or",
+                    "span": [
+                      23,
+                      68
+                    ],
+                    "children": [
+                      {
+                        "kind": "regex",
+                        "span": [
+                          24,
+                          31
+                        ],
+                        "value": "user",
+                        "flags": "i"
+                      },
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          35,
+                          67
+                        ],
+                        "value": "http_Σigma_http://urlX1V2, BY"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      73,
+                      76
+                    ],
+                    "value": "key"
+                  },
+                  {
+                    "kind": "or",
+                    "span": [
+                      81,
+                      148
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          82,
+                          92
+                        ],
+                        "field": "side",
+                        "value": "added"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          96,
+                          106
+                        ],
+                        "field": "program",
+                        "value": "p1"
+                      },
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          110,
+                          147
+                        ],
+                        "value": "usertokenurl&xmlixd42 idAdm:inToken"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      154,
+                      166
+                    ],
+                    "value": "graphqltoken"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:header_changed -((/user/i OR \"http_Σigma_http://urlX1V2, BY\") key (side:added OR program:p1 OR \"usertokenurl&xmlixd42 idAdm:inToken\") graphqltoken)"
+    },
+    {
+      "query": "-text:serVer",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          12
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              12
+            ],
+            "field": "text",
+            "value": "serVer"
+          }
+        ]
+      },
+      "print": "-text:serVer"
+    },
+    {
+      "query": "kind:endpoint_removed \"urlauth&graphql_xml=USEr\"",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          48
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              21
+            ],
+            "field": "kind",
+            "value": "endpoint_removed"
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              22,
+              48
+            ],
+            "value": "urlauth&graphql_xml=USEr"
+          }
+        ]
+      },
+      "print": "kind:endpoint_removed \"urlauth&graphql_xml=USEr\""
+    },
+    {
+      "query": "\"ORaut\".url_json\"",
+      "error": {
+        "code": "UNTERMINATED_PHRASE",
+        "span": [
+          16,
+          17
+        ]
+      }
+    },
+    {
+      "query": "url:User",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          8
+        ],
+        "field": "url",
+        "value": "User"
+      },
+      "print": "url:User"
+    },
+    {
+      "query": "(-url:\"tokengraphqladmin adminK\" OR (X1SERVERV2 /secret|key/i \"é key\") OR /a*/)",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          82
+        ],
+        "children": [
+          {
+            "kind": "not",
+            "span": [
+              1,
+              34
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  2,
+                  34
+                ],
+                "field": "url",
+                "value": "tokengraphqladmin adminK"
+              }
+            ]
+          },
+          {
+            "kind": "and",
+            "span": [
+              38,
+              73
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  39,
+                  49
+                ],
+                "value": "X1SERVERV2"
+              },
+              {
+                "kind": "regex",
+                "span": [
+                  50,
+                  63
+                ],
+                "value": "secret|key",
+                "flags": "i"
+              },
+              {
+                "kind": "phrase",
+                "span": [
+                  64,
+                  72
+                ],
+                "value": "é key"
+              }
+            ]
+          },
+          {
+            "kind": "regex",
+            "span": [
+              77,
+              81
+            ],
+            "value": "a*"
+          }
+        ]
+      },
+      "print": "-url:\"tokengraphqladmin adminK\" OR X1SERVERV2 /secret|key/i \"é key\" OR /a*/"
+    },
+    {
+      "query": "program:p1",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          10
+        ],
+        "field": "program",
+        "value": "p1"
+      },
+      "print": "program:p1"
+    },
+    {
+      "query": "kind:script_added ((-(\"id_xml x1\" side:removed ADMINBYAPI) OR (-program:p2 until:7w) OR (-by AND api AND get_api)) (-graphqlTokenV2 /[^ ]+/))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          141
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              17
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "or",
+            "span": [
+              19,
+              114
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  20,
+                  58
+                ],
+                "children": [
+                  {
+                    "kind": "and",
+                    "span": [
+                      21,
+                      58
+                    ],
+                    "children": [
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          22,
+                          33
+                        ],
+                        "value": "id_xml x1"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          34,
+                          46
+                        ],
+                        "field": "side",
+                        "value": "removed"
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          47,
+                          57
+                        ],
+                        "value": "ADMINBYAPI"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "and",
+                "span": [
+                  62,
+                  84
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      63,
+                      74
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          64,
+                          74
+                        ],
+                        "field": "program",
+                        "value": "p2"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "until",
+                    "span": [
+                      75,
+                      83
+                    ],
+                    "value": "7w"
+                  }
+                ]
+              },
+              {
+                "kind": "and",
+                "span": [
+                  88,
+                  113
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      89,
+                      92
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          90,
+                          92
+                        ],
+                        "value": "by"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      97,
+                      100
+                    ],
+                    "value": "api"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      105,
+                      112
+                    ],
+                    "value": "get_api"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "not",
+            "span": [
+              116,
+              131
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  117,
+                  131
+                ],
+                "value": "graphqlTokenV2"
+              }
+            ]
+          },
+          {
+            "kind": "regex",
+            "span": [
+              132,
+              139
+            ],
+            "value": "[^ ]+"
+          }
+        ]
+      },
+      "print": "kind:script_added (-(\"id_xml x1\" side:removed ADMINBYAPI) OR -program:p2 until:7w OR -by api get_api) -graphqlTokenV2 /[^ ]+/"
+    },
+    {
+      "query": "(-Secret AND kind:endpoint_added AND \"USER-Σigma_http_v2/graphqlSecret42\")",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          75
+        ],
+        "children": [
+          {
+            "kind": "not",
+            "span": [
+              1,
+              8
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  2,
+                  8
+                ],
+                "value": "Secret"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              13,
+              32
+            ],
+            "field": "kind",
+            "value": "endpoint_added"
+          },
+          {
+            "kind": "phrase",
+            "span": [
+              37,
+              74
+            ],
+            "value": "USER-Σigma_http_v2/graphqlSecret42"
+          }
+        ]
+      },
+      "print": "-Secret kind:endpoint_added \"USER-Σigma_http_v2/graphqlSecret42\""
+    },
+    {
+      "query": "/auth\\zz:.admin/-",
+      "error": {
+        "code": "EXPECTED_TERM",
+        "span": [
+          16,
+          17
+        ]
+      }
+    },
+    {
+      "query": "\"K_v2\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          8
+        ],
+        "value": "K_v2"
+      },
+      "print": "\"K_v2\""
+    },
+    {
+      "query": "kind:script_added (((-SECRETΣIGMAID OR program:p1) OR (-until:20w program:p2 -url:\"sEcReT admingetauth\")) (/s.rver/s (-42 AND program:p2 AND kind:script_added)))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          162
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              17
+            ],
+            "field": "kind",
+            "value": "script_added"
+          },
+          {
+            "kind": "or",
+            "span": [
+              19,
+              106
+            ],
+            "children": [
+              {
+                "kind": "not",
+                "span": [
+                  21,
+                  36
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      22,
+                      36
+                    ],
+                    "value": "SECRETΣIGMAID"
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  40,
+                  50
+                ],
+                "field": "program",
+                "value": "p1"
+              },
+              {
+                "kind": "and",
+                "span": [
+                  55,
+                  105
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      56,
+                      66
+                    ],
+                    "children": [
+                      {
+                        "kind": "until",
+                        "span": [
+                          57,
+                          66
+                        ],
+                        "value": "20w"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      67,
+                      77
+                    ],
+                    "field": "program",
+                    "value": "p2"
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      78,
+                      104
+                    ],
+                    "children": [
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          79,
+                          104
+                        ],
+                        "field": "url",
+                        "value": "sEcReT admingetauth"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "regex",
+            "span": [
+              108,
+              117
+            ],
+            "value": "s.rver",
+            "flags": "s"
+          },
+          {
+            "kind": "not",
+            "span": [
+              119,
+              122
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  120,
+                  122
+                ],
+                "value": "42"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              127,
+              137
+            ],
+            "field": "program",
+            "value": "p2"
+          },
+          {
+            "kind": "term",
+            "span": [
+              142,
+              159
+            ],
+            "field": "kind",
+            "value": "script_added"
+          }
+        ]
+      },
+      "print": "kind:script_added (-SECRETΣIGMAID OR program:p1 OR -until:20w program:p2 -url:\"sEcReT admingetauth\") /s.rver/s -42 program:p2 kind:script_added"
+    },
+    {
+      "query": "getv2",
+      "ast": {
+        "kind": "term",
+        "span": [
+          0,
+          5
+        ],
+        "value": "getv2"
+      },
+      "print": "getv2"
+    },
+    {
+      "query": "\"éH\\TTP SECRETΣIGMA\"",
+      "ast": {
+        "kind": "phrase",
+        "span": [
+          0,
+          22
+        ],
+        "value": "éHTTP SECRETΣIGMA"
+      },
+      "print": "\"éHTTP SECRETΣIGMA\""
+    },
+    {
+      "query": "(\"urlbyget=fetch_v2_secret/K_url\" OR SeRver)",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          46
+        ],
+        "children": [
+          {
+            "kind": "phrase",
+            "span": [
+              1,
+              35
+            ],
+            "value": "urlbyget=fetch_v2_secret/K_url"
+          },
+          {
+            "kind": "term",
+            "span": [
+              39,
+              45
+            ],
+            "value": "SeRver"
+          }
+        ]
+      },
+      "print": "\"urlbyget=fetch_v2_secret/K_url\" OR SeRver"
+    },
+    {
+      "query": "\u0000(user ((-keyauth AND AUTHFETCHBY) -(-\"adminxml\" OR \"x1\")))",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          59
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              1
+            ],
+            "value": "\u0000"
+          },
+          {
+            "kind": "term",
+            "span": [
+              2,
+              6
+            ],
+            "value": "user"
+          },
+          {
+            "kind": "not",
+            "span": [
+              9,
+              17
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  10,
+                  17
+                ],
+                "value": "keyauth"
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              22,
+              33
+            ],
+            "value": "AUTHFETCHBY"
+          },
+          {
+            "kind": "not",
+            "span": [
+              35,
+              57
+            ],
+            "children": [
+              {
+                "kind": "or",
+                "span": [
+                  36,
+                  57
+                ],
+                "children": [
+                  {
+                    "kind": "not",
+                    "span": [
+                      37,
+                      48
+                    ],
+                    "children": [
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          38,
+                          48
+                        ],
+                        "value": "adminxml"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      52,
+                      56
+                    ],
+                    "value": "x1"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "print": "\u0000 user -keyauth AUTHFETCHBY -(-\"adminxml\" OR \"x1\")"
+    },
+    {
+      "query": "-user",
+      "ast": {
+        "kind": "not",
+        "span": [
+          0,
+          5
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              5
+            ],
+            "value": "user"
+          }
+        ]
+      },
+      "print": "-user"
+    },
+    {
+      "query": "kind:header_changed (((42 url:\"é\nadminKey42\") OR program:p2) OR ((é AND text:x1 AND until:10d) (-kind:script_added /[^AND ]+/) (url:\"server/httpAdmin\" OR -userstORraße OR side:added)) OR Kid)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          196
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              19
+            ],
+            "field": "kind",
+            "value": "header_changed"
+          },
+          {
+            "kind": "or",
+            "span": [
+              20,
+              196
+            ],
+            "children": [
+              {
+                "kind": "and",
+                "span": [
+                  22,
+                  46
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      23,
+                      25
+                    ],
+                    "value": "42"
+                  },
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      26,
+                      45
+                    ],
+                    "field": "url",
+                    "value": "é\u000aadminKey42"
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  50,
+                  60
+                ],
+                "field": "program",
+                "value": "p2"
+              },
+              {
+                "kind": "and",
+                "span": [
+                  65,
+                  186
+                ],
+                "children": [
+                  {
+                    "kind": "term",
+                    "span": [
+                      67,
+                      69
+                    ],
+                    "value": "é"
+                  },
+                  {
+                    "kind": "term",
+                    "span": [
+                      74,
+                      81
+                    ],
+                    "field": "text",
+                    "value": "x1"
+                  },
+                  {
+                    "kind": "until",
+                    "span": [
+                      86,
+                      95
+                    ],
+                    "value": "10d"
+                  },
+                  {
+                    "kind": "not",
+                    "span": [
+                      98,
+                      116
+                    ],
+                    "children": [
+                      {
+                        "kind": "term",
+                        "span": [
+                          99,
+                          116
+                        ],
+                        "field": "kind",
+                        "value": "script_added"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "regex",
+                    "span": [
+                      117,
+                      127
+                    ],
+                    "value": "[^AND ]+"
+                  },
+                  {
+                    "kind": "or",
+                    "span": [
+                      129,
+                      185
+                    ],
+                    "children": [
+                      {
+                        "kind": "phrase",
+                        "span": [
+                          130,
+                          152
+                        ],
+                        "field": "url",
+                        "value": "server/httpAdmin"
+                      },
+                      {
+                        "kind": "not",
+                        "span": [
+                          156,
+                          170
+                        ],
+                        "children": [
+                          {
+                            "kind": "term",
+                            "span": [
+                              157,
+                              170
+                            ],
+                            "value": "userstORraße"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "term",
+                        "span": [
+                          174,
+                          184
+                        ],
+                        "field": "side",
+                        "value": "added"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "term",
+                "span": [
+                  190,
+                  195
+                ],
+                "value": "Kid"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:header_changed (42 url:\"é\nadminKey42\" OR program:p2 OR é text:x1 until:10d -kind:script_added /[^AND ]+/ (url:\"server/httpAdmin\" OR -userstORraße OR side:added) OR Kid)"
+    },
+    {
+      "query": "(tOKEN OR program:p1 OR -\"Σgma_user_straße?straße\")",
+      "ast": {
+        "kind": "or",
+        "span": [
+          0,
+          54
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              1,
+              6
+            ],
+            "value": "tOKEN"
+          },
+          {
+            "kind": "term",
+            "span": [
+              10,
+              20
+            ],
+            "field": "program",
+            "value": "p1"
+          },
+          {
+            "kind": "not",
+            "span": [
+              24,
+              53
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  25,
+                  53
+                ],
+                "value": "Σgma_user_straße?straße"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "tOKEN OR program:p1 OR -\"Σgma_user_straße?straße\""
+    },
+    {
+      "query": "kind:endpoint_removed -kind:endpoint_removed",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          44
+        ],
+        "children": [
+          {
+            "kind": "term",
+            "span": [
+              0,
+              21
+            ],
+            "field": "kind",
+            "value": "endpoint_removed"
+          },
+          {
+            "kind": "not",
+            "span": [
+              22,
+              44
+            ],
+            "children": [
+              {
+                "kind": "term",
+                "span": [
+                  23,
+                  44
+                ],
+                "field": "kind",
+                "value": "endpoint_removed"
+              }
+            ]
+          }
+        ]
+      },
+      "print": "kind:endpoint_removed -kind:endpoint_removed"
+    },
+    {
+      "query": "(((url:\"42, APIXML\" AND -program:p2 AND /ü?ser/) -(fetch t)oKEN)) R xl)",
+      "error": {
+        "code": "UNEXPECTED_TOKEN",
+        "span": [
+          71,
+          72
+        ]
+      }
+    },
+    {
+      "query": "(((\"fetchbyfetch ADMIN&tokenK\" OR kind:endpoint_added OR since:1h) OR (url:\"X1 aPI\" AND since:8d)) AND GraphqL)",
+      "ast": {
+        "kind": "and",
+        "span": [
+          0,
+          113
+        ],
+        "children": [
+          {
+            "kind": "or",
+            "span": [
+              1,
+              100
+            ],
+            "children": [
+              {
+                "kind": "phrase",
+                "span": [
+                  3,
+                  32
+                ],
+                "value": "fetchbyfetch ADMIN&tokenK"
+              },
+              {
+                "kind": "term",
+                "span": [
+                  36,
+                  55
+                ],
+                "field": "kind",
+                "value": "endpoint_added"
+              },
+              {
+                "kind": "since",
+                "span": [
+                  59,
+                  67
+                ],
+                "value": "1h"
+              },
+              {
+                "kind": "and",
+                "span": [
+                  72,
+                  99
+                ],
+                "children": [
+                  {
+                    "kind": "phrase",
+                    "span": [
+                      73,
+                      85
+                    ],
+                    "field": "url",
+                    "value": "X1 aPI"
+                  },
+                  {
+                    "kind": "since",
+                    "span": [
+                      90,
+                      98
+                    ],
+                    "value": "8d"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "term",
+            "span": [
+              105,
+              112
+            ],
+            "value": "GraphqL"
+          }
+        ]
+      },
+      "print": "(\"fetchbyfetch ADMIN&tokenK\" OR kind:endpoint_added OR since:1h OR url:\"X1 aPI\" since:8d) GraphqL"
+    }
+  ]
+}

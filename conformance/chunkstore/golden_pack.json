@@ -1,0 +1,37 @@
+{
+  "description": "FFPK v1: header magic|version u16|flags u16|created_unix_ns i64; records raw_len u32|stored_len u32|codec u8|reserved[3]|crc32c(header[0:12]||payload) u32|payload; footer record_count u32|crc32c(all before) u32. Little-endian.",
+  "hex": "4646504b0100000015cd853dfe9c9717100000001000000000000000d61e525968656c6c6f2c20666c6f77666f726765400100001e0000000100000087db543c28b52ffd644000850000406162636465666768015408032c350b4be72dfe0300000003000000000000005e76a40278797a030000007043c730",
+  "pack_id": "bb00179f71cf0fb2659358dbbdc250498b3f14cec82bd865ecd805abbd05cdae",
+  "created_unix_ns": 1700000000123456789,
+  "footer_record_count": 3,
+  "footer_crc32c": "0x30c74370",
+  "records": [
+    {
+      "offset": 16,
+      "raw_len": 16,
+      "stored_len": 16,
+      "codec": 0,
+      "crc32c": "0x59521ed6",
+      "payload_hex": "68656c6c6f2c20666c6f77666f726765",
+      "raw_sha256": "2d05715ba2e7617e4d2b53d7e362261eeffa715d57ded8d86b3f690fc4059764"
+    },
+    {
+      "offset": 48,
+      "raw_len": 320,
+      "stored_len": 30,
+      "codec": 1,
+      "crc32c": "0x3c54db87",
+      "payload_hex": "28b52ffd644000850000406162636465666768015408032c350b4be72dfe",
+      "raw_sha256": "4273267c8ce854ce6d14d37070c0d809da76fe211a5c0cc0f8a533723ebed06e"
+    },
+    {
+      "offset": 94,
+      "raw_len": 3,
+      "stored_len": 3,
+      "codec": 0,
+      "crc32c": "0x02a4765e",
+      "payload_hex": "78797a",
+      "raw_sha256": "3608bca1e44ea6c4d268eb6db02260269892c0b42b86bbf1e77a6fa16c3c9282"
+    }
+  ]
+}

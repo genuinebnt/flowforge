@@ -1,0 +1,4186 @@
+{
+  "description": "60 generated code/URL documents (seed 0xC0FFEE, gen_test.go generator) and 80 generated queries; expected results from the brute-force reference.",
+  "now": 1790000000000,
+  "max_regex_candidates": 5,
+  "tolerance": 1e-9,
+  "docs": [
+    {
+      "id": 1,
+      "text": {
+        "text": "http.v2'auth_straße_K'ADMINXMLK'userkey 42tokenadmin(url(K serVeR, get htTp.get_token_secret?jsonIdUser&42)auth_straße_é'KEYURLGET)ΣigmaAuth://geT"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1788703999000
+      }
+    },
+    {
+      "id": 4,
+      "text": {
+        "text": "url_http, admin/jsonK&userhttpurl(ΣiGMa_id_graphql(HTTPK'urlé fetch id_user_x1\nhttp://TOKEN ΣigmaServerAuth.é urlK 42 fetchX1://adminUser-Σigmaauth-htTp"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789049600000
+      },
+      "stored": {
+        "note": "hunk 58"
+      }
+    },
+    {
+      "id": 7,
+      "text": {
+        "text": "ΣIGMASERVERÉ://getΣigmaid=straße_key_key graphqléauth(KBy-4242=é_http://straße42v2'urlΣigma, 42ΣigmaÉ'x1)éServerK-json42by",
+        "url": "https://by_server_admin.example/HTTP/byx1"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1788444798000
+      },
+      "stored": {
+        "note": "hunk 90"
+      }
+    },
+    {
+      "id": 10,
+      "text": {
+        "text": "AUTHAUTH://X1É-url_Σigma URLGRAPHQLSERVER?ΣigmaidK, 42 42?user\nSECRETURLAPI"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789827199000
+      }
+    },
+    {
+      "id": 13,
+      "text": {
+        "text": "graphql_Σigma HTTPGRAPHQL://serveradminapi\napiÉ42/jsonGraphql keyStraße\nkey_K_x1 urL"
+      },
+      "keyword": {
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1788963198000
+      },
+      "stored": {
+        "note": "hunk 19"
+      }
+    },
+    {
+      "id": 16,
+      "text": {
+        "text": "42, FETCHBYADMIN/json.keyΣigma\n42K://api)é?fetch api user&sECRet"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789395200000
+      }
+    },
+    {
+      "id": 19,
+      "text": {
+        "text": "user_xml)http)KEY&api, secret&by-api://httP http?AdmIn admin_user_é'Api api'straße_42"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1",
+        "side": "removed"
+      }
+    },
+    {
+      "id": 22,
+      "text": {
+        "text": "url(v2&K_K_json?keyΣigma get'httpv2xml'htTP_graphqL/straßeKtoken(urlfetch_serverx1/api_42_token://42_url_graphql.42ÉUrl=secret_x1_42-getBy.sErver?XMLAUTHGRAPHQL GETSECRETBY"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1790000000000
+      },
+      "stored": {
+        "note": "hunk 96"
+      }
+    },
+    {
+      "id": 25,
+      "text": {
+        "text": "stRaßE=by)42AuthUrl, É?URLJSON(USER, GRAPHQLXMLHTTP)K/server_Σigma_by httpFetchAuth_GET usEr.key=xMl keyjson-Auth\nurl.42"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789654400000
+      }
+    },
+    {
+      "id": 28,
+      "text": {
+        "text": "token/K(byId-http&graphqlToken&x1ÉServer=auth_server_get=BYURLΣIGMA://authkeyurl-X1(Ktoken/idXml(secret42Secret, stRaße, v2_é_url É=SERVERXML)v2tokenstraße get",
+        "url": "https://getserver.example/éΣigma/straße"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789049599000
+      }
+    },
+    {
+      "id": 31,
+      "text": {
+        "text": "v2, x1Id 42_42'Σigma=http_server(v2 é_secret_json-TOKENAUTH_grapHql-Xml=httP/HTTPΣIGMA-ADmin-token é by?SECRETFETCHAPI\nADMIN'xmladmin://urlGraphql",
+        "url": "https://ServeR.example/éΣigmaServer/fetch_key_auth"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789308799000
+      },
+      "stored": {
+        "note": "hunk 73"
+      }
+    },
+    {
+      "id": 34,
+      "text": {
+        "text": "ADMINBYSECRET'Api=user_auth_http serverauthget://json.v2V2/x142?keyUserÉ?authapihttp/get(straßehttp42",
+        "url": "https://authv2.example/getid/straße_é_secret"
+      },
+      "keyword": {
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789913598000
+      },
+      "stored": {
+        "note": "hunk 90"
+      }
+    },
+    {
+      "id": 37,
+      "text": {
+        "text": "FETCH serveradminby TOKENKEYUSER&GET'server user xmlGraphql'secret-url_http://fetch_v2 api_é/straße'authBy&42"
+      },
+      "keyword": {
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1788963199000
+      }
+    },
+    {
+      "id": 40,
+      "text": {
+        "text": "xml",
+        "url": "https://id_auth_K.example/KX1GET/AUTHID"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789136000000
+      },
+      "stored": {
+        "note": "hunk 88"
+      }
+    },
+    {
+      "id": 43,
+      "text": {
+        "text": "USERSTRAßE/KSECRET42(K.http, apikeystraße é_admin'apifetchauth\nserver/seRver://getuser-Kurl42",
+        "url": "https://keygraphql.example/BY/jsonapi"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789222398000
+      },
+      "stored": {
+        "note": "hunk 27"
+      }
+    },
+    {
+      "id": 46,
+      "text": {
+        "text": "iD XMLK\napi-É, STRAßE/by?42'admin'URLURL-é_admin(json_v2'graphqlxml=TOKEN42=graphql/jsonUrlStraße 42Server"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1",
+        "side": "removed"
+      }
+    },
+    {
+      "id": 49,
+      "text": {
+        "text": "42URL\nSECRETΣIGMASERVER?K(adminΣigma.42, API42/graphqlÉ AUTHΣIGMAHTTP'serverv2server(getUserToken&secret_user_url/éTokenToken secret token_é_url'autH"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1788358398000
+      }
+    },
+    {
+      "id": 52,
+      "text": {
+        "text": "key_secret_x1 K.42&x1",
+        "url": "https://ID.example/http/GET42"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1790000000000
+      }
+    },
+    {
+      "id": 55,
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789049599000
+      }
+    },
+    {
+      "id": 58,
+      "text": {
+        "text": "gET)fetch, auth_fetch_id'adminstraße'x1 byΣigmaStraße fetch, http_secret&urlsecretuser://TOKENADMINAUTH é_key secret"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2",
+        "side": "removed"
+      }
+    },
+    {
+      "id": 61,
+      "text": {
+        "text": "KTokenBy&adminx1x1 get_secret)user/auth)userΣigmaXml xml_graphql_user\nKEY_http)adminUserBy.apiΣigmaGet)URLGET-v2_é"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789567998000
+      },
+      "stored": {
+        "note": "hunk 47"
+      }
+    },
+    {
+      "id": 64,
+      "text": {
+        "text": "byToken(secret",
+        "url": "https://ΣiGMa.example/serverGraphql/secret"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789654400000
+      }
+    },
+    {
+      "id": 67,
+      "text": {
+        "text": "tokenJsonSecret=auth apixml HttP&seCret http=FETCH v2(STRAßE/grAphQl(JSON'xml://serveruserΣigma_fetch)ΣIGMASERVERK)secret_user_x1"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1788963199000
+      }
+    },
+    {
+      "id": 70,
+      "text": {
+        "text": "SECRET id userfetchxml=iD=Api/tokené?XMl seRver\nID.xmlΣigma_v2/json_admin_by&json/getServer"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789913598000
+      }
+    },
+    {
+      "id": 73,
+      "text": {
+        "text": "42 SERVERHTTP://byFetch jsonhttp://idadmin JSONURLX1/bY(http_KEYSTRAßE",
+        "url": "https://apiIdKey.example/Key/secretFetchÉ"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789308798000
+      },
+      "stored": {
+        "note": "hunk 49"
+      }
+    },
+    {
+      "id": 76,
+      "text": {
+        "text": "server straße_é_get&serverÉ api_K_admin"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1788531198000
+      }
+    },
+    {
+      "id": 79,
+      "text": {
+        "text": "fetchx1key://get_http x1?authstraßeby-x1server(IDKAPI://xml-ID.v2Token'url é?ADMIN=key_server_token&url://V2V2_secret_by_get'fetch(v2://v2",
+        "url": "https://json_K_fetch.example/xml_straße_42/fetch"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1789308798000
+      }
+    },
+    {
+      "id": 82,
+      "text": {
+        "text": "id?http, x1Σigma&adminV2Secret straße_x1_graphql BYX1ID=tokEN/User jsontoken.K.grapHql\nxml"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1788358399000
+      }
+    },
+    {
+      "id": 85,
+      "text": {
+        "text": "fetch_user://straßeUrl, AUTH42AUTH'http_xml_id=STRaße_Admin, sEcreT.aDMIn?URL=SECRETSECRET)K IDGETV2-42&GET HTTPGRAPHQLFETCH/é"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789222398000
+      },
+      "stored": {
+        "note": "hunk 4"
+      }
+    },
+    {
+      "id": 88,
+      "text": {
+        "text": "GRAPHQLΣIGMASTRAßE.server_api_Get?byΣigmajson.K_xml_user AUTH-é/auth=api.42ADMIN)V2)Kserverurl?urlbytoken?id"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2",
+        "side": "added"
+      }
+    },
+    {
+      "id": 91,
+      "text": {
+        "text": "graphqlBy-BY json_id://ΣIGMAGETKEY-K_token?Token_XmL é&Σigma\ngraphQl, url://json-Σigma_é_fetch 42key?api=IDURLXML)KTOKENV2",
+        "url": "https://admin.example/V2/graphqlXml"
+      },
+      "keyword": {
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1789999999000
+      }
+    },
+    {
+      "id": 94,
+      "text": {
+        "text": "fetch'fetchstraßeadmin(42_get_user_graphql&straßekeyfetch(jsonBySecret=HTtp://byadminsecret.key-secrettoken keyapixml'FETCH&xml/straßetokenget&fetch&get&v2=by_x1",
+        "url": "https://42_graphql.example/42/é42Token"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p1",
+        "side": "added"
+      }
+    },
+    {
+      "id": 97,
+      "text": {
+        "text": "tOkEn'ΣIgma admin=ΣIGMAJSONGRAPHQL_toKEN id_admin_auth ÉJSON/url"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1788876799000
+      }
+    },
+    {
+      "id": 100,
+      "text": {
+        "text": "api_42)KADMINÉ://auth_http=v2_straße_api\nauthTokenId(AUTH)server_by_token, API-admin.É 42 url graphqL, APISERVERJSON'GRAPHQLUSERSECRET_fetCh"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1789740798000
+      }
+    },
+    {
+      "id": 103,
+      "text": {
+        "text": "get, 42URLXML'FETCHΣIGMAX1 ÉID/É&STRAßEΣIGMAV2)v2Api=httpjson user_server_key\nurlFetch, httpStraße_éid auth_api_user=JSONK.V2URLKEY"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1788703998000
+      }
+    },
+    {
+      "id": 106,
+      "text": {
+        "text": "xml_xml_server)K gRApHql)xml"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p2",
+        "side": "added"
+      }
+    },
+    {
+      "id": 109,
+      "text": {
+        "text": "server_Σigma)v2?serverAuth/key_token'JSONGET/urlhttpauth'admin-url_http_Σigma",
+        "url": "https://auth_é.example/json/bystraße"
+      },
+      "keyword": {
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789999999000
+      }
+    },
+    {
+      "id": 112,
+      "text": {
+        "text": "user_server_admin&get_token=ΣIGMA42&AUTHADMIN_urlfetch, api 42Admin",
+        "url": "https://tokenauthfetch.example/X1GET/éServer"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1788876799000
+      },
+      "stored": {
+        "note": "hunk 67"
+      }
+    },
+    {
+      "id": 115,
+      "text": {
+        "text": "auth?x1_token É admin, toKen auth"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1788617599000
+      },
+      "stored": {
+        "note": "hunk 43"
+      }
+    },
+    {
+      "id": 118,
+      "text": {
+        "text": "api_graphql secret&by_get JSon x1_x1_api'By.TokEn",
+        "url": "https://jsontoken.example/jsonX1Api/url"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p2"
+      }
+    },
+    {
+      "id": 121,
+      "text": {
+        "text": "Key://ΣIgma'SECRETSTRAßE?Σigma xmlserver_getsecrettoken get_fetch&straße http://authid_byUserUser\nx1'X1\nx1user&42keystraße",
+        "url": "https://ébyhttp.example/adminΣigma/xml"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789827199000
+      }
+    },
+    {
+      "id": 124,
+      "text": {
+        "text": "x1 geT'getauthv2 v2)secret, secret&é_K_secret=STRAßEUSER)AUTHXML userGraphqlFetch_url graphqlK'xmlServer key_admin straße/authApiXml?éΣigma"
+      },
+      "keyword": {
+        "program": "p2",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789827198000
+      },
+      "stored": {
+        "note": "hunk 42"
+      }
+    },
+    {
+      "id": 127,
+      "text": {
+        "text": "json-K_url=straße?graphqL(x1?xml_json'x1 STRAßEFETCH&token?id, 42Straße://URL.http&auth&USERJSONTOKEN",
+        "url": "https://get_K_api.example/42/xml_fetch"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1",
+        "side": "added"
+      }
+    },
+    {
+      "id": 130,
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789567999000
+      }
+    },
+    {
+      "id": 133,
+      "text": {
+        "text": "Fetch=urlFetch_42, É://fetch(x1\nx1?straße, KEY v2FetchServer=K_Σigma(keystraßeapi(Json'token 42keygraphql?x1É_V2USER?AUTHGETK)BYK",
+        "url": "https://adminJsonKey.example/V2JSON/secretsecret"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789049598000
+      },
+      "stored": {
+        "note": "hunk 6"
+      }
+    },
+    {
+      "id": 136,
+      "text": {
+        "text": "id://APIX1/auth, 42 42_42/AdmIn_Graphql auth, XML)auth_http_id_BYAPIV2, xml?secrEt\nfetch&STRAßEADMIN/URLJSON&URLHTTP"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1789654399000
+      }
+    },
+    {
+      "id": 139,
+      "text": {
+        "text": "server://id_user",
+        "url": "https://42_json.example/user_é/x1"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789049599000
+      },
+      "stored": {
+        "note": "hunk 16"
+      }
+    },
+    {
+      "id": 142,
+      "text": {
+        "text": "SERVERGRAPHQL serverv2get(id-HTTPGET=server jsoN&KΣIGMA)É=x1 id keyServer=42, http(X1?GrAPhQl(graphql_42",
+        "url": "https://BYSERVER.example/jsOn/auth"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789395198000
+      },
+      "stored": {
+        "note": "hunk 54"
+      }
+    },
+    {
+      "id": 145,
+      "text": {
+        "text": "idGraphql\nx1graphqlfetch'x1ServerX1, ID idv2http straßeKgraphql SECRETBYJSON/admin'http_key)APIXML://ΣigmaApi authv2\nuSEr.v2Token?4242Api://straßeéhttp apiSecret?Kserverjson-server"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789567999000
+      }
+    },
+    {
+      "id": 148,
+      "text": {
+        "text": "json_é_v2&apiidkey_tokenV2Url(API\nv2V2User httpadminfetch\nIDXML://fetch_K_v2 SECRETX1(url'fetch url'jsonkey-authV2K?42x1xml?XMLTOKENGRAPHQL&é_xml",
+        "url": "https://jsonKey.example/urlApiX1/SERVERGRAPHQL"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1788963200000
+      }
+    },
+    {
+      "id": 151,
+      "keyword": {
+        "kind": "script_added",
+        "program": "p1",
+        "side": "added"
+      },
+      "stored": {
+        "note": "hunk 61"
+      }
+    },
+    {
+      "id": 154,
+      "text": {
+        "text": "42&FETCH, fetch v2'get42x1 x1urlserver/httpSecretAdmin\ngrApHqL=V2 keySecret\nx1ById token 42=secret_secret v2/grApHql'get4242 K://xml'42",
+        "url": "https://urlUserAuth.example/by/xml"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2",
+        "side": "added"
+      }
+    },
+    {
+      "id": 157,
+      "text": {
+        "text": "fetchUrlSecret"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789049599000
+      }
+    },
+    {
+      "id": 160,
+      "text": {
+        "text": "ID://ΣigmaAuthKey=42_SERVERUSER)XMLV2AUTH(token/get\njsOn?http"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p2"
+      },
+      "numeric": {
+        "at": 1789049599000
+      },
+      "stored": {
+        "note": "hunk 90"
+      }
+    },
+    {
+      "id": 163,
+      "text": {
+        "text": "v2_key_straße'straße 42 SERVER://É"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p2",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1788617598000
+      },
+      "stored": {
+        "note": "hunk 37"
+      }
+    },
+    {
+      "id": 166,
+      "text": {
+        "text": "token=api_key_json XMl?é_url-Σigmahttp, AUTH&url, straße://graphql_Σigma_fetch)V2APIFETCH json-secret_by x1_x1_url",
+        "url": "https://jSon.example/ÉV2/htTp"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p1"
+      },
+      "numeric": {
+        "at": 1789049600000
+      },
+      "stored": {
+        "note": "hunk 88"
+      }
+    },
+    {
+      "id": 169,
+      "text": {
+        "text": "API=KGRAPHQLHTTP-x1SecretAuth?api)XmL key_auth_Σigma, sERvEr)x1"
+      },
+      "keyword": {
+        "program": "p2"
+      }
+    },
+    {
+      "id": 172,
+      "text": {
+        "text": "byFetch&fetch_Σigma_x1, fetch_x1, ADMIN42GRAPHQL'xMl'SERVER://GRAPHQLHTTP42://id-key_é=42_key_K_secret x1 Σigmaserver=auTH?graphql V2GETX1'xml(42"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2",
+        "side": "added"
+      }
+    },
+    {
+      "id": 175,
+      "text": {
+        "url": "https://42Σigma.example/HTTP/URLΣIGMA"
+      },
+      "keyword": {
+        "kind": "script_added",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1788963198000
+      }
+    },
+    {
+      "id": 178,
+      "text": {
+        "text": "servER, BYHTTP é_secret_key?http)secret_API id"
+      },
+      "keyword": {
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1789654399000
+      }
+    }
+  ],
+  "queries": [
+    {
+      "query": "kind:header_changed (http_K \"server&éKey://xmlx1api\")",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "(side:x AND (-(-x1 AND program:p1 AND -url:\"admIn?graphql\") AND (url:\"id-x1Http\" OR \"sEcret)JSONΣIGMASERVER\") AND \"sEcRet?STRAßEGRAPHQL)xml\"))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "-kind:header_changed",
+      "k": 15,
+      "total": 42,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        },
+        {
+          "id": 31,
+          "score": 0,
+          "at": 1789308799000
+        }
+      ]
+    },
+    {
+      "query": "-((-admIn AND (url:url OR -\"K_url_x1.x1\")) OR /json|./i OR ((url:\"straßeauth://urlapijson\" \"secReT\" side:added) AND (\"ΣigmasecretK\" program:p1)))",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "kind:endpoint_removed -program:p1",
+      "k": 15,
+      "total": 5,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 118,
+          "score": 0
+        }
+      ]
+    },
+    {
+      "query": "kind:header_changed STRAßE",
+      "k": 15,
+      "total": 6,
+      "hits": [
+        {
+          "id": 67,
+          "score": 5.938202310413558,
+          "at": 1788963199000
+        },
+        {
+          "id": 79,
+          "score": 1.583708279310059,
+          "at": 1789308798000
+        },
+        {
+          "id": 127,
+          "score": 1.270587230115901
+        },
+        {
+          "id": 7,
+          "score": 1.1773098787410987,
+          "at": 1788444798000
+        },
+        {
+          "id": 166,
+          "score": 0.8621390155365973,
+          "at": 1789049600000
+        },
+        {
+          "id": 103,
+          "score": 0.8044744254096682,
+          "at": 1788703998000
+        }
+      ]
+    },
+    {
+      "query": "url:\"APIADMIN url\"",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "(serverstraßeé AND \"fetch_straße-IDUSERJSON\" AND xml_x1)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "text:straße",
+      "k": 15,
+      "total": 23,
+      "hits": [
+        {
+          "id": 163,
+          "score": 1.584417704103179,
+          "at": 1788617598000
+        },
+        {
+          "id": 127,
+          "score": 1.270587230115901
+        },
+        {
+          "id": 76,
+          "score": 1.239844282436758,
+          "at": 1788531198000
+        },
+        {
+          "id": 46,
+          "score": 1.2221713832704437
+        },
+        {
+          "id": 7,
+          "score": 1.1773098787410987,
+          "at": 1788444798000
+        },
+        {
+          "id": 1,
+          "score": 1.122378584446357,
+          "at": 1788703999000
+        },
+        {
+          "id": 13,
+          "score": 1.0279218601796243,
+          "at": 1788963198000
+        },
+        {
+          "id": 37,
+          "score": 0.9660034615222662,
+          "at": 1788963199000
+        },
+        {
+          "id": 19,
+          "score": 0.9660034615222662
+        },
+        {
+          "id": 58,
+          "score": 0.9660034615222662
+        },
+        {
+          "id": 82,
+          "score": 0.8941865868444903,
+          "at": 1788358399000
+        },
+        {
+          "id": 121,
+          "score": 0.8621390155365973,
+          "at": 1789827199000
+        },
+        {
+          "id": 166,
+          "score": 0.8621390155365973,
+          "at": 1789049600000
+        },
+        {
+          "id": 100,
+          "score": 0.8469615014077012,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0.832309127128206,
+          "at": 1789654400000
+        }
+      ]
+    },
+    {
+      "query": "kind:endpoint_added (since:14d (side:removed AND since:16h AND -/htt(p|ps):\\/\\//))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "((-(side:removed AND éSecretUrl) -/htt(p|ps):\\/\\//i) 42)",
+      "k": 15,
+      "total": 17,
+      "hits": [
+        {
+          "id": 10,
+          "score": 0.8307865015640788,
+          "at": 1789827199000
+        },
+        {
+          "id": 172,
+          "score": 0.8115126754139146
+        },
+        {
+          "id": 16,
+          "score": 0.8062540626268774,
+          "at": 1789395200000
+        },
+        {
+          "id": 136,
+          "score": 0.8057693760661114,
+          "at": 1789654399000
+        },
+        {
+          "id": 46,
+          "score": 0.8057693760661114
+        },
+        {
+          "id": 22,
+          "score": 0.7880892665503758,
+          "at": 1790000000000
+        },
+        {
+          "id": 49,
+          "score": 0.7752638575695503,
+          "at": 1788358398000
+        },
+        {
+          "id": 163,
+          "score": 0.7222478712284564,
+          "at": 1788617598000
+        },
+        {
+          "id": 100,
+          "score": 0.6849058411881688,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0.6764218949056158,
+          "at": 1789654400000
+        },
+        {
+          "id": 85,
+          "score": 0.6764218949056158,
+          "at": 1789222398000
+        },
+        {
+          "id": 1,
+          "score": 0.6369710132309891,
+          "at": 1788703999000
+        },
+        {
+          "id": 160,
+          "score": 0.6233181721170925,
+          "at": 1789049599000
+        },
+        {
+          "id": 13,
+          "score": 0.5833650408822388,
+          "at": 1788963198000
+        },
+        {
+          "id": 19,
+          "score": 0.5482251819460738
+        }
+      ]
+    },
+    {
+      "query": "since:10w",
+      "k": 15,
+      "total": 48,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "Id",
+      "k": 15,
+      "total": 26,
+      "hits": [
+        {
+          "id": 52,
+          "score": 2.041362116713251,
+          "at": 1790000000000
+        },
+        {
+          "id": 73,
+          "score": 1.583708279310059,
+          "at": 1789308798000
+        },
+        {
+          "id": 40,
+          "score": 1.583708279310059,
+          "at": 1789136000000
+        },
+        {
+          "id": 70,
+          "score": 1.4779666113425771,
+          "at": 1789913598000
+        },
+        {
+          "id": 139,
+          "score": 1.4666194588562622,
+          "at": 1789049599000
+        },
+        {
+          "id": 82,
+          "score": 1.2540279526079945,
+          "at": 1788358399000
+        },
+        {
+          "id": 136,
+          "score": 1.2221713832704437,
+          "at": 1789654399000
+        },
+        {
+          "id": 142,
+          "score": 1.2221713832704437,
+          "at": 1789395198000
+        },
+        {
+          "id": 178,
+          "score": 1.2086953147008388,
+          "at": 1789654399000
+        },
+        {
+          "id": 160,
+          "score": 1.0983215140855596,
+          "at": 1789049599000
+        },
+        {
+          "id": 97,
+          "score": 1.0983215140855596,
+          "at": 1788876799000
+        },
+        {
+          "id": 4,
+          "score": 1.0967913663266697,
+          "at": 1789049600000
+        },
+        {
+          "id": 28,
+          "score": 1.0844303165746891,
+          "at": 1789049599000
+        },
+        {
+          "id": 145,
+          "score": 1.0605256600473456,
+          "at": 1789567999000
+        },
+        {
+          "id": 58,
+          "score": 0.9660034615222662
+        }
+      ]
+    },
+    {
+      "query": "kind:header_changed ((\"Token server_jsonKstraße\" Id (/[xy]ml/ url:ΣigmaApi)) /auth\\.admin/im)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "(-(\"Σigma(gEt-ésecret\" AND (kind:endpoint_removed OR /[a-z]+_[a-z]+/s OR -by)) OR ((program:p2 AND -autH AND url:\"key_http http\") url:v2Σigma))",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "-(program:p1 AND ((url:\"x1X1Auth Secret\" url:\"server_by'fetch\" admin) AND -(-program:p2 -SERVER -side:removed)))",
+      "k": 15,
+      "total": 60,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "kind:endpoint_removed /\\d\\d/s",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "-(-until:16h OR -((program:p1 AND \"graphql=v2://é\" AND side:x) OR Σigmaby OR (kind:endpoint_added OR URLJSONXML)))",
+      "k": 15,
+      "total": 10,
+      "hits": [
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 31,
+          "score": 0,
+          "at": 1789308799000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 55,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 97,
+          "score": 0,
+          "at": 1788876799000
+        },
+        {
+          "id": 115,
+          "score": 0,
+          "at": 1788617599000
+        },
+        {
+          "id": 163,
+          "score": 0,
+          "at": 1788617598000
+        },
+        {
+          "id": 49,
+          "score": 0,
+          "at": 1788358398000
+        }
+      ]
+    },
+    {
+      "query": "-(/[^ ]+/ AND Json)",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "(-SECRETTOKEN AND ((url:\"httpΣigma42&FETCH42JSON\" AND until:9w AND -graphql_42_key) AND -/secret|key/))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "-(/σigma/im -(-(side:added AND 42SecretÉ) OR -(/http.*/i side:x)))",
+      "k": 15,
+      "total": 60,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "/ü?ser/s",
+      "k": 15,
+      "total": 40,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        },
+        {
+          "id": 16,
+          "score": 0,
+          "at": 1789395200000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        }
+      ]
+    },
+    {
+      "query": "program:p2",
+      "k": 15,
+      "total": 29,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "program:p2",
+      "k": 15,
+      "total": 29,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "((-(-42 AND side:added) OR side:added) AND adminhttpK AND \"adminserver\")",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "kind:header_changed (((/get[A-Z]\\w+/ AND \"fetch_xml&token_42 STRAßE\") OR -(\"get://GRAPHQL_API\" OR \"graphql_auth_v2://by\")) url:éΣigmaé)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "kind:endpoint_removed Σigma",
+      "k": 15,
+      "total": 5,
+      "hits": [
+        {
+          "id": 121,
+          "score": 2.7393125237333313,
+          "at": 1789827199000
+        },
+        {
+          "id": 160,
+          "score": 0.9173328207222204,
+          "at": 1789049599000
+        },
+        {
+          "id": 82,
+          "score": 0.7468365987940868,
+          "at": 1788358399000
+        },
+        {
+          "id": 1,
+          "score": 0.63981218792721,
+          "at": 1788703999000
+        },
+        {
+          "id": 22,
+          "score": 0.5756510463565395,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "(\"Kgraphql get'x1key\" (-(v2 OR until:13h OR é) (kind:endpoint_removed program:p1)) (get_xml_token url:\"json, ΣIGMA\" (GET OR side:x OR /a*/i)))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "\"x1Admin-tOkEn(xmlAdminToken\"",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "side:removed",
+      "k": 15,
+      "total": 22,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 157,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 37,
+          "score": 0,
+          "at": 1788963199000
+        },
+        {
+          "id": 13,
+          "score": 0,
+          "at": 1788963198000
+        }
+      ]
+    },
+    {
+      "query": "program:p2",
+      "k": 15,
+      "total": 29,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "((side:added OR until:13h) text:x1)",
+      "k": 15,
+      "total": 22,
+      "hits": [
+        {
+          "id": 121,
+          "score": 4.0944580127369266,
+          "at": 1789827199000
+        },
+        {
+          "id": 127,
+          "score": 3.9580441349687483
+        },
+        {
+          "id": 133,
+          "score": 3.8764400818932057,
+          "at": 1789049598000
+        },
+        {
+          "id": 142,
+          "score": 3.8072224880136423,
+          "at": 1789395198000
+        },
+        {
+          "id": 172,
+          "score": 3.0936279075492332
+        },
+        {
+          "id": 79,
+          "score": 2.7910144163029535,
+          "at": 1789308798000
+        },
+        {
+          "id": 28,
+          "score": 2.7910144163029535,
+          "at": 1789049599000
+        },
+        {
+          "id": 7,
+          "score": 2.5486593319804123,
+          "at": 1788444798000
+        },
+        {
+          "id": 124,
+          "score": 2.386333916014212,
+          "at": 1789827198000
+        },
+        {
+          "id": 145,
+          "score": 1.8455916130345758,
+          "at": 1789567999000
+        },
+        {
+          "id": 82,
+          "score": 1.8225183771521618,
+          "at": 1788358399000
+        },
+        {
+          "id": 115,
+          "score": 1.8019048019214154,
+          "at": 1788617599000
+        },
+        {
+          "id": 154,
+          "score": 1.7981290227384201
+        },
+        {
+          "id": 166,
+          "score": 1.7762202201374295,
+          "at": 1789049600000
+        },
+        {
+          "id": 10,
+          "score": 1.6335170554409164,
+          "at": 1789827199000
+        }
+      ]
+    },
+    {
+      "query": "(-since:17w AND (secretid (url:\"keyStraßeGraphql\n4242Fetch\" url:Σigma) -(\"APIGET\" AND v2)))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "(((id_url OR /x1|42/ OR -admin) (side:x user) (by OR \"fetch\")) kind:script_added /fetch.*json/)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "kind:endpoint_added -(User OR -url:http)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "(-((-/./i AND side:added AND -text:tokenAuthServer) OR -V2) OR -42)",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "kind:endpoint_removed \"xml_graphql_admin SERVERAUTHAPI AutH\"",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "-\"42\"",
+      "k": 15,
+      "total": 22,
+      "hits": [
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        },
+        {
+          "id": 40,
+          "score": 0,
+          "at": 1789136000000
+        },
+        {
+          "id": 166,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 55,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 157,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 67,
+          "score": 0,
+          "at": 1788963199000
+        },
+        {
+          "id": 97,
+          "score": 0,
+          "at": 1788876799000
+        },
+        {
+          "id": 115,
+          "score": 0,
+          "at": 1788617599000
+        }
+      ]
+    },
+    {
+      "query": "-since:17d",
+      "k": 15,
+      "total": 16,
+      "hits": [
+        {
+          "id": 76,
+          "score": 0,
+          "at": 1788531198000
+        },
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1788444798000
+        },
+        {
+          "id": 82,
+          "score": 0,
+          "at": 1788358399000
+        },
+        {
+          "id": 49,
+          "score": 0,
+          "at": 1788358398000
+        },
+        {
+          "id": 19,
+          "score": 0
+        },
+        {
+          "id": 46,
+          "score": 0
+        },
+        {
+          "id": 58,
+          "score": 0
+        },
+        {
+          "id": 88,
+          "score": 0
+        },
+        {
+          "id": 94,
+          "score": 0
+        },
+        {
+          "id": 106,
+          "score": 0
+        },
+        {
+          "id": 118,
+          "score": 0
+        },
+        {
+          "id": 127,
+          "score": 0
+        },
+        {
+          "id": 151,
+          "score": 0
+        },
+        {
+          "id": 154,
+          "score": 0
+        },
+        {
+          "id": 169,
+          "score": 0
+        }
+      ]
+    },
+    {
+      "query": "(kind:script_added AND -((by OR -/tok(en)?/s) OR (\"http_token\nadmin_serverv2\" side:removed)) AND -program:p2)",
+      "k": 15,
+      "total": 1,
+      "hits": [
+        {
+          "id": 133,
+          "score": 0,
+          "at": 1789049598000
+        }
+      ]
+    },
+    {
+      "query": "kind:endpoint_removed (-(url AND -(-program:p1 /\\w/s /σigma/i) AND kind:endpoint_removed) OR graphql)",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "kind:header_changed -(\"TokEn\" AND ((url:\"secret JSONGRAPHQL\" OR BY OR 42) OR program:p1 OR (\"user\" OR -idurl)))",
+      "k": 15,
+      "total": 10,
+      "hits": [
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 16,
+          "score": 0,
+          "at": 1789395200000
+        },
+        {
+          "id": 73,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 157,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 103,
+          "score": 0,
+          "at": 1788703998000
+        },
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1788444798000
+        },
+        {
+          "id": 88,
+          "score": 0
+        },
+        {
+          "id": 172,
+          "score": 0
+        }
+      ]
+    },
+    {
+      "query": "kind:script_added",
+      "k": 15,
+      "total": 12,
+      "hits": [
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 28,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 133,
+          "score": 0,
+          "at": 1789049598000
+        },
+        {
+          "id": 175,
+          "score": 0,
+          "at": 1788963198000
+        },
+        {
+          "id": 19,
+          "score": 0
+        },
+        {
+          "id": 106,
+          "score": 0
+        },
+        {
+          "id": 151,
+          "score": 0
+        }
+      ]
+    },
+    {
+      "query": "-\"fetch&KEY secret\"",
+      "k": 15,
+      "total": 60,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "admin",
+      "k": 15,
+      "total": 26,
+      "hits": [
+        {
+          "id": 121,
+          "score": 1.8618646192396964,
+          "at": 1789827199000
+        },
+        {
+          "id": 91,
+          "score": 1.6982774252290496,
+          "at": 1789999999000
+        },
+        {
+          "id": 7,
+          "score": 1.5611147256143791,
+          "at": 1788444798000
+        },
+        {
+          "id": 112,
+          "score": 1.5542746239612375,
+          "at": 1788876799000
+        },
+        {
+          "id": 97,
+          "score": 1.5076903814714187,
+          "at": 1788876799000
+        },
+        {
+          "id": 133,
+          "score": 1.4444524018070493,
+          "at": 1789049598000
+        },
+        {
+          "id": 19,
+          "score": 1.3833099558471535
+        },
+        {
+          "id": 115,
+          "score": 1.2963662118435884,
+          "at": 1788617599000
+        },
+        {
+          "id": 76,
+          "score": 1.2963662118435884,
+          "at": 1788531198000
+        },
+        {
+          "id": 46,
+          "score": 1.2778876418577667
+        },
+        {
+          "id": 85,
+          "score": 1.2462291876391498,
+          "at": 1789222398000
+        },
+        {
+          "id": 31,
+          "score": 1.1873959698811274,
+          "at": 1789308799000
+        },
+        {
+          "id": 109,
+          "score": 1.1483917140006152,
+          "at": 1789999999000
+        },
+        {
+          "id": 4,
+          "score": 1.1467918099789145,
+          "at": 1789049600000
+        },
+        {
+          "id": 43,
+          "score": 1.07478268588156,
+          "at": 1789222398000
+        }
+      ]
+    },
+    {
+      "query": "kind:script_added Σigma",
+      "k": 15,
+      "total": 7,
+      "hits": [
+        {
+          "id": 28,
+          "score": 1.718538635538224,
+          "at": 1789049599000
+        },
+        {
+          "id": 175,
+          "score": 1.718538635538224,
+          "at": 1788963198000
+        },
+        {
+          "id": 61,
+          "score": 0.983304959503485,
+          "at": 1789567998000
+        },
+        {
+          "id": 25,
+          "score": 0.6951557167092779,
+          "at": 1789654400000
+        },
+        {
+          "id": 133,
+          "score": 0.6608573594860022,
+          "at": 1789049598000
+        },
+        {
+          "id": 4,
+          "score": 0.6200660267864033,
+          "at": 1789049600000
+        },
+        {
+          "id": 145,
+          "score": 0.5926309756203475,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "(program:p2 OR -(-(side:x AND serverxmlkey AND url:\"secrethttp&fetch\") OR -url:\"URLSTRAßESERVER&json\" OR -(text:byv2 K)))",
+      "k": 15,
+      "total": 29,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "(((-program:p2 OR side:removed OR url:\"tokenKeyXml\nV2\") AND api_fetch AND /tok(en)?/s) OR tOKEn OR (\"Token\" AND -(token BY) AND -api))",
+      "k": 15,
+      "total": 27,
+      "hits": [
+        {
+          "id": 97,
+          "score": 12.478972818745218,
+          "at": 1788876799000
+        },
+        {
+          "id": 115,
+          "score": 2.7248390972399816,
+          "at": 1788617599000
+        },
+        {
+          "id": 94,
+          "score": 2.2190333023160114
+        },
+        {
+          "id": 109,
+          "score": 1.9199667385515673,
+          "at": 1789999999000
+        },
+        {
+          "id": 160,
+          "score": 1.9199667385515673,
+          "at": 1789049599000
+        },
+        {
+          "id": 82,
+          "score": 1.5631201636159828,
+          "at": 1788358399000
+        },
+        {
+          "id": 67,
+          "score": 1.4302101541128291,
+          "at": 1788963199000
+        },
+        {
+          "id": 133,
+          "score": 1.3831666331759385,
+          "at": 1789049598000
+        },
+        {
+          "id": 1,
+          "score": 1.3391193381405546,
+          "at": 1788703999000
+        },
+        {
+          "id": 49,
+          "score": 1.3081456702393286,
+          "at": 1788358398000
+        },
+        {
+          "id": 4,
+          "score": 1.2977908565382286,
+          "at": 1789049600000
+        },
+        {
+          "id": 64,
+          "score": 1.2818926621231448,
+          "at": 1789654400000
+        },
+        {
+          "id": 91,
+          "score": 1.0682338343533606,
+          "at": 1789999999000
+        },
+        {
+          "id": 100,
+          "score": 1.054835630457072,
+          "at": 1789740798000
+        },
+        {
+          "id": 112,
+          "score": 1.0059115184216083,
+          "at": 1788876799000
+        }
+      ]
+    },
+    {
+      "query": "-program:p1",
+      "k": 15,
+      "total": 29,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "-kind:script_added",
+      "k": 15,
+      "total": 48,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 16,
+          "score": 0,
+          "at": 1789395200000
+        }
+      ]
+    },
+    {
+      "query": "(-\"uRl\" ((/\\w/s side:removed) OR (-url:\"42keyurl\nby\" useR url:éx1x1)))",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "kind:script_added (until:24h AND (-(url:\"admin-secretxml\" OR text:api) (since:17d OR -ΣigmaKey)))",
+      "k": 15,
+      "total": 7,
+      "hits": [
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 28,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 133,
+          "score": 0,
+          "at": 1789049598000
+        },
+        {
+          "id": 175,
+          "score": 0,
+          "at": 1788963198000
+        }
+      ]
+    },
+    {
+      "query": "kind:header_changed ((-(-url:\"http://AUTH\" AND api) (SECRET OR -K) (\"xmlx1\" AND Graphql)) -(\"urlV2Secret/url\" OR (42 iD admin) OR admin))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "program:p2",
+      "k": 15,
+      "total": 29,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 43,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "kind:script_added (((/a*/s OR \"auth_SERVER\" OR side:x) AND side:removed AND (FETCHXMLBY /http.*/s \"straßE/KΣigma\")) side:x side:x)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "-(-stRaße OR ((since:8d OR side:added) OR \"SECRET\njsonapiby\") OR since:0d)",
+      "k": 15,
+      "total": 15,
+      "hits": [
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 166,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 28,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 37,
+          "score": 0,
+          "at": 1788963199000
+        },
+        {
+          "id": 67,
+          "score": 0,
+          "at": 1788963199000
+        },
+        {
+          "id": 13,
+          "score": 0,
+          "at": 1788963198000
+        },
+        {
+          "id": 1,
+          "score": 0,
+          "at": 1788703999000
+        },
+        {
+          "id": 103,
+          "score": 0,
+          "at": 1788703998000
+        },
+        {
+          "id": 76,
+          "score": 0,
+          "at": 1788531198000
+        },
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1788444798000
+        },
+        {
+          "id": 82,
+          "score": 0,
+          "at": 1788358399000
+        },
+        {
+          "id": 19,
+          "score": 0
+        },
+        {
+          "id": 46,
+          "score": 0
+        },
+        {
+          "id": 58,
+          "score": 0
+        }
+      ]
+    },
+    {
+      "query": "side:removed",
+      "k": 15,
+      "total": 22,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 139,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 157,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 37,
+          "score": 0,
+          "at": 1788963199000
+        },
+        {
+          "id": 13,
+          "score": 0,
+          "at": 1788963198000
+        }
+      ]
+    },
+    {
+      "query": "\"tokenΣigmaFetch\"",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "((-(until:18h OR since:5h) OR /[xy]ml/ OR -(-program:p1 AND Σigma)) -(url:HTTPV2 AND side:added))",
+      "k": 15,
+      "total": 52,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        }
+      ]
+    },
+    {
+      "query": "-(((program:p1 \"SERVER?ÉSERVER=by\") -(\"fetch&42x1\" \"x1_é\" apI) (secret program:p2)) program:p2)",
+      "k": 15,
+      "total": 60,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "(until:9w OR /./s OR (-(auth OR side:removed OR api) program:p1 \"userFetchApi\"))",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "straße",
+      "k": 15,
+      "total": 25,
+      "hits": [
+        {
+          "id": 28,
+          "score": 2.7724843403351294,
+          "at": 1789049599000
+        },
+        {
+          "id": 34,
+          "score": 1.7116177125776977,
+          "at": 1789913598000
+        },
+        {
+          "id": 163,
+          "score": 1.584417704103179,
+          "at": 1788617598000
+        },
+        {
+          "id": 79,
+          "score": 1.583708279310059,
+          "at": 1789308798000
+        },
+        {
+          "id": 127,
+          "score": 1.270587230115901
+        },
+        {
+          "id": 76,
+          "score": 1.239844282436758,
+          "at": 1788531198000
+        },
+        {
+          "id": 46,
+          "score": 1.2221713832704437
+        },
+        {
+          "id": 7,
+          "score": 1.1773098787410987,
+          "at": 1788444798000
+        },
+        {
+          "id": 1,
+          "score": 1.122378584446357,
+          "at": 1788703999000
+        },
+        {
+          "id": 13,
+          "score": 1.0279218601796243,
+          "at": 1788963198000
+        },
+        {
+          "id": 37,
+          "score": 0.9660034615222662,
+          "at": 1788963199000
+        },
+        {
+          "id": 19,
+          "score": 0.9660034615222662
+        },
+        {
+          "id": 58,
+          "score": 0.9660034615222662
+        },
+        {
+          "id": 82,
+          "score": 0.8941865868444903,
+          "at": 1788358399000
+        },
+        {
+          "id": 121,
+          "score": 0.8621390155365973,
+          "at": 1789827199000
+        }
+      ]
+    },
+    {
+      "query": "-(-K OR ((program:p2 AND AUTHAUTH AND url:\"get Σigma\") OR (-ΣIgma /straße/i \"Σigma_straße\")) OR (/^get/ OR -(/[a-z]+_[a-z]+/i AND program:p2) OR uRl))",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "kind:endpoint_added /\\d\\d/s",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "USERURLKEY",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "(since:4d AND ((-\"Url'x1\" OR \"É)X1\") url:\"gettoken.UsEr\"))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "\"JSONSERVERBY\"",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "side:x",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "kind:script_added (((42TokenSecret AND -JSON) (until:6d OR text:K)) OR éadminfetch OR xml_secret)",
+      "k": 15,
+      "total": 1,
+      "hits": [
+        {
+          "id": 28,
+          "score": 1.28244701915425,
+          "at": 1789049599000
+        }
+      ]
+    },
+    {
+      "query": "since:13d",
+      "k": 15,
+      "total": 38,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "kind:endpoint_removed /\\d\\d/s",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "api",
+      "k": 15,
+      "total": 25,
+      "hits": [
+        {
+          "id": 118,
+          "score": 2.981779519958986
+        },
+        {
+          "id": 148,
+          "score": 2.1540087762588938,
+          "at": 1788963200000
+        },
+        {
+          "id": 19,
+          "score": 1.6228689192728754
+        },
+        {
+          "id": 127,
+          "score": 1.5611147256143791
+        },
+        {
+          "id": 73,
+          "score": 1.4444524018070493,
+          "at": 1789308798000
+        },
+        {
+          "id": 16,
+          "score": 1.420664794344607,
+          "at": 1789395200000
+        },
+        {
+          "id": 100,
+          "score": 1.4059799271663505,
+          "at": 1789740798000
+        },
+        {
+          "id": 169,
+          "score": 1.3604072416704103
+        },
+        {
+          "id": 88,
+          "score": 1.2875896859879974
+        },
+        {
+          "id": 145,
+          "score": 1.2699040519200226,
+          "at": 1789567999000
+        },
+        {
+          "id": 76,
+          "score": 1.239844282436758,
+          "at": 1788531198000
+        },
+        {
+          "id": 178,
+          "score": 1.2086953147008388,
+          "at": 1789654399000
+        },
+        {
+          "id": 103,
+          "score": 1.1630790658629102,
+          "at": 1788703998000
+        },
+        {
+          "id": 112,
+          "score": 1.1508681267909906,
+          "at": 1788876799000
+        },
+        {
+          "id": 13,
+          "score": 1.0279218601796243,
+          "at": 1788963198000
+        }
+      ]
+    },
+    {
+      "query": "kind:script_added (\"key_Σigma\" (-\"json)ΣigmagraphqlΣigma=idbyv2\" AND /tok(en)?/ AND program:p2))",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "-/s.rver/im",
+      "k": 15,
+      "total": 21,
+      "hits": [
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        },
+        {
+          "id": 16,
+          "score": 0,
+          "at": 1789395200000
+        },
+        {
+          "id": 85,
+          "score": 0,
+          "at": 1789222398000
+        },
+        {
+          "id": 40,
+          "score": 0,
+          "at": 1789136000000
+        },
+        {
+          "id": 166,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 55,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 157,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 175,
+          "score": 0,
+          "at": 1788963198000
+        },
+        {
+          "id": 97,
+          "score": 0,
+          "at": 1788876799000
+        },
+        {
+          "id": 115,
+          "score": 0,
+          "at": 1788617599000
+        },
+        {
+          "id": 82,
+          "score": 0,
+          "at": 1788358399000
+        }
+      ]
+    },
+    {
+      "query": "kind:header_changed \"Σigma\"",
+      "k": 15,
+      "total": 8,
+      "hits": [
+        {
+          "id": 64,
+          "score": 1.440940411430943,
+          "at": 1789654400000
+        },
+        {
+          "id": 7,
+          "score": 0.983304959503485,
+          "at": 1788444798000
+        },
+        {
+          "id": 112,
+          "score": 0.9612204545655799,
+          "at": 1788876799000
+        },
+        {
+          "id": 16,
+          "score": 0.8968583343541127,
+          "at": 1789395200000
+        },
+        {
+          "id": 70,
+          "score": 0.7756699271238794,
+          "at": 1789913598000
+        },
+        {
+          "id": 166,
+          "score": 0.7200700385399681,
+          "at": 1789049600000
+        },
+        {
+          "id": 67,
+          "score": 0.6833340851975627,
+          "at": 1788963199000
+        },
+        {
+          "id": 172,
+          "score": 0.6106430613317781
+        }
+      ]
+    },
+    {
+      "query": "/tok(en)?/",
+      "k": 15,
+      "total": 24,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 31,
+          "score": 0,
+          "at": 1789308799000
+        },
+        {
+          "id": 79,
+          "score": 0,
+          "at": 1789308798000
+        },
+        {
+          "id": 166,
+          "score": 0,
+          "at": 1789049600000
+        },
+        {
+          "id": 28,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 160,
+          "score": 0,
+          "at": 1789049599000
+        },
+        {
+          "id": 133,
+          "score": 0,
+          "at": 1789049598000
+        },
+        {
+          "id": 148,
+          "score": 0,
+          "at": 1788963200000
+        },
+        {
+          "id": 67,
+          "score": 0,
+          "at": 1788963199000
+        },
+        {
+          "id": 112,
+          "score": 0,
+          "at": 1788876799000
+        }
+      ]
+    },
+    {
+      "query": "(((\"XMLAUTHΣIGMA'x1id)v2\" \"apiApiSecret\" side:removed) AND -program:p1) side:removed until:22w)",
+      "k": 15,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "-((-(url:\"admin.xml\" OR API OR /x1|42/s) AND tOkEn) OR -fETCH)",
+      "k": 15,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "((by AND \"42&get_idAdminHttp\") OR since:11w)",
+      "k": 15,
+      "total": 48,
+      "hits": [
+        {
+          "id": 22,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 52,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 91,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 109,
+          "score": 0,
+          "at": 1789999999000
+        },
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        }
+      ]
+    },
+    {
+      "query": "until:11h",
+      "k": 15,
+      "total": 44,
+      "hits": [
+        {
+          "id": 34,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 70,
+          "score": 0,
+          "at": 1789913598000
+        },
+        {
+          "id": 10,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 121,
+          "score": 0,
+          "at": 1789827199000
+        },
+        {
+          "id": 124,
+          "score": 0,
+          "at": 1789827198000
+        },
+        {
+          "id": 100,
+          "score": 0,
+          "at": 1789740798000
+        },
+        {
+          "id": 25,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 64,
+          "score": 0,
+          "at": 1789654400000
+        },
+        {
+          "id": 136,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 178,
+          "score": 0,
+          "at": 1789654399000
+        },
+        {
+          "id": 130,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 145,
+          "score": 0,
+          "at": 1789567999000
+        },
+        {
+          "id": 61,
+          "score": 0,
+          "at": 1789567998000
+        },
+        {
+          "id": 16,
+          "score": 0,
+          "at": 1789395200000
+        },
+        {
+          "id": 142,
+          "score": 0,
+          "at": 1789395198000
+        }
+      ]
+    }
+  ]
+}

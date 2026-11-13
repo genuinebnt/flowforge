@@ -1,0 +1,139 @@
+{
+ "description": "TLS handshake to app.example.com:443 (SNI app.example.com) through a tunnel; the leaf is read and the handshake aborted.",
+ "input": [
+  "app.example.com",
+  443
+ ],
+ "scope": {
+  "allow": [
+   "*.example.com"
+  ],
+  "pins": {
+   "app.example.com": [
+    "93.184.216.40"
+   ]
+  }
+ },
+ "tcp": [
+  {
+   "host": "app.example.com",
+   "port": 443,
+   "tls": {
+    "cert_pem": "-----BEGIN CERTIFICATE-----\nMIIBwDCCAXKgAwIBAgIDCgsMMAUGAytlcDA/MRswGQYDVQQKExJGbG93Zm9yZ2Ug\nRml4dHVyZXMxIDAeBgNVBAMTF0Zsb3dmb3JnZSBGaXh0dXJlIENBIFIxMB4XDTI2\nMTAwMTAwMDAwMFoXDTI3MDEwMTAwMDAwMFowGjEYMBYGA1UEAxMPYXBwLmV4YW1w\nbGUuY29tMCowBQYDK2VwAyEAF0WVx6yK2Lj28qqrXoYKejeVI5Ije3sG4/en0/V6\n/a2jgbUwgbIwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAwG\nA1UdEwEB/wQCMAAwDAYDVR0OBAUEAwwJCTAPBgNVHSMECDAGgAQBAgMEMC0GA1Ud\nEQQmMCSCD2FwcC5leGFtcGxlLmNvbYIRKi5hcHAuZXhhbXBsZS5jb20wLwYDVR0f\nBCgwJjAkoCKgIIYeaHR0cDovL2NybC5maXh0dXJlLnRlc3QvcjEuY3JsMAUGAytl\ncANBAApXJauBS03qUGxjz0o7azxIxSeNqKU7q1LclglURqCDqxJIZ+spZX2g3h7t\nfrucUmk+W7Pver88KHEj96mrDwU=\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nMIIBXzCCARGgAwIBAgIBATAFBgMrZXAwPzEbMBkGA1UEChMSRmxvd2ZvcmdlIEZp\neHR1cmVzMSAwHgYDVQQDExdGbG93Zm9yZ2UgRml4dHVyZSBDQSBSMTAeFw0yNTAx\nMDEwMDAwMDBaFw0zNTAxMDEwMDAwMDBaMD8xGzAZBgNVBAoTEkZsb3dmb3JnZSBG\naXh0dXJlczEgMB4GA1UEAxMXRmxvd2ZvcmdlIEZpeHR1cmUgQ0EgUjEwKjAFBgMr\nZXADIQA2V4RE5O2JoQxwmKnurOsVR1i8Y91Fn3+j6b7k6J55maMyMDAwDgYDVR0P\nAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wDQYDVR0OBAYEBAECAwQwBQYDK2Vw\nA0EAUzeTcMElzMH3EJ+FT8GrQmx48q194mIqgCvf4tFCVHhk37RzItkzJWeM0M/3\nVE8EksfVlIB6QDItdMu9h1iLBg==\n-----END CERTIFICATE-----\n",
+    "key_pem": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEICgFmCmxBR8E7wMRkGfAzgngUndhKJD44IdPHY7OGuA0\n-----END PRIVATE KEY-----\n"
+   }
+  }
+ ],
+ "expect": {
+  "output": {
+   "is_ca": false,
+   "issuer_common_name": "Flowforge Fixture CA R1",
+   "not_after": "2027-01-01T00:00:00.000Z",
+   "not_before": "2026-10-01T00:00:00.000Z",
+   "serial_number": "0a0b0c",
+   "subject_common_name": "app.example.com",
+   "version": "3"
+  },
+  "skipped": [],
+  "requests": [],
+  "dials": [
+   "app.example.com:443"
+  ],
+  "dns_queries": [],
+  "observations": [
+   {
+    "confidence": 0.95,
+    "edges": [
+     {
+      "from": "h",
+      "relation": {
+       "label": "port",
+       "port_number": 443,
+       "protocol": "tcp",
+       "type": "PortRelation"
+      },
+      "to": "s"
+     },
+     {
+      "from": "s",
+      "relation": {
+       "label": "certificate",
+       "type": "SimpleRelation"
+      },
+      "to": "c"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "common_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n0"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n0"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "name": "app.example.com",
+       "type": "FQDN"
+      },
+      "ref": "h"
+     },
+     {
+      "asset": {
+       "service_type": "tls",
+       "type": "Service",
+       "unique_id": "8a8b41305c2dcfd6441174e24dede2f2eaea43eb30853b441c26d6e9ceb02f14"
+      },
+      "ref": "s"
+     },
+     {
+      "asset": {
+       "authority_key_id": "01020304",
+       "crl_distribution_points": [
+        "http://crl.fixture.test/r1.crl"
+       ],
+       "fingerprint_sha256": "a62c31c3046ea0b8eb55351c29fe552995a401dda59448d3f3a21cad913eefd2",
+       "is_ca": false,
+       "issuer_common_name": "Flowforge Fixture CA R1",
+       "key_usage": [
+        "digital_signature"
+       ],
+       "not_after": "2027-01-01T00:00:00.000Z",
+       "not_before": "2026-10-01T00:00:00.000Z",
+       "public_key_algorithm": "ed25519",
+       "serial_number": "0a0b0c",
+       "signature_algorithm": "ed25519",
+       "subject_common_name": "app.example.com",
+       "subject_key_id": "0c0909",
+       "type": "TLSCertificate",
+       "version": "3"
+      },
+      "ref": "c"
+     },
+     {
+      "asset": {
+       "name": "app.example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n0"
+     }
+    ],
+    "observation_id": "obs_5C9J1KHR5PGFJ9T11QBA1MDPMT",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "tlscert",
+     "version": "1.0.0"
+    }
+   }
+  ]
+ }
+}

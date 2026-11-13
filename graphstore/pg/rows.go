@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -202,6 +201,10 @@ func loadTags(ctx context.Context, q querier, tenant graphstore.ID, kind graphst
 func publicTags(tenant string, kind graphstore.TargetKind, target string, stored []kernel.StoredTag) ([]graphstore.Tag, map[string]int, error) {
 	tags := []graphstore.Tag{}
 	var missed map[string]int
+	visible, err := kernel.PublicTagRows(stored)
+	if err != nil {
+		return nil, nil, err
+	}
 	for _, t := range stored {
 		if t.PType == kernel.PTypeRun {
 			rs, err := runState(t)
@@ -214,11 +217,9 @@ func publicTags(tenant string, kind graphstore.TargetKind, target string, stored
 				}
 				missed[t.Name] = rs.Missed
 			}
-			continue
 		}
-		if strings.HasPrefix(t.PType, kernel.HiddenPrefix) {
-			continue
-		}
+	}
+	for _, t := range visible {
 		c, err := kernel.DecodeObject(t.Content)
 		if err != nil {
 			return nil, nil, err

@@ -1,0 +1,124 @@
+{
+ "description": "app.example.com: 22 and 80 open, 443 closed (connect failed), 8080 refused by the proxy's port policy (skipped), duplicates and port 0 dropped.",
+ "input": [
+  "app.example.com",
+  [
+   443,
+   22,
+   80,
+   8080,
+   22,
+   0
+  ]
+ ],
+ "scope": {
+  "allow": [
+   "*.example.com"
+  ],
+  "pins": {
+   "app.example.com": [
+    "93.184.216.40"
+   ]
+  }
+ },
+ "tcp": [
+  {
+   "host": "app.example.com",
+   "port": 22,
+   "open": true
+  },
+  {
+   "host": "app.example.com",
+   "port": 80,
+   "open": true
+  },
+  {
+   "host": "app.example.com",
+   "port": 443,
+   "refused": "connect_failed"
+  },
+  {
+   "host": "app.example.com",
+   "port": 8080,
+   "refused": "port_not_allowed"
+  }
+ ],
+ "expect": {
+  "output": [
+   22,
+   80
+  ],
+  "skipped": [
+   {
+    "target": "app.example.com:8080",
+    "reason": "egress_refused:port_not_allowed"
+   }
+  ],
+  "requests": [],
+  "dials": [
+   "app.example.com:22",
+   "app.example.com:443",
+   "app.example.com:80",
+   "app.example.com:8080"
+  ],
+  "dns_queries": [],
+  "observations": [
+   {
+    "confidence": 0.9,
+    "edges": [
+     {
+      "from": "h",
+      "relation": {
+       "label": "port",
+       "port_number": 22,
+       "protocol": "tcp",
+       "type": "PortRelation"
+      },
+      "to": "s22"
+     },
+     {
+      "from": "h",
+      "relation": {
+       "label": "port",
+       "port_number": 80,
+       "protocol": "tcp",
+       "type": "PortRelation"
+      },
+      "to": "s80"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "name": "app.example.com",
+       "type": "FQDN"
+      },
+      "ref": "h"
+     },
+     {
+      "asset": {
+       "service_type": "tcp",
+       "type": "Service",
+       "unique_id": "34b2bc7f8a9f6313e5c816e38daf8917610e7d4107561250aaf90170614b436c"
+      },
+      "ref": "s22"
+     },
+     {
+      "asset": {
+       "service_type": "tcp",
+       "type": "Service",
+       "unique_id": "6183be7ab3fbcd5051fb5c178f6d0954f27129ba63ad1470504dad99735ae463"
+      },
+      "ref": "s80"
+     }
+    ],
+    "observation_id": "obs_5HM5GMNXC7H158B0YHC18ZAY0N",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "portscan",
+     "version": "2.0.0"
+    }
+   }
+  ]
+ }
+}

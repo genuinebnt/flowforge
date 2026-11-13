@@ -1,0 +1,1655 @@
+{
+ "description": "Edit scripts per algorithm over string tokens (each string is one token). 'distance' is the brute-force n+m-2*LCS (myers-linear, myers and reference must equal it). Scripts are EditScript.String(): space-separated runs '=k' equal, '-k' delete, '+k' insert, in canonical form (one delete then one insert per change region), so ranges follow by tiling. '<alg>+git-compact' is the same after CompactGit. Pins the reference implementation's alignment choices for the port.",
+ "id": "diff_scripts_001",
+ "scripts": [
+  {
+   "name": "paper_abcabba_cbabac",
+   "old": [
+    "A",
+    "B",
+    "C",
+    "A",
+    "B",
+    "B",
+    "A"
+   ],
+   "new": [
+    "C",
+    "B",
+    "A",
+    "B",
+    "A",
+    "C"
+   ],
+   "distance": 5,
+   "expect": {
+    "histogram": "-2 =1 -2 =2 +3",
+    "histogram+git-compact": "-2 =1 -2 =2 +3",
+    "myers": "-2 =1 +1 =2 -1 =1 +1",
+    "myers+git-compact": "-2 =1 +1 =2 -1 =1 +1",
+    "myers-linear": "-1 +1 =1 -1 =2 -1 =1 +1",
+    "myers-linear+git-compact": "-1 +1 =1 -1 =2 -1 =1 +1",
+    "patience": "-1 +1 =1 -1 =2 -1 =1 +1",
+    "patience+git-compact": "-1 +1 =1 -1 =2 -1 =1 +1",
+    "reference": "-2 =1 -1 =1 +1 =2 +1",
+    "reference+git-compact": "-2 =1 -1 =1 +1 =2 +1"
+   }
+  },
+  {
+   "name": "both_empty",
+   "old": [],
+   "new": [],
+   "distance": 0,
+   "expect": {
+    "histogram": "",
+    "histogram+git-compact": "",
+    "myers": "",
+    "myers+git-compact": "",
+    "myers-linear": "",
+    "myers-linear+git-compact": "",
+    "patience": "",
+    "patience+git-compact": "",
+    "reference": "",
+    "reference+git-compact": ""
+   }
+  },
+  {
+   "name": "old_empty",
+   "old": [],
+   "new": [
+    "a",
+    "b",
+    "c"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "+3",
+    "histogram+git-compact": "+3",
+    "myers": "+3",
+    "myers+git-compact": "+3",
+    "myers-linear": "+3",
+    "myers-linear+git-compact": "+3",
+    "patience": "+3",
+    "patience+git-compact": "+3",
+    "reference": "+3",
+    "reference+git-compact": "+3"
+   }
+  },
+  {
+   "name": "new_empty",
+   "old": [
+    "a",
+    "b",
+    "c"
+   ],
+   "new": [],
+   "distance": 3,
+   "expect": {
+    "histogram": "-3",
+    "histogram+git-compact": "-3",
+    "myers": "-3",
+    "myers+git-compact": "-3",
+    "myers-linear": "-3",
+    "myers-linear+git-compact": "-3",
+    "patience": "-3",
+    "patience+git-compact": "-3",
+    "reference": "-3",
+    "reference+git-compact": "-3"
+   }
+  },
+  {
+   "name": "identical",
+   "old": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f"
+   ],
+   "new": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f"
+   ],
+   "distance": 0,
+   "expect": {
+    "histogram": "=6",
+    "histogram+git-compact": "=6",
+    "myers": "=6",
+    "myers+git-compact": "=6",
+    "myers-linear": "=6",
+    "myers-linear+git-compact": "=6",
+    "patience": "=6",
+    "patience+git-compact": "=6",
+    "reference": "=6",
+    "reference+git-compact": "=6"
+   }
+  },
+  {
+   "name": "disjoint",
+   "old": [
+    "a",
+    "b",
+    "c"
+   ],
+   "new": [
+    "x",
+    "y",
+    "z"
+   ],
+   "distance": 6,
+   "expect": {
+    "histogram": "-3 +3",
+    "histogram+git-compact": "-3 +3",
+    "myers": "-3 +3",
+    "myers+git-compact": "-3 +3",
+    "myers-linear": "-3 +3",
+    "myers-linear+git-compact": "-3 +3",
+    "patience": "-3 +3",
+    "patience+git-compact": "-3 +3",
+    "reference": "-3 +3",
+    "reference+git-compact": "-3 +3"
+   }
+  },
+  {
+   "name": "single_insert_middle",
+   "old": [
+    "a",
+    "b",
+    "d"
+   ],
+   "new": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=2 +1 =1",
+    "histogram+git-compact": "=2 +1 =1",
+    "myers": "=2 +1 =1",
+    "myers+git-compact": "=2 +1 =1",
+    "myers-linear": "=2 +1 =1",
+    "myers-linear+git-compact": "=2 +1 =1",
+    "patience": "=2 +1 =1",
+    "patience+git-compact": "=2 +1 =1",
+    "reference": "=2 +1 =1",
+    "reference+git-compact": "=2 +1 =1"
+   }
+  },
+  {
+   "name": "repeated_tokens",
+   "old": [
+    "a",
+    "a",
+    "a",
+    "a"
+   ],
+   "new": [
+    "a",
+    "a"
+   ],
+   "distance": 2,
+   "expect": {
+    "histogram": "=2 -2",
+    "histogram+git-compact": "=2 -2",
+    "myers": "=2 -2",
+    "myers+git-compact": "=2 -2",
+    "myers-linear": "=2 -2",
+    "myers-linear+git-compact": "=2 -2",
+    "patience": "=2 -2",
+    "patience+git-compact": "=2 -2",
+    "reference": "=2 -2",
+    "reference+git-compact": "=2 -2"
+   }
+  },
+  {
+   "name": "repeated_runs",
+   "old": [
+    "a",
+    "b",
+    "a",
+    "b",
+    "a",
+    "b",
+    "a",
+    "b"
+   ],
+   "new": [
+    "b",
+    "a",
+    "b",
+    "a"
+   ],
+   "distance": 4,
+   "expect": {
+    "histogram": "-1 =4 -3",
+    "histogram+git-compact": "-1 =4 -3",
+    "myers": "-1 =4 -3",
+    "myers+git-compact": "-1 =4 -3",
+    "myers-linear": "-3 =4 -1",
+    "myers-linear+git-compact": "-3 =4 -1",
+    "patience": "-3 =4 -1",
+    "patience+git-compact": "-3 =4 -1",
+    "reference": "-1 =4 -3",
+    "reference+git-compact": "-1 =4 -3"
+   }
+  },
+  {
+   "name": "prefix_suffix",
+   "old": [
+    "x",
+    "x",
+    "a",
+    "b",
+    "c",
+    "y",
+    "y"
+   ],
+   "new": [
+    "x",
+    "x",
+    "a",
+    "c",
+    "y",
+    "y"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=3 -1 =3",
+    "histogram+git-compact": "=3 -1 =3",
+    "myers": "=3 -1 =3",
+    "myers+git-compact": "=3 -1 =3",
+    "myers-linear": "=3 -1 =3",
+    "myers-linear+git-compact": "=3 -1 =3",
+    "patience": "=3 -1 =3",
+    "patience+git-compact": "=3 -1 =3",
+    "reference": "=3 -1 =3",
+    "reference+git-compact": "=3 -1 =3"
+   }
+  },
+  {
+   "name": "dmp_example",
+   "old": [
+    "The",
+    "quick",
+    "brown",
+    "fox",
+    "jumps",
+    "over",
+    "the",
+    "lazy",
+    "dog"
+   ],
+   "new": [
+    "The",
+    "quick",
+    "red",
+    "fox",
+    "leaps",
+    "over",
+    "the",
+    "lazy",
+    "cat"
+   ],
+   "distance": 6,
+   "expect": {
+    "histogram": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "histogram+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "myers": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "myers+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "myers-linear": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "myers-linear+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "patience": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "patience+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "reference": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "reference+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1"
+   }
+  },
+  {
+   "name": "braces",
+   "old": [
+    "{",
+    "a",
+    "}",
+    "{",
+    "b",
+    "}",
+    "{",
+    "c",
+    "}"
+   ],
+   "new": [
+    "{",
+    "a",
+    "}",
+    "{",
+    "x",
+    "}",
+    "{",
+    "c",
+    "}",
+    "{",
+    "d",
+    "}"
+   ],
+   "distance": 5,
+   "expect": {
+    "histogram": "=4 -1 +1 =4 +3",
+    "histogram+git-compact": "=4 -1 +1 =4 +3",
+    "myers": "=4 -1 +1 =4 +3",
+    "myers+git-compact": "=4 -1 +1 =4 +3",
+    "myers-linear": "=4 -1 +1 =3 +3 =1",
+    "myers-linear+git-compact": "=4 -1 +1 =4 +3",
+    "patience": "=4 -1 +1 =4 +3",
+    "patience+git-compact": "=4 -1 +1 =4 +3",
+    "reference": "=4 -1 +1 =4 +3",
+    "reference+git-compact": "=4 -1 +1 =4 +3"
+   }
+  },
+  {
+   "name": "moved_block",
+   "old": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h"
+   ],
+   "new": [
+    "e",
+    "f",
+    "g",
+    "a",
+    "b",
+    "c",
+    "d",
+    "h"
+   ],
+   "distance": 6,
+   "expect": {
+    "histogram": "+3 =4 -3 =1",
+    "histogram+git-compact": "+3 =4 -3 =1",
+    "myers": "+3 =4 -3 =1",
+    "myers+git-compact": "+3 =4 -3 =1",
+    "myers-linear": "+3 =4 -3 =1",
+    "myers-linear+git-compact": "+3 =4 -3 =1",
+    "patience": "+3 =4 -3 =1",
+    "patience+git-compact": "+3 =4 -3 =1",
+    "reference": "+3 =4 -3 =1",
+    "reference+git-compact": "+3 =4 -3 =1"
+   }
+  },
+  {
+   "name": "random_00",
+   "old": [],
+   "new": [
+    "d"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "+1",
+    "histogram+git-compact": "+1",
+    "myers": "+1",
+    "myers+git-compact": "+1",
+    "myers-linear": "+1",
+    "myers-linear+git-compact": "+1",
+    "patience": "+1",
+    "patience+git-compact": "+1",
+    "reference": "+1",
+    "reference+git-compact": "+1"
+   }
+  },
+  {
+   "name": "random_01",
+   "old": [
+    "b",
+    "a",
+    "d",
+    "f",
+    "b",
+    "c",
+    "a",
+    "a",
+    "c",
+    "c",
+    "b",
+    "b"
+   ],
+   "new": [
+    "b",
+    "b",
+    "d",
+    "f",
+    "b",
+    "a",
+    "a",
+    "c",
+    "c",
+    "b"
+   ],
+   "distance": 4,
+   "expect": {
+    "histogram": "=1 -1 +1 =3 -1 =5 -1",
+    "histogram+git-compact": "=1 -1 +1 =3 -1 =5 -1",
+    "myers": "=1 -1 +1 =3 -1 =5 -1",
+    "myers+git-compact": "=1 -1 +1 =3 -1 =5 -1",
+    "myers-linear": "=1 -1 +1 =3 -1 =4 -1 =1",
+    "myers-linear+git-compact": "=1 -1 +1 =3 -1 =5 -1",
+    "patience": "=1 -1 +1 =3 -1 =4 -1 =1",
+    "patience+git-compact": "=1 -1 +1 =3 -1 =5 -1",
+    "reference": "=1 -1 +1 =3 -1 =5 -1",
+    "reference+git-compact": "=1 -1 +1 =3 -1 =5 -1"
+   }
+  },
+  {
+   "name": "random_02",
+   "old": [],
+   "new": [
+    "a"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "+1",
+    "histogram+git-compact": "+1",
+    "myers": "+1",
+    "myers+git-compact": "+1",
+    "myers-linear": "+1",
+    "myers-linear+git-compact": "+1",
+    "patience": "+1",
+    "patience+git-compact": "+1",
+    "reference": "+1",
+    "reference+git-compact": "+1"
+   }
+  },
+  {
+   "name": "random_03",
+   "old": [
+    "b",
+    "b",
+    "e",
+    "a",
+    "a",
+    "c",
+    "a",
+    "b",
+    "c",
+    "b",
+    "b"
+   ],
+   "new": [
+    "b",
+    "b",
+    "e",
+    "a",
+    "a",
+    "c",
+    "a",
+    "e",
+    "c",
+    "b",
+    "b"
+   ],
+   "distance": 2,
+   "expect": {
+    "histogram": "=7 -1 +1 =3",
+    "histogram+git-compact": "=7 -1 +1 =3",
+    "myers": "=7 -1 +1 =3",
+    "myers+git-compact": "=7 -1 +1 =3",
+    "myers-linear": "=7 -1 +1 =3",
+    "myers-linear+git-compact": "=7 -1 +1 =3",
+    "patience": "=7 -1 +1 =3",
+    "patience+git-compact": "=7 -1 +1 =3",
+    "reference": "=7 -1 +1 =3",
+    "reference+git-compact": "=7 -1 +1 =3"
+   }
+  },
+  {
+   "name": "random_04",
+   "old": [
+    "f",
+    "a",
+    "d",
+    "e",
+    "b",
+    "d",
+    "d",
+    "b"
+   ],
+   "new": [
+    "f",
+    "a",
+    "d",
+    "e",
+    "b",
+    "d",
+    "e",
+    "b"
+   ],
+   "distance": 2,
+   "expect": {
+    "histogram": "=6 -1 +1 =1",
+    "histogram+git-compact": "=6 -1 +1 =1",
+    "myers": "=6 -1 +1 =1",
+    "myers+git-compact": "=6 -1 +1 =1",
+    "myers-linear": "=6 -1 +1 =1",
+    "myers-linear+git-compact": "=6 -1 +1 =1",
+    "patience": "=6 -1 +1 =1",
+    "patience+git-compact": "=6 -1 +1 =1",
+    "reference": "=6 -1 +1 =1",
+    "reference+git-compact": "=6 -1 +1 =1"
+   }
+  },
+  {
+   "name": "random_05",
+   "old": [
+    "d",
+    "b",
+    "d",
+    "d",
+    "b",
+    "c",
+    "d",
+    "c",
+    "d",
+    "c",
+    "d",
+    "c",
+    "b",
+    "b",
+    "b",
+    "d",
+    "a",
+    "d",
+    "c",
+    "c"
+   ],
+   "new": [
+    "d",
+    "b",
+    "d",
+    "d",
+    "c",
+    "b",
+    "c",
+    "d",
+    "c",
+    "d",
+    "c",
+    "d",
+    "a",
+    "c",
+    "b",
+    "b",
+    "d",
+    "a",
+    "d",
+    "c",
+    "c"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "=4 +1 =7 +1 =1 -1 =7",
+    "histogram+git-compact": "=4 +1 =7 +1 =3 -1 =5",
+    "myers": "=4 +1 =7 +1 =3 -1 =5",
+    "myers+git-compact": "=4 +1 =7 +1 =3 -1 =5",
+    "myers-linear": "=4 +1 =7 +1 =1 -1 =7",
+    "myers-linear+git-compact": "=4 +1 =7 +1 =3 -1 =5",
+    "patience": "=4 +1 =7 +1 =1 -1 =7",
+    "patience+git-compact": "=4 +1 =7 +1 =3 -1 =5",
+    "reference": "=4 +1 =7 +1 =3 -1 =5",
+    "reference+git-compact": "=4 +1 =7 +1 =3 -1 =5"
+   }
+  },
+  {
+   "name": "random_06",
+   "old": [
+    "c",
+    "e",
+    "e",
+    "b",
+    "{",
+    "a",
+    "f",
+    "a",
+    "{",
+    "{",
+    "d",
+    "e",
+    "a"
+   ],
+   "new": [
+    "c",
+    "e",
+    "e",
+    "a",
+    "{",
+    "{",
+    "f",
+    "a",
+    "f",
+    "a",
+    "{",
+    "{",
+    "d",
+    "e",
+    "a"
+   ],
+   "distance": 4,
+   "expect": {
+    "histogram": "=3 -1 +1 =1 +2 =8",
+    "histogram+git-compact": "=3 -1 +1 =1 +2 =8",
+    "myers": "=3 -1 +1 =1 +2 =8",
+    "myers+git-compact": "=3 -1 +1 =1 +2 =8",
+    "myers-linear": "=3 -1 +1 =1 +2 =8",
+    "myers-linear+git-compact": "=3 -1 +1 =1 +2 =8",
+    "patience": "=3 -1 +1 =1 +2 =8",
+    "patience+git-compact": "=3 -1 +1 =1 +2 =8",
+    "reference": "=3 -1 +1 =1 +2 =8",
+    "reference+git-compact": "=3 -1 +1 =1 +2 =8"
+   }
+  },
+  {
+   "name": "random_07",
+   "old": [
+    "c",
+    "d",
+    "d",
+    "c",
+    "d",
+    "b",
+    "d"
+   ],
+   "new": [
+    "d",
+    "d",
+    "d",
+    "c",
+    "d",
+    "b"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "-1 +1 =5 -1",
+    "histogram+git-compact": "-1 +1 =5 -1",
+    "myers": "-1 =2 +1 =3 -1",
+    "myers+git-compact": "-1 +1 =5 -1",
+    "myers-linear": "-1 +1 =5 -1",
+    "myers-linear+git-compact": "-1 +1 =5 -1",
+    "patience": "-1 +1 =5 -1",
+    "patience+git-compact": "-1 +1 =5 -1",
+    "reference": "-1 =2 +1 =3 -1",
+    "reference+git-compact": "-1 +1 =5 -1"
+   }
+  },
+  {
+   "name": "random_08",
+   "old": [
+    "b",
+    "b",
+    "b",
+    "b",
+    "c",
+    "b",
+    "a",
+    "d",
+    "b",
+    "a",
+    "c",
+    "d",
+    "e",
+    "d",
+    "d",
+    "e",
+    "a",
+    "d",
+    "d",
+    "a",
+    "a",
+    "b",
+    "c"
+   ],
+   "new": [
+    "b",
+    "b",
+    "b",
+    "b",
+    "c",
+    "b",
+    "a",
+    "d",
+    "b",
+    "a",
+    "c",
+    "d",
+    "e",
+    "d",
+    "e",
+    "a",
+    "d",
+    "d",
+    "a",
+    "a",
+    "b",
+    "e"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "=14 -1 =7 -1 +1",
+    "histogram+git-compact": "=14 -1 =7 -1 +1",
+    "myers": "=14 -1 =7 -1 +1",
+    "myers+git-compact": "=14 -1 =7 -1 +1",
+    "myers-linear": "=14 -1 =7 -1 +1",
+    "myers-linear+git-compact": "=14 -1 =7 -1 +1",
+    "patience": "=14 -1 =7 -1 +1",
+    "patience+git-compact": "=14 -1 =7 -1 +1",
+    "reference": "=14 -1 =7 -1 +1",
+    "reference+git-compact": "=14 -1 =7 -1 +1"
+   }
+  },
+  {
+   "name": "random_09",
+   "old": [
+    "d",
+    "e",
+    "{",
+    "a",
+    "c",
+    "{",
+    "a",
+    "{",
+    "b",
+    "c",
+    "{",
+    "e",
+    "a",
+    "b",
+    "{",
+    "c",
+    "b"
+   ],
+   "new": [
+    "d",
+    "e",
+    "{",
+    "a",
+    "c",
+    "{",
+    "a",
+    "{",
+    "c",
+    "b",
+    "c",
+    "d",
+    "e",
+    "a",
+    "b",
+    "{",
+    "c",
+    "b"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "=8 +1 =2 -1 +1 =6",
+    "histogram+git-compact": "=8 +1 =2 -1 +1 =6",
+    "myers": "=8 +1 =2 -1 +1 =6",
+    "myers+git-compact": "=8 +1 =2 -1 +1 =6",
+    "myers-linear": "=8 +1 =2 -1 +1 =6",
+    "myers-linear+git-compact": "=8 +1 =2 -1 +1 =6",
+    "patience": "=8 +1 =2 -1 +1 =6",
+    "patience+git-compact": "=8 +1 =2 -1 +1 =6",
+    "reference": "=8 +1 =2 -1 +1 =6",
+    "reference+git-compact": "=8 +1 =2 -1 +1 =6"
+   }
+  },
+  {
+   "name": "random_10",
+   "old": [
+    "b",
+    "f",
+    "e",
+    "{",
+    "f",
+    "d",
+    "e",
+    "f",
+    "{",
+    "b",
+    "b",
+    "a",
+    "{",
+    "b"
+   ],
+   "new": [
+    "b",
+    "f",
+    "e",
+    "f",
+    "d",
+    "e",
+    "f",
+    "{",
+    "b",
+    "b",
+    "a",
+    "{",
+    "b",
+    "b"
+   ],
+   "distance": 2,
+   "expect": {
+    "histogram": "=3 -1 =10 +1",
+    "histogram+git-compact": "=3 -1 =10 +1",
+    "myers": "=3 -1 =10 +1",
+    "myers+git-compact": "=3 -1 =10 +1",
+    "myers-linear": "=3 -1 =9 +1 =1",
+    "myers-linear+git-compact": "=3 -1 =10 +1",
+    "patience": "=3 -1 =10 +1",
+    "patience+git-compact": "=3 -1 =10 +1",
+    "reference": "=3 -1 =10 +1",
+    "reference+git-compact": "=3 -1 =10 +1"
+   }
+  },
+  {
+   "name": "random_11",
+   "old": [
+    "a",
+    "a",
+    "a",
+    "c",
+    "b",
+    "a",
+    "a",
+    "b",
+    "b",
+    "a"
+   ],
+   "new": [
+    "a",
+    "a",
+    "a",
+    "b",
+    "a",
+    "a",
+    "b",
+    "b",
+    "a"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=3 -1 =6",
+    "histogram+git-compact": "=3 -1 =6",
+    "myers": "=3 -1 =6",
+    "myers+git-compact": "=3 -1 =6",
+    "myers-linear": "=3 -1 =6",
+    "myers-linear+git-compact": "=3 -1 =6",
+    "patience": "=3 -1 =6",
+    "patience+git-compact": "=3 -1 =6",
+    "reference": "=3 -1 =6",
+    "reference+git-compact": "=3 -1 =6"
+   }
+  },
+  {
+   "name": "random_12",
+   "old": [
+    "b",
+    "a",
+    "a",
+    "c",
+    "b",
+    "b",
+    "b",
+    "a",
+    "b",
+    "d",
+    "a",
+    "d",
+    "a",
+    "a",
+    "d",
+    "b",
+    "d",
+    "c",
+    "a",
+    "c"
+   ],
+   "new": [
+    "b",
+    "b",
+    "a",
+    "c",
+    "b",
+    "b",
+    "b",
+    "a",
+    "b",
+    "d",
+    "d",
+    "a",
+    "a",
+    "d",
+    "b",
+    "d",
+    "c",
+    "a",
+    "c"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "=1 -1 +1 =8 -1 =9",
+    "histogram+git-compact": "=1 -1 +1 =8 -1 =9",
+    "myers": "=1 +1 =1 -1 =7 -1 =9",
+    "myers+git-compact": "=1 -1 +1 =8 -1 =9",
+    "myers-linear": "=1 -1 +1 =8 -1 =9",
+    "myers-linear+git-compact": "=1 -1 +1 =8 -1 =9",
+    "patience": "=1 -1 +1 =8 -1 =9",
+    "patience+git-compact": "=1 -1 +1 =8 -1 =9",
+    "reference": "=1 -1 +1 =8 -1 =9",
+    "reference+git-compact": "=1 -1 +1 =8 -1 =9"
+   }
+  },
+  {
+   "name": "random_13",
+   "old": [
+    "c",
+    "a",
+    "b",
+    "d",
+    "a",
+    "b",
+    "c",
+    "d",
+    "c",
+    "a",
+    "a",
+    "a",
+    "c",
+    "b",
+    "c",
+    "c",
+    "d",
+    "c"
+   ],
+   "new": [
+    "c",
+    "a",
+    "b",
+    "d",
+    "b",
+    "c",
+    "d",
+    "c",
+    "a",
+    "a",
+    "a",
+    "c",
+    "b",
+    "c",
+    "c",
+    "d",
+    "c"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=4 -1 =13",
+    "histogram+git-compact": "=4 -1 =13",
+    "myers": "=4 -1 =13",
+    "myers+git-compact": "=4 -1 =13",
+    "myers-linear": "=4 -1 =13",
+    "myers-linear+git-compact": "=4 -1 =13",
+    "patience": "=4 -1 =13",
+    "patience+git-compact": "=4 -1 =13",
+    "reference": "=4 -1 =13",
+    "reference+git-compact": "=4 -1 =13"
+   }
+  },
+  {
+   "name": "random_14",
+   "old": [
+    "e",
+    "c",
+    "e",
+    "b",
+    "a",
+    "d",
+    "e",
+    "c",
+    "a",
+    "b"
+   ],
+   "new": [
+    "e",
+    "b",
+    "c",
+    "e",
+    "b",
+    "a",
+    "d",
+    "e",
+    "c",
+    "a",
+    "b"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=1 +1 =9",
+    "histogram+git-compact": "=1 +1 =9",
+    "myers": "=1 +1 =9",
+    "myers+git-compact": "=1 +1 =9",
+    "myers-linear": "=1 +1 =9",
+    "myers-linear+git-compact": "=1 +1 =9",
+    "patience": "=1 +1 =9",
+    "patience+git-compact": "=1 +1 =9",
+    "reference": "=1 +1 =9",
+    "reference+git-compact": "=1 +1 =9"
+   }
+  },
+  {
+   "name": "random_15",
+   "old": [
+    "b",
+    "c",
+    "c",
+    "c",
+    "a",
+    "c",
+    "a",
+    "d",
+    "b",
+    "b",
+    "d",
+    "c",
+    "a",
+    "b",
+    "c",
+    "c",
+    "d",
+    "a",
+    "d",
+    "a",
+    "c",
+    "a"
+   ],
+   "new": [
+    "b",
+    "c",
+    "c",
+    "b",
+    "a",
+    "a",
+    "d",
+    "b",
+    "b",
+    "d",
+    "c",
+    "a",
+    "b",
+    "c",
+    "c",
+    "d",
+    "b",
+    "a",
+    "d",
+    "a",
+    "c",
+    "d",
+    "a"
+   ],
+   "distance": 5,
+   "expect": {
+    "histogram": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "histogram+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "myers": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "myers+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "myers-linear": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "myers-linear+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "patience": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "patience+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "reference": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "reference+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1"
+   }
+  },
+  {
+   "name": "random_16",
+   "old": [
+    "a",
+    "a",
+    "b"
+   ],
+   "new": [
+    "a",
+    "b",
+    "a"
+   ],
+   "distance": 2,
+   "expect": {
+    "histogram": "-1 =2 +1",
+    "histogram+git-compact": "=1 -1 =1 +1",
+    "myers": "=1 -1 =1 +1",
+    "myers+git-compact": "=1 -1 =1 +1",
+    "myers-linear": "=1 -1 =1 +1",
+    "myers-linear+git-compact": "=1 -1 =1 +1",
+    "patience": "-1 =2 +1",
+    "patience+git-compact": "=1 -1 =1 +1",
+    "reference": "=1 -1 =1 +1",
+    "reference+git-compact": "=1 -1 =1 +1"
+   }
+  },
+  {
+   "name": "random_17",
+   "old": [
+    "d",
+    "d",
+    "c",
+    "a",
+    "a",
+    "b",
+    "a"
+   ],
+   "new": [
+    "b",
+    "d",
+    "c",
+    "a"
+   ],
+   "distance": 5,
+   "expect": {
+    "histogram": "-1 +1 =3 -3",
+    "histogram+git-compact": "-1 +1 =3 -3",
+    "myers": "+1 =1 -1 =2 -3",
+    "myers+git-compact": "-1 +1 =3 -3",
+    "myers-linear": "-1 +1 =2 -3 =1",
+    "myers-linear+git-compact": "-1 +1 =3 -3",
+    "patience": "-5 =1 +2 =1",
+    "patience+git-compact": "-5 =1 +2 =1",
+    "reference": "-1 +1 =3 -3",
+    "reference+git-compact": "-1 +1 =3 -3"
+   }
+  },
+  {
+   "name": "random_18",
+   "old": [
+    "b",
+    "b",
+    "b",
+    "c",
+    "a"
+   ],
+   "new": [
+    "b",
+    "b",
+    "c",
+    "b",
+    "c",
+    "c",
+    "c"
+   ],
+   "distance": 4,
+   "expect": {
+    "histogram": "-1 =3 -1 +4",
+    "histogram+git-compact": "=2 -1 =1 -1 +4",
+    "myers": "=2 +1 =2 -1 +2",
+    "myers+git-compact": "=2 +1 =2 -1 +2",
+    "myers-linear": "=2 +1 =2 -1 +2",
+    "myers-linear+git-compact": "=2 +1 =2 -1 +2",
+    "patience": "=2 +1 =2 -1 +2",
+    "patience+git-compact": "=2 +1 =2 -1 +2",
+    "reference": "=2 +1 =2 -1 +2",
+    "reference+git-compact": "=2 +1 =2 -1 +2"
+   }
+  },
+  {
+   "name": "random_19",
+   "old": [
+    "a",
+    "f",
+    "a",
+    "a",
+    "f",
+    "d",
+    "b",
+    "b"
+   ],
+   "new": [
+    "a",
+    "f",
+    "a",
+    "a",
+    "f",
+    "d",
+    "b"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=7 -1",
+    "histogram+git-compact": "=7 -1",
+    "myers": "=7 -1",
+    "myers+git-compact": "=7 -1",
+    "myers-linear": "=7 -1",
+    "myers-linear+git-compact": "=7 -1",
+    "patience": "=7 -1",
+    "patience+git-compact": "=7 -1",
+    "reference": "=7 -1",
+    "reference+git-compact": "=7 -1"
+   }
+  },
+  {
+   "name": "random_20",
+   "old": [
+    "c",
+    "b",
+    "a",
+    "e",
+    "f",
+    "f",
+    "e",
+    "b",
+    "d",
+    "b",
+    "c",
+    "d",
+    "c"
+   ],
+   "new": [
+    "c",
+    "e",
+    "a",
+    "{",
+    "f",
+    "e",
+    "b",
+    "d",
+    "b",
+    "c",
+    "d"
+   ],
+   "distance": 6,
+   "expect": {
+    "histogram": "=1 -1 +1 =1 -2 +1 =7 -1",
+    "histogram+git-compact": "=1 -1 +1 =1 -2 +1 =7 -1",
+    "myers": "=1 -2 =1 +2 =1 -1 =6 -1",
+    "myers+git-compact": "=1 -2 =1 -1 +2 =7 -1",
+    "myers-linear": "=1 -2 =1 -1 +2 =7 -1",
+    "myers-linear+git-compact": "=1 -2 =1 -1 +2 =7 -1",
+    "patience": "=1 -1 +1 =1 -2 +1 =7 -1",
+    "patience+git-compact": "=1 -1 +1 =1 -2 +1 =7 -1",
+    "reference": "=1 -2 =1 -1 +2 =7 -1",
+    "reference+git-compact": "=1 -2 =1 -1 +2 =7 -1"
+   }
+  },
+  {
+   "name": "random_21",
+   "old": [
+    "c",
+    "a",
+    "d",
+    "d"
+   ],
+   "new": [
+    "d",
+    "c",
+    "a",
+    "e",
+    "d",
+    "d"
+   ],
+   "distance": 2,
+   "expect": {
+    "histogram": "+1 =2 +1 =2",
+    "histogram+git-compact": "+1 =2 +1 =2",
+    "myers": "+1 =2 +1 =2",
+    "myers+git-compact": "+1 =2 +1 =2",
+    "myers-linear": "+1 =2 +1 =2",
+    "myers-linear+git-compact": "+1 =2 +1 =2",
+    "patience": "+1 =2 +1 =2",
+    "patience+git-compact": "+1 =2 +1 =2",
+    "reference": "+1 =2 +1 =2",
+    "reference+git-compact": "+1 =2 +1 =2"
+   }
+  },
+  {
+   "name": "random_22",
+   "old": [
+    "e",
+    "}",
+    "{",
+    "f",
+    "}",
+    "c",
+    "d",
+    "{",
+    "a",
+    "f",
+    "b"
+   ],
+   "new": [
+    "e",
+    "}",
+    "{",
+    "f",
+    "}",
+    "b",
+    "d",
+    "a",
+    "f",
+    "b",
+    "f"
+   ],
+   "distance": 4,
+   "expect": {
+    "histogram": "=5 -1 +1 =1 -1 =3 +1",
+    "histogram+git-compact": "=5 -1 +1 =1 -1 =3 +1",
+    "myers": "=5 -1 +1 =1 -1 =3 +1",
+    "myers+git-compact": "=5 -1 +1 =1 -1 =3 +1",
+    "myers-linear": "=5 -1 +1 =1 -1 =3 +1",
+    "myers-linear+git-compact": "=5 -1 +1 =1 -1 =3 +1",
+    "patience": "=5 -1 +1 =1 -1 =3 +1",
+    "patience+git-compact": "=5 -1 +1 =1 -1 =3 +1",
+    "reference": "=5 -1 +1 =1 -1 =3 +1",
+    "reference+git-compact": "=5 -1 +1 =1 -1 =3 +1"
+   }
+  },
+  {
+   "name": "random_23",
+   "old": [
+    "e",
+    "c",
+    "c",
+    "c",
+    "e",
+    "c",
+    "a",
+    "d",
+    "d",
+    "a",
+    "e",
+    "e",
+    "d",
+    "b",
+    "a",
+    "c",
+    "c",
+    "b",
+    "d",
+    "c",
+    "c",
+    "e",
+    "d"
+   ],
+   "new": [
+    "e",
+    "d",
+    "c",
+    "c",
+    "c",
+    "a",
+    "d",
+    "d",
+    "d",
+    "e",
+    "e",
+    "d",
+    "b",
+    "e",
+    "c",
+    "c",
+    "b",
+    "d",
+    "c",
+    "c",
+    "e",
+    "d"
+   ],
+   "distance": 7,
+   "expect": {
+    "histogram": "=1 +1 =2 -2 =4 -1 +1 =4 -1 +1 =8",
+    "histogram+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "myers": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "myers+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "myers-linear": "=1 -1 +1 =2 -1 =2 +1 =2 -1 =4 -1 +1 =8",
+    "myers-linear+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "patience": "=1 -1 +1 =2 -1 =2 +1 =2 -1 =4 -1 +1 =8",
+    "patience+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "reference": "=1 -1 +1 =2 -1 =4 -1 +1 =4 -1 +1 =8",
+    "reference+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8"
+   }
+  },
+  {
+   "name": "random_24",
+   "old": [
+    "}",
+    "c",
+    "c",
+    "c",
+    "b",
+    "f",
+    "e",
+    "a",
+    "f",
+    "a",
+    "c",
+    "f",
+    "f",
+    "b",
+    "}",
+    "e",
+    "}",
+    "{",
+    "}",
+    "b",
+    "f",
+    "b"
+   ],
+   "new": [
+    "}",
+    "c",
+    "c",
+    "c",
+    "b",
+    "f",
+    "e",
+    "a",
+    "f",
+    "a",
+    "c",
+    "f",
+    "f",
+    "b",
+    "}",
+    "}",
+    "{",
+    "}",
+    "b",
+    "f",
+    "b"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=15 -1 =6",
+    "histogram+git-compact": "=15 -1 =6",
+    "myers": "=15 -1 =6",
+    "myers+git-compact": "=15 -1 =6",
+    "myers-linear": "=15 -1 =6",
+    "myers-linear+git-compact": "=15 -1 =6",
+    "patience": "=15 -1 =6",
+    "patience+git-compact": "=15 -1 =6",
+    "reference": "=15 -1 =6",
+    "reference+git-compact": "=15 -1 =6"
+   }
+  },
+  {
+   "name": "random_25",
+   "old": [],
+   "new": [
+    "a"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "+1",
+    "histogram+git-compact": "+1",
+    "myers": "+1",
+    "myers+git-compact": "+1",
+    "myers-linear": "+1",
+    "myers-linear+git-compact": "+1",
+    "patience": "+1",
+    "patience+git-compact": "+1",
+    "reference": "+1",
+    "reference+git-compact": "+1"
+   }
+  },
+  {
+   "name": "random_26",
+   "old": [
+    "d",
+    "c",
+    "d",
+    "d",
+    "d"
+   ],
+   "new": [
+    "d",
+    "d",
+    "e",
+    "d"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "-2 =2 +1 =1",
+    "histogram+git-compact": "=1 -2 =1 +1 =1",
+    "myers": "=1 -1 =1 +1 =1 -1",
+    "myers+git-compact": "=1 -2 =1 +1 =1",
+    "myers-linear": "=1 -1 =1 -1 +1 =1",
+    "myers-linear+git-compact": "=1 -2 =1 +1 =1",
+    "patience": "=1 -1 =1 -1 +1 =1",
+    "patience+git-compact": "=1 -2 =1 +1 =1",
+    "reference": "=1 -1 =1 -1 +1 =1",
+    "reference+git-compact": "=1 -2 =1 +1 =1"
+   }
+  },
+  {
+   "name": "random_27",
+   "old": [
+    "c",
+    "a"
+   ],
+   "new": [],
+   "distance": 2,
+   "expect": {
+    "histogram": "-2",
+    "histogram+git-compact": "-2",
+    "myers": "-2",
+    "myers+git-compact": "-2",
+    "myers-linear": "-2",
+    "myers-linear+git-compact": "-2",
+    "patience": "-2",
+    "patience+git-compact": "-2",
+    "reference": "-2",
+    "reference+git-compact": "-2"
+   }
+  },
+  {
+   "name": "random_28",
+   "old": [
+    "e",
+    "}",
+    "{",
+    "b",
+    "e",
+    "b",
+    "f",
+    "b",
+    "{",
+    "a",
+    "{",
+    "b",
+    "{",
+    "{",
+    "f",
+    "}",
+    "b",
+    "b",
+    "{"
+   ],
+   "new": [
+    "e",
+    "}",
+    "{",
+    "b",
+    "e",
+    "{",
+    "b",
+    "d",
+    "f",
+    "b",
+    "{",
+    "a",
+    "{",
+    "b",
+    "{",
+    "{",
+    "f",
+    "b",
+    "b",
+    "{"
+   ],
+   "distance": 3,
+   "expect": {
+    "histogram": "=5 +1 =1 +1 =9 -1 =3",
+    "histogram+git-compact": "=5 +1 =1 +1 =9 -1 =3",
+    "myers": "=5 +1 =1 +1 =9 -1 =3",
+    "myers+git-compact": "=5 +1 =1 +1 =9 -1 =3",
+    "myers-linear": "=5 +1 =1 +1 =9 -1 =3",
+    "myers-linear+git-compact": "=5 +1 =1 +1 =9 -1 =3",
+    "patience": "=5 +1 =1 +1 =9 -1 =3",
+    "patience+git-compact": "=5 +1 =1 +1 =9 -1 =3",
+    "reference": "=5 +1 =1 +1 =9 -1 =3",
+    "reference+git-compact": "=5 +1 =1 +1 =9 -1 =3"
+   }
+  },
+  {
+   "name": "random_29",
+   "old": [
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a"
+   ],
+   "new": [
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a"
+   ],
+   "distance": 1,
+   "expect": {
+    "histogram": "=8 -1",
+    "histogram+git-compact": "=8 -1",
+    "myers": "=8 -1",
+    "myers+git-compact": "=8 -1",
+    "myers-linear": "=8 -1",
+    "myers-linear+git-compact": "=8 -1",
+    "patience": "=8 -1",
+    "patience+git-compact": "=8 -1",
+    "reference": "=8 -1",
+    "reference+git-compact": "=8 -1"
+   }
+  }
+ ]
+}

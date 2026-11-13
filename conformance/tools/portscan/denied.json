@@ -1,0 +1,30 @@
+{
+ "description": "Out-of-scope host: skipped, nothing dialled.",
+ "input": [
+  "evil.test",
+  [
+   22,
+   80
+  ]
+ ],
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "tcp": [],
+ "expect": {
+  "output": [],
+  "skipped": [
+   {
+    "target": "evil.test",
+    "reason": "no_matching_allow"
+   }
+  ],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

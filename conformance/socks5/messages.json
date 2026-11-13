@@ -1,0 +1,398 @@
+{
+ "suite": "socks5",
+ "description": "RFC 1928/1929 messages: hex, parsed value or error code (with the octets needed for short input). Built byte by byte by a reference script.",
+ "cases": [
+  {
+   "id": "greeting_userpass",
+   "kind": "greeting",
+   "hex": "050102",
+   "description": "",
+   "value": {
+    "methods": [
+     2
+    ]
+   }
+  },
+  {
+   "id": "greeting_three",
+   "kind": "greeting",
+   "hex": "0503000102",
+   "description": "",
+   "value": {
+    "methods": [
+     0,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "id": "greeting_v4",
+   "kind": "greeting",
+   "hex": "040100",
+   "description": "SOCKS4 client",
+   "error": "bad_version"
+  },
+  {
+   "id": "greeting_zero_methods",
+   "kind": "greeting",
+   "hex": "0500",
+   "description": "",
+   "error": "no_methods"
+  },
+  {
+   "id": "greeting_short",
+   "kind": "greeting",
+   "hex": "050200",
+   "description": "",
+   "error": "short",
+   "need": 4
+  },
+  {
+   "id": "select_userpass",
+   "kind": "method_selection",
+   "hex": "0502",
+   "description": "",
+   "value": {
+    "method": 2
+   }
+  },
+  {
+   "id": "select_none",
+   "kind": "method_selection",
+   "hex": "05ff",
+   "description": "",
+   "value": {
+    "method": 255
+   }
+  },
+  {
+   "id": "userpass",
+   "kind": "userpass",
+   "hex": "01086465635f3132333405746b5f6162",
+   "description": "",
+   "value": {
+    "username": "dec_1234",
+    "password": "tk_ab"
+   }
+  },
+  {
+   "id": "userpass_max",
+   "kind": "userpass",
+   "hex": "01ff757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575757575ff707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070",
+   "description": "255-octet fields",
+   "value": {
+    "username": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "password": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+   }
+  },
+  {
+   "id": "userpass_empty_user",
+   "kind": "userpass",
+   "hex": "01000170",
+   "description": "",
+   "error": "empty_username"
+  },
+  {
+   "id": "userpass_empty_pass",
+   "kind": "userpass",
+   "hex": "01017500",
+   "description": "",
+   "error": "empty_password"
+  },
+  {
+   "id": "userpass_v5",
+   "kind": "userpass",
+   "hex": "0501750170",
+   "description": "",
+   "error": "bad_version"
+  },
+  {
+   "id": "userpass_short",
+   "kind": "userpass",
+   "hex": "01047573",
+   "description": "",
+   "error": "short",
+   "need": 7
+  },
+  {
+   "id": "auth_ok",
+   "kind": "auth_reply",
+   "hex": "0100",
+   "description": "",
+   "value": {
+    "status": 0
+   }
+  },
+  {
+   "id": "auth_fail",
+   "kind": "auth_reply",
+   "hex": "0101",
+   "description": "",
+   "value": {
+    "status": 1
+   }
+  },
+  {
+   "id": "connect_ipv4",
+   "kind": "request",
+   "hex": "05010001c000020a01bb",
+   "description": "",
+   "value": {
+    "command": 1,
+    "addr": {
+     "type": 1,
+     "host": "192.0.2.10",
+     "port": 443
+    }
+   }
+  },
+  {
+   "id": "connect_ipv6",
+   "kind": "request",
+   "hex": "0501000420010db80000000000000000000000010016",
+   "description": "",
+   "value": {
+    "command": 1,
+    "addr": {
+     "type": 4,
+     "host": "2001:db8::1",
+     "port": 22
+    }
+   }
+  },
+  {
+   "id": "connect_domain",
+   "kind": "request",
+   "hex": "050100030f6170702e6578616d706c652e636f6d20fb",
+   "description": "",
+   "value": {
+    "command": 1,
+    "addr": {
+     "type": 3,
+     "host": "app.example.com",
+     "port": 8443
+    }
+   }
+  },
+  {
+   "id": "bind_parses",
+   "kind": "request",
+   "hex": "05020001000000000000",
+   "description": "BIND parses; the server refuses it",
+   "value": {
+    "command": 2,
+    "addr": {
+     "type": 1,
+     "host": "0.0.0.0",
+     "port": 0
+    }
+   }
+  },
+  {
+   "id": "udp_parses",
+   "kind": "request",
+   "hex": "05030001000000000035",
+   "description": "UDP ASSOCIATE parses; the server refuses it",
+   "value": {
+    "command": 3,
+    "addr": {
+     "type": 1,
+     "host": "0.0.0.0",
+     "port": 53
+    }
+   }
+  },
+  {
+   "id": "bad_command",
+   "kind": "request",
+   "hex": "05090001010203040001",
+   "description": "",
+   "error": "bad_command"
+  },
+  {
+   "id": "bad_reserved",
+   "kind": "request",
+   "hex": "05010101010203040001",
+   "description": "",
+   "error": "bad_reserved"
+  },
+  {
+   "id": "bad_atyp",
+   "kind": "request",
+   "hex": "05010002010203040001",
+   "description": "",
+   "error": "bad_address_type"
+  },
+  {
+   "id": "empty_domain",
+   "kind": "request",
+   "hex": "05010003000050",
+   "description": "",
+   "error": "empty_domain"
+  },
+  {
+   "id": "short_domain",
+   "kind": "request",
+   "hex": "050100030a616263",
+   "description": "",
+   "error": "short",
+   "need": 17
+  },
+  {
+   "id": "short_ipv6",
+   "kind": "request",
+   "hex": "050100042001",
+   "description": "",
+   "error": "short",
+   "need": 22
+  },
+  {
+   "id": "reply_0",
+   "kind": "reply",
+   "hex": "05000001c63364079c40",
+   "description": "",
+   "value": {
+    "code": 0,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40000
+    }
+   }
+  },
+  {
+   "id": "reply_1",
+   "kind": "reply",
+   "hex": "05010001c63364079c41",
+   "description": "",
+   "value": {
+    "code": 1,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40001
+    }
+   }
+  },
+  {
+   "id": "reply_2",
+   "kind": "reply",
+   "hex": "05020001c63364079c42",
+   "description": "",
+   "value": {
+    "code": 2,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40002
+    }
+   }
+  },
+  {
+   "id": "reply_3",
+   "kind": "reply",
+   "hex": "05030001c63364079c43",
+   "description": "",
+   "value": {
+    "code": 3,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40003
+    }
+   }
+  },
+  {
+   "id": "reply_4",
+   "kind": "reply",
+   "hex": "05040001c63364079c44",
+   "description": "",
+   "value": {
+    "code": 4,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40004
+    }
+   }
+  },
+  {
+   "id": "reply_5",
+   "kind": "reply",
+   "hex": "05050001c63364079c45",
+   "description": "",
+   "value": {
+    "code": 5,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40005
+    }
+   }
+  },
+  {
+   "id": "reply_6",
+   "kind": "reply",
+   "hex": "05060001c63364079c46",
+   "description": "",
+   "value": {
+    "code": 6,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40006
+    }
+   }
+  },
+  {
+   "id": "reply_7",
+   "kind": "reply",
+   "hex": "05070001c63364079c47",
+   "description": "",
+   "value": {
+    "code": 7,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40007
+    }
+   }
+  },
+  {
+   "id": "reply_8",
+   "kind": "reply",
+   "hex": "05080001c63364079c48",
+   "description": "",
+   "value": {
+    "code": 8,
+    "addr": {
+     "type": 1,
+     "host": "198.51.100.7",
+     "port": 40008
+    }
+   }
+  },
+  {
+   "id": "reply_bad_code",
+   "kind": "reply",
+   "hex": "05090001000000000000",
+   "description": "",
+   "error": "bad_reply_code"
+  },
+  {
+   "id": "reply_ipv6_bound",
+   "kind": "reply",
+   "hex": "05000004000000000000000000000000000000010438",
+   "description": "",
+   "value": {
+    "code": 0,
+    "addr": {
+     "type": 4,
+     "host": "::1",
+     "port": 1080
+    }
+   }
+  }
+ ]
+}

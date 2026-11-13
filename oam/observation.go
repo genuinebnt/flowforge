@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -37,6 +38,54 @@ type Observation struct {
 	Edges         []ObservedEdge   `json:"edges,omitempty"`
 	Tags          []ObservedTag    `json:"tags,omitempty"`
 	RawRef        string           `json:"raw_ref,omitempty"`
+	// Authority (ff, V2 §3.4) makes the observation the authoritative
+	// reading of one source entity under one capture profile.
+	Authority *Authority `json:"authority,omitempty"`
+	// Cause (ff) says why the facts changed: "target" (default), or
+	// "parser" / "normalizer" for a re-derivation after an upgrade. It is
+	// copied onto every change event the observation produces.
+	Cause string `json:"cause,omitempty"`
+	// Baseline (ff) marks the first complete capture of a (URL, profile);
+	// copied onto every change event so feeds can hide it.
+	Baseline bool `json:"baseline,omitempty"`
+}
+
+// Coverage is how completely an authoritative observation read its
+// source (V2 §3.4).
+type Coverage string
+
+// Coverage values. Only CoverageComplete withdraws anything.
+const (
+	CoverageComplete    Coverage = "complete"
+	CoveragePartial     Coverage = "partial"
+	CoverageFailed      Coverage = "failed"
+	CoverageUnsupported Coverage = "unsupported"
+)
+
+// Causes of a change (V2 §12 item 2).
+const (
+	CauseTarget     = "target"
+	CauseParser     = "parser"
+	CauseNormalizer = "normalizer"
+)
+
+// Authority declares an observation the authoritative reading of Source
+// (a local ref or an ent_ id) under capture Profile.
+//
+// Every edge leaving Source and every tag on Source in the observation is
+// authoritative: it is reported to the (Source, Profile, family) unit of
+// its rule family (FamilyOfLabel, FamilyOfProperty) instead of the
+// covering-run bookkeeping. When Coverage is complete, the units of the
+// families in CoveredRules are replaced by this observation's reading:
+// their members that it does not report are withdrawn (edge_removed, or
+// a tag_changed removal). Every other unit, and every unit of a partial,
+// failed or unsupported observation, only gains members. See
+// OPEN_QUESTIONS.md for the exact rules.
+type Authority struct {
+	Source       string   `json:"source"`
+	Profile      string   `json:"profile"`
+	Coverage     Coverage `json:"coverage"`
+	CoveredRules []string `json:"covered_rules,omitempty"`
 }
 
 // ObservedEntity is one asset in an envelope, named by a ref that is
@@ -77,6 +126,9 @@ type (
 		Edges         []wireEdge   `json:"edges"`
 		Tags          []wireTag    `json:"tags"`
 		RawRef        string       `json:"raw_ref"`
+		Authority     *Authority   `json:"authority"`
+		Cause         string       `json:"cause"`
+		Baseline      bool         `json:"baseline"`
 	}
 	wireEntity struct {
 		Ref   string          `json:"ref"`
@@ -106,6 +158,7 @@ func DecodeObservation(data []byte, mode DecodeMode) (Observation, error) {
 		ObservationID: w.ObservationID, TenantID: w.TenantID, ProgramID: w.ProgramID,
 		RunID: w.RunID, Step: w.Step, EffectSeq: w.EffectSeq, Tool: w.Tool,
 		ObservedAt: w.ObservedAt.UTC(), Confidence: w.Confidence, RawRef: w.RawRef,
+		Authority: w.Authority, Cause: w.Cause, Baseline: w.Baseline,
 	}
 	if y := o.ObservedAt.Year(); y < 0 || y > 9999 {
 		return Observation{}, fmt.Errorf("%w: observed_at year %d outside 0..9999", ErrMalformed, y)
@@ -231,6 +284,51 @@ type prepared struct {
 	entities []preparedEntity
 	edges    []preparedEdge
 	tags     []preparedTag
+	auth     *preparedAuth
+	cause    string
+	baseline bool
+}
+
+type preparedAuth struct {
+	source   endpoint
+	profile  string
+	complete bool
+	covered  []string // sorted, unique
+}
+
+// PreparedAuthority is a validated Authority: canonical profile, coverage
+// and sorted, de-duplicated covered rule families.
+type PreparedAuthority struct {
+	Profile  string
+	Complete bool
+	Covered  []string
+}
+
+// PrepareAuthority validates an Authority's fields other than Source.
+func PrepareAuthority(a Authority) (PreparedAuthority, error) {
+	if !ValidProfile(a.Profile) {
+		return PreparedAuthority{}, invalidAt("authority.profile", fmt.Errorf("bad profile %q", a.Profile))
+	}
+	switch a.Coverage {
+	case CoverageComplete, CoveragePartial, CoverageFailed, CoverageUnsupported:
+	default:
+		return PreparedAuthority{}, invalidAt("authority.coverage", fmt.Errorf("coverage must be complete, partial, failed or unsupported, got %q", a.Coverage))
+	}
+	var covered []string
+	for i, r := range a.CoveredRules {
+		n, err := normalizeLabel(r)
+		if err != nil {
+			return PreparedAuthority{}, invalidAt(fmt.Sprintf("authority.covered_rules[%d]", i), fmt.Errorf("bad rule family %q", r))
+		}
+		covered = append(covered, n)
+	}
+	slices.Sort(covered)
+	return PreparedAuthority{Profile: a.Profile, Complete: a.Coverage == CoverageComplete, Covered: slices.Compact(covered)}, nil
+}
+
+// ValidCause reports whether c is "" (meaning target) or a known cause.
+func ValidCause(c string) bool {
+	return c == "" || c == CauseTarget || c == CauseParser || c == CauseNormalizer
 }
 
 type preparedEntity struct {
@@ -281,10 +379,17 @@ func (o Observation) prepare() (*prepared, error) {
 	case len(o.Entities) > MaxBatchEntities:
 		return nil, invalidAt("entities", fmt.Errorf("%w: %d entities, limit %d", ErrBatchTooLarge, len(o.Entities), MaxBatchEntities))
 	}
+	if !ValidCause(o.Cause) {
+		return nil, invalidAt("cause", fmt.Errorf("cause must be target, parser or normalizer, got %q", o.Cause))
+	}
 	p := &prepared{
 		stamp:    Stamp{At: o.ObservedAt.UTC(), Source: o.Tool.Name, Observation: o.ObservationID},
 		percent:  ConfidencePercent(o.Confidence),
 		entities: make([]preparedEntity, 0, len(o.Entities)),
+		cause:    o.Cause, baseline: o.Baseline,
+	}
+	if p.cause == CauseTarget {
+		p.cause = ""
 	}
 	refs := make(map[string]int, len(o.Entities))
 	for i, e := range o.Entities {
@@ -357,6 +462,17 @@ func (o Observation) prepare() (*prepared, error) {
 			pt.source = &sp
 		}
 		p.tags = append(p.tags, pt)
+	}
+	if o.Authority != nil {
+		pa, err := PrepareAuthority(*o.Authority)
+		if err != nil {
+			return nil, err
+		}
+		src, err := resolve("authority.source", o.Authority.Source)
+		if err != nil {
+			return nil, err
+		}
+		p.auth = &preparedAuth{source: src, profile: pa.Profile, complete: pa.Complete, covered: pa.Covered}
 	}
 	return p, nil
 }

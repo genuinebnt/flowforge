@@ -1,0 +1,33 @@
+{
+  "description": "Well-formed documents (XML 1.0 5th ed. examples and edge cases) with their canonical form (comments kept). canonical uses the xmlparse canonical writer: no declaration or doctype, sorted attributes, start-end pairs, C14N escaping.",
+  "cases": [
+    {"name": "spec 2.8 prolog example", "input": "<?xml version=\"1.0\"?> <greeting>Hello, world!</greeting>", "canonical": "<greeting>Hello, world!</greeting>", "grade": "complete"},
+    {"name": "bare doctype accepted", "input": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<!DOCTYPE greeting>\n<greeting/>", "canonical": "<greeting></greeting>"},
+    {"name": "doctype with qname and space", "input": "<!DOCTYPE p:r ><p:r xmlns:p=\"urn:x\"/>", "canonical": "<p:r xmlns:p=\"urn:x\"></p:r>"},
+    {"name": "predefined and numeric references", "input": "<a t=\"&lt;&gt;&amp;&apos;&quot;\">&#60;&#x3C;&#x1F600;&#9;</a>", "canonical": "<a t=\"&lt;>&amp;'&quot;\">&lt;&lt;😀\t</a>"},
+    {"name": "spec 4.6 escaped ampersand", "input": "<a>&#38;#38;</a>", "canonical": "<a>&amp;#38;</a>"},
+    {"name": "CDATA spec 2.7", "input": "<a><![CDATA[<greeting>Hello, world!</greeting>]]></a>", "canonical": "<a>&lt;greeting&gt;Hello, world!&lt;/greeting&gt;</a>"},
+    {"name": "CDATA may contain ]] and >", "input": "<a><![CDATA[]]]]><![CDATA[>]]></a>", "canonical": "<a>]]&gt;</a>"},
+    {"name": "line endings normalized in text", "input": "<a>1\r\n2\r3\n</a>", "canonical": "<a>1\n2\n3\n</a>"},
+    {"name": "char ref CR survives", "input": "<a>x&#13;y</a>", "canonical": "<a>x&#xD;y</a>"},
+    {"name": "attribute whitespace normalized", "input": "<a v=\"\r\n\t x\"/>", "canonical": "<a v=\"   x\"></a>"},
+    {"name": "attribute char refs not normalized", "input": "<a v=\"&#xA;&#x9;&#xD;\"/>", "canonical": "<a v=\"&#xA;&#x9;&#xD;\"></a>"},
+    {"name": "single quotes and gt in attribute", "input": "<a v='\"x>'/>", "canonical": "<a v=\"&quot;x>\"></a>"},
+    {"name": "attributes sorted by namespace then local", "input": "<a z=\"1\" xmlns:q=\"urn:b\" xmlns:p=\"urn:a\" q:y=\"2\" p:y=\"3\" b=\"4\" xmlns=\"urn:d\"/>", "canonical": "<a xmlns=\"urn:d\" xmlns:p=\"urn:a\" xmlns:q=\"urn:b\" b=\"4\" z=\"1\" p:y=\"3\" q:y=\"2\"></a>"},
+    {"name": "comments and PIs around the root", "input": "<!-- a --><?pi x?><r/><!--b--><?q?>", "canonical": "<!-- a -->\n<?pi x?>\n<r></r>\n<!--b-->\n<?q?>"},
+    {"name": "comment with single hyphens", "input": "<r><!-- a-b - c --></r>", "canonical": "<r><!-- a-b - c --></r>"},
+    {"name": "PI target starting with xml", "input": "<?xml-stylesheet href=\"a.xsl\"?><r/>", "canonical": "<?xml-stylesheet href=\"a.xsl\"?>\n<r></r>"},
+    {"name": "PI data keeps question marks", "input": "<r><?t a?b ?></r>", "canonical": "<r><?t a?b ?></r>"},
+    {"name": "whitespace in tags", "input": "<a\n  b = \"1\"\t></a >", "canonical": "<a b=\"1\"></a>"},
+    {"name": "utf-8 BOM", "input_hex": "efbbbf3c722f3e", "canonical": "<r></r>"},
+    {"name": "utf-16le BOM", "input_hex": "fffe3c00720020007800e9003d00220031002200200f3e00", "error": "unexpected_char", "grade": "failed"},
+    {"name": "utf-16le BOM well-formed", "input_hex": "fffe3c0072002f003e00", "canonical": "<r></r>"},
+    {"name": "utf-16be BOM with declaration", "input_hex": "feff003c003f0078006d006c002000760065007200730069006f006e003d00220031002e0030002200200065006e0063006f00640069006e0067003d0022005500540046002d003100360022003f003e003c0072003e00e9003c002f0072003e", "canonical": "<r>é</r>"},
+    {"name": "non-ASCII names", "input": "<élève âge=\"9\">中</élève>", "canonical": "<élève âge=\"9\">中</élève>"},
+    {"name": "version 1.1 number accepted", "input": "<?xml version='1.1'?><r/>", "canonical": "<r></r>"},
+    {"name": "xml prefix needs no declaration", "input": "<r xml:lang=\"en\"/>", "canonical": "<r xml:lang=\"en\"></r>"},
+    {"name": "default namespace undeclared", "input": "<r xmlns=\"urn:a\"><s xmlns=\"\"/></r>", "canonical": "<r xmlns=\"urn:a\"><s xmlns=\"\"></s></r>"},
+    {"name": "same local under different prefixes", "input": "<r xmlns:a=\"urn:a\" xmlns:b=\"urn:b\" a:x=\"1\" b:x=\"2\"/>", "canonical": "<r xmlns:a=\"urn:a\" xmlns:b=\"urn:b\" a:x=\"1\" b:x=\"2\"></r>"},
+    {"name": "trailing whitespace after root", "input": "<r/>\n\n", "canonical": "<r></r>"}
+  ]
+}

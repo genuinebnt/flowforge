@@ -1,0 +1,74 @@
+{
+ "description": "The registry answers JSON of the wrong shape: invalid_response, not retried.",
+ "input": "example.com",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://data.iana.org/rdap/dns.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": {
+    "description": "RDAP bootstrap file for Domain Name System registrations",
+    "publication": "2026-10-01T18:00:01Z",
+    "services": [
+     [
+      [
+       "com",
+       "net"
+      ],
+      [
+       "https://rdap.verisign.com/com/v1/"
+      ]
+     ],
+     [
+      [
+       "org"
+      ],
+      [
+       "https://rdap.publicinterestregistry.org/rdap/"
+      ]
+     ],
+     [
+      [
+       "xn--p1ai",
+       "ru"
+      ],
+      [
+       "https://rdap.tcinet.ru/"
+      ]
+     ]
+    ],
+    "version": "1.0"
+   }
+  },
+  {
+   "url": "https://rdap.verisign.com/com/v1/domain/example.com",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/rdap+json"
+   },
+   "body": {
+    "objectClassName": "domain",
+    "status": "active"
+   }
+  }
+ ],
+ "expect": {
+  "error": "invalid_response",
+  "skipped": [],
+  "requests": [
+   "https://data.iana.org/rdap/dns.json",
+   "https://rdap.verisign.com/com/v1/domain/example.com"
+  ],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

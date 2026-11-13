@@ -1,0 +1,24 @@
+{
+ "description": "The input is out of scope: skipped, crt.sh never contacted.",
+ "input": "evil.test",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "http": [],
+ "expect": {
+  "output": [],
+  "skipped": [
+   {
+    "target": "evil.test",
+    "reason": "no_matching_allow"
+   }
+  ],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

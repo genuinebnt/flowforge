@@ -61,9 +61,10 @@ func NewServer(o Options) *Server {
 	return s
 }
 
-// DefaultAdapters are the built-in tools.
+// DefaultAdapters are the built-in tools: dnsresolve, httpprobe, portscan
+// (and its alias tcpconnect), tlscert, ctlog, rdap, asn and mock.
 func DefaultAdapters(probe HTTPProbe) []Adapter {
-	return []Adapter{DNSResolve{}, probe, TCPConnect{}, Mock{}}
+	return []Adapter{DNSResolve{}, probe, PortScan{}, TCPConnect{}, TLSCert{}, &CTLog{}, &RDAP{}, &ASN{}, Mock{}}
 }
 
 // ListTools implements ToolRunnerService.
@@ -171,13 +172,16 @@ func (s *Server) Execute(req *pb.ExecuteRequest, stream grpc.ServerStreamingServ
 	tc := &ToolCtx{Tenant: id.Tenant, Program: program, Run: run, Path: req.GetEffectPath(), ScopeVersion: req.GetScopeVersion(),
 		DecisionIDs: req.GetScopeDecisionIds(), IdempotencyKey: req.GetIdempotencyKey(), Clock: s.o.Clock,
 		Egress: s.o.Egress, Resolver: s.o.Resolver}
-	tc.Check = func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error) {
-		if s.o.Scope == nil || program.IsZero() {
-			return scope.Decision{Result: scope.ResultDeny, Reason: "no_program"}, nil
+	check := func(resolve bool) func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error) {
+		return func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error) {
+			if s.o.Scope == nil || program.IsZero() {
+				return scope.Decision{Result: scope.ResultDeny, Reason: "no_program"}, nil
+			}
+			return s.o.Scope.CheckTarget(ctx, scopesvc.Target{Tenant: id.Tenant, Program: program, Target: target, Kind: kind,
+				Class: class, Run: run, Path: req.GetEffectPath(), Resolve: resolve || class > core.ClassPassive})
 		}
-		return s.o.Scope.CheckTarget(ctx, scopesvc.Target{Tenant: id.Tenant, Program: program, Target: target, Kind: kind,
-			Class: class, Run: run, Path: req.GetEffectPath(), Resolve: class > core.ClassPassive})
 	}
+	tc.Check, tc.CheckPinned = check(false), check(true)
 	em := &streamEmitter{stream: stream, log: s.o.Logger, ctx: ctx, tool: oam.Tool{Name: spec.Name, Version: spec.Version}}
 	start := time.Now()
 	type result struct {

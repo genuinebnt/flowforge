@@ -38,6 +38,22 @@ const (
 	LabelSANDNSName = "san_dns_name"
 )
 
+// Relation labels added by Flowforge v2 for content capture (V2 design
+// §3.2). All are SimpleRelation; redirects_to may carry the HTTP status.
+const (
+	LabelLoadsScript     = "loads_script"
+	LabelLoadsStyle      = "loads_style"
+	LabelEmbeds          = "embeds"
+	LabelLinksTo         = "links_to"
+	LabelRedirectsTo     = "redirects_to"
+	LabelFormAction      = "form_action"
+	LabelCalls           = "calls"
+	LabelSourceMap       = "source_map"
+	LabelPreviousVersion = "previous_version"
+	LabelIncludesLibrary = "includes_library"
+	LabelDocuments       = "documents"
+)
+
 // EndpointRule lists the asset types a label may join. An empty To means
 // any type.
 type EndpointRule struct {
@@ -94,6 +110,22 @@ func LabelRule(label string) (EndpointRule, bool) {
 		return r(one(TypeOrganization), one(TypeOrganization, TypePerson))
 	case LabelOwns:
 		return r(one(TypeOrganization), nil)
+	case LabelLoadsScript:
+		return r(one(TypeURL), one(TypeFile))
+	case LabelLoadsStyle:
+		return r(one(TypeURL, TypeFile), one(TypeFile))
+	case LabelEmbeds, LabelLinksTo, LabelRedirectsTo:
+		return r(one(TypeURL), one(TypeURL))
+	case LabelFormAction:
+		return r(one(TypeURL), one(TypeEndpoint))
+	case LabelCalls:
+		return r(one(TypeFile, TypeURL), one(TypeEndpoint))
+	case LabelSourceMap, LabelPreviousVersion:
+		return r(one(TypeFile), one(TypeFile))
+	case LabelIncludesLibrary:
+		return r(one(TypeFile), one(TypeProductRelease))
+	case LabelDocuments:
+		return r(one(TypeURL), one(TypeEndpoint))
 	}
 	return EndpointRule{}, false
 }

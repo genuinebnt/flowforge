@@ -1,0 +1,30 @@
+{
+  "description": "content_changed patches (V2 3.4, 12): validation and normalization (levels in canonical order, cause defaulted to target, score features sorted by name). Accepted and stored by RecordContentChange; the content service computes the values.",
+  "cases": [
+    {"name": "full patch", "patch": {"snapshot_from": "snp_1", "snapshot_to": "snp_2", "diff_id": "dif_1", "levels": ["semantic", "hash", "text", "hash"],
+      "summary": {"endpoints_added": 2, "scripts_removed": 0}, "cause": "target", "class": "semantic_endpoint", "score": 0.72,
+      "score_features": [{"name": "new_endpoint", "weight": 0.5}, {"name": "admin_word", "weight": 0.25}]},
+     "normalized": {"snapshot_from": "snp_1", "snapshot_to": "snp_2", "diff_id": "dif_1", "levels": ["hash", "text", "semantic"],
+      "summary": {"endpoints_added": 2, "scripts_removed": 0}, "cause": "target", "class": "semantic_endpoint", "score": 0.72,
+      "score_features": [{"name": "admin_word", "weight": 0.25}, {"name": "new_endpoint", "weight": 0.5}]}},
+    {"name": "first capture baseline, cause defaulted", "patch": {"snapshot_to": "snp_1", "levels": ["hash"], "baseline": true},
+     "normalized": {"snapshot_to": "snp_1", "levels": ["hash"], "cause": "target", "baseline": true, "score": 0}},
+    {"name": "parser re-derive", "patch": {"snapshot_from": "snp_1", "snapshot_to": "snp_1b", "levels": ["text"], "cause": "parser", "class": "structural"},
+     "normalized": {"snapshot_from": "snp_1", "snapshot_to": "snp_1b", "levels": ["text"], "cause": "parser", "class": "structural", "score": 0}},
+    {"name": "removal weights are negative", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["semantic"], "class": "metadata", "score": 0.1,
+      "score_features": [{"name": "csp_removed", "weight": -0.5}]}},
+    {"name": "missing snapshot_to", "patch": {"snapshot_from": "a", "levels": ["hash"]}, "error": true},
+    {"name": "same snapshots", "patch": {"snapshot_from": "a", "snapshot_to": "a", "levels": ["hash"]}, "error": true},
+    {"name": "no levels", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": []}, "error": true},
+    {"name": "unknown level", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["bytes"]}, "error": true},
+    {"name": "unknown cause", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "cause": "operator"}, "error": true},
+    {"name": "unknown class", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "class": "cosmetic"}, "error": true},
+    {"name": "score above 1", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "score": 1.5}, "error": true},
+    {"name": "negative score", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "score": -0.1}, "error": true},
+    {"name": "feature weight out of range", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "score_features": [{"name": "x", "weight": 2}]}, "error": true},
+    {"name": "duplicate feature", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "score_features": [{"name": "x", "weight": 0.1}, {"name": "x", "weight": 0.2}]}, "error": true},
+    {"name": "bad feature name", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "score_features": [{"name": "New Endpoint", "weight": 0.1}]}, "error": true},
+    {"name": "negative summary count", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "summary": {"x": -1}}, "error": true},
+    {"name": "bad summary key", "patch": {"snapshot_from": "a", "snapshot_to": "b", "levels": ["hash"], "summary": {"Endpoints Added": 1}}, "error": true}
+  ]
+}

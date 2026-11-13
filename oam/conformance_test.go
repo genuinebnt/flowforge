@@ -122,6 +122,7 @@ type mergeFile struct {
 			Entity string         `json:"entity"`
 			Edge   *expEdgeRef    `json:"edge"`
 			Patch  []oam.PatchOp  `json:"patch"`
+			Tag    string         `json:"tag"` // "<property type>/<name>" of a tag_changed event
 		} `json:"changes"`
 	} `json:"expect"`
 }
@@ -309,10 +310,14 @@ func checkChanges(t *testing.T, g *oam.Graph, c mergeFile) {
 		Type  oam.ChangeType `json:"type"`
 		What  string         `json:"what"`
 		Patch []oam.PatchOp  `json:"patch,omitempty"`
+		Tag   string         `json:"tag,omitempty"`
 	}
 	var have, want []flat
 	for _, ev := range got {
 		f := flat{Type: ev.Type, Patch: ev.Patch}
+		if ev.TagType != "" {
+			f.Tag = ev.TagType + "/" + ev.TagName
+		}
 		if ev.EntityID != "" {
 			e, _ := g.Entity(ev.EntityID)
 			f.What = e.Key
@@ -325,7 +330,7 @@ func checkChanges(t *testing.T, g *oam.Graph, c mergeFile) {
 		have = append(have, f)
 	}
 	for _, x := range c.Expect.Changes {
-		f := flat{Type: x.Type, What: x.Entity, Patch: x.Patch}
+		f := flat{Type: x.Type, What: x.Entity, Patch: x.Patch, Tag: x.Tag}
 		if x.Edge != nil {
 			f.What = x.Edge.From + " " + x.Edge.Label + " " + x.Edge.To
 		}

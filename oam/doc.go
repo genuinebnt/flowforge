@@ -24,6 +24,12 @@
 //     maximum, capped at MaxConfidence), Content (per-field
 //     last-writer-wins by Stamp with non-empty-wins), MinTime/MaxTime,
 //     EdgeKey and the derived EntityID/EdgeID;
+//   - the v2 graph expansion (docs/V2_DESIGN.md §3): the Endpoint asset
+//     and NormalizeURLTemplate, the content-capture relation labels and
+//     rule families, ContentProperty, HTTPHeaderProperty,
+//     ParameterProperty and the exposed_secret conventions, coverage-gated
+//     authoritative staleness (Authority, AuthUnit), tag_changed and
+//     content_changed events;
 //   - Graph, an in-memory reference graph that applies observations with
 //     exactly those semantics, tracks covering-run staleness, emits change
 //     events and encodes its state canonically (CanonicalBytes).

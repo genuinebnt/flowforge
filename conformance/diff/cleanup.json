@@ -1,0 +1,954 @@
+{
+ "id": "diff_cleanup_001",
+ "description": "diff-match-patch test vectors (testDiffCleanupMerge, testDiffCleanupSemanticLossless, testDiffCleanupSemantic) over character tokens. pass 'merge' runs cleanupMerge, 'lossless' cleanupSemanticLossless with TextScorer, 'semantic' the full CleanupSemantic with TextScorer. Ops are [kind, text] with kind '=' equal, '-' delete, '+' insert.",
+ "cleanup": [
+  {
+   "name": "merge_null",
+   "pass": "merge",
+   "input": [],
+   "expect": []
+  },
+  {
+   "name": "merge_no_change",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "-",
+     "b"
+    ],
+    [
+     "+",
+     "c"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "-",
+     "b"
+    ],
+    [
+     "+",
+     "c"
+    ]
+   ]
+  },
+  {
+   "name": "merge_equalities",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "=",
+     "b"
+    ],
+    [
+     "=",
+     "c"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "abc"
+    ]
+   ]
+  },
+  {
+   "name": "merge_deletions",
+   "pass": "merge",
+   "input": [
+    [
+     "-",
+     "a"
+    ],
+    [
+     "-",
+     "b"
+    ],
+    [
+     "-",
+     "c"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abc"
+    ]
+   ]
+  },
+  {
+   "name": "merge_insertions",
+   "pass": "merge",
+   "input": [
+    [
+     "+",
+     "a"
+    ],
+    [
+     "+",
+     "b"
+    ],
+    [
+     "+",
+     "c"
+    ]
+   ],
+   "expect": [
+    [
+     "+",
+     "abc"
+    ]
+   ]
+  },
+  {
+   "name": "merge_interweave",
+   "pass": "merge",
+   "input": [
+    [
+     "-",
+     "a"
+    ],
+    [
+     "+",
+     "b"
+    ],
+    [
+     "-",
+     "c"
+    ],
+    [
+     "+",
+     "d"
+    ],
+    [
+     "=",
+     "e"
+    ],
+    [
+     "=",
+     "f"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "ac"
+    ],
+    [
+     "+",
+     "bd"
+    ],
+    [
+     "=",
+     "ef"
+    ]
+   ]
+  },
+  {
+   "name": "merge_prefix_suffix",
+   "pass": "merge",
+   "input": [
+    [
+     "-",
+     "a"
+    ],
+    [
+     "+",
+     "abc"
+    ],
+    [
+     "-",
+     "dc"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "-",
+     "d"
+    ],
+    [
+     "+",
+     "b"
+    ],
+    [
+     "=",
+     "c"
+    ]
+   ]
+  },
+  {
+   "name": "merge_prefix_suffix_equalities",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "x"
+    ],
+    [
+     "-",
+     "a"
+    ],
+    [
+     "+",
+     "abc"
+    ],
+    [
+     "-",
+     "dc"
+    ],
+    [
+     "=",
+     "y"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "xa"
+    ],
+    [
+     "-",
+     "d"
+    ],
+    [
+     "+",
+     "b"
+    ],
+    [
+     "=",
+     "cy"
+    ]
+   ]
+  },
+  {
+   "name": "merge_slide_left",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "+",
+     "ba"
+    ],
+    [
+     "=",
+     "c"
+    ]
+   ],
+   "expect": [
+    [
+     "+",
+     "ab"
+    ],
+    [
+     "=",
+     "ac"
+    ]
+   ]
+  },
+  {
+   "name": "merge_slide_right",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "c"
+    ],
+    [
+     "+",
+     "ab"
+    ],
+    [
+     "=",
+     "a"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "ca"
+    ],
+    [
+     "+",
+     "ba"
+    ]
+   ]
+  },
+  {
+   "name": "merge_slide_left_recursive",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "-",
+     "b"
+    ],
+    [
+     "=",
+     "c"
+    ],
+    [
+     "-",
+     "ac"
+    ],
+    [
+     "=",
+     "x"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abc"
+    ],
+    [
+     "=",
+     "acx"
+    ]
+   ]
+  },
+  {
+   "name": "merge_slide_right_recursive",
+   "pass": "merge",
+   "input": [
+    [
+     "=",
+     "x"
+    ],
+    [
+     "-",
+     "ca"
+    ],
+    [
+     "=",
+     "c"
+    ],
+    [
+     "-",
+     "b"
+    ],
+    [
+     "=",
+     "a"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "xca"
+    ],
+    [
+     "-",
+     "cba"
+    ]
+   ]
+  },
+  {
+   "name": "lossless_blank_lines",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "AAA\r\n\r\nBBB"
+    ],
+    [
+     "+",
+     "\r\nDDD\r\n\r\nBBB"
+    ],
+    [
+     "=",
+     "\r\nEEE"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "AAA\r\n\r\n"
+    ],
+    [
+     "+",
+     "BBB\r\nDDD\r\n\r\n"
+    ],
+    [
+     "=",
+     "BBB\r\nEEE"
+    ]
+   ]
+  },
+  {
+   "name": "lossless_line_boundaries",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "AAA\r\nBBB"
+    ],
+    [
+     "+",
+     " DDD\r\nBBB"
+    ],
+    [
+     "=",
+     " EEE"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "AAA\r\n"
+    ],
+    [
+     "+",
+     "BBB DDD\r\n"
+    ],
+    [
+     "=",
+     "BBB EEE"
+    ]
+   ]
+  },
+  {
+   "name": "lossless_word_boundaries",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "The c"
+    ],
+    [
+     "+",
+     "ow and the c"
+    ],
+    [
+     "=",
+     "at."
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "The "
+    ],
+    [
+     "+",
+     "cow and the "
+    ],
+    [
+     "=",
+     "cat."
+    ]
+   ]
+  },
+  {
+   "name": "lossless_alphanumeric_boundaries",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "The-c"
+    ],
+    [
+     "+",
+     "ow-and-the-c"
+    ],
+    [
+     "=",
+     "at."
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "The-"
+    ],
+    [
+     "+",
+     "cow-and-the-"
+    ],
+    [
+     "=",
+     "cat."
+    ]
+   ]
+  },
+  {
+   "name": "lossless_hitting_start",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "a"
+    ],
+    [
+     "-",
+     "a"
+    ],
+    [
+     "=",
+     "ax"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "a"
+    ],
+    [
+     "=",
+     "aax"
+    ]
+   ]
+  },
+  {
+   "name": "lossless_hitting_end",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "xa"
+    ],
+    [
+     "-",
+     "a"
+    ],
+    [
+     "=",
+     "a"
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "xaa"
+    ],
+    [
+     "-",
+     "a"
+    ]
+   ]
+  },
+  {
+   "name": "lossless_sentence_boundaries",
+   "pass": "lossless",
+   "input": [
+    [
+     "=",
+     "The xxx. The "
+    ],
+    [
+     "+",
+     "zzz. The "
+    ],
+    [
+     "=",
+     "yyy."
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "The xxx."
+    ],
+    [
+     "+",
+     " The zzz."
+    ],
+    [
+     "=",
+     " The yyy."
+    ]
+   ]
+  },
+  {
+   "name": "semantic_null",
+   "pass": "semantic",
+   "input": [],
+   "expect": []
+  },
+  {
+   "name": "semantic_no_elimination_1",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "ab"
+    ],
+    [
+     "+",
+     "cd"
+    ],
+    [
+     "=",
+     "12"
+    ],
+    [
+     "-",
+     "e"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "ab"
+    ],
+    [
+     "+",
+     "cd"
+    ],
+    [
+     "=",
+     "12"
+    ],
+    [
+     "-",
+     "e"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_no_elimination_2",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "abc"
+    ],
+    [
+     "+",
+     "ABC"
+    ],
+    [
+     "=",
+     "1234"
+    ],
+    [
+     "-",
+     "wxyz"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abc"
+    ],
+    [
+     "+",
+     "ABC"
+    ],
+    [
+     "=",
+     "1234"
+    ],
+    [
+     "-",
+     "wxyz"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_simple_elimination",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "a"
+    ],
+    [
+     "=",
+     "b"
+    ],
+    [
+     "-",
+     "c"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abc"
+    ],
+    [
+     "+",
+     "b"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_backpass_elimination",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "ab"
+    ],
+    [
+     "=",
+     "cd"
+    ],
+    [
+     "-",
+     "e"
+    ],
+    [
+     "=",
+     "f"
+    ],
+    [
+     "+",
+     "g"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abcdef"
+    ],
+    [
+     "+",
+     "cdfg"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_multiple_eliminations",
+   "pass": "semantic",
+   "input": [
+    [
+     "+",
+     "1"
+    ],
+    [
+     "=",
+     "A"
+    ],
+    [
+     "-",
+     "B"
+    ],
+    [
+     "+",
+     "2"
+    ],
+    [
+     "=",
+     "_"
+    ],
+    [
+     "+",
+     "1"
+    ],
+    [
+     "=",
+     "A"
+    ],
+    [
+     "-",
+     "B"
+    ],
+    [
+     "+",
+     "2"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "AB_AB"
+    ],
+    [
+     "+",
+     "1A2_1A2"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_word_boundaries",
+   "pass": "semantic",
+   "input": [
+    [
+     "=",
+     "The c"
+    ],
+    [
+     "-",
+     "ow and the c"
+    ],
+    [
+     "=",
+     "at."
+    ]
+   ],
+   "expect": [
+    [
+     "=",
+     "The "
+    ],
+    [
+     "-",
+     "cow and the "
+    ],
+    [
+     "=",
+     "cat."
+    ]
+   ]
+  },
+  {
+   "name": "semantic_no_overlap_elimination",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "abcxx"
+    ],
+    [
+     "+",
+     "xxdef"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abcxx"
+    ],
+    [
+     "+",
+     "xxdef"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_overlap_elimination",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "abcxxx"
+    ],
+    [
+     "+",
+     "xxxdef"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abc"
+    ],
+    [
+     "=",
+     "xxx"
+    ],
+    [
+     "+",
+     "def"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_reverse_overlap_elimination",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "xxxabc"
+    ],
+    [
+     "+",
+     "defxxx"
+    ]
+   ],
+   "expect": [
+    [
+     "+",
+     "def"
+    ],
+    [
+     "=",
+     "xxx"
+    ],
+    [
+     "-",
+     "abc"
+    ]
+   ]
+  },
+  {
+   "name": "semantic_two_overlap_eliminations",
+   "pass": "semantic",
+   "input": [
+    [
+     "-",
+     "abcd1212"
+    ],
+    [
+     "+",
+     "1212efghi"
+    ],
+    [
+     "=",
+     "----"
+    ],
+    [
+     "-",
+     "A3"
+    ],
+    [
+     "+",
+     "3BC"
+    ]
+   ],
+   "expect": [
+    [
+     "-",
+     "abcd"
+    ],
+    [
+     "=",
+     "1212"
+    ],
+    [
+     "+",
+     "efghi"
+    ],
+    [
+     "=",
+     "----"
+    ],
+    [
+     "-",
+     "A"
+    ],
+    [
+     "=",
+     "3"
+    ],
+    [
+     "+",
+     "BC"
+    ]
+   ]
+  }
+ ]
+}

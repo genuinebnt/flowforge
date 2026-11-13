@@ -1,0 +1,341 @@
+{
+ "description": "An address the (stale) bootstrap sends to ARIN, which redirects (301) to RIPE through the proxy; the RIPE ip network gives IPNetRecord, Netblock (registration, contains) and the registrant / administrative organizations (individuals skipped).",
+ "input": "193.0.6.139",
+ "scope": {
+  "allow": [
+   "193.0.6.139"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://data.iana.org/rdap/ipv4.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": {
+    "description": "RDAP bootstrap file for IPv4 address allocations",
+    "publication": "2026-09-20T22:00:02Z",
+    "services": [
+     [
+      [
+       "3.0.0.0/8",
+       "8.0.0.0/8",
+       "193.0.0.0/8"
+      ],
+      [
+       "https://rdap.arin.net/registry/",
+       "http://rdap.arin.net/registry/"
+      ]
+     ],
+     [
+      [
+       "194.0.0.0/7"
+      ],
+      [
+       "https://rdap.db.ripe.net/"
+      ]
+     ]
+    ],
+    "version": "1.0"
+   }
+  },
+  {
+   "url": "https://rdap.arin.net/registry/ip/193.0.6.139",
+   "status": 301,
+   "headers": {
+    "Content-Type": "text/plain",
+    "Location": "https://rdap.db.ripe.net/ip/193.0.6.139"
+   },
+   "body_text": ""
+  },
+  {
+   "url": "https://rdap.db.ripe.net/ip/193.0.6.139",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/rdap+json"
+   },
+   "body": {
+    "objectClassName": "ip network",
+    "handle": "193.0.0.0 - 193.0.7.255",
+    "startAddress": "193.0.0.0",
+    "endAddress": "193.0.7.255",
+    "ipVersion": "v4",
+    "name": "RIPE-NCC",
+    "type": "ASSIGNED PA",
+    "country": "NL",
+    "parentHandle": "193.0.0.0 - 193.0.23.255",
+    "cidr0_cidrs": [
+     {
+      "v4prefix": "193.0.0.0",
+      "length": 21
+     }
+    ],
+    "status": [
+     "active"
+    ],
+    "port43": "whois.ripe.net",
+    "events": [
+     {
+      "eventAction": "registration",
+      "eventDate": "2003-03-17T12:15:57Z"
+     },
+     {
+      "eventAction": "last changed",
+      "eventDate": "2017-12-04T15:21:23Z"
+     }
+    ],
+    "entities": [
+     {
+      "objectClassName": "entity",
+      "handle": "ORG-RIEN1-RIPE",
+      "roles": [
+       "registrant"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "Reseaux IP Europeens Network Coordination Centre (RIPE NCC)"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "org"
+        ]
+       ]
+      ]
+     },
+     {
+      "objectClassName": "entity",
+      "handle": "BRD-RIPE",
+      "roles": [
+       "administrative",
+       "technical"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "RIPE NCC Operations"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "group"
+        ]
+       ]
+      ]
+     },
+     {
+      "objectClassName": "entity",
+      "handle": "JD1-RIPE",
+      "roles": [
+       "administrative"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "Jane Doe"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "individual"
+        ]
+       ]
+      ]
+     },
+     {
+      "objectClassName": "entity",
+      "handle": "RIPE-NCC-MNT",
+      "roles": [
+       "registrant"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "RIPE-NCC-MNT"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "individual"
+        ]
+       ]
+      ]
+     }
+    ],
+    "rdapConformance": [
+     "cidr0",
+     "rdap_level_0",
+     "nro_rdap_profile_0",
+     "redacted"
+    ]
+   }
+  }
+ ],
+ "expect": {
+  "output": [
+   {
+    "legal_name": null,
+    "name": "RIPE NCC Operations",
+    "unique_id": "rdap:BRD-RIPE"
+   },
+   {
+    "legal_name": null,
+    "name": "Reseaux IP Europeens Network Coordination Centre (RIPE NCC)",
+    "unique_id": "rdap:ORG-RIEN1-RIPE"
+   }
+  ],
+  "skipped": [],
+  "requests": [
+   "https://data.iana.org/rdap/ipv4.json",
+   "https://rdap.arin.net/registry/ip/193.0.6.139",
+   "https://rdap.db.ripe.net/ip/193.0.6.139"
+  ],
+  "dials": [],
+  "dns_queries": [],
+  "observations": [
+   {
+    "confidence": 0.9,
+    "edges": [
+     {
+      "from": "e1",
+      "relation": {
+       "label": "registration",
+       "type": "SimpleRelation"
+      },
+      "to": "e0"
+     },
+     {
+      "from": "e1",
+      "relation": {
+       "label": "contains",
+       "type": "SimpleRelation"
+      },
+      "to": "e2"
+     },
+     {
+      "from": "e0",
+      "relation": {
+       "label": "registrant",
+       "type": "SimpleRelation"
+      },
+      "to": "e3"
+     },
+     {
+      "from": "e0",
+      "relation": {
+       "label": "administrative",
+       "type": "SimpleRelation"
+      },
+      "to": "e4"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "cidr": "193.0.0.0/21",
+       "country": "NL",
+       "created_date": "2003-03-17T12:15:57.000Z",
+       "end_address": "193.0.7.255",
+       "handle": "193.0.0.0 - 193.0.7.255",
+       "ipnet_type": "ASSIGNED PA",
+       "name": "RIPE-NCC",
+       "parent_handle": "193.0.0.0 - 193.0.23.255",
+       "start_address": "193.0.0.0",
+       "status": [
+        "active"
+       ],
+       "type": "IPNetRecord",
+       "updated_date": "2017-12-04T15:21:23.000Z",
+       "whois_server": "whois.ripe.net"
+      },
+      "ref": "e0"
+     },
+     {
+      "asset": {
+       "cidr": "193.0.0.0/21",
+       "ip_version": "IPv4",
+       "type": "Netblock"
+      },
+      "ref": "e1"
+     },
+     {
+      "asset": {
+       "address": "193.0.6.139",
+       "ip_version": "IPv4",
+       "type": "IPAddress"
+      },
+      "ref": "e2"
+     },
+     {
+      "asset": {
+       "name": "Reseaux IP Europeens Network Coordination Centre (RIPE NCC)",
+       "type": "Organization",
+       "unique_id": "rdap:ORG-RIEN1-RIPE"
+      },
+      "ref": "e3"
+     },
+     {
+      "asset": {
+       "name": "RIPE NCC Operations",
+       "type": "Organization",
+       "unique_id": "rdap:BRD-RIPE"
+      },
+      "ref": "e4"
+     }
+    ],
+    "observation_id": "obs_51ZESKBC4TGPQAPRG5C1FMH7CT",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "rdap",
+     "version": "1.0.0"
+    }
+   }
+  ]
+ }
+}

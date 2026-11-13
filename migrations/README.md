@@ -19,6 +19,13 @@ and a Go runner (`migrations.Apply`).
 | `0012_graph_vectors.sql` | `graph.embeddings`, `vector_indexes`, `vector_segments` (needs pgvector) | 22.9 |
 | `0013_engine_extras.sql` | `engine.workflow_version_ext`, `run_ext`, `run_requests`, `approval_ext` (engine/pgrepo's SchemaSQL, idempotent) | 9, 10.4 (addition) |
 | `0014_notifier_delivery_target.sql` | `notifier.deliveries.target` (Slack channel override / e-mail recipient of an action) | 15.4 (addition) |
+| `0030_graph_v2.sql` | `change_events`: types `content_changed`, `tag_changed`; columns `tag_type`, `tag_name`, `base`, `cause`, `baseline` with checks; `(entity_id, seq)` and `(edge_id, seq)` indexes for AsOf reads. Idempotent. | V2 design 3.4 |
+
+Versions 0015-0029 are reserved for v1 fixes merged forward; v2
+migrations start at 0030. The runner allows gaps but rejects duplicate
+versions. It applies every unapplied file in version order, so a
+reserved-range fix that lands after 0030 was applied still runs.
+Reserved-range migrations must not depend on later ones.
 
 ## Usage
 

@@ -1,0 +1,30 @@
+{
+ "description": "crt.sh has no certificate for the name (empty array).",
+ "input": "nothing.example.com",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://crt.sh/?q=%25.nothing.example.com&output=json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": []
+  }
+ ],
+ "expect": {
+  "output": [],
+  "skipped": [],
+  "requests": [
+   "https://crt.sh/?q=%25.nothing.example.com\u0026output=json"
+  ],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

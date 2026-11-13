@@ -55,6 +55,10 @@ const (
 	GraphName      = "graph"
 	SimilarityName = "similarity"
 	NotifierName   = "notifier"
+	// SOCKSName and DNSName are the egress proxy's SOCKS5 listener and DNS
+	// forwarder (UDP and TCP on the same port).
+	SOCKSName = "egress-socks5"
+	DNSName   = "egress-dns"
 )
 
 // Options configure the stack. Zero values give an in-memory stack on
@@ -84,6 +88,18 @@ type Options struct {
 	Logger *slog.Logger
 	// Issuer of internal tokens (default "flowforge-dev").
 	Issuer string
+	// EgressPorts is the TCP port policy for host-level decisions at the
+	// egress proxy (default egressproxy.CommonPorts).
+	EgressPorts []int
+	// IntelSources is the intelligence-source allowlist (default
+	// egressproxy.DefaultIntelSources()).
+	IntelSources []egressproxy.IntelSource
+	// DNSUpstream answers the DNS forwarder (default: Resolver for A/AAAA
+	// when set, else the system resolver).
+	DNSUpstream egressproxy.Upstream
+	// EgressClock drives the proxy's per-target limiter (tests inject a
+	// fake clock; default the system clock).
+	EgressClock core.Clock
 	// TrustKeys, when set, is trusted for internal tokens in addition to
 	// the stack's own dev key. cmd/flowforge dev passes the gateway's key
 	// manager so tokens the gateway mints verify; they must carry Issuer.
@@ -119,6 +135,7 @@ type Stack struct {
 	DB            *pgxpool.Pool
 
 	cancel context.CancelFunc
+	dnsUDP net.PacketConn
 	wg     sync.WaitGroup
 	errMu  sync.Mutex
 	errs   []error
@@ -195,18 +212,41 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 		}
 	}
 	// Listen first so every address is known before services dial.
-	names := []string{ScopeName, GraphName, ToolRunnerName, EgressName, EngineName, SimilarityName, NotifierName}
+	names := []string{ScopeName, GraphName, ToolRunnerName, EgressName, EngineName, SimilarityName, NotifierName, SOCKSName, DNSName}
 	lis := map[string]net.Listener{}
+	closeAll := func() {
+		for _, x := range lis {
+			x.Close()
+		}
+	}
 	for _, n := range names {
 		l, err := net.Listen("tcp", net.JoinHostPort(o.Host, fmt.Sprint(o.Ports[n])))
 		if err != nil {
-			for _, x := range lis {
-				x.Close()
-			}
+			closeAll()
 			return fail(err)
 		}
 		lis[n] = l
 		st.Addrs[n] = l.Addr().String()
+	}
+	// The DNS forwarder also needs UDP on the TCP listener's port.
+	for attempt := 0; ; attempt++ {
+		pc, err := net.ListenPacket("udp", st.Addrs[DNSName])
+		if err == nil {
+			st.dnsUDP = pc
+			break
+		}
+		if attempt >= 5 || o.Ports[DNSName] != 0 {
+			closeAll()
+			return fail(fmt.Errorf("devstack: DNS forwarder UDP listener: %w", err))
+		}
+		lis[DNSName].Close()
+		l, err := net.Listen("tcp", net.JoinHostPort(o.Host, "0"))
+		if err != nil {
+			closeAll()
+			return fail(err)
+		}
+		lis[DNSName] = l
+		st.Addrs[DNSName] = l.Addr().String()
 	}
 	env := func(name string) *wire.Env {
 		return &wire.Env{Service: name, Logger: o.Logger.With("component", name), Metrics: metrics, Clock: clock,
@@ -238,7 +278,11 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 		return fail(err)
 	}
 	st.Proxy = proxy
+	if err := configureEgress(st, proxy, o, repo, lis); err != nil {
+		return fail(err)
+	}
 	serve(EgressName, egC)
+	st.serveEgressListeners(runCtx, proxy, lis)
 
 	trC, err := wire.ToolRunner(env(ToolRunnerName), wire.ToolRunnerOptions{ScopeAddr: st.Addrs[ScopeName],
 		EgressProxy: "http://" + st.Addrs[EgressName], Resolver: o.Resolver, ProbePorts: o.ProbePorts})
@@ -287,6 +331,62 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 		return fail(ctx.Err())
 	}
 	return st, nil
+}
+
+// configureEgress sets the egress proxy's v2 features before it serves:
+// the port policy, the intelligence-source allowlist (resolved with the
+// stack's resolver, recorded in the scope decision log), the DNS upstream
+// and the advertised SOCKS5 and DNS addresses.
+func configureEgress(st *Stack, p *egressproxy.Proxy, o Options, repo scopesvc.Repo, lis map[string]net.Listener) error {
+	ports := o.EgressPorts
+	pp := &egressproxy.PortPolicy{Default: egressproxy.CommonPorts}
+	if ports != nil {
+		pp.Default = egressproxy.Ports(ports...)
+	}
+	p.Ports = pp
+	p.Intel = o.IntelSources
+	if p.Intel == nil {
+		p.Intel = egressproxy.DefaultIntelSources()
+	}
+	p.IntelResolver = o.Resolver
+	if p.IntelResolver == nil {
+		p.IntelResolver = scopesvc.NetResolver{}
+	}
+	p.Recorder = repo
+	p.Upstream = o.DNSUpstream
+	if p.Upstream == nil {
+		if o.Resolver != nil {
+			p.Upstream = egressproxy.ResolverUpstream{Resolver: o.Resolver}
+		} else {
+			p.Upstream = egressproxy.NetUpstream{}
+		}
+	}
+	if o.EgressClock != nil {
+		p.Clock = o.EgressClock
+	}
+	p.SOCKSAddr, p.DNSAddr = st.Addrs[SOCKSName], st.Addrs[DNSName]
+	if lis[SOCKSName] == nil || lis[DNSName] == nil || st.dnsUDP == nil {
+		return errors.New("devstack: egress listeners missing")
+	}
+	return nil
+}
+
+// serveEgressListeners serves the SOCKS5 listener and the DNS forwarder.
+func (s *Stack) serveEgressListeners(ctx context.Context, p *egressproxy.Proxy, lis map[string]net.Listener) {
+	run := func(name string, f func() error) {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			if err := f(); err != nil && ctx.Err() == nil {
+				s.errMu.Lock()
+				s.errs = append(s.errs, fmt.Errorf("%s: %w", name, err))
+				s.errMu.Unlock()
+			}
+		}()
+	}
+	run(SOCKSName, func() error { return p.ServeSOCKS(ctx, lis[SOCKSName]) })
+	run(DNSName+"/udp", func() error { return p.ServeDNSUDP(ctx, s.dnsUDP) })
+	run(DNSName+"/tcp", func() error { return p.ServeDNSTCP(ctx, lis[DNSName]) })
 }
 
 // anyResolver resolves a kid with the first resolver that knows it.

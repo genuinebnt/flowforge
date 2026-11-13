@@ -1,0 +1,144 @@
+{
+  "name": "blast_v2_content",
+  "description": "Blast radius over the v2 content labels (V2 design 3.4): loads_script, loads_style and embeds are followed forward; links_to and source_map are not. Node 0 org owns FQDN 1, FQDN 1 -port-> service 10, URL 2 is the page.",
+  "nodes": 11,
+  "labels": [
+    "owns",
+    "port",
+    "loads_script",
+    "loads_style",
+    "embeds",
+    "links_to",
+    "source_map",
+    "domain"
+  ],
+  "edges": [
+    {
+      "src": 0,
+      "dst": 1,
+      "label": "owns",
+      "conf": 1
+    },
+    {
+      "src": 1,
+      "dst": 10,
+      "label": "port",
+      "conf": 1
+    },
+    {
+      "src": 2,
+      "dst": 3,
+      "label": "loads_script",
+      "conf": 1
+    },
+    {
+      "src": 2,
+      "dst": 4,
+      "label": "loads_style",
+      "conf": 1
+    },
+    {
+      "src": 4,
+      "dst": 5,
+      "label": "loads_style",
+      "conf": 1
+    },
+    {
+      "src": 2,
+      "dst": 6,
+      "label": "embeds",
+      "conf": 1
+    },
+    {
+      "src": 6,
+      "dst": 7,
+      "label": "loads_script",
+      "conf": 1
+    },
+    {
+      "src": 2,
+      "dst": 8,
+      "label": "links_to",
+      "conf": 1
+    },
+    {
+      "src": 3,
+      "dst": 9,
+      "label": "source_map",
+      "conf": 1
+    },
+    {
+      "src": 2,
+      "dst": 1,
+      "label": "domain",
+      "conf": 1
+    }
+  ],
+  "expect": {
+    "blast_radius": [
+      {
+        "start": 2,
+        "depth": 3,
+        "reach": [
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "start": 2,
+        "depth": 1,
+        "reach": [
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            6,
+            1
+          ]
+        ]
+      },
+      {
+        "start": 0,
+        "depth": 3,
+        "reach": [
+          [
+            1,
+            1
+          ],
+          [
+            10,
+            2
+          ]
+        ]
+      },
+      {
+        "start": 8,
+        "depth": 3,
+        "reach": []
+      }
+    ]
+  }
+}

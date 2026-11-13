@@ -1,0 +1,23 @@
+{
+  "description": "Assurance bounds: block nesting depth, input size, URL count. Any limit hit grades the result partial.",
+  "cases": [
+    {"name": "depth within limit", "parser": "component_value_list", "input": "((x))", "options": {"max_depth": 2},
+     "expected": [["()", ["()", ["ident", "x"]]]], "diags": [], "grade": "complete"},
+    {"name": "depth limit elides the deeper block", "parser": "component_value_list", "input": "(((x)) y)", "options": {"max_depth": 2},
+     "expected": [["()", ["()", ["error", "depth-limit"]], " ", ["ident", "y"]]], "diags": ["depth_limit"], "grade": "partial"},
+    {"name": "depth limit at the top", "parser": "component_value_list", "input": "[a] b", "options": {"max_depth": 0},
+     "expected": [["[]", ["ident", "a"]], " ", ["ident", "b"]], "grade": "complete"},
+    {"name": "elided block matches mirrors", "parser": "component_value_list", "input": "{([)])} z", "options": {"max_depth": 1},
+     "expected": [["{}", ["error", "depth-limit"]], " ", ["ident", "z"]], "diags": ["depth_limit"], "grade": "partial"},
+    {"name": "input truncated", "parser": "component_value_list", "input": "abc def", "options": {"max_input_bytes": 3},
+     "expected": [["ident", "abc"]], "diags": ["input_too_large"], "grade": "partial"},
+    {"name": "input truncated at utf-8 boundary", "parser": "component_value_list", "input": "a\u00e9b", "options": {"max_input_bytes": 2},
+     "expected": [["ident", "a"]], "diags": ["input_too_large"], "grade": "partial"},
+    {"name": "url cap", "parser": "urls", "input": "a{b:url(1) url(2) url(3)}", "options": {"max_urls": 2},
+     "urls": [{"url": "1", "form": "token", "context": "value"}, {"url": "2", "form": "token", "context": "value"}],
+     "diags": ["limit_exceeded"], "grade": "partial"},
+    {"name": "url cap not reached", "parser": "urls", "input": "a{b:url(1) url(2)}", "options": {"max_urls": 2},
+     "urls": [{"url": "1", "form": "token", "context": "value"}, {"url": "2", "form": "token", "context": "value"}],
+     "diags": [], "grade": "complete"}
+  ]
+}

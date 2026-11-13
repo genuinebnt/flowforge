@@ -48,6 +48,14 @@ type PTag struct {
 	Source      *oam.SourceProperty
 }
 
+// PAuth is a prepared authority.
+type PAuth struct {
+	Source   Endpoint
+	Profile  string
+	Complete bool
+	Covered  []string
+}
+
 // Prepared is a validated, normalized observation.
 type Prepared struct {
 	Obs      oam.Observation
@@ -56,6 +64,18 @@ type Prepared struct {
 	Entities []PEntity
 	Edges    []PEdge
 	Tags     []PTag
+	Auth     *PAuth
+	Cause    string
+	Baseline bool
+}
+
+// SourceID returns the authority source's entity id ("" without
+// authority).
+func (p *Prepared) SourceID() string {
+	if p.Auth == nil {
+		return ""
+	}
+	return p.IDOf(p.Auth.Source)
 }
 
 // Prepare validates o with oam's own rules (so errors are identical to
@@ -69,6 +89,10 @@ func Prepare(o oam.Observation) (*Prepared, error) {
 		Obs:     o,
 		Stamp:   oam.Stamp{At: o.ObservedAt.UTC(), Source: o.Tool.Name, Observation: o.ObservationID},
 		Percent: oam.ConfidencePercent(o.Confidence),
+		Cause:   o.Cause, Baseline: o.Baseline,
+	}
+	if p.Cause == oam.CauseTarget {
+		p.Cause = ""
 	}
 	refs := make(map[string]int, len(o.Entities))
 	for i, e := range o.Entities {
@@ -139,6 +163,17 @@ func Prepare(o oam.Observation) (*Prepared, error) {
 		}
 		p.Tags = append(p.Tags, pt)
 	}
+	if o.Authority != nil {
+		pa, err := oam.PrepareAuthority(*o.Authority)
+		if err != nil {
+			return nil, err
+		}
+		src, err := resolve(o.Authority.Source)
+		if err != nil {
+			return nil, err
+		}
+		p.Auth = &PAuth{Source: src, Profile: pa.Profile, Complete: pa.Complete, Covered: pa.Covered}
+	}
 	return p, nil
 }
 
@@ -170,6 +205,9 @@ func (p *Prepared) EntityIDs() []string {
 		if !t.Edge {
 			ids = append(ids, p.IDOf(t.Target))
 		}
+	}
+	if p.Auth != nil {
+		ids = append(ids, p.SourceID())
 	}
 	slices.Sort(ids)
 	return slices.Compact(ids)

@@ -57,7 +57,7 @@ type Asset interface {
 func modeledFold(typ string) bool {
 	for _, m := range []string{TypeFQDN, TypeIPAddress, TypeNetblock, TypeAutonomousSystem,
 		TypeDomainRecord, TypeIPNetRecord, TypeAutnumRecord,
-		TypeURL, TypeService, TypeTLSCertificate, TypeFile, TypeOrganization} {
+		TypeURL, TypeService, TypeTLSCertificate, TypeFile, TypeOrganization, TypeEndpoint} {
 		if strings.EqualFold(typ, m) {
 			return true
 		}
@@ -99,6 +99,8 @@ func DecodeAsset(data []byte, mode DecodeMode) (Asset, error) {
 		return decodeTyped[File](data, mode)
 	case TypeOrganization:
 		return decodeTyped[Organization](data, mode)
+	case TypeEndpoint:
+		return decodeTyped[Endpoint](data, mode)
 	}
 	var content map[string]any
 	if err := decodeJSON(data, &content, mode); err != nil {
