@@ -1,0 +1,49 @@
+{
+  "module": "sourcemap",
+  "date": "2026-11-13",
+  "commit": "a71d0b7",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "2x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkSMap01_Parse/256KiB",
+      "package": "github.com/genuinebnt/flowforge/sourcemap",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 5165828,
+        "MB/s": 63.28,
+        "allocs/op": 365,
+        "ns/op": 4202482
+      }
+    },
+    {
+      "bench_id": "BenchmarkSMap01_Parse/1024KiB",
+      "package": "github.com/genuinebnt/flowforge/sourcemap",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 21485328,
+        "MB/s": 42.63,
+        "allocs/op": 266,
+        "ns/op": 24801512
+      }
+    },
+    {
+      "bench_id": "BenchmarkSMap02_Lookup",
+      "package": "github.com/genuinebnt/flowforge/sourcemap",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 748
+      }
+    }
+  ]
+}

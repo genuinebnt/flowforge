@@ -1,0 +1,83 @@
+{
+  "module": "cssparse",
+  "date": "2026-11-13",
+  "commit": "a71d0b7",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "2x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkCSS01_Tokenize/tokenize/64KiB",
+      "package": "github.com/genuinebnt/flowforge/cssparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 1659784,
+        "MB/s": 60.53,
+        "allocs/op": 493,
+        "ns/op": 1083093
+      }
+    },
+    {
+      "bench_id": "BenchmarkCSS01_Tokenize/tokenize/256KiB",
+      "package": "github.com/genuinebnt/flowforge/cssparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 6590600,
+        "MB/s": 58.56,
+        "allocs/op": 2049,
+        "ns/op": 4477796
+      }
+    },
+    {
+      "bench_id": "BenchmarkCSS02_ParseStylesheet/stylesheet/64KiB",
+      "package": "github.com/genuinebnt/flowforge/cssparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 4642072,
+        "MB/s": 40.46,
+        "allocs/op": 505,
+        "ns/op": 1620276
+      }
+    },
+    {
+      "bench_id": "BenchmarkCSS02_ParseStylesheet/stylesheet/256KiB",
+      "package": "github.com/genuinebnt/flowforge/cssparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 18035216,
+        "MB/s": 21.31,
+        "allocs/op": 2062,
+        "ns/op": 12305344
+      }
+    },
+    {
+      "bench_id": "BenchmarkCSS03_ExtractURLs/urls/64KiB",
+      "package": "github.com/genuinebnt/flowforge/cssparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 6024272,
+        "MB/s": 18.53,
+        "allocs/op": 1909,
+        "ns/op": 3538097
+      }
+    },
+    {
+      "bench_id": "BenchmarkCSS03_ExtractURLs/urls/256KiB",
+      "package": "github.com/genuinebnt/flowforge/cssparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 23254848,
+        "MB/s": 12.72,
+        "allocs/op": 7506,
+        "ns/op": 20616374
+      }
+    }
+  ]
+}

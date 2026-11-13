@@ -1,0 +1,83 @@
+{
+  "module": "xmlparse",
+  "date": "2026-11-13",
+  "commit": "a71d0b7",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "2x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkXML01_Decode/256KiB",
+      "package": "github.com/genuinebnt/flowforge/xmlparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 210264,
+        "MB/s": 72.68,
+        "allocs/op": 20305,
+        "ns/op": 3609562
+      }
+    },
+    {
+      "bench_id": "BenchmarkXML01_Decode/1024KiB",
+      "package": "github.com/genuinebnt/flowforge/xmlparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 830408,
+        "MB/s": 110.66,
+        "allocs/op": 80596,
+        "ns/op": 9475691
+      }
+    },
+    {
+      "bench_id": "BenchmarkXML02_Parse/256KiB",
+      "package": "github.com/genuinebnt/flowforge/xmlparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 10236960,
+        "MB/s": 18.17,
+        "allocs/op": 20330,
+        "ns/op": 14437416
+      }
+    },
+    {
+      "bench_id": "BenchmarkXML02_Parse/1024KiB",
+      "package": "github.com/genuinebnt/flowforge/xmlparse",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 43600520,
+        "MB/s": 17.22,
+        "allocs/op": 80627,
+        "ns/op": 60902132
+      }
+    },
+    {
+      "bench_id": "BenchmarkSitemap01_Parse/5000entries",
+      "package": "github.com/genuinebnt/flowforge/xmlparse/sitemap",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 2388064,
+        "MB/s": 47.99,
+        "allocs/op": 25031,
+        "ns/op": 4562705
+      }
+    },
+    {
+      "bench_id": "BenchmarkSitemap01_Parse/20000entries",
+      "package": "github.com/genuinebnt/flowforge/xmlparse/sitemap",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 11483664,
+        "MB/s": 42.07,
+        "allocs/op": 100039,
+        "ns/op": 21128595
+      }
+    }
+  ]
+}

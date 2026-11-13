@@ -1,0 +1,38 @@
+{
+  "module": "dnsmsg",
+  "date": "2026-11-13",
+  "commit": "a71d0b7",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "2x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkDNS01_Decode",
+      "package": "github.com/genuinebnt/flowforge/dnsmsg",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 3696,
+        "MB/s": 49.03,
+        "allocs/op": 53,
+        "ns/op": 9361
+      }
+    },
+    {
+      "bench_id": "BenchmarkDNS02_Encode",
+      "package": "github.com/genuinebnt/flowforge/dnsmsg",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 4208,
+        "allocs/op": 68,
+        "ns/op": 19032
+      }
+    }
+  ]
+}

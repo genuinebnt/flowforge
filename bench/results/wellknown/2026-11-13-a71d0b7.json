@@ -1,0 +1,60 @@
+{
+  "module": "wellknown",
+  "date": "2026-11-13",
+  "commit": "a71d0b7",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "2x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkWK01_ParseRobots/32KiB",
+      "package": "github.com/genuinebnt/flowforge/wellknown",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 164016,
+        "MB/s": 94.89,
+        "allocs/op": 2706,
+        "ns/op": 345564
+      }
+    },
+    {
+      "bench_id": "BenchmarkWK01_ParseRobots/128KiB",
+      "package": "github.com/genuinebnt/flowforge/wellknown",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 697600,
+        "MB/s": 130.71,
+        "allocs/op": 10738,
+        "ns/op": 1004228
+      }
+    },
+    {
+      "bench_id": "BenchmarkWK02_Allowed",
+      "package": "github.com/genuinebnt/flowforge/wellknown",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 18592,
+        "allocs/op": 16,
+        "ns/op": 26891
+      }
+    },
+    {
+      "bench_id": "BenchmarkWK03_ParseSecurityTxt",
+      "package": "github.com/genuinebnt/flowforge/wellknown",
+      "iterations": 2,
+      "metrics": {
+        "B/op": 311688,
+        "MB/s": 112.93,
+        "allocs/op": 3034,
+        "ns/op": 265920
+      }
+    }
+  ]
+}

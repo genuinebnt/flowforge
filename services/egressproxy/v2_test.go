@@ -422,15 +422,23 @@ func TestEgressV2_RateLimit(t *testing.T) {
 	}
 	var open []int
 	_ = json.Unmarshal(out, &open)
-	hits := func() int64 {
+	// The targets count connections in their accept goroutines, so a count
+	// read straight after the scan can lag on a loaded machine; hits waits
+	// (bounded) for the expected value before reporting.
+	hits := func(want int64) int64 {
 		var n int64
-		for _, tt := range targets {
-			n += tt.hits.Load()
+		for deadline := time.Now().Add(2 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+			n = 0
+			for _, tt := range targets {
+				n += tt.hits.Load()
+			}
+			if n >= want || time.Now().After(deadline) {
+				return n
+			}
 		}
-		return n
 	}
-	if len(open) != 3 || hits() != 3 {
-		t.Fatalf("frozen clock: %d open, %d connections, want burst 3 (%s)", len(open), hits(), out)
+	if len(open) != 3 || hits(3) != 3 {
+		t.Fatalf("frozen clock: %d open, %d connections, want burst 3 (%s)", len(open), hits(3), out)
 	}
 	limited := e.st.Metrics.Registry.Value("ff_egress_refused_total", "rate_limited")
 	if limited != 9 {
@@ -439,8 +447,8 @@ func TestEgressV2_RateLimit(t *testing.T) {
 	e.clock.Advance(time.Second)
 	out, err = scan.Run(e.ctx, in, e.tc, &collect{})
 	_ = json.Unmarshal(out, &open)
-	if err != nil || len(open) != 2 || hits() != 5 {
-		t.Fatalf("after 1 s at 2 rps: %s %v, %d connections", out, err, hits())
+	if err != nil || len(open) != 2 || hits(5) != 5 {
+		t.Fatalf("after 1 s at 2 rps: %s %v, %d connections", out, err, hits(5))
 	}
 	// Concurrency: two tunnels open, the third is refused until one closes.
 	e = newV2(t, &pb.RateLimit{RequestsPerSecond: 100, Burst: 100, Concurrency: 2}, ports, nil)

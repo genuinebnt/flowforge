@@ -238,3 +238,63 @@ tests = { prefix = "HTMLInv", required = ["01", "02", "03", "04", "05", "06", "0
 conformance = ["third_party/html5lib-tests/tokenizer", "third_party/wpt-html-parsing", "htmlparse"]
 fuzz = ["FuzzHTMLTokenizer", "FuzzHTMLParse", "FuzzHTMLDecode"]
 bench = ["BenchmarkHTMLImpl", "BenchmarkHTMLCharRef"]
+
+[module.cssparse]
+layer = 1
+spec = ["V2_DESIGN", "CSS Syntax 3"]
+dir = "cssparse"
+depends = ["core"]
+tests = { prefix = "CSSInv", required = ["01", "02", "03", "04", "05", "06", "07", "08"] }
+conformance = ["cssparse", "third_party/css-parsing-tests"]
+fuzz = ["FuzzCSSTokenize", "FuzzCSSParse"]
+bench = ["BenchmarkCSS"]
+
+[module.xmlparse]
+layer = 1
+spec = ["V2_DESIGN", "XML 1.0, sitemaps"]
+dir = "xmlparse"
+depends = ["core"]
+tests = { prefix = "XMLInv", required = ["01", "02", "03", "04", "05", "06", "07", "08"] }
+conformance = ["xmlparse", "xmlparse/sitemap"]
+fuzz = ["FuzzXMLParse", "FuzzSitemap"]
+bench = ["BenchmarkXML", "BenchmarkSitemap"]
+
+[module.sourcemap]
+layer = 1
+spec = ["V2_DESIGN", "ECMA-426"]
+dir = "sourcemap"
+depends = ["core"]
+tests = { prefix = "SMapInv", required = ["01", "02", "03", "04", "05", "06", "07"] }
+conformance = ["sourcemap"]
+fuzz = ["FuzzSourceMap"]
+bench = ["BenchmarkSMap"]
+
+[module.wellknown]
+layer = 1
+spec = ["V2_DESIGN", "RFC 9309, RFC 9116"]
+dir = "wellknown"
+depends = ["core"]
+tests = { prefix = "WKInv", required = ["01", "02", "03", "04", "05", "06", "07"] }
+conformance = ["wellknown"]
+fuzz = ["FuzzRobots", "FuzzSecurityTxt"]
+bench = ["BenchmarkWK"]
+
+[module.dnsmsg]
+layer = 1
+spec = ["V2_DESIGN", "RFC 1035"]
+dir = "dnsmsg"
+depends = ["core"]
+tests = { prefix = "DNSInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"] }
+conformance = ["dnsmsg"]
+fuzz = ["FuzzDNSDecode"]
+bench = ["BenchmarkDNS"]
+
+[module.socks5]
+layer = 1
+spec = ["V2_DESIGN", "RFC 1928, RFC 1929"]
+dir = "socks5"
+depends = ["core"]
+tests = { prefix = "SOCKSInv", required = ["01", "02", "03", "04", "05", "06"] }
+conformance = ["socks5"]
+fuzz = ["FuzzSOCKS5"]
+bench = []
