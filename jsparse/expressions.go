@@ -10,6 +10,9 @@ func (p *parser) errNode() NodeID {
 	return p.ident("", Span{p.tok.Start, p.tok.Start})
 }
 
+// isBareArrow reports an unparenthesized arrow function: an
+// AssignmentExpression that may not be an operand, callee or tested
+// expression (`a => b || c` is not `(a => b) || c`).
 func (p *parser) isBareArrow(id NodeID) bool {
 	n := p.nd(id)
 	return n.Kind == KArrowFunctionExpression && n.Flags&NParenthesized == 0
@@ -42,7 +45,9 @@ func (p *parser) parseExpressionCover(noIn, cover bool) NodeID {
 
 // parseAssignment parses AssignmentExpression. With cover, CoverInitializedName
 // errors inside the result stay pending because the caller may still turn
-// it into a pattern.
+// it into a pattern. The left side is parsed as an expression first and
+// converted when `=` follows (13.15.1: an ObjectLiteral / ArrayLiteral
+// left of `=` is reparsed as an AssignmentPattern).
 func (p *parser) parseAssignment(noIn, cover bool) NodeID {
 	if !p.enter() {
 		p.leave()
@@ -74,6 +79,7 @@ func (p *parser) parseAssignment(noIn, cover bool) NodeID {
 	return left
 }
 
+// assignOps maps an assignment punctuator (indexed from TEq) to its Op.
 var assignOps = [...]Op{
 	TEq - TEq: OpAssign, TPlusEq - TEq: OpAddAssign, TMinusEq - TEq: OpSubAssign, TStarEq - TEq: OpMulAssign,
 	TSlashEq - TEq: OpDivAssign, TPercentEq - TEq: OpModAssign, TStarStarEq - TEq: OpExpAssign,
@@ -109,7 +115,9 @@ func (p *parser) parseYield(noIn bool) NodeID {
 }
 
 // startsExpression reports whether the current token can begin an
-// AssignmentExpression (used after yield).
+// AssignmentExpression (used after yield, to decide whether an operand
+// follows). `/` and `/=` count: they are re-lexed as a regular expression
+// by parsePrimary.
 func (p *parser) startsExpression() bool {
 	switch p.tok.Kind {
 	case TIdentifier:
@@ -144,7 +152,9 @@ func (p *parser) parseConditional(noIn bool) NodeID {
 }
 
 // binaryPrec returns the precedence and operator of the current token as a
-// binary operator, or 0.
+// binary operator, or 0: 1 for ?? up to 12 for **, following the
+// production levels of 13.6-13.13. `in` is not an operator under [~In]
+// (for heads), and escaped `in` / `instanceof` are not operators at all.
 func (p *parser) binaryPrec(noIn bool) (int, Op) {
 	switch p.tok.Kind {
 	case TQuestionQuestion:
@@ -212,7 +222,10 @@ func (p *parser) binaryPrec(noIn bool) (int, Op) {
 const precRelational = 8
 
 // parseBinary parses the binary-operator levels from ShortCircuitExpression
-// down to ExponentiationExpression by precedence climbing.
+// down to ExponentiationExpression by precedence climbing. ** is
+// right-associative (its right operand is parsed at the same level). Each
+// operator of a chain counts against MaxDepth: the loop is flat, but the
+// tree it builds is as deep as the chain.
 func (p *parser) parseBinary(minPrec int, noIn bool) NodeID {
 	if p.opts.Algorithms.Binary == BinaryCascade {
 		return p.parseBinaryCascade(max(minPrec, 1), minPrec, noIn)
@@ -377,7 +390,9 @@ func (p *parser) mixesCoalesce(op Op, operand NodeID) bool {
 	return n.Op == OpCoalesce
 }
 
-// parseUnary parses UnaryExpression and prefix UpdateExpression.
+// parseUnary parses UnaryExpression and prefix UpdateExpression. await is
+// an operator only with [+Await] (async functions, module top level) and
+// not where it is reserved as an identifier.
 func (p *parser) parseUnary(noIn bool) NodeID {
 	start := p.start()
 	var op Op
@@ -600,6 +615,9 @@ func (p *parser) parseNew() NodeID {
 	return p.done(id)
 }
 
+// newTargetAllowed reports whether new.target is valid: inside a non-arrow
+// function (arrows inherit it), including field initializers and static
+// blocks, but not at the top level.
 func (p *parser) newTargetAllowed() bool {
 	for i := len(p.fns) - 1; i >= 0; i-- {
 		c := &p.fns[i]
@@ -779,6 +797,7 @@ out:
 	return expr
 }
 
+// member builds a MemberExpression.
 func (p *parser) member(start int32, obj, prop NodeID, computed, optional bool) NodeID {
 	id := p.newNode(KMemberExpression, start)
 	n := p.nd(id)
@@ -792,6 +811,7 @@ func (p *parser) member(start int32, obj, prop NodeID, computed, optional bool) 
 	return p.done(id)
 }
 
+// call builds a CallExpression.
 func (p *parser) call(start int32, callee NodeID, args NodeList, optional bool) NodeID {
 	id := p.newNode(KCallExpression, start)
 	n := p.nd(id)
@@ -1007,7 +1027,11 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 
 // parseParenOrArrow parses CoverParenthesizedExpressionAndArrowParameterList
 // and decides between a parenthesized expression and arrow parameters by
-// the token after `)`.
+// the token after `)` (`=>` on the same line). The items are parsed as
+// AssignmentExpressions with pending cover errors; parseArrow converts
+// them to patterns, otherwise they become the (Sequence)Expression with
+// NParenthesized set. `()`, a rest element or a trailing comma are only
+// valid as arrow parameters.
 func (p *parser) parseParenOrArrow(noIn bool) NodeID {
 	start := p.start()
 	p.next()

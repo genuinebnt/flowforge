@@ -120,7 +120,11 @@ func (p *parser) parseStatementListItem(topLevel bool) NodeID {
 }
 
 // isLetDeclaration decides whether `let` starts a LexicalDeclaration: it
-// does when followed by an identifier, `[` or `{`.
+// does when followed by `[`, `{` or an identifier that is not a reserved
+// word (yield and await count as identifiers; their misuse is reported
+// as a binding error later). Otherwise `let` is an identifier reference
+// (sloppy mode), even across a line break, where ASI does not apply
+// because `let x` continues the declaration.
 func (p *parser) isLetDeclaration() bool {
 	pk := p.peek()
 	switch pk.Kind {
@@ -133,6 +137,8 @@ func (p *parser) isLetDeclaration() bool {
 	return false
 }
 
+// parseLexicalStatement parses a let/const LexicalDeclaration and its
+// semicolon.
 func (p *parser) parseLexicalStatement(kind Op) NodeID {
 	p.clearDirectLabels()
 	id := p.parseVarDecl(kind, false, false)
@@ -202,6 +208,7 @@ func (p *parser) parseStatement() NodeID {
 			p.syntaxError(CodeUnexpectedToken, "declarations are not allowed here")
 			return p.errNode()
 		case KwLet:
+			// ExpressionStatement's lookahead excludes `let [` (14.5).
 			if pk := p.peek(); pk.Kind == TLBracket {
 				p.syntaxError(CodeUnexpectedToken, "lexical declarations are not allowed here")
 				return p.errNode()
@@ -230,6 +237,7 @@ func (p *parser) parseStatement() NodeID {
 		p.next()
 		return p.done(p.newNode(KEmptyStatement, start))
 	case TIdentifier:
+		// LabelledStatement needs two tokens: Identifier `:`.
 		if isIdentifierToken(t) {
 			if pk := p.peek(); pk.Kind == TColon {
 				return p.parseLabelled()
@@ -320,8 +328,9 @@ func (p *parser) parseIf() NodeID {
 	return p.done(id)
 }
 
-// parseIfBody parses the Statement of an if; Annex B.3.4 allows a plain
-// function declaration there in sloppy mode.
+// parseIfBody parses the Statement of an if; Annex B.3.3 allows a plain
+// function declaration there in sloppy mode, treated as if it were in a
+// block of its own (hence the scope).
 func (p *parser) parseIfBody() NodeID {
 	if p.isKw(KwFunction) && !p.strict() {
 		pk := p.peek()
@@ -388,7 +397,8 @@ func (p *parser) parseDoWhile() NodeID {
 	p.expect(TLParen)
 	test := p.parseExpression(false)
 	p.expect(TRParen)
-	// 12.10.1: a semicolon is inserted after do-while if missing.
+	// 12.10.1 rule 1, third case: after the `)` of a do-while a semicolon
+	// is inserted even without a line break (`do;while(0)x` is valid).
 	p.eat(TSemicolon)
 	id := p.newNode(KDoWhileStatement, start)
 	n := p.nd(id)
@@ -478,7 +488,8 @@ func (p *parser) parseFor() NodeID {
 	return p.parseForRest(start, init)
 }
 
-// parseForRest parses `; test ; update ) body` of a C-style for.
+// parseForRest parses `; test ; update ) body` of a C-style for. The
+// header's semicolons are never inserted (12.10.1), hence expect.
 func (p *parser) parseForRest(start int32, init NodeID) NodeID {
 	p.expect(TSemicolon)
 	test, update := NoNode, NoNode
@@ -497,6 +508,9 @@ func (p *parser) parseForRest(start int32, init NodeID) NodeID {
 	return p.done(id)
 }
 
+// parseForInOf parses the rest of a for-in / for-of head and the body.
+// for-of takes an AssignmentExpression on the right, for-in an
+// Expression.
 func (p *parser) parseForInOf(start int32, left NodeID, isOf, isAwait bool) NodeID {
 	p.next() // in / of
 	if isAwait && !isOf {
@@ -523,6 +537,9 @@ func (p *parser) parseForInOf(start int32, left NodeID, isOf, isAwait bool) Node
 	return p.done(id)
 }
 
+// parseBreakContinue parses BreakStatement / ContinueStatement; the label
+// must be on the same line ([no LineTerminator here]), otherwise ASI ends
+// the statement after the keyword.
 func (p *parser) parseBreakContinue() NodeID {
 	start := p.start()
 	isBreak := p.isKw(KwBreak)
@@ -560,6 +577,8 @@ func (p *parser) parseBreakContinue() NodeID {
 	return p.done(id)
 }
 
+// parseReturn parses ReturnStatement ([no LineTerminator here] before the
+// argument).
 func (p *parser) parseReturn() NodeID {
 	start := p.start()
 	if !p.cur().returnOK {
@@ -641,6 +660,8 @@ func (p *parser) parseSwitch() NodeID {
 	return p.done(id)
 }
 
+// parseThrow parses ThrowStatement. Unlike return, a line break after
+// throw is an error, not an inserted semicolon (`throw;` is never valid).
 func (p *parser) parseThrow() NodeID {
 	start := p.start()
 	p.next()
@@ -654,6 +675,9 @@ func (p *parser) parseThrow() NodeID {
 	return p.done(id)
 }
 
+// parseTry parses TryStatement. A catch parameter shares one scope with
+// the catch block (parseBlock(false)); a simple identifier parameter gets
+// the B.3.4 scope kind, in which var may redeclare it.
 func (p *parser) parseTry() NodeID {
 	start := p.start()
 	p.next()

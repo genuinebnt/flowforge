@@ -219,7 +219,9 @@ func (p *parser) checkParamDuplicates(info *fnInfo) {
 			}
 		}
 		if i > 64 {
-			// Long lists: switch to a set to stay linear.
+			// Long lists: switch to a set to stay linear. The set is only
+			// queried, so map order does not matter; the first duplicate
+			// in source order is the one reported either way.
 			seen := make(map[string]bool, len(names))
 			for _, b := range names {
 				if seen[b.name] {

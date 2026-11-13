@@ -84,7 +84,9 @@ const (
 	scopeSimpleCatch            // catch (identifier)
 )
 
-// nameSet is a set of names, linear while small.
+// nameSet is a set of names: a slice while it holds at most 16 (cheaper
+// than hashing for the usual block), then a map. It is only ever
+// queried, never iterated, so map order cannot reach a diagnostic.
 type nameSet struct {
 	small []string
 	big   map[string]struct{}
@@ -160,11 +162,18 @@ const (
 	bindSimpleCatch                 // catch (e)
 )
 
+// functionsAsVar reports whether function declarations in s bind like
+// var (function bodies and the top level of a script) rather than like
+// let (blocks, module top level).
 func (p *parser) functionsAsVar(s *scope) bool {
 	return s.flags&scopeFunction != 0 || (!p.module && s.flags&scopeTop != 0)
 }
 
-// declare records a binding and reports redeclarations.
+// declare records a binding and reports redeclarations (the
+// LexicallyDeclaredNames / VarDeclaredNames early errors of 14.2.1,
+// 15.2.1 and 16.1.1). A var is added to every scope up to its function
+// (or the top), so a later lexical declaration in an enclosing block
+// sees it.
 func (p *parser) declare(name string, kind bindKind, span Span) {
 	if kind == bindNone || len(p.scopes) == 0 {
 		return
@@ -276,6 +285,9 @@ type classCtx struct {
 	used     []privateUse
 }
 
+// declarePrivate records a private name declared in the innermost class
+// (15.7.1): a getter and setter of the same staticness form one pair;
+// any other repeat is an error, as is #constructor.
 func (p *parser) declarePrivate(name string, kind privateKind, isStatic bool, span Span) {
 	if name == "constructor" {
 		p.early(CodePrivateName, span, "#constructor is not allowed")
@@ -297,6 +309,9 @@ func (p *parser) declarePrivate(name string, kind privateKind, isStatic bool, sp
 	c.declared = append(c.declared, privateDecl{name: name, kind: kind, isStatic: isStatic})
 }
 
+// usePrivate records a private name reference; it is resolved when the
+// class body ends (exitClass), because a name may be declared after its
+// first use.
 func (p *parser) usePrivate(name string, span Span) {
 	if len(p.classes) == 0 {
 		p.early(CodePrivateName, span, "private name #"+name+" outside a class")
@@ -338,6 +353,8 @@ type exportState struct {
 	pending []privateUse // local names of `export { x }` to resolve at the end
 }
 
+// addExportName records an ExportedName; a module may export each name
+// once (16.2.1.1).
 func (p *parser) addExportName(name string, span Span) {
 	if p.exports.names.has(name) {
 		p.early(CodeExport, span, "duplicate export '"+name+"'")
@@ -346,6 +363,9 @@ func (p *parser) addExportName(name string, span Span) {
 	p.exports.names.add(name)
 }
 
+// checkExports resolves `export { x }` local names against the module's
+// top-level declarations once the whole module is parsed (they may be
+// declared after the export).
 func (p *parser) checkExports() {
 	top := &p.scopes[0]
 	for _, u := range p.exports.pending {
@@ -358,8 +378,9 @@ func (p *parser) checkExports() {
 // ---- cover grammar ----
 
 // coverErr is an error that is cancelled if the expression containing it
-// is reinterpreted as a pattern: CoverInitializedName (13.2.5.1) and
-// duplicate __proto__ (B.3.1, which does not apply to patterns).
+// is reinterpreted as a pattern: CoverInitializedName and duplicate
+// __proto__ (both 13.2.5.1; the __proto__ rule moved out of Annex B in
+// ES2022 and, like the other, does not apply to an assignment pattern).
 type coverErr struct {
 	code Code
 	span Span

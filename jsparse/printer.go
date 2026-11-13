@@ -52,6 +52,10 @@ const (
 	pPrimary
 )
 
+// printer writes source text. stmt and expr recurse over the tree, whose
+// depth MaxDepth bounds.
+//
+// PORT: as for jsonWriter, budget the stack or make the walk iterative.
 type printer struct {
 	p      *Program
 	min    bool
@@ -1189,6 +1193,8 @@ func (w *printer) args(l NodeList) {
 	w.tok(")")
 }
 
+// template writes a template from its raw values, which re-lex to the
+// same cooked and raw values (CR was already normalized to LF in raw).
 func (w *printer) template(n *Node) {
 	quasis := w.list(n.List)
 	exprs := w.list(n.List2)
@@ -1211,6 +1217,7 @@ func (w *printer) literal(n *Node) {
 	case LitNumber:
 		switch {
 		case math.IsInf(n.Num, 1):
+			// A literal that overflowed: 1e999 re-lexes to +Inf.
 			w.tok("1e999")
 		case math.IsNaN(n.Num):
 			w.tok("NaN")
@@ -1234,7 +1241,9 @@ func (w *printer) literal(n *Node) {
 }
 
 // quoteJS returns s as a double-quoted string literal whose cooked value
-// is s (WTF-8 lone surrogates become \u escapes).
+// is s. WTF-8 lone surrogates become \u escapes (the only way to write
+// them); LS and PS are escaped too, so the output also lexes as pre-ES2019
+// code; other controls use \x escapes.
 func quoteJS(s string) string {
 	var b strings.Builder
 	b.WriteByte('"')

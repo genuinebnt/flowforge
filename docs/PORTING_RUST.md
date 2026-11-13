@@ -717,17 +717,40 @@ extractor, 200 inner documents.
   bytes, not UTF-16 code units as acorn's start/end do.*
 * *PORT: a Rust &str is valid UTF-8 by construction; the port either
   validates first (and rejects or replaces) or lexes &[u8] with this same
-  decoder to keep byte offsets identical.* Cooked template and string
-  values may hold lone surrogates: *store cooked values as Vec<u16> or
-  WTF-8 bytes and convert at the JSON boundary.*
+  decoder to keep byte offsets identical.* The lexer's decoder takes an
+  invalid byte as U+FFFD of width 1 (not htmlparse's maximal subpart) and
+  accepts three-byte surrogate encodings, which `from_utf8` rejects.
+  Cooked template and string values may hold lone surrogates: *store
+  cooked values as Vec<u16> or WTF-8 bytes and convert at the JSON
+  boundary.* An escaped surrogate pair (`\uD83D\uDE00`, also with
+  `\u{...}` for either half) is combined into one code point, so equal
+  strings have equal bytes and equal canonical JSON.
+* *PORT: Go substrings share the lexer's immutable copy of the source;*
+  in Rust borrow slices of an owned source and allocate only decoded
+  values.
 * Numbers: *Rust's str::parse::<f64> is also correctly rounded* (round
-  half to even, as NumericValue requires).
-* *PORT: the Rust borrow checker rejects* the Go parser's in-place left
-  operand rewrite in precedence climbing; restructure, keep the result.
+  half to even, as NumericValue requires). Hex/octal/binary literals up
+  to 64 bits convert from a u64 (`as f64` rounds to nearest even); longer
+  ones need a bignum, never a wrapping accumulator. Number::toString uses
+  the shortest round-tripping digits (Go `FormatFloat(f, 'e', -1)`, Rust
+  ryu).
+* Regular expressions: quantifier bounds `{n,m}` are compared as digit
+  strings (any length); Unicode property names use Go's tables (Unicode
+  15.0).
+* *PORT: `p.nd(id)` is a pointer into the arena that goes stale when a
+  node is created (Go evaluates `p.nd(id).A` before the right-hand side
+  of `p.nd(id).A = p.ident(...)`); the Rust borrow checker rejects that
+  pattern outright.* Keep ids, not references, across node creation.
 * Strict mode returns the first diagnostic; tolerant mode resynchronizes
   at statement boundaries and must give the strict tree on valid input
   (JS-INV-07) and the strict error first on invalid input (JS-INV-08).
-  `MaxDepth` 4000, code `too-deep`. Identifier tables: Unicode 15.0
+  `MaxDepth` 4000, code `too-deep`: statements, expression levels, each
+  operator of a binary chain and each subscript of a member/call chain
+  count. *PORT: the JSON writer, the printer and the parser recurse;
+  at the limit the Go parser uses up to ~16 MiB of stack, so run the Rust
+  parser on a thread with a comparable stack (or make the writers
+  iterative).* `Program.Position` builds its line table lazily (not safe
+  for concurrent first use). Identifier tables: Unicode 15.0
   ID_Start/ID_Continue (match `unicode-id-start` on that version).
 * Conformance: test262-parser-tests with the 7 + 5 listed exceptions and
   36 pass/pass-explicit mismatches.

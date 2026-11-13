@@ -9,8 +9,12 @@ import "unicode"
 //	ID_Start    = L + Nl + Other_ID_Start - Pattern_Syntax - Pattern_White_Space
 //	ID_Continue = ID_Start + Mn + Mc + Nd + Pc + Other_ID_Continue - Pattern_Syntax - Pattern_White_Space
 //
-// The Rust port uses the unicode-id-start crate, which encodes the same
-// derivation; both follow the Unicode version of their standard library.
+// PORT: the tables are those of Go's unicode package (Unicode 15.0.0 for
+// the Go releases this module builds with); a Go upgrade that changes
+// unicode.Version changes which identifiers lex. The Rust port uses the
+// unicode-id-start crate, which encodes the same derivation from its own
+// bundled tables, pinned to the same Unicode version, not to the Rust
+// standard library's.
 
 const (
 	cpLS   = 0x2028 // LINE SEPARATOR
@@ -22,7 +26,7 @@ const (
 )
 
 // asciiIdent classifies ASCII bytes: bit 0 = IdentifierStart, bit 1 =
-// IdentifierPart.
+// IdentifierPart (letters, $ and _ start; digits only continue).
 var asciiIdent = func() (t [128]uint8) {
 	for c := 'a'; c <= 'z'; c++ {
 		t[c] = 3
@@ -38,6 +42,8 @@ var asciiIdent = func() (t [128]uint8) {
 	return t
 }()
 
+// isPatternExcluded is the "- Pattern_Syntax - Pattern_White_Space" part
+// of the UAX #31 derivation.
 func isPatternExcluded(r rune) bool {
 	return unicode.Is(unicode.Pattern_Syntax, r) || unicode.Is(unicode.Pattern_White_Space, r)
 }
@@ -87,6 +93,8 @@ func isLineTerminator(r rune) bool {
 	return r == '\n' || r == '\r' || r == cpLS || r == cpPS
 }
 
+// isDecimalDigit, isHexDigit and hexVal classify ASCII bytes; hexVal is -1
+// for a non-hex byte.
 func isDecimalDigit(c byte) bool { return c >= '0' && c <= '9' }
 
 func isHexDigit(c byte) bool {

@@ -26,12 +26,12 @@ type Options struct {
 // (spec Part II 26.4, a pinned constant of the port). Each statement,
 // expression level, binary operator of a chain and member/call subscript
 // counts one. Real code, generated and minified bundles included, nests
-// far less deeply, so the limit only stops adversarial input, while it bounds the
-// recursion of the parser, the JSON writer and the printer: measured with
-// Go on amd64, the deepest constructs at this depth (parenthesized object
-// literals) need about 16 MiB of goroutine stack, nested parentheses
-// about 8 MiB. A Rust port should run the parser on a thread with a
-// comparable stack, not the default 2 MiB of a spawned thread.
+// far less deeply, so the limit only stops adversarial input; it bounds
+// the recursion of the parser, the JSON writer and the printer. Measured
+// with Go on amd64, the deepest constructs at this depth (parenthesized
+// object literals) need about 16 MiB of goroutine stack, nested
+// parentheses about 8 MiB. A Rust port should run the parser on a thread
+// with a comparable stack, not the default 2 MiB of a spawned thread.
 const DefaultMaxDepth = 4000
 
 // Parse parses src (UTF-8) as an ECMAScript 2024 Script or Module.

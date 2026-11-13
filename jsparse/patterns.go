@@ -6,6 +6,7 @@ package jsparse
 // expression they were parsed as (cover grammars), in place: the arena
 // node changes kind (ObjectExpression → ObjectPattern, ...).
 
+// patMode selects the cover-grammar conversion target.
 type patMode uint8
 
 const (
@@ -57,7 +58,11 @@ func (p *parser) checkSimpleTarget(id NodeID) {
 }
 
 // toPattern reinterprets an expression as a pattern. In binding mode the
-// bound identifiers are declared with kind.
+// bound identifiers are declared with kind. It changes kinds in place and
+// creates no nodes, so the pointer n stays valid throughout (see
+// parser.nd). A parenthesized object or array is never a pattern; a
+// parenthesized identifier or member expression is a valid assignment
+// target but not a binding.
 func (p *parser) toPattern(id NodeID, mode patMode, kind bindKind) {
 	if id == NoNode {
 		return
@@ -251,6 +256,8 @@ func (p *parser) parseBindingRest(kind bindKind, objectRest bool) NodeID {
 	return p.done(id)
 }
 
+// parseArrayBindingPattern parses ArrayBindingPattern; holes are NoNode
+// list entries (ESTree null).
 func (p *parser) parseArrayBindingPattern(kind bindKind) NodeID {
 	start := p.start()
 	p.next()
@@ -279,6 +286,8 @@ func (p *parser) parseArrayBindingPattern(kind bindKind) NodeID {
 	return p.done(id)
 }
 
+// parseObjectBindingPattern parses ObjectBindingPattern. A shorthand
+// property binds its key, which must then be a plain identifier.
 func (p *parser) parseObjectBindingPattern(kind bindKind) NodeID {
 	start := p.start()
 	p.next()

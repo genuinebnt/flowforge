@@ -244,9 +244,11 @@ const (
 	NTrailingComma                       // spread/rest element followed by a comma (internal; invalid as a rest)
 )
 
-// Node is one AST node. Which slots a kind uses is defined by the schema
-// table in astjson.go (schemas), which also names each slot's ESTree
-// field. Unused NodeID slots are NoNode.
+// Node is one AST node: 64 bytes and pointer-free (1+1 bytes of kind and
+// op, 2 of padding, then 4-byte fields and the 8-byte Num), so the arena
+// is one allocation the garbage collector does not scan. Which slots a
+// kind uses is defined by the schema table in astjson.go (schemas), which
+// also names each slot's ESTree field. Unused NodeID slots are NoNode.
 type Node struct {
 	Kind  Kind
 	Op    Op        // operator or sub-kind (see Op)
@@ -261,8 +263,9 @@ type Node struct {
 	List  NodeList
 	List2 NodeList
 	// Str is the identifier name, string value, template cooked value,
-	// regular expression pattern, BigInt digits or directive raw text, as
-	// an index into Program.Strings.
+	// regular expression pattern, BigInt text (prefix kept, separators and
+	// the n suffix removed) or directive raw text, as an index into
+	// Program.Strings.
 	Str StrID
 	// Str2 is the template raw value or the regular expression flags.
 	Str2 StrID
@@ -334,7 +337,10 @@ func (p *Program) List(l NodeList) []NodeID {
 }
 
 // Position returns the 1-based line and 0-based column (in bytes) of a
-// byte offset. Line terminators are LF, CR, CRLF, LS and PS.
+// byte offset. Line terminators are LF, CR, CRLF, LS and PS. The line
+// table is built on the first call and cached in the Program, so
+// concurrent first calls on one Program race; call it once before
+// sharing the Program between goroutines.
 func (p *Program) Position(off int32) (line, col int) {
 	if p.lineStarts == nil {
 		p.lineStarts = append(p.lineStarts, 0)
@@ -391,6 +397,7 @@ func (p *Program) ChildIDs(dst []NodeID, id NodeID) []NodeID {
 	return dst
 }
 
+// slot returns NodeID slot s (0-3: A-D) of n.
 func slot(n *Node, s uint8) NodeID {
 	switch s {
 	case 0:

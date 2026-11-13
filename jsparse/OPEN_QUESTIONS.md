@@ -136,10 +136,16 @@ diagnostic always equals the strict-mode error (JS-INV-08).
 ## 10. Depth limit
 
 Parsing is recursive. `Options.MaxDepth` (default 4000) bounds statement
-and expression nesting, counting each element of a binary-operator chain,
-so the AST depth (and the recursion of the printer and JSON writer) stays
-bounded; exceeding it is the `too-deep` diagnostic. The Rust port must use
-the same limit or deep inputs parse differently.
+and expression nesting, counting each element of a binary-operator chain
+and each member access, call or tagged template of a subscript chain, so
+the AST depth (and the recursion of the printer and JSON writer) stays
+bounded; exceeding it is the `too-deep` diagnostic. (Subscript chains
+were not counted at first: an 8 MB `x.a.a.a…` parsed and then overflowed
+the goroutine stack in `JSON`; `TestRegress_SubscriptChainDepth`.) The
+Rust port must use the same limit or deep inputs parse differently. At
+the limit the Go parser uses up to about 16 MiB of stack
+(parenthesized object literals), so the port should parse on a thread
+with a comparable stack.
 
 ## 11. Differences found in acorn
 

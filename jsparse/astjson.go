@@ -149,7 +149,8 @@ const (
 )
 
 // sortedKeys holds, per kind, the serialized keys in byte order of their
-// names: canonical JSON has sorted keys, like core.CanonicalJSON.
+// names: canonical JSON has sorted keys, like core.CanonicalJSON. Names
+// are unique per kind, so the unstable sort is deterministic.
 var sortedKeys = func() (out [kindCount][]jsonKey) {
 	for k := Kind(0); k < kindCount; k++ {
 		keys := []jsonKey{{"type", keyType}, {"start", keyStart}, {"end", keyEnd}}
@@ -197,6 +198,11 @@ func (p *Program) NodeJSON(id NodeID, opts JSONOptions) []byte {
 	return w.buf
 }
 
+// jsonWriter writes the canonical JSON. node recurses over the tree;
+// MaxDepth bounds the depth (subscript chains included).
+//
+// PORT: the Go stack grows on demand; a Rust port either makes this
+// iterative or runs it with the same stack budget as the parser.
 type jsonWriter struct {
 	p    *Program
 	opts JSONOptions
@@ -339,7 +345,15 @@ func appendJSONNumber(b []byte, f float64) []byte {
 	return append(b, NumberToString(f)...)
 }
 
-// NumberToString implements Number::toString(x) for radix 10.
+// NumberToString implements Number::toString(x) for radix 10
+// (6.1.6.1.20): the shortest digit string that round-trips, laid out
+// with the spec's thresholds (plain up to 21 integer digits, 0.000001
+// style down to n > -6, exponent form otherwise). It is also the PropName
+// of a numeric property key.
+//
+// PORT: strconv.FormatFloat(f, 'e', -1, 64) gives the shortest
+// round-tripping digits, choosing the closest (then even) candidate as the
+// spec requires; Rust's ryu or `{:e}` formatting gives the same digits.
 func NumberToString(f float64) string {
 	if math.IsNaN(f) {
 		return "NaN"
@@ -411,7 +425,10 @@ func NumberToString(f float64) string {
 
 // appendJSONString writes s as a JSON string like JSON.stringify: control
 // characters escaped, lone surrogates (WTF-8) as \uXXXX, invalid UTF-8
-// bytes as U+FFFD.
+// bytes as U+FFFD; U+2028/U+2029 and "/" are not escaped. Equal strings
+// give equal bytes only because the lexer combines escaped surrogate
+// pairs into one code point (scanEscape): a WTF-8 pair would come out as
+// two \u escapes instead of the character.
 func appendJSONString(b []byte, s string) []byte {
 	b = append(b, '"')
 	for i := 0; i < len(s); {

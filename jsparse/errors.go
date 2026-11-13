@@ -12,7 +12,9 @@ import (
 // semantics rule of ECMA-262) and limits (a configured resource bound).
 type Code uint16
 
-// Diagnostic codes. Append only; never renumber.
+// Diagnostic codes. Append only; never renumber. A new code goes before
+// codeCount; Class relies on the block order, so a code appended after
+// CodeTooDeep must be given its class there.
 const (
 	CodeNone Code = iota
 
@@ -33,7 +35,7 @@ const (
 	CodeUnexpectedEOF    // input ended inside a construct
 	CodeExpectedToken    // a specific token was required
 	CodeInvalidCover     // cover grammar not reinterpretable: CoverInitializedName, `()` without `=>`, rest with trailing comma
-	CodeNewlineForbidden // [no LineTerminator here] violated (arrow, async arrow)
+	CodeNewlineForbidden // line break after throw (the other restricted productions end at the break or report unexpected-token)
 	CodeMixedCoalesce    // ?? mixed with && or || without parentheses
 	CodeExponentUnary    // unary expression as left operand of **
 	CodeModuleItem       // import/export outside the module top level
@@ -161,7 +163,7 @@ func (c Code) String() string {
 	return fmt.Sprintf("code(%d)", uint16(c))
 }
 
-// Class returns the class of the code.
+// Class returns the class of the code, from its position in the list.
 func (c Code) Class() Class {
 	switch {
 	case c == CodeTooDeep:
