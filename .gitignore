@@ -7,3 +7,15 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+# Binaries from `go build ./cmd/<name>` run at the repository root.
+/flowforge
+/gateway
+/engine
+/scope
+/graph
+/notifier
+/similarity
+/tool-runner
+/egress-proxy
+/migrate
+/xtask
