@@ -1,0 +1,716 @@
+{
+  "description": "Hand-written diff hunks (schema DefaultSchema + stored 'note'); expected results from the brute-force reference. Scores are BM25 (k1 1.2, b 0.75, Lucene idf) over live docs; ties by at desc then id.",
+  "now": 1790000000000,
+  "max_regex_candidates": 5,
+  "tolerance": 1e-9,
+  "docs": [
+    {
+      "id": 1,
+      "text": {
+        "text": "+ const user = await getUserById(id);",
+        "url": "https://shop.example/app.js"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1790000000000
+      }
+    },
+    {
+      "id": 2,
+      "text": {
+        "text": "- fetch('/api/v1/users/' + user_id)",
+        "url": "https://shop.example/app.js"
+      },
+      "keyword": {
+        "kind": "endpoint_removed",
+        "program": "p1",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789900000000
+      }
+    },
+    {
+      "id": 3,
+      "text": {
+        "text": "+ fetch('/api/v2/users/' + userId, {headers: {Authorization: token}})",
+        "url": "https://shop.example/app.js"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1790000000000
+      }
+    },
+    {
+      "id": 4,
+      "text": {
+        "text": "Content-Security-Policy: default-src 'self'",
+        "url": "https://shop.example/"
+      },
+      "keyword": {
+        "kind": "header_changed",
+        "program": "p2",
+        "side": "removed"
+      },
+      "numeric": {
+        "at": 1789000000000
+      }
+    },
+    {
+      "id": 5,
+      "text": {
+        "text": "+ const AWS_SECRET_KEY = 'AKIAABCDEFGHIJKLMNOP'",
+        "url": "https://cdn.example/main.8f3a.js"
+      },
+      "keyword": {
+        "kind": "secret_added",
+        "program": "p2",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1790000000000
+      }
+    },
+    {
+      "id": 6,
+      "text": {
+        "text": "+ XMLHttpRequest.open('POST', '/graphql')"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1",
+        "side": "added"
+      }
+    },
+    {
+      "id": 7,
+      "text": {
+        "text": "+ const user = await getUserById(id);",
+        "url": "https://shop.example/app.js"
+      },
+      "keyword": {
+        "kind": "endpoint_added",
+        "program": "p1",
+        "side": "added"
+      },
+      "numeric": {
+        "at": 1790000100000
+      }
+    }
+  ],
+  "queries": [
+    {
+      "query": "getUserById",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 7,
+          "score": 4.423049212432048,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 4.423049212432048,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "getuserbyid",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 7,
+          "score": 1.1087226090002158,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 1.1087226090002158,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "GET_USER_BY_ID",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 7,
+          "score": 3.3143266034318324,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 3.3143266034318324,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "user",
+      "k": 10,
+      "total": 4,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0.7652969279249311,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0.7652969279249311,
+          "at": 1790000000000
+        },
+        {
+          "id": 2,
+          "score": 0.5801105035691274,
+          "at": 1789900000000
+        },
+        {
+          "id": 3,
+          "score": 0.4944535620264984,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "user_id",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 2,
+          "score": 2.8480065955239917,
+          "at": 1789900000000
+        },
+        {
+          "id": 3,
+          "score": 0.9889071240529969,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "userId",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 3,
+          "score": 2.427480621653652,
+          "at": 1790000000000
+        },
+        {
+          "id": 2,
+          "score": 1.1602210071382548,
+          "at": 1789900000000
+        }
+      ]
+    },
+    {
+      "query": "\"get user by id\"",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 7,
+          "score": 3.3143266034318324,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 3.3143266034318324,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "\"user by\"",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 7,
+          "score": 1.6571633017159162,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 1.6571633017159162,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "users api",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 2,
+          "score": 2.345492008774059,
+          "at": 1789900000000
+        },
+        {
+          "id": 3,
+          "score": 1.9991654543535142,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "\"api v2\"",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 3,
+          "score": 3.437738951954169,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "fetch -v1",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 3,
+          "score": 0.9995827271767571,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "fetch AND (v1 OR v2)",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 2,
+          "score": 5.721063185545533,
+          "at": 1789900000000
+        },
+        {
+          "id": 3,
+          "score": 4.876312449554825,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "kind:endpoint_added",
+      "k": 10,
+      "total": 4,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 3,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 6,
+          "score": 0
+        }
+      ]
+    },
+    {
+      "query": "kind:endpoint_added side:added user",
+      "k": 10,
+      "total": 3,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0.7652969279249311,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0.7652969279249311,
+          "at": 1790000000000
+        },
+        {
+          "id": 3,
+          "score": 0.4944535620264984,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "-kind:endpoint_added",
+      "k": 10,
+      "total": 3,
+      "hits": [
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 2,
+          "score": 0,
+          "at": 1789900000000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789000000000
+        }
+      ]
+    },
+    {
+      "query": "/get[A-Z]\\w+/",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "/AKIA[A-Z0-9]{16}/",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "/akia/i",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "/api\\/v\\d\\//",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 3,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 2,
+          "score": 0,
+          "at": 1789900000000
+        }
+      ]
+    },
+    {
+      "query": "url:/main\\.[0-9a-f]+\\.js/",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "since:1d",
+      "k": 10,
+      "total": 4,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 3,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "since:2d user",
+      "k": 10,
+      "total": 4,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0.7652969279249311,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0.7652969279249311,
+          "at": 1790000000000
+        },
+        {
+          "id": 2,
+          "score": 0.5801105035691274,
+          "at": 1789900000000
+        },
+        {
+          "id": 3,
+          "score": 0.4944535620264984,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "until:2026-09-01",
+      "k": 10,
+      "total": 0,
+      "hits": []
+    },
+    {
+      "query": "since:2026-09-21T00:00:00Z",
+      "k": 10,
+      "total": 4,
+      "hits": [
+        {
+          "id": 7,
+          "score": 0,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 3,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "program:p2",
+      "k": 10,
+      "total": 2,
+      "hits": [
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        },
+        {
+          "id": 4,
+          "score": 0,
+          "at": 1789000000000
+        }
+      ]
+    },
+    {
+      "query": "/./",
+      "k": 10,
+      "total": 0,
+      "hits": [],
+      "error": "REGEX_NO_TRIGRAMS"
+    },
+    {
+      "query": "kind:secret_added /./",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 5,
+          "score": 0,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "xmlhttprequest",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 6,
+          "score": 1.7912199191914775
+        }
+      ]
+    },
+    {
+      "query": "XML http",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 6,
+          "score": 3.582439838382955
+        }
+      ]
+    },
+    {
+      "query": "\"http request\"",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 6,
+          "score": 3.582439838382955
+        }
+      ]
+    },
+    {
+      "query": "url:shop",
+      "k": 10,
+      "total": 5,
+      "hits": [
+        {
+          "id": 4,
+          "score": 0.43600692298636884,
+          "at": 1789000000000
+        },
+        {
+          "id": 7,
+          "score": 0.3608538829093751,
+          "at": 1790000100000
+        },
+        {
+          "id": 1,
+          "score": 0.3608538829093751,
+          "at": 1790000000000
+        },
+        {
+          "id": 3,
+          "score": 0.3608538829093751,
+          "at": 1790000000000
+        },
+        {
+          "id": 2,
+          "score": 0.3608538829093751,
+          "at": 1789900000000
+        }
+      ]
+    },
+    {
+      "query": "url:example text:token",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 3,
+          "score": 1.6385435561559005,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "missingfield:x",
+      "k": 10,
+      "total": 0,
+      "hits": [],
+      "error": "UNKNOWN_FIELD"
+    },
+    {
+      "query": "kind:/x/",
+      "k": 10,
+      "total": 0,
+      "hits": [],
+      "error": "FIELD_TYPE"
+    },
+    {
+      "query": "authorization OR token",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 3,
+          "score": 2.877146995201311,
+          "at": 1790000000000
+        }
+      ]
+    },
+    {
+      "query": "content security policy",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 4,
+          "score": 5.3736597575744325,
+          "at": 1789000000000
+        }
+      ]
+    },
+    {
+      "query": "\"default src self\"",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 4,
+          "score": 5.3736597575744325,
+          "at": 1789000000000
+        }
+      ]
+    },
+    {
+      "query": "graphql",
+      "k": 10,
+      "total": 1,
+      "hits": [
+        {
+          "id": 6,
+          "score": 1.7912199191914775
+        }
+      ]
+    }
+  ]
+}

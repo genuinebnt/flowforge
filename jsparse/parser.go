@@ -59,7 +59,6 @@ type parser struct {
 	prevEnd  int32 // end of the previously consumed token
 	havePeek bool
 	peekTok  Token
-	peekLex  lexerState // lexer state after peekTok
 
 	nodes    []Node
 	children []NodeID
@@ -79,9 +78,13 @@ type parser struct {
 	exports   exportState
 	tmplDepth int // open template substitutions, for goal labelling
 
-	// Positions of the last await/yield identifier references, used by
+	// Position of the last `await` identifier reference, used by the
 	// async arrow parameter checks.
 	lastAwaitIdent int32
+	// bound collects the names bound by the parameter list being parsed.
+	bound *[]boundName
+	// skipping is set while resync discards tokens.
+	skipping bool
 }
 
 func newParser(src string, opts Options) *parser {
@@ -371,7 +374,8 @@ func (p *parser) parseProgram() {
 	p.pushFn(fnCtx{top: true, async: p.module, strict: p.module})
 	p.pushScope(scopeTop | scopeVarBoundary)
 	mark := len(p.scratch)
-	p.parseStatementList(TEOF, true, true)
+	p.parseDirectives(nil)
+	p.parseStatementList(TEOF, true)
 	body := p.list(mark)
 	if p.module {
 		p.checkExports()

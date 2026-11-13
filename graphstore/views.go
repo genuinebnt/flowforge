@@ -64,6 +64,8 @@ func ChangeFromOAM(ev oam.ChangeEvent) ChangeEvent {
 	return ChangeEvent{
 		ID: ev.ID, Seq: ev.Seq, TenantID: ev.TenantID, ProgramID: ev.ProgramID, Type: ev.Type,
 		EntityID: ev.EntityID, EdgeID: ev.EdgeID, RunID: ev.RunID, Patch: ev.Patch, At: ev.At,
+		TagType: ev.TagType, TagName: ev.TagName, Base: ev.Base, ContentChange: ev.ContentChange,
+		Cause: ev.Cause, Baseline: ev.Baseline,
 	}
 }
 
@@ -77,6 +79,7 @@ func StripTags(e Entity) Entity {
 var nameFields = map[string]string{
 	oam.PropertySimple: "name", oam.PropertyFlowforge: "name",
 	oam.PropertyDNSRecord: "property_name", oam.PropertyVuln: "id",
+	oam.PropertyContent: "profile", oam.PropertyHTTPHeader: "name", oam.PropertyParameter: "name",
 }
 
 // TagProperty builds and validates the property of an AddTagRequest.
@@ -102,23 +105,22 @@ func TagProperty(req AddTagRequest) (oam.Property, error) {
 	if err != nil {
 		return nil, Classify(err)
 	}
-	ptype, name, _, err := oam.SplitProperty(p)
+	_, name, stored, err := oam.SplitProperty(p)
 	if err != nil {
 		return nil, Classify(err)
+	}
+	if v, ok := stored[field].(string); ok && req.PropertyType == oam.PropertyParameter {
+		name = v // the tag name is "<location>:<name>"; Name is the parameter name
 	}
 	if req.Name != "" && strings.TrimSpace(req.Name) != name {
 		return nil, InvalidArgument("name", "name %q does not match the property's %q", req.Name, name)
 	}
-	_ = ptype
 	return p, nil
 }
 
 // ValidateChangeTypes checks a change-type filter.
 func ValidateChangeTypes(types []oam.ChangeType) error {
-	known := []oam.ChangeType{
-		oam.ChangeEntityAdded, oam.ChangeEntityChanged, oam.ChangeEntityStale, oam.ChangeEntityReactivated,
-		oam.ChangeEdgeAdded, oam.ChangeEdgeRemoved, oam.ChangeScopeStatusChanged,
-	}
+	known := oam.ChangeTypes()
 	for _, t := range types {
 		if !slices.Contains(known, t) {
 			return InvalidArgument("types", "unknown change type %q", t)

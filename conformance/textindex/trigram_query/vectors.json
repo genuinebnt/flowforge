@@ -1,0 +1,117 @@
+{
+  "description": "Regex -> canonical trigram query (Cox 2012, codesearch rules, ASCII-folded trigrams; see README 'Regex queries'). A port may emit an equivalent or weaker query; these vectors pin the Go reference.",
+  "cases": [
+    {
+      "regex": "abc",
+      "query": "(and \"abc\")"
+    },
+    {
+      "regex": "abcd",
+      "query": "(and \"abc\" \"bcd\")"
+    },
+    {
+      "regex": "abc|xyz",
+      "query": "(or \"abc\" \"xyz\")"
+    },
+    {
+      "regex": "get[A-Z]\\w+",
+      "query": "(and \"get\")"
+    },
+    {
+      "regex": "(?:api|graphql)/v2",
+      "query": "(and (or \"api\" (and \"aph\" \"gra\" \"hql\" \"phq\" \"rap\")) (or (and \"/v2\" \"i/v\" \"pi/\") (and \"/v2\" \"l/v\" \"ql/\")))"
+    },
+    {
+      "regex": "fetch.*json",
+      "query": "(and \"etc\" \"fet\" \"jso\" \"son\" \"tch\")"
+    },
+    {
+      "regex": "ab",
+      "query": "ALL"
+    },
+    {
+      "regex": ".",
+      "query": "ALL"
+    },
+    {
+      "regex": "a*",
+      "query": "ALL"
+    },
+    {
+      "regex": "[a-z]_",
+      "query": "ALL"
+    },
+    {
+      "regex": "tok(en)?",
+      "query": "(or \"tok\" (and \"ken\" \"oke\" \"tok\"))"
+    },
+    {
+      "regex": "user",
+      "flags": "i",
+      "query": "(and (or \"ser\" \"\\xbfer\") (or \"use\" (and \"u\\xc5\\xbf\" \"\\xc5\\xbfe\")))"
+    },
+    {
+      "regex": "Kelvin",
+      "flags": "i",
+      "query": "(and \"elv\" \"lvi\" \"vin\" (or \"kel\" (and \"\\x84\\xaae\" \"\\xaael\" \"\\xe2\\x84\\xaa\")))"
+    },
+    {
+      "regex": "straße",
+      "flags": "i",
+      "query": "(and \"tra\" (or \"\\xba\\x9ee\" \"\\xc3\\x9fe\") (or \"str\" (and \"\\xbftr\" \"\\xc5\\xbft\")) (or (and \"a\\xc3\\x9f\" \"ra\\xc3\") (and \"a\\xe1\\xba\" \"ra\\xe1\" \"\\xe1\\xba\\x9e\")))"
+    },
+    {
+      "regex": "(abc)+",
+      "query": "(and \"abc\")"
+    },
+    {
+      "regex": "(abc){2,3}",
+      "query": "(and \"abc\" \"bca\" \"cab\")"
+    },
+    {
+      "regex": "^https?://[^/]+/admin",
+      "query": "(and \"/ad\" \"adm\" \"dmi\" \"htt\" \"min\" \"ttp\" (or (and \"://\" \"p:/\" \"tp:\") (and \"://\" \"ps:\" \"s:/\")))"
+    },
+    {
+      "regex": "secret_?key",
+      "flags": "i",
+      "query": "(and \"cre\" \"ecr\" \"ret\" (or \"key\" (and \"\\x84\\xaae\" \"\\xaaey\" \"\\xe2\\x84\\xaa\")) (or \"sec\" (and \"\\xbfec\" \"\\xc5\\xbfe\")) (or (and \"_\\xe2\\x84\" \"t_\\xe2\") (and \"_ke\" \"t_k\") (and \"et\\xe2\" \"t\\xe2\\x84\") (and \"etk\" \"tke\")))"
+    },
+    {
+      "regex": "a�b",
+      "query": "ALL"
+    },
+    {
+      "regex": "[\\x{fff0}-\\x{ffff}]abc",
+      "query": "(and \"abc\")"
+    },
+    {
+      "regex": "x+y+z+",
+      "query": "ALL"
+    },
+    {
+      "regex": "abc|",
+      "query": "ALL"
+    },
+    {
+      "regex": "(a|b)(c|d)(e|f)",
+      "query": "(or \"ace\" \"acf\" \"ade\" \"adf\" \"bce\" \"bcf\" \"bde\" \"bdf\")"
+    },
+    {
+      "regex": "\\bid\\b",
+      "query": "ALL"
+    },
+    {
+      "regex": "[^a]bcd",
+      "query": "(and \"bcd\")"
+    },
+    {
+      "regex": "(?s)a.b.c",
+      "query": "ALL"
+    },
+    {
+      "regex": "aws_access_key_id\\s*=\\s*[A-Z0-9]{20}",
+      "query": "(and \"_ac\" \"_id\" \"_ke\" \"acc\" \"aws\" \"cce\" \"ces\" \"ess\" \"ey_\" \"key\" \"s_a\" \"s_k\" \"ss_\" \"ws_\" \"y_i\")"
+    }
+  ]
+}

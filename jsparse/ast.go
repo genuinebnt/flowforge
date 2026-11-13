@@ -221,7 +221,7 @@ func (o Op) String() string {
 }
 
 // NodeFlags are boolean ESTree fields plus parser-internal facts.
-type NodeFlags uint16
+type NodeFlags uint32
 
 // Node flags.
 const (
@@ -241,6 +241,7 @@ const (
 	NDirective                           // expression statement is a directive (Str holds its raw text)
 	NParenthesized                       // written in parentheses (not part of ESTree; printer and cover grammar use it)
 	NStrict                              // function or program body is strict mode code
+	NTrailingComma                       // spread/rest element followed by a comma (internal; invalid as a rest)
 )
 
 // Node is one AST node. Which slots a kind uses is defined by the schema

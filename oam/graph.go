@@ -137,7 +137,7 @@ type entityState struct {
 	scope          ScopeStatus
 	// heads are the authority units of which this entity is the source,
 	// by unitKey(profile, family).
-	heads map[string]*authHead
+	heads map[string]*AuthUnit
 }
 
 type edgeState struct {
@@ -434,7 +434,7 @@ func (g *Graph) commit(o Observation, p *prepared, ids []string) Result {
 		r.tag(t, p.stamp, !auth)
 		if auth {
 			fam := FamilyOfProperty(t.ptype)
-			units[fam] = append(units[fam], tagMember(t.ptype, t.name))
+			units[fam] = append(units[fam], TagMember(t.ptype, t.name))
 		}
 	}
 	if p.auth != nil {

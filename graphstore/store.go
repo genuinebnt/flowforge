@@ -118,4 +118,22 @@ type Store interface {
 	// LatestSnapshot returns the catalogue entry with the highest
 	// watermark (NOT_FOUND when there is none).
 	LatestSnapshot(ctx context.Context, c Caller, programID string) (SnapshotInfo, error)
+	// RecordContentChange appends a content_changed event for an entity
+	// (V2 §3.4). It changes no graph state and is idempotent per (entity,
+	// snapshot_from, snapshot_to, diff_id): a repeat returns the first
+	// event.
+	RecordContentChange(ctx context.Context, c Caller, req ContentChange) (ChangeEvent, error)
+	// GetEntityAsOf reconstructs an entity right after change event
+	// req.Seq by replaying its change events: content, scope status,
+	// state and (with IncludeTags) non-source tags. Confidence, times,
+	// runs and SourceProperty tags are not reconstructed and are zero.
+	// NOT_FOUND when the entity did not exist yet.
+	GetEntityAsOf(ctx context.Context, c Caller, req GetEntityAsOfRequest) (Entity, error)
+	// NeighborsAsOf runs Neighbors on the graph as of req.Seq (entity and
+	// edge existence and state replayed from change events; entities
+	// carry their content and scope status as of Seq, edges no content).
+	NeighborsAsOf(ctx context.Context, c Caller, req NeighborsAsOfRequest) (Subgraph, error)
+	// Commonness counts the distinct sources and holder hosts of an
+	// entity (V2 §3.4).
+	Commonness(ctx context.Context, c Caller, req CommonnessRequest) (Commonness, error)
 }

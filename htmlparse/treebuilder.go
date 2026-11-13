@@ -99,8 +99,13 @@ type treeBuilder struct {
 
 	textBuf map[NodeID][]byte // Text nodes that received more than one piece
 
-	maxDepth int
-	errs     []ParseError
+	// templateHost maps a template contents fragment to its template
+	// element plus one (0: not a template contents fragment).
+	templateHost map[NodeID]NodeID
+
+	maxDepth    int
+	errs        []ParseError
+	metaCharset string // encoding declared by the first <meta charset> in head
 }
 
 func newTreeBuilder(doc *Document, tz *Tokenizer, opts Options) *treeBuilder {
@@ -724,6 +729,12 @@ func (b *treeBuilder) insertionLocation(override stackEntry) (NodeID, NodeID) {
 func (b *treeBuilder) createElement(name string, tag tagID, ns Namespace, attrs []Attr, span Span) NodeID {
 	id := b.doc.NewElement(ns, name, attrs)
 	b.doc.Nodes[id].Span = span
+	if c := b.doc.Nodes[id].Content; c != None {
+		if b.templateHost == nil {
+			b.templateHost = map[NodeID]NodeID{}
+		}
+		b.templateHost[c] = id + 1
+	}
 	return id
 }
 

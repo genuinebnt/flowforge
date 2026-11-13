@@ -24,21 +24,25 @@ import (
 // (spec 23.5): a complete reading only replaces the unit when it is
 // newer than the current one, and a partial reading only adds members
 // when it is newer than the latest complete one.
-type authHead struct {
-	hasComplete bool
-	complete    Stamp
-	members     map[string]bool  // the latest complete reading
-	partial     map[string]Stamp // member -> newest partial reading newer than complete
+//
+// AuthUnit is that bookkeeping; the Postgres store persists it as a
+// hidden tag row on the source entity.
+type AuthUnit struct {
+	HasComplete bool
+	Complete    Stamp
+	Members     map[string]bool  // the latest complete reading
+	Partial     map[string]Stamp // member -> newest partial reading newer than Complete
 }
 
-// unitKey names a unit of a source entity.
-func unitKey(profile, family string) string { return profile + "/" + family }
+// UnitKey names a unit of a source entity: "<profile>/<family>".
+func UnitKey(profile, family string) string { return profile + "/" + family }
 
-// tagMember is the member string of a tag in a unit.
-func tagMember(ptype, name string) string { return "t:" + ptype + "/" + name }
+// TagMember is the member string of a tag in a unit: "t:<type>/<name>".
+// Edge members are edge ids.
+func TagMember(ptype, name string) string { return "t:" + ptype + "/" + name }
 
-// parseTagMember is the inverse of tagMember.
-func parseTagMember(m string) (ptype, name string, ok bool) {
+// ParseTagMember is the inverse of TagMember.
+func ParseTagMember(m string) (ptype, name string, ok bool) {
 	rest, ok := strings.CutPrefix(m, "t:")
 	if !ok {
 		return "", "", false
@@ -46,44 +50,80 @@ func parseTagMember(m string) (ptype, name string, ok bool) {
 	return strings.Cut(rest, "/")
 }
 
-func newAuthHead() *authHead {
-	return &authHead{members: map[string]bool{}, partial: map[string]Stamp{}}
+// NewAuthUnit returns an empty unit.
+func NewAuthUnit() *AuthUnit {
+	return &AuthUnit{Members: map[string]bool{}, Partial: map[string]Stamp{}}
 }
 
-func (h *authHead) effective() map[string]bool {
-	out := maps.Clone(h.members)
-	for m := range h.partial {
+// Effective returns the unit's effective member set.
+func (h *AuthUnit) Effective() map[string]bool {
+	out := maps.Clone(h.Members)
+	if out == nil {
+		out = map[string]bool{}
+	}
+	for m := range h.Partial {
 		out[m] = true
 	}
 	return out
 }
 
-// apply records one reading of the unit.
-func (h *authHead) apply(s Stamp, members []string, complete bool) {
+// Apply records one reading (its stamp, the members it reports, and
+// whether it is complete for the unit's family).
+func (h *AuthUnit) Apply(s Stamp, members []string, complete bool) {
+	if h.Members == nil {
+		h.Members = map[string]bool{}
+	}
+	if h.Partial == nil {
+		h.Partial = map[string]Stamp{}
+	}
 	if complete {
-		if h.hasComplete && s.Compare(h.complete) <= 0 {
+		if h.HasComplete && s.Compare(h.Complete) <= 0 {
 			return
 		}
-		h.hasComplete, h.complete = true, s
-		h.members = map[string]bool{}
+		h.HasComplete, h.Complete = true, s
+		h.Members = map[string]bool{}
 		for _, m := range members {
-			h.members[m] = true
+			h.Members[m] = true
 		}
-		for m, ps := range h.partial {
+		for m, ps := range h.Partial {
 			if ps.Compare(s) <= 0 {
-				delete(h.partial, m)
+				delete(h.Partial, m)
 			}
 		}
 		return
 	}
-	if h.hasComplete && s.Compare(h.complete) <= 0 {
+	if h.HasComplete && s.Compare(h.Complete) <= 0 {
 		return
 	}
 	for _, m := range members {
-		if ps, ok := h.partial[m]; !ok || s.Compare(ps) > 0 {
-			h.partial[m] = s
+		if ps, ok := h.Partial[m]; !ok || s.Compare(ps) > 0 {
+			h.Partial[m] = s
 		}
 	}
+}
+
+// UnitFamilies returns the families an authoritative observation reports
+// to, sorted: those of its authoritative edges and tags, plus (when it
+// is complete) its covered rules.
+func UnitFamilies(reported map[string][]string, complete bool, covered []string) []string {
+	fams := slices.Collect(maps.Keys(reported))
+	if complete {
+		fams = append(fams, covered...)
+	}
+	slices.Sort(fams)
+	return slices.Compact(fams)
+}
+
+// SetProfile adds (in) or removes p in a sorted profile list.
+func SetProfile(list []string, p string, in bool) []string {
+	i, found := slices.BinarySearch(list, p)
+	switch {
+	case in && !found:
+		return slices.Insert(list, i, p)
+	case !in && found:
+		return slices.Delete(list, i, i+1)
+	}
+	return list
 }
 
 // tagRef names one tag of one target.
@@ -135,26 +175,21 @@ func (tx *authTx) snapTag(ref tagRef, r *record) {
 // applyAuthority reports the observation's authoritative edges and tags
 // (by family) to the source's units and updates memberships.
 func (tx *authTx) applyAuthority(src *entityState, p *prepared, units map[string][]string) {
-	fams := slices.Collect(maps.Keys(units))
-	if p.auth.complete {
-		fams = append(fams, p.auth.covered...)
-	}
-	slices.Sort(fams)
-	fams = slices.Compact(fams)
+	fams := UnitFamilies(units, p.auth.complete, p.auth.covered)
 	if src.heads == nil {
-		src.heads = map[string]*authHead{}
+		src.heads = map[string]*AuthUnit{}
 	}
 	for _, fam := range fams {
 		complete := p.auth.complete && slices.Contains(p.auth.covered, fam)
-		k := unitKey(p.auth.profile, fam)
+		k := UnitKey(p.auth.profile, fam)
 		h := src.heads[k]
 		if h == nil {
-			h = newAuthHead()
+			h = NewAuthUnit()
 			src.heads[k] = h
 		}
-		before := h.effective()
-		h.apply(p.stamp, units[fam], complete)
-		after := h.effective()
+		before := h.Effective()
+		h.Apply(p.stamp, units[fam], complete)
+		after := h.Effective()
 		all := slices.Collect(maps.Keys(before))
 		for m := range after {
 			all = append(all, m)
@@ -170,11 +205,11 @@ func (tx *authTx) applyAuthority(src *entityState, p *prepared, units map[string
 
 // setMember adds or removes profile from a member's authIn.
 func (tx *authTx) setMember(src *entityState, profile, m string, in bool) {
-	if ptype, name, ok := parseTagMember(m); ok {
+	if ptype, name, ok := ParseTagMember(m); ok {
 		ref := tagRef{target: src.id, ptype: ptype, name: name}
 		tx.snapTag(ref, &src.record)
 		if ts, ok := src.tags[tagKey{ptype, name}]; ok {
-			ts.authIn = setProfile(ts.authIn, profile, in)
+			ts.authIn = SetProfile(ts.authIn, profile, in)
 		}
 		return
 	}
@@ -183,7 +218,7 @@ func (tx *authTx) setMember(src *entityState, profile, m string, in bool) {
 		return
 	}
 	was := len(ed.authIn) > 0
-	ed.authIn = setProfile(ed.authIn, profile, in)
+	ed.authIn = SetProfile(ed.authIn, profile, in)
 	tx.touchedEdge[m] = true
 	if is := len(ed.authIn) > 0; is != was {
 		if t, ok := tx.g.entities[ed.to]; ok {
@@ -195,18 +230,6 @@ func (tx *authTx) setMember(src *entityState, profile, m string, in bool) {
 			tx.touchedEnt[ed.to] = true
 		}
 	}
-}
-
-// setProfile adds (in) or removes p in a sorted profile list.
-func setProfile(list []string, p string, in bool) []string {
-	i, found := slices.BinarySearch(list, p)
-	switch {
-	case in && !found:
-		return slices.Insert(list, i, p)
-	case !in && found:
-		return slices.Delete(list, i, i+1)
-	}
-	return list
 }
 
 // settle recomputes the state of every touched record and emits the
