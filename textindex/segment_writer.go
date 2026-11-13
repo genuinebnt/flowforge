@@ -466,7 +466,7 @@ func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
 		out = le32(out, crc32c(sec[id]))
 	}
 	out = le64(out, uint64(dirOff))
-	out = le32(out, crc32c(out[:len(out)-8]))
+	out = le32(out, crc32c(out))
 	out = append(out, segEndMagic...)
 	return out, nil
 }

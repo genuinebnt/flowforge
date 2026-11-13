@@ -50,7 +50,7 @@ func Serialize(toks []Token) []byte {
 			writeURL(&b, t.Value)
 			b.WriteByte(')')
 		case TokenBadURL:
-			b.WriteString("url(())")
+			b.WriteString("url(()")
 		case TokenDelim:
 			if t.Value == "\\" {
 				b.WriteString("\\\n")

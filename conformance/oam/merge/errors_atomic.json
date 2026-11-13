@@ -41,7 +41,9 @@
     "changes": [
       {"type": "entity_added", "entity": "fqdn:api.acme.com"},
       {"type": "entity_added", "entity": "url:https://api.acme.com/"},
-      {"type": "edge_added", "edge": {"from": "url:https://api.acme.com/", "label": "domain", "to": "fqdn:api.acme.com"}}
+      {"type": "edge_added", "edge": {"from": "url:https://api.acme.com/", "label": "domain", "to": "fqdn:api.acme.com"}},
+      {"type": "tag_changed", "entity": "url:https://api.acme.com/", "tag": "SimpleProperty/title",
+       "patch": [{"op": "add", "path": "", "value": {"name": "title", "value": "Acme API"}}]}
     ]
   }
 }

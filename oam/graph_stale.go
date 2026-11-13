@@ -83,8 +83,10 @@ func (g *Graph) CompleteRun(r CoveringRun) (StaleResult, error) {
 	return res, nil
 }
 
-// cover applies one covering run of tool to r and reports whether r
-// became stale.
+// cover applies one covering run of tool to r and reports whether r's
+// state changed (it can only become stale). The classic support becomes
+// stale once every tool that covered r has missed it n times; r stays
+// active while it has authoritative support.
 func (r *record) cover(tool, run string, n int) bool {
 	lr, ok := r.lastRun[tool]
 	if !ok {
@@ -95,14 +97,15 @@ func (r *record) cover(tool, run string, n int) bool {
 	} else {
 		r.missed[tool]++
 	}
-	if r.state != StateActive {
-		return false
-	}
-	for _, m := range r.missed {
-		if m < n {
-			return false
+	if !r.classicStale {
+		stale := true
+		for _, m := range r.missed {
+			if m < n {
+				stale = false
+				break
+			}
 		}
+		r.classicStale = stale
 	}
-	r.state = StateStale
-	return true
+	return r.settle()
 }

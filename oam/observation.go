@@ -388,6 +388,9 @@ func (o Observation) prepare() (*prepared, error) {
 		entities: make([]preparedEntity, 0, len(o.Entities)),
 		cause:    o.Cause, baseline: o.Baseline,
 	}
+	if p.cause == CauseTarget {
+		p.cause = ""
+	}
 	refs := make(map[string]int, len(o.Entities))
 	for i, e := range o.Entities {
 		path := fmt.Sprintf("entities[%d]", i)

@@ -57,7 +57,8 @@ type Node struct {
 	// prelude of a rule, the value of a declaration, the contents of a
 	// block or function, or the items of a root.
 	FirstChild, LastChild, NextSibling NodeID
-	// Block is the {} block of a rule. For a NodeBlockContents root made
+	// Block is the {} block of a rule (a DiagDepthLimit NodeError when the
+	// depth limit elided it). For a NodeBlockContents root made
 	// by ParseBlockContents it is the block that was re-parsed.
 	Block NodeID
 	// Token is the token index of the node's defining token, or -1.
@@ -718,9 +719,17 @@ func (d *Document) depth(id NodeID) int {
 // ParseBlockContents parses the contents of the {} block node block with
 // the current ED's "consume a block's contents" and returns a new
 // NodeBlockContents root (its Block field names the source block). The
-// new nodes are appended to d.Nodes; d.Root is unchanged.
+// new nodes are appended to d.Nodes; d.Root is unchanged. A block elided
+// by the depth limit (a NodeError) yields an empty root.
 func (d *Document) ParseBlockContents(block NodeID) NodeID {
 	b := &d.Nodes[block]
+	if b.Kind != NodeSimpleBlock {
+		r := NodeID(len(d.Nodes))
+		d.Nodes = append(d.Nodes, Node{Kind: NodeBlockContents, Parent: NoNode, FirstChild: NoNode,
+			LastChild: NoNode, NextSibling: NoNode, Block: block, Token: -1, CloseToken: -1,
+			Start: b.Start, End: b.Start})
+		return r
+	}
 	end := b.CloseToken
 	if end < 0 {
 		end = int32(len(d.Tokens))

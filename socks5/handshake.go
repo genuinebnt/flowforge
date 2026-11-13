@@ -21,8 +21,9 @@ func readMsg[T any](r io.Reader, parse func([]byte) (T, int, error)) (T, error) 
 			var zero T
 			return zero, err // impossible for the parsers of this package
 		}
-		buf = slices.Grow(buf, need-len(buf))[:need]
-		if _, err := io.ReadFull(r, buf[len(buf)-(need-len(buf[:len(buf)-0])):]); err != nil {
+		old := len(buf)
+		buf = slices.Grow(buf, need-old)[:need]
+		if _, err := io.ReadFull(r, buf[old:]); err != nil {
 			var zero T
 			return zero, err
 		}

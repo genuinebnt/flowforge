@@ -144,6 +144,9 @@ func (r *record) tagViews() []Tag {
 		})
 	}
 	for k, t := range r.tags {
+		if !t.visible() {
+			continue
+		}
 		out = append(out, Tag{PropertyType: k.ptype, Name: k.name, Content: cloneObject(t.content.Values), CreatedAt: t.created, LastSeen: t.lastSeen})
 	}
 	slices.SortFunc(out, func(a, b Tag) int {

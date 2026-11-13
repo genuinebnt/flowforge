@@ -111,22 +111,22 @@ type Code string
 
 // Error codes.
 const (
-	CodeShort              Code = "short"                // more octets are needed (see Error.Need)
-	CodeBadVersion         Code = "bad_version"          // VER is not 5 (or 1 for RFC 1929)
-	CodeNoMethods          Code = "no_methods"           // NMETHODS is 0
-	CodeEmptyUsername      Code = "empty_username"       // ULEN is 0
-	CodeEmptyPassword      Code = "empty_password"       // PLEN is 0
-	CodeBadReserved        Code = "bad_reserved"         // RSV is not 0
-	CodeBadCommand         Code = "bad_command"          // CMD is not 1, 2 or 3
-	CodeBadAddressType     Code = "bad_address_type"     // ATYP is not 1, 3 or 4
-	CodeEmptyDomain        Code = "empty_domain"         // a domain address of length 0
-	CodeBadReplyCode       Code = "bad_reply_code"       // REP above 8
-	CodeTooLong            Code = "too_long"             // encoding a field over 255 octets
-	CodeBadAddress         Code = "bad_address"          // encoding an address whose fields do not match its type
-	CodeNoAcceptableMethod Code = "no_acceptable_method" // handshake: no common method
-	CodeAuthFailed         Code = "auth_failed"          // handshake: credentials refused
+	CodeShort              Code = "short"                 // more octets are needed (see Error.Need)
+	CodeBadVersion         Code = "bad_version"           // VER is not 5 (or 1 for RFC 1929)
+	CodeNoMethods          Code = "no_methods"            // NMETHODS is 0
+	CodeEmptyUsername      Code = "empty_username"        // ULEN is 0
+	CodeEmptyPassword      Code = "empty_password"        // PLEN is 0
+	CodeBadReserved        Code = "bad_reserved"          // RSV is not 0
+	CodeBadCommand         Code = "bad_command"           // CMD is not 1, 2 or 3
+	CodeBadAddressType     Code = "bad_address_type"      // ATYP is not 1, 3 or 4
+	CodeEmptyDomain        Code = "empty_domain"          // a domain address of length 0
+	CodeBadReplyCode       Code = "bad_reply_code"        // REP above 8
+	CodeTooLong            Code = "too_long"              // encoding a field over 255 octets
+	CodeBadAddress         Code = "bad_address"           // encoding an address whose fields do not match its type
+	CodeNoAcceptableMethod Code = "no_acceptable_method"  // handshake: no common method
+	CodeAuthFailed         Code = "auth_failed"           // handshake: credentials refused
 	CodeCommandRefused     Code = "command_not_supported" // handshake: BIND, UDP ASSOCIATE or unknown command
-	CodeRequestFailed      Code = "request_failed"       // handshake: the server replied with a failure
+	CodeRequestFailed      Code = "request_failed"        // handshake: the server replied with a failure
 )
 
 // Error is a codec or handshake failure.

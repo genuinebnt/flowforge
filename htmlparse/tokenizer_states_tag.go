@@ -1,5 +1,7 @@
 package htmlparse
 
+import "unicode/utf8"
+
 // Tag states: HTML §13.2.5.6-8 (tag open, end tag open, tag name) and
 // §13.2.5.32-40 (attribute states and the self-closing start tag state).
 
@@ -324,34 +326,8 @@ func (t *Tokenizer) selfClosingStartTagState() {
 
 // appendRune appends the UTF-8 encoding of c.
 func appendRune(b []byte, c rune) []byte {
-	if c < 0x80 {
+	if c < utf8.RuneSelf {
 		return append(b, byte(c))
 	}
-	var tmp [4]byte
-	n := encodeRune(tmp[:], c)
-	return append(b, tmp[:n]...)
-}
-
-// encodeRune is utf8.EncodeRune without importing it in every file.
-func encodeRune(p []byte, r rune) int {
-	switch {
-	case r < 0x80:
-		p[0] = byte(r)
-		return 1
-	case r < 0x800:
-		p[0] = 0xC0 | byte(r>>6)
-		p[1] = 0x80 | byte(r)&0x3F
-		return 2
-	case r < 0x10000:
-		p[0] = 0xE0 | byte(r>>12)
-		p[1] = 0x80 | byte(r>>6)&0x3F
-		p[2] = 0x80 | byte(r)&0x3F
-		return 3
-	default:
-		p[0] = 0xF0 | byte(r>>18)
-		p[1] = 0x80 | byte(r>>12)&0x3F
-		p[2] = 0x80 | byte(r>>6)&0x3F
-		p[3] = 0x80 | byte(r)&0x3F
-		return 4
-	}
+	return utf8.AppendRune(b, c)
 }
