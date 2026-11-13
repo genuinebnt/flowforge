@@ -394,19 +394,23 @@ func TestHTMLInv04_LinearTimeAndAllocation(t *testing.T) {
 			if raceEnabled || testing.Short() {
 				return
 			}
-			// Minimum of several runs damps scheduler and GC noise.
-			ns := func(in []byte) float64 {
-				best := time.Duration(1 << 62)
-				for range 7 {
-					start := time.Now()
-					Parse(in, Options{})
-					best = min(best, time.Since(start))
-				}
-				return float64(best) / float64(len(in))
+			// Small and large runs alternate, so load from other test
+			// processes (go test -p N) slows both alike; the minimum per
+			// size over many runs then damps scheduler and GC noise. The
+			// bound is on the ratio, so it holds on any machine speed.
+			ns := func(in []byte) time.Duration {
+				start := time.Now()
+				Parse(in, Options{})
+				return time.Since(start)
 			}
 			best := 1e9
 			for range 3 {
-				best = min(best, ns(large)/ns(small))
+				bestS, bestL := time.Duration(1<<62), time.Duration(1<<62)
+				for range 9 {
+					bestS = min(bestS, ns(small))
+					bestL = min(bestL, ns(large))
+				}
+				best = min(best, (float64(bestL)/float64(len(large)))/(float64(bestS)/float64(len(small))))
 			}
 			t.Logf("time/byte ratio %.3f", best)
 			if best > 1.5 {
