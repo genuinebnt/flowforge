@@ -11,7 +11,9 @@
 /flowforge
 /gateway
 /engine
+!/engine/
 /scope
+!/scope/
 /graph
 /notifier
 /similarity
