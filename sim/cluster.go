@@ -89,6 +89,9 @@ type cluster struct {
 	tools  *toolRegistry
 	exec   *toolExec
 	lim    simLimiter
+	// edge is the network edge's per-target limiter (the egress proxy's
+	// GCRA, V2_DESIGN §9): its own state, at the same per-target rate.
+	edge *limiter.GCRA
 	graph  *graphstore.Mem
 	notif  *alerts.Processor
 	api    *engine.Engine
@@ -148,6 +151,9 @@ func newCluster(sc Scenario) (*cluster, error) {
 		return nil, err
 	}
 	c.lim = simLimiter{c: c, g: g}
+	if c.edge, err = limiter.NewGCRA(limiter.Rule{Pattern: "rl:h:*", Params: limiter.Params{Rate: hostRate, Burst: hostBurst}}); err != nil {
+		return nil, err
+	}
 	c.graph = graphstore.NewMem(graphstore.Config{Clock: frozenClock{}})
 	if err := c.setupAlerts(); err != nil {
 		return nil, err
@@ -474,6 +480,7 @@ func (c *cluster) finish() {
 	h.End = c.clock.Now()
 	h.Stats.Steps = c.s.steps
 	h.Scopes = slices.Clone(c.scope.history)
+	h.Stats.KillSwitchRaces = len(h.KillSwitchRaces)
 	for _, id := range c.runOrder {
 		r := c.runs[id]
 		run, _ := core.ParseUUID(id)

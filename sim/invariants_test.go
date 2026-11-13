@@ -330,10 +330,11 @@ func TestInv10_RateExceeded(t *testing.T) {
 	for i := range 12 {
 		path := fmt.Sprintf("99/%d", i)
 		h.Admissions = append(h.Admissions, sim.Admission{At: at, Actor: 9999, Key: key})
+		h.EdgeAdmissions = append(h.EdgeAdmissions, sim.Admission{At: at, Key: key})
 		h.ToolCalls = append(h.ToolCalls, sim.ToolCall{At: at, Actor: 9999, Run: r.ID, Path: path, Attempt: 1, Tool: "probe",
 			Class: "read", Key: engine.IdempotencyKey(run, path), LimitKey: key, Delivered: true})
 	}
-	wantViolation(t, h, sim.Inv10, "5 requests within 0s")
+	wantViolation(t, h, sim.Inv10, "5 requests within 0s at the edge")
 }
 
 func TestInv10_NotAdmitted(t *testing.T) {

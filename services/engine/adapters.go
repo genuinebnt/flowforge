@@ -133,7 +133,8 @@ func (x *Executor) Execute(ctx context.Context, call engine.ToolCall) (engine.To
 			}
 		case *pb.ExecuteResponse_Error:
 			e := ev.Error
-			return engine.ToolResult{}, &engine.ToolError{Code: e.GetCode(), Message: e.GetMessage(), Retryable: e.GetRetryable()}
+			return engine.ToolResult{}, &engine.ToolError{Code: e.GetCode(), Message: e.GetMessage(), Retryable: e.GetRetryable(),
+				RetryAfter: convert.Duration(e.GetRetryAfter())}
 		case *pb.ExecuteResponse_Done:
 			out, err := convert.ValueToJSON(ev.Done.GetOutput())
 			if err != nil {
@@ -146,8 +147,11 @@ func (x *Executor) Execute(ctx context.Context, call engine.ToolCall) (engine.To
 }
 
 // SyncTools feeds the engine's tool registry from ToolRunnerService.ListTools
-// (spec 6.2): every listed spec is registered with DefaultToolRetry and its
-// canonical hash, which must equal the runner's spec_sha256.
+// (spec 6.2): every listed spec is registered with its retry policy and
+// idempotency class (DefaultToolRetry when the runner sends no policy) and
+// its canonical hash, which must equal the runner's spec_sha256. A spec
+// whose hash differs or that fails engine.ToolSpec.Validate is skipped and
+// logged.
 func SyncTools(ctx context.Context, c pb.ToolRunnerServiceClient, register func(context.Context, engine.ToolSpec) error, log *slog.Logger) (int, error) {
 	resp, err := c.ListTools(platform.WithIdentity(ctx, platform.Identity{Actor: platform.ServiceActor("engine"), Role: auth.RoleAnalyst}), &pb.ListToolsRequest{})
 	if err != nil {
@@ -158,6 +162,10 @@ func SyncTools(ctx context.Context, c pb.ToolRunnerServiceClient, register func(
 		s := convert.ToolSpec(t)
 		if got := fmt.Sprintf("%x", s.SpecSHA256); t.GetSpecSha256() != "" && got != t.GetSpecSha256() {
 			log.WarnContext(ctx, "engine.tool_hash_mismatch", "tool", t.GetName(), "runner", t.GetSpecSha256(), "engine", got)
+			continue
+		}
+		if err := s.Validate(); err != nil {
+			log.WarnContext(ctx, "engine.tool_spec_invalid", "tool", t.GetName(), "error", err.Error())
 			continue
 		}
 		if err := register(ctx, s); err != nil {

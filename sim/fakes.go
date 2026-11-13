@@ -229,6 +229,26 @@ func newToolExec(c *cluster) *toolExec {
 // ErrToolTimeout is what a caller sees for a lost request or reply.
 var errToolTimeout = context.DeadlineExceeded
 
+// SerialBatches implements engine.SerialExecutor: the edge's limiter is
+// shared state, so the calls of one batch must reach it in task order for
+// the history to be a function of the seed.
+func (x *toolExec) SerialBatches() bool { return true }
+
+// edgeAdmit charges one request against the network edge's per-target
+// limiter (the egress proxy's GCRA, V2_DESIGN §9) at the store-side clock,
+// as Redis TIME would, and records the admission.
+func (x *toolExec) edgeAdmit(key string, at time.Time) (bool, time.Duration) {
+	res, err := x.c.edge.Acquire(key, 1, x.c.clock.Monotonic())
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if err != nil || !res.Allowed {
+		x.c.hist.Stats.EdgeDenials++
+		return false, max(res.RetryAfter, time.Millisecond)
+	}
+	x.c.hist.EdgeAdmissions = append(x.c.hist.EdgeAdmissions, Admission{At: at, Key: key})
+	return true, 0
+}
+
 func (x *toolExec) Execute(ctx context.Context, call engine.ToolCall) (engine.ToolResult, error) {
 	a := actorOf(ctx)
 	if a != nil && a.crashed.Load() {
@@ -266,6 +286,39 @@ func (x *toolExec) Execute(ctx context.Context, call engine.ToolCall) (engine.To
 		}
 	}
 
+	record := func(r ToolCall) {
+		x.mu.Lock()
+		x.seq++
+		r.Seq = x.seq
+		c.hist.ToolCalls = append(c.hist.ToolCalls, r)
+		x.mu.Unlock()
+	}
+	// The network edge sees the request before the tool does. It refuses
+	// a target-facing call while a kill switch covers the program (the
+	// switch was engaged after the engine's re-check: a race, reported)
+	// and charges the per-target limit; a denial carries the limiter's
+	// delay, which the engine waits out without counting an attempt.
+	if cls, err := core.ParseActivityClass(spec.EffectClass); err == nil && cls > core.ClassNone {
+		c.scope.mu.Lock()
+		ks := c.scope.killLocked(call.Tenant, call.ProgramID)
+		c.scope.mu.Unlock()
+		if ks.Engaged {
+			rec.EdgeRefused = "kill_switch"
+			record(rec)
+			x.mu.Lock()
+			c.hist.KillSwitchRaces = append(c.hist.KillSwitchRaces, KillSwitchRace{At: now, Run: rec.Run, Path: rec.Path, Tool: rec.Tool, Level: ks.Level})
+			x.mu.Unlock()
+			return engine.ToolResult{}, &engine.ToolError{Code: engine.CodeKillSwitch, Message: "sim edge: " + ks.Level + " kill switch"}
+		}
+	}
+	if rec.LimitKey != "" {
+		if ok, wait := x.edgeAdmit(rec.LimitKey, now); !ok {
+			rec.EdgeRefused = "rate_limited"
+			record(rec)
+			return engine.ToolResult{}, &engine.ToolError{Code: engine.CodeRateLimited, Message: "sim edge: per-target limit", Retryable: true, RetryAfter: wait}
+		}
+	}
+
 	x.mu.Lock()
 	ck := fmt.Sprintf("%s/%d", call.IdempotencyKey, call.Attempt)
 	n := x.count[ck]
@@ -292,13 +345,6 @@ func (x *toolExec) Execute(ctx context.Context, call engine.ToolCall) (engine.To
 			a.addBusy(d)
 		}
 	}
-	record := func(r ToolCall) {
-		x.mu.Lock()
-		x.seq++
-		r.Seq = x.seq
-		c.hist.ToolCalls = append(c.hist.ToolCalls, r)
-		x.mu.Unlock()
-	}
 	if faulty {
 		switch {
 		case chance(r, prof.ToolFailP):
@@ -314,9 +360,17 @@ func (x *toolExec) Execute(ctx context.Context, call engine.ToolCall) (engine.To
 	rec.Delivered = true
 	record(rec)
 	if faulty && chance(r, prof.ToolDupP) {
-		dup := rec
-		dup.Duplicate = true
-		record(dup)
+		// The transport's second copy is a request of its own at the
+		// edge: it is charged, and dropped there when the limit is spent.
+		admitted := true
+		if rec.LimitKey != "" {
+			admitted, _ = x.edgeAdmit(rec.LimitKey, now)
+		}
+		if admitted {
+			dup := rec
+			dup.Duplicate = true
+			record(dup)
+		}
 	}
 	if lat >= timeout {
 		busy(timeout)

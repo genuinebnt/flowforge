@@ -241,7 +241,7 @@ func (l *Lexer) dispatch(goal Goal) lexState {
 		return stateNumericLiteral
 	}
 	if c < 0x80 {
-		if asciiIdent[c]&1 != 0 {
+		if l.alt.asciiIDStart(c) {
 			return stateIdentifierName
 		}
 		if punctStart[c] {
@@ -303,13 +303,21 @@ func (l *Lexer) skipToLineEnd() {
 func (l *Lexer) scanIdentifierName(start int) Token {
 	i := start
 	src := l.src
-	for i < len(src) {
-		c := src[i]
-		if c < 0x80 && asciiIdent[c]&2 != 0 {
+	if l.alt.ASCIIClass == ASCIIBranches {
+		for i < len(src) && src[i] < 0x80 && l.alt.asciiIDPart(src[i]) {
 			i++
-			continue
 		}
-		break
+	} else {
+		// The default's loop stays free of the candidate test: it is the
+		// lexer's hottest loop.
+		for i < len(src) {
+			c := src[i]
+			if c < 0x80 && asciiIdent[c]&2 != 0 {
+				i++
+				continue
+			}
+			break
+		}
 	}
 	if i >= len(src) || (src[i] != '\\' && src[i] < 0x80) {
 		l.pos = i

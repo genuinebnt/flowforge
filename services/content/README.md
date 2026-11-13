@@ -15,6 +15,13 @@ authorization, pinning, paging, quotas, tenant isolation) and
 `FF_TEST_PG_DSN`); the REST routes are covered by
 `services/gateway/gatewayd` `TestGatewayContentRoutes`.
 
-Limits: one replica per tenant set (chunkstore single writer), no GCS chunk
-backend yet, no Terraform (see `contentstore/OPEN_QUESTIONS.md` and
-`services/README.md`).
+Storage: `FF_CONTENT_BUCKET` (Cloud Storage, `chunkstore/gcsstore`), else
+`FF_CONTENT_DIR`, else memory (refused in prod); wiring in
+`services/internal/wire/content.go`, tests
+`TestRegress_G_CST_02_ContentServiceOnGCS` and
+`TestRegress_G_CST_02_RestartKeepsContent` there. Terraform: `infra/envs/*`
+(`ff-content`).
+
+Limits: one replica per tenant set (chunkstore single writer, G-CST-03; on
+GCS a second writer fails with `gcsstore.ErrConflict` rather than
+corrupting, see `contentstore/OPEN_QUESTIONS.md`).

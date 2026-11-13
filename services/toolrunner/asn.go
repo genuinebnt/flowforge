@@ -12,6 +12,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/dnsmsg"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 )
@@ -89,7 +90,8 @@ func (*ASN) Spec() Spec {
 	return Spec{Name: "asn", Version: "1.0.0", Description: "IP to ASN and netblock (RDAP, Team Cymru DNS)",
 		InputType: "IpAddress", OutputType: "Option<Asn>",
 		Observes: []string{oam.TypeAutonomousSystem, oam.TypeNetblock, oam.TypeIPAddress, oam.TypeIPNetRecord, oam.TypeAutnumRecord, oam.TypeOrganization},
-		Class:    core.ClassPassive, RateRPS: 2, RateBurst: 4, Concurrency: 2, Timeout: 2 * time.Minute, Idempotent: true}
+		Class:    core.ClassPassive, RateRPS: 2, RateBurst: 4, Concurrency: 2, Timeout: 2 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryIntel}
 }
 
 // Run implements Adapter.

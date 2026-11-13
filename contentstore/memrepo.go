@@ -392,6 +392,37 @@ func (tx *memTx) RewriteBlobs(_ context.Context, id core.UUID, b BlobRefs) error
 	})
 }
 
+func (tx *memTx) StaleSnapshots(_ context.Context, program core.UUID, stamp string, after *Cursor, limit int) ([]Snapshot, error) {
+	var out []Snapshot
+	for _, s := range tx.t.snaps {
+		if s.Program != program || s.DeriveStamp == stamp {
+			continue
+		}
+		if after != nil && snapshotOrder(s, Snapshot{ValidFrom: after.ValidFrom, ID: after.ID}) >= 0 {
+			continue
+		}
+		out = append(out, cloneSnapshot(s))
+	}
+	slices.SortFunc(out, func(a, b Snapshot) int { return snapshotOrder(b, a) })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// LockSnapshot implements Tx; transactions are serialized already.
+func (tx *memTx) LockSnapshot(ctx context.Context, id core.UUID) (Snapshot, bool, error) {
+	return tx.GetSnapshot(ctx, id)
+}
+
+func (tx *memTx) UpdateDerived(_ context.Context, d Snapshot) error {
+	return tx.update(d.ID, func(s *Snapshot) {
+		s.HeadersRef, s.BodyManifest, s.NormalizedManifest, s.FeaturesRef = d.HeadersRef, d.BodyManifest, d.NormalizedManifest, d.FeaturesRef
+		s.Codec, s.DeltaBase, s.DeltaDepth = d.Codec, d.DeltaBase, d.DeltaDepth
+		s.Kind, s.NormalizerVersion, s.Coverage, s.SimHash, s.DeriveStamp = d.Kind, d.NormalizerVersion, d.Coverage, d.SimHash, d.DeriveStamp
+	})
+}
+
 func (tx *memTx) DeleteSnapshots(ctx context.Context, ids []core.UUID) error {
 	ds, _ := tx.DiffsTouching(ctx, ids)
 	for _, d := range ds {
@@ -473,6 +504,20 @@ func (tx *memTx) InsertDiff(_ context.Context, d Diff) error {
 			delete(tx.t.into, d.To)
 		}
 	})
+	return nil
+}
+
+func (tx *memTx) RewriteDiff(_ context.Context, d Diff) error {
+	old, ok := tx.t.diffs[d.ID]
+	if !ok {
+		return notFound("diff %s", d.PublicID())
+	}
+	n := cloneDiff(old)
+	n.Levels, n.Algorithm, n.NormalizerVersion, n.Stats = slices.Clone(d.Levels), d.Algorithm, d.NormalizerVersion, d.Stats
+	n.Stats.Summary = maps.Clone(d.Stats.Summary)
+	n.HunksRef, n.SemanticRef, n.StoredSize, n.IndexDocs = d.HunksRef, d.SemanticRef, d.StoredSize, d.IndexDocs
+	tx.t.diffs[d.ID] = n
+	tx.onUndo(func() { tx.t.diffs[d.ID] = old })
 	return nil
 }
 

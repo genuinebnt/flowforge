@@ -2,11 +2,14 @@
 # COS drops inbound traffic except SSH by default; open the lab ports to the
 # Cloud Run Direct VPC egress subnets only (the VPC firewall repeats this).
 set -euo pipefail
-allow() { iptables -w -C INPUT -p tcp -s "$1" --dport "$2" -j ACCEPT 2>/dev/null || iptables -w -A INPUT -p tcp -s "$1" --dport "$2" -j ACCEPT; }
-allow ${services_cidr} 5432
+allow() { iptables -w -C INPUT -p "$1" -s "$2" --dport "$3" -j ACCEPT 2>/dev/null || iptables -w -A INPUT -p "$1" -s "$2" --dport "$3" -j ACCEPT; }
+allow tcp ${services_cidr} 5432
 %{ if redis_enabled ~}
-allow ${services_cidr} 6379
+allow tcp ${services_cidr} 6379
 %{ endif ~}
-allow ${services_cidr} ${proxy_port}
-allow ${tools_cidr} ${proxy_port}
-# Reserved for the v2 egress proxy, not opened yet: 1080/tcp (SOCKS5), 53/udp+tcp (DNS).
+allow tcp ${services_cidr} ${proxy_port}
+allow tcp ${tools_cidr} ${proxy_port}
+# The v2 proxy's SOCKS5 and DNS (G-OPS-15): tool-runner subnet only.
+allow tcp ${tools_cidr} ${socks_port}
+allow tcp ${tools_cidr} ${dns_port}
+allow udp ${tools_cidr} ${dns_port}

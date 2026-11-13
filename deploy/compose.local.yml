@@ -11,6 +11,15 @@
 # services/gateway/gatewayd TestRegress_GOPS21_MultiProcessTopology (each
 # binary as an OS process). Redis is optional: start with
 # `--profile redis` and FF_REDIS_ADDR=redis:6379 in local.env.
+#
+# The content service keeps its chunk store and text indexes in
+# .local/blobs/content (FF_CONTENT_DIR, inside the blob directory that
+# scripts/local.sh creates writable for uid 65532; GCP uses
+# FF_CONTENT_BUCKET). Without
+# FF_CONTENT_KEK in local.env it encrypts findings with a per-process
+# development key, so findings stored before a restart cannot be decrypted
+# after it; put a 32-byte hex key there (for example from
+# `openssl rand -hex 32`) to keep them.
 
 name: flowforge-local
 
@@ -35,6 +44,7 @@ x-env: &env
   FF_NOTIFIER_ADDR: notifier:8080
   FF_SIMILARITY_ADDR: similarity:8080
   FF_EGRESS_PROXY: http://egress-proxy:8080
+  FF_CONTENT_ADDR: content:8080
 
 services:
   postgres:
@@ -91,6 +101,15 @@ services:
     build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: tool-runner}}
     image: flowforge-local/tool-runner
     environment: *env
+    volumes: [./.local/blobs:/data/blobs]
+
+  content:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: content}}
+    image: flowforge-local/content
+    environment:
+      <<: *env
+      FF_CONTENT_DIR: /data/blobs/content
     volumes: [./.local/blobs:/data/blobs]
 
   engine:

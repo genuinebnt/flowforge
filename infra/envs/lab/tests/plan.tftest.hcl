@@ -34,8 +34,8 @@ run "defaults_plan" {
   command = plan
 
   assert {
-    condition     = alltrue([for s, m in module.svc : m.name == "ff-${s}"]) && length(module.svc) == 7
-    error_message = "lab runs seven Cloud Run services (the egress proxy is on the VM)."
+    condition     = alltrue([for s, m in module.svc : m.name == "ff-${s}"]) && length(module.svc) == 8
+    error_message = "lab runs eight Cloud Run services (the egress proxy is on the VM)."
   }
 
   assert {
@@ -77,6 +77,40 @@ run "defaults_plan" {
     condition     = length(module.budget_shutdown) == 0
     error_message = "budget shutdown is off by default."
   }
+
+  assert {
+    condition     = local.vm_proxy_env["FF_EGRESS_SOCKS_ADVERTISE"] == "10.10.5.2:1080" && local.vm_proxy_env["FF_EGRESS_DNS_ADVERTISE"] == "10.10.5.2:8053" && google_compute_firewall.vm_proxy_tools.source_ranges == toset([var.tools_cidr])
+    error_message = "the VM's proxy serves SOCKS5 and DNS to the tool-runner subnet only (G-OPS-15)."
+  }
+
+  assert {
+    condition     = local.services["content"].env["FF_CONTENT_BUCKET"] == "flowforge-lab-ff-content" && contains(keys(local.services["content"].secret_env), "FF_CONTENT_KEK") && local.services["gateway"].env["FF_CONTENT_ADDR"] == "https://ff-content-123456789012.us-central1.run.app" && contains(keys(local.services["tool-runner"].env), "FF_CONTENT_ADDR")
+    error_message = "content: bucket, KEK secret, and the gateway and tool runner reach it (G-OPS-16, G-CST-01)."
+  }
+
+  assert {
+    condition     = var.scaling["content"].min == 0 && var.scaling["content"].max == 1 && contains(keys(module.topic), "content.changes")
+    error_message = "lab content scales to zero, runs one instance at most, and publishes content.changes."
+  }
+}
+
+run "content_two_instances_refused" {
+  command = plan
+
+  variables {
+    scaling = {
+      gateway       = { concurrency = 80, max = 2 }
+      engine        = { concurrency = 20, max = 1 }
+      scope         = { concurrency = 80, max = 1 }
+      graph         = { concurrency = 20, max = 1 }
+      notifier      = { concurrency = 80, max = 1 }
+      similarity    = { concurrency = 40, max = 1 }
+      "tool-runner" = { concurrency = 10, max = 1 }
+      content       = { concurrency = 20, max = 2 }
+    }
+  }
+
+  expect_failures = [var.scaling]
 }
 
 run "redis_and_shutdown" {
@@ -111,6 +145,7 @@ run "min_instances_refused" {
       notifier      = { concurrency = 80, max = 1 }
       similarity    = { concurrency = 40, max = 1 }
       "tool-runner" = { concurrency = 10, max = 1 }
+      content       = { concurrency = 20, max = 1 }
     }
   }
 

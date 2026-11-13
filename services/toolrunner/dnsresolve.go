@@ -5,33 +5,43 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/dnsmsg"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 )
 
 // DNSResolve is the passive dnsresolve tool (spec 6.4 "DNS resolution",
-// V2_DESIGN §8, operator decision D3: DNS resolution is passive). Through
-// the egress proxy's DNS forwarder it queries A, AAAA, MX, NS and TXT and
-// emits IPAddress and FQDN entities with dns_record edges (BasicDNSRelation
-// for A, AAAA, CNAME and NS; PrefDNSRelation for MX) and TXT data as
+// V2_DESIGN §8, §9, operator decision D3: DNS resolution is passive). It
+// resolves only through the egress proxy's DNS forwarder (G-SVC-06): the
+// query carries the ticket of the name's passive allow decision, the proxy
+// answers only names a passive scope check allows and records its answers
+// as decisions, and anything else is REFUSED. The runner's own resolver is
+// never used, so a runner with no proxy, or a proxy without a forwarder,
+// fails the call (no_egress, no_dns_forwarder) instead of resolving
+// outside the proxy. It queries A, AAAA, MX, NS and TXT and emits
+// IPAddress and FQDN entities with dns_record edges (BasicDNSRelation for
+// A, AAAA, CNAME and NS; PrefDNSRelation for MX) and TXT data as
 // DNSRecordProperty tags. Every hop of a CNAME chain is scope-checked
 // (spec 4.5); a denied hop is skipped and its addresses are not used.
-// Without a forwarder it falls back to the runner's resolver (A and AAAA).
 type DNSResolve struct{}
 
 // Spec implements Adapter.
 func (DNSResolve) Spec() Spec {
 	return Spec{Name: "dnsresolve", Version: "2.0.0", Description: "Resolve A, AAAA, CNAME, MX, NS and TXT records",
 		InputType: "Fqdn", OutputType: "List<IpAddress>", Observes: []string{oam.TypeFQDN, oam.TypeIPAddress},
-		Class: core.ClassPassive, RateRPS: 50, RateBurst: 100, Concurrency: 16, Timeout: 30 * time.Second, Idempotent: true}
+		Class: core.ClassPassive, RateRPS: 50, RateBurst: 100, Concurrency: 16, Timeout: 30 * time.Second, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryTransient}
 }
+
+// ErrNoDNSForwarder is returned by dnsresolve when the egress proxy serves
+// no DNS forwarder (it never falls back to the runner's resolver).
+var ErrNoDNSForwarder = &ToolError{Code: "no_dns_forwarder", Message: "the egress proxy serves no DNS forwarder"}
 
 // Run implements Adapter.
 func (r DNSResolve) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, out Emitter) (json.RawMessage, error) {
@@ -44,6 +54,10 @@ func (r DNSResolve) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx,
 		return nil, Errorf("invalid_input", false, "input is not a DNS name")
 	}
 	name = t.Name()
+	nw := tc.Network()
+	if nw == nil {
+		return nil, ErrNoEgress
+	}
 	d, ok, err := tc.Allowed(ctx, out, name, scope.TargetHost, core.ClassPassive)
 	if !ok {
 		if err != nil {
@@ -51,51 +65,11 @@ func (r DNSResolve) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx,
 		}
 		return json.RawMessage("[]"), nil
 	}
-	if nw := tc.Network(); nw != nil {
-		res, err := r.viaForwarder(ctx, tc, nw, d, name, out)
-		if !errors.Is(err, ErrNoDNS) {
-			return res, err
-		}
+	res, err := r.viaForwarder(ctx, tc, nw, d, name, out)
+	if errors.Is(err, ErrNoDNS) {
+		return nil, ErrNoDNSForwarder
 	}
-	return r.viaResolver(ctx, tc, name, out)
-}
-
-func (DNSResolve) viaResolver(ctx context.Context, tc *ToolCtx, name string, out Emitter) (json.RawMessage, error) {
-	if tc.Resolver == nil {
-		return nil, Errorf("no_resolver", false, "the runner has no resolver")
-	}
-	addrs, err := tc.Resolver.LookupAddrs(ctx, name)
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		var de *net.DNSError
-		if errors.As(err, &de) && de.IsTemporary {
-			return nil, Errorf("unavailable", true, "resolution failed: "+err.Error())
-		}
-		_ = out.Progress(1, 1, "no addresses")
-		return json.RawMessage("[]"), nil
-	}
-	obs := oam.Observation{ObservationID: tc.ObservationID("dnsresolve", name), ObservedAt: tc.Now(), Confidence: 0.95,
-		Entities: []oam.ObservedEntity{{Ref: "n", Asset: oam.FQDN{Name: name}}}}
-	ips := make([]string, 0, len(addrs))
-	for i, a := range addrs {
-		a = a.Unmap()
-		ver, rr := "IPv4", 1
-		if a.Is6() {
-			ver, rr = "IPv6", 28
-		}
-		ref := "ip" + strconv.Itoa(i)
-		obs.Entities = append(obs.Entities, oam.ObservedEntity{Ref: ref, Asset: oam.IPAddress{Address: a.String(), IPVersion: ver}})
-		obs.Edges = append(obs.Edges, oam.ObservedEdge{From: "n", To: ref,
-			Relation: oam.BasicDNSRelation{Label: oam.LabelDNSRecord, Header: oam.DNSHeader{RRType: rr, Class: 1}}})
-		ips = append(ips, a.String())
-	}
-	if err := out.Observation(obs); err != nil {
-		return nil, err
-	}
-	_ = out.Progress(1, 1, fmt.Sprintf("%d addresses", len(ips)))
-	return json.Marshal(ips)
+	return res, err
 }
 
 // obsBuilder accumulates entities with stable refs.

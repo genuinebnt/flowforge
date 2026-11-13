@@ -1,0 +1,15 @@
+#!/bin/bash
+# COS drops inbound traffic except SSH by default; open the proxy ports to
+# the tool-runner subnet (all of them) and the HTTP clients (the HTTP port
+# only). The VPC firewall repeats this.
+set -euo pipefail
+allow() { iptables -w -C INPUT -p "$1" -s "$2" --dport "$3" -j ACCEPT 2>/dev/null || iptables -w -A INPUT -p "$1" -s "$2" --dport "$3" -j ACCEPT; }
+%{ for c in tool_cidrs ~}
+allow tcp ${c} ${proxy_port}
+allow tcp ${c} ${socks_port}
+allow tcp ${c} ${dns_port}
+allow udp ${c} ${dns_port}
+%{ endfor ~}
+%{ for c in http_client_cidrs ~}
+allow tcp ${c} ${proxy_port}
+%{ endfor ~}

@@ -22,12 +22,16 @@ func roundTripSizes() []int {
 }
 
 // CHUNK-INV-01: Get(Put(x)) == x for sizes 0, 1, the min/avg/max
-// boundaries ±1 of both test configurations, and random sizes; Stat
-// reports the size.
+// boundaries ±1 of the test configurations, and random sizes, under every
+// chunker; Stat reports the size and the recorded chunker.
 func TestChunkInv01_RoundTrip(t *testing.T) {
 	r := testkit.Rng(t)
 	ctx := context.Background()
-	for _, cfg := range []Config{{}, {Chunking: smallChunking, TargetPackSize: 4096}, {Chunking: smallChunking, DeferFlush: true}} {
+	cfgs := []Config{{}, {Chunking: smallChunking, TargetPackSize: 4096}, {Chunking: smallChunking, DeferFlush: true}}
+	for _, c := range chunkerCandidates()[2:] {
+		cfgs = append(cfgs, Config{Chunking: c, TargetPackSize: 1 << 20})
+	}
+	for _, cfg := range cfgs {
 		s := openStore(t, NewMemBackend(), cfg)
 		sizes := roundTripSizes()
 		for range 20 {
@@ -48,7 +52,7 @@ func TestChunkInv01_RoundTrip(t *testing.T) {
 				t.Fatalf("size %d: round trip differs", n)
 			}
 			info, err := s.Stat(ctx, id)
-			if err != nil || info.Size != uint64(n) || info.ID != id {
+			if err != nil || info.Size != uint64(n) || info.ID != id || info.Chunking != s.Chunking() {
 				t.Fatalf("Stat: %+v %v", info, err)
 			}
 		}

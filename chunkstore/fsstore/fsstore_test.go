@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/genuinebnt/flowforge/chunkstore"
+	"github.com/genuinebnt/flowforge/chunkstore/backendtest"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/testkit"
 )
@@ -24,63 +25,33 @@ func newDir(t *testing.T, opts Options) *Dir {
 	return d
 }
 
-// The Backend contract of chunkstore.Backend, checked against both the
-// directory backend and the in-memory reference (differential).
+// The Backend contract of chunkstore.Backend (chunkstore/backendtest),
+// checked against both the directory backend and the in-memory reference,
+// plus the directory backend's own rule: names containing its temporary
+// marker are refused.
 func TestFSStoreBackendContract(t *testing.T) {
-	ctx := context.Background()
-	for name, b := range map[string]chunkstore.Backend{
-		"fs":       newDir(t, Options{}),
-		"fsnosync": newDir(t, Options{NoSync: true}),
-		"mem":      chunkstore.NewMemBackend(),
+	for name, mk := range map[string]func(t *testing.T) chunkstore.Backend{
+		"fs":       func(t *testing.T) chunkstore.Backend { return newDir(t, Options{}) },
+		"fsnosync": func(t *testing.T) chunkstore.Backend { return newDir(t, Options{NoSync: true}) },
+		"mem":      func(t *testing.T) chunkstore.Backend { return chunkstore.NewMemBackend() },
 	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := b.Get(ctx, "t/a/ref"); !errors.Is(err, chunkstore.ErrObjectNotFound) {
-				t.Fatalf("missing Get: %v", err)
-			}
-			if _, err := b.GetRange(ctx, "t/a/ref", 0, 1); !errors.Is(err, chunkstore.ErrObjectNotFound) {
-				t.Fatalf("missing GetRange: %v", err)
-			}
-			if err := b.Delete(ctx, "t/a/ref"); err != nil {
-				t.Fatalf("delete of a missing object: %v", err)
-			}
-			for _, n := range []string{"t/a/ref", "t/a/packs/x.pack", "t/b/ref", "z"} {
-				if err := b.Put(ctx, n, []byte("v1:"+n)); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if err := b.Put(ctx, "t/a/ref", []byte("v2")); err != nil {
-				t.Fatal(err)
-			}
-			if got, _ := b.Get(ctx, "t/a/ref"); string(got) != "v2" {
-				t.Fatalf("replace: %q", got)
-			}
-			if got, err := b.GetRange(ctx, "t/a/packs/x.pack", 3, 4); err != nil || string(got) != "t/a/" {
-				t.Fatalf("GetRange: %q %v", got, err)
-			}
-			if _, err := b.GetRange(ctx, "t/a/ref", 1, 5); err == nil {
-				t.Fatal("GetRange past the end succeeded")
-			}
-			got, _ := b.List(ctx, "t/a/")
-			if !slices.Equal(got, []string{"t/a/packs/x.pack", "t/a/ref"}) {
-				t.Fatalf("List: %v", got)
-			}
-			all, _ := b.List(ctx, "")
-			if !slices.IsSorted(all) || len(all) != 4 {
-				t.Fatalf("List all: %v", all)
-			}
-			if err := b.Delete(ctx, "t/a/ref"); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := b.Get(ctx, "t/a/ref"); !errors.Is(err, chunkstore.ErrObjectNotFound) {
-				t.Fatal("deleted object still readable")
-			}
-			for _, bad := range []string{"", "/abs", "a//b", "../x", "a/../b", "A", "a b", "a\\b", "x.tmp-1"} {
-				if err := b.Put(ctx, bad, nil); chunkstore.CodeOf(err) != chunkstore.CodeInvalidName && !(name == "mem" && bad == "x.tmp-1") {
-					t.Errorf("Put(%q): %v", bad, err)
-				}
-			}
-		})
+		t.Run(name, func(t *testing.T) { backendtest.Contract(t, mk(t)) })
 	}
+	if err := newDir(t, Options{}).Put(context.Background(), "x.tmp-1", nil); chunkstore.CodeOf(err) != chunkstore.CodeInvalidName {
+		t.Errorf("Put of a temporary-file name: %v", err)
+	}
+}
+
+// The Store lifecycle suite over directories reopened from the same root.
+func TestFSStoreBackendStoreSuite(t *testing.T) {
+	root := t.TempDir()
+	backendtest.Store(t, func(t *testing.T) chunkstore.Backend {
+		d, err := New(root, Options{NoSync: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	})
 }
 
 // Temporary files from interrupted Puts are invisible and Clean removes

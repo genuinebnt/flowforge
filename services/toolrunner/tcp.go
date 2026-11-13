@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 )
@@ -61,7 +62,8 @@ func (t TCPConnect) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx,
 func (p PortScan) Spec() Spec {
 	s := Spec{Name: "portscan", Version: "2.0.0", Description: "TCP connect port scan through the egress proxy, paced per target",
 		InputType: "(InScope<Host>, List<Int>)", OutputType: "List<Int>", Observes: []string{oam.TypeService, oam.TypeFQDN, oam.TypeIPAddress},
-		Class: core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 4, Timeout: 10 * time.Minute, Idempotent: true}
+		Class: core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 4, Timeout: 10 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryTransient}
 	if p.name != "" {
 		s.Name, s.Version, s.Description = p.name, p.version, p.desc
 	}
@@ -238,7 +240,8 @@ func (TLSCert) Spec() Spec {
 	return Spec{Name: "tlscert", Version: "1.0.0", Description: "Read the TLS certificate a service presents (handshake only)",
 		InputType: "(InScope<Host>, Int)", OutputType: "Option<TlsCertificate>",
 		Observes: []string{oam.TypeTLSCertificate, oam.TypeService, oam.TypeFQDN, oam.TypeIPAddress},
-		Class:    core.ClassPassive, RateRPS: 5, RateBurst: 10, Concurrency: 4, Timeout: time.Minute, Idempotent: true}
+		Class:    core.ClassPassive, RateRPS: 5, RateBurst: 10, Concurrency: 4, Timeout: time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryTransient}
 }
 
 // errChainRead aborts the handshake once the chain is captured.
@@ -291,6 +294,8 @@ func (t TLSCert) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, ou
 		return json.RawMessage("null"), nil
 	}
 	defer conn.Close()
+	// Record what the server sends during the handshake (G-SVC-16).
+	conn = tc.Raw.Conn(conn, RawTLSHandshake, "tls:"+net.JoinHostPort(host, strconv.Itoa(port)))
 	var chain [][]byte
 	cfg := &tls.Config{
 		InsecureSkipVerify: true, // only to read the chain; the handshake is aborted below

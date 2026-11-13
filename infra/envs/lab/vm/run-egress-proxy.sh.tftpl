@@ -1,5 +1,6 @@
 #!/bin/bash
-# The Flowforge egress proxy (HTTP + CONNECT on port ${proxy_port}). The image
+# The Flowforge egress proxy: HTTP + CONNECT on port ${proxy_port}, SOCKS5 on
+# ${socks_port}, DNS (UDP and TCP) on ${dns_port}. The image
 # digest is the instance metadata key ff-egress-proxy-image, which the deploy
 # workflow updates; ff-image-watch restarts this unit when it changes.
 set -euo pipefail

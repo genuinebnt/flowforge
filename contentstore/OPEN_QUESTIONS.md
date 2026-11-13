@@ -23,8 +23,13 @@
    move there.
 3. **Single writer per tenant chunk store.** `chunkstore` assumes one
    writer per namespace, and the GC gate is per process. Run one content
-   service replica, or partition tenants across replicas. A GCS chunk
-   backend does not exist yet; `FF_CONTENT_DIR` (file system) or memory.
+   service replica, or partition tenants across replicas (G-CST-03, v3).
+   Storage: `FF_CONTENT_BUCKET` (Cloud Storage, `chunkstore/gcsstore`),
+   `FF_CONTENT_DIR` (file system) or memory. On GCS every write is
+   conditional on the generation last observed, so a second replica's
+   flush or GC fails with `gcsstore.ErrConflict` instead of replacing the
+   ref, and its sweep refuses to delete once the ref moved; a narrow window
+   between that check and a delete remains until leases exist.
 4. **Stored-bytes accounting.** Usage grows by the record bytes each
    ingest adds and is reset to the store's physical record bytes after
    each GC; bytes of a capture refused by the stored-bytes quota after its
@@ -62,3 +67,28 @@
 10. **First appeared** verifies candidates by exact substring on the
     stored hunk text; candidates come from a phrase query (or a regex for
     text without word tokens), at most 10,000.
+11. **Re-derivation records no cause = normalizer change (decision).**
+    V2 §12.2 says re-derived snapshots' resulting changes are "recorded as
+    cause = parser/normalizer". The store instead treats re-derivation as
+    not a change at all: the diffs touching a re-derived snapshot are
+    recomputed between snapshots of the new derivation (or keep their old
+    content until the other side is re-derived), and no event, alert or
+    diff row is added (CSTORE-INV-15). Comparing an old derivation with a
+    new one only ever measures the reader, which is the noise §12.2 wants
+    hidden from feeds; content's `causeOf` still labels such a pair
+    `normalizer`/`parser` if one is diffed on demand (`Store.Diff`).
+12. **What re-derivation does not recompute.** The integrity verdict
+    (degraded or not) is kept, because the host's catch-all sample it was
+    judged against is not stored; if the old capture was complete and the
+    new pipeline alone would grade it degraded, coverage keeps the new
+    pipeline's (failed) value, which is conservative. Learned volatility
+    is not re-learned: each snapshot is re-derived with the learned set
+    named by its normalizer_version. Findings are append-only: secrets a
+    new extractor finds are not added to old snapshots, and old finding
+    rows stay. A pipeline change that changes lineage fingerprints does not
+    re-link renamed scripts. Index documents are replaced right after the
+    commit (like retention's tombstones): a crash in between leaves stale
+    documents until `Rebuild`.
+13. **Rows from before migration 0032** have an empty `derive_stamp`, so
+    the first sweep after the upgrade visits every snapshot once; with an
+    unchanged pipeline it rewrites only the stamps (CSTORE-INV-14).

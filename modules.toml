@@ -197,10 +197,10 @@ layer = 1
 spec = ["V2_DESIGN 6.1"]
 dir = "chunkstore"
 depends = ["core"]
-tests = { prefix = "ChunkInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"] }
+tests = { prefix = "ChunkInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25"] }
 conformance = ["chunkstore"]
 fuzz = ["FuzzChunker", "FuzzPackDecode", "FuzzIndexDecode", "FuzzManifestDecode"]
-bench = ["BenchmarkChunk", "BenchmarkPut"]
+bench = ["BenchmarkChunk", "BenchmarkPut", "BenchmarkChunkAlgo"]
 
 [module.textindex]
 layer = 1
@@ -239,7 +239,7 @@ depends = ["core"]
 tests = { prefix = "HTMLInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11"] }
 conformance = ["third_party/html5lib-tests/tokenizer", "third_party/wpt-html-parsing", "htmlparse"]
 fuzz = ["FuzzHTMLTokenizer", "FuzzHTMLParse", "FuzzHTMLDecode"]
-bench = ["BenchmarkHTMLImpl", "BenchmarkHTMLCharRef"]
+bench = ["BenchmarkHTMLAlgo"]
 
 [module.cssparse]
 layer = 1
@@ -336,7 +336,7 @@ layer = 4
 spec = ["V2_DESIGN 6.2, 6.3, 6.4, 7, 11, 12"]
 dir = "contentstore"
 depends = ["core", "oam", "content", "chunkstore", "textindex", "diff", "sketch"]
-tests = { prefix = "CStoreInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"] }
+tests = { prefix = "CStoreInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16"] }
 conformance = ["content"]
 fuzz = ["FuzzCStoreSealRoundTrip", "FuzzCStoreHunkRoundTrip", "FuzzCStoreRecordDecode"]
 bench = ["BenchmarkCStoreAlgo", "BenchmarkCStoreIngest", "BenchmarkCStoreSearch"]

@@ -223,6 +223,10 @@ type captureRecord struct {
 	RedirectChain []content.Hop    `json:"redirect_chain,omitempty"`
 	Truncated     bool             `json:"truncated,omitempty"`
 	Outcome       content.Outcome  `json:"outcome"`
+	// PageURL is the page that loaded the capture (IngestRequest.PageURL),
+	// which relative references resolve against: re-derivation needs it to
+	// reproduce the features.
+	PageURL string `json:"page_url,omitempty"`
 }
 
 // newCaptureRecord builds the record with every header value redacted;

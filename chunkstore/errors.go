@@ -55,6 +55,10 @@ const (
 	CodeManifestUnsupported    Code = "MANIFEST_UNSUPPORTED"
 	CodeManifestMalformed      Code = "MANIFEST_MALFORMED"
 	CodeManifestLengthMismatch Code = "MANIFEST_LENGTH_MISMATCH"
+	// CodeManifestChunking: a version-2 manifest's chunk lengths break the
+	// bounds of the chunker it records (an fsck error: the recorded
+	// chunker cannot have cut it).
+	CodeManifestChunking Code = "MANIFEST_CHUNKING_MISMATCH"
 
 	CodeRefTruncated   Code = "REF_TRUNCATED"
 	CodeRefBadMagic    Code = "REF_BAD_MAGIC"

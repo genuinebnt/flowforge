@@ -71,25 +71,39 @@ func checkCode(t *testing.T, err error, prefixes ...string) {
 }
 
 // FuzzChunker asserts the boundary invariants (CHUNK-INV-02/04/05) on
-// arbitrary input, parameters and read sizes.
+// arbitrary input, parameters, chunkers and read sizes.
 func FuzzChunker(f *testing.F) {
 	f.Add([]byte("hello world"), uint8(0), uint16(1))
 	f.Add(bytes.Repeat([]byte{0}, 5000), uint8(1), uint16(7))
 	f.Add(splitmixBytes(1, 20_000), uint8(2), uint16(1000))
+	f.Add(splitmixBytes(2, 20_000), uint8(5), uint16(300))
+	f.Add(asciiBytes(3, 20_000), uint8(7), uint16(4096))
+	f.Add(asciiBytes(4, 9_000), uint8(11), uint16(2))
 	f.Fuzz(func(t *testing.T, data []byte, p uint8, readSize uint16) {
 		avg := 256 << (p % 3)
-		cdc, err := NewFastCDC(ChunkerConfig{MinSize: avg / 4, AvgSize: avg, MaxSize: avg * 4})
+		var cfg ChunkerConfig
+		switch ChunkAlgos()[int(p/3)%4] {
+		case ChunkFastCDC:
+			cfg = ChunkerConfig{MinSize: avg / 4, AvgSize: avg, MaxSize: avg * 4}
+		case ChunkRabin:
+			cfg = ChunkerConfig{Algo: ChunkRabin, MinSize: avg / 4, AvgSize: avg, MaxSize: avg * 4}
+		case ChunkFixed:
+			cfg = ChunkerConfig{Algo: ChunkFixed, AvgSize: avg + int(p)}
+		default:
+			cfg = ChunkerConfig{Algo: ChunkWhole, MaxSize: avg * 4}
+		}
+		cdc, err := NewCutter(cfg)
 		if err != nil {
 			t.Fatal(err)
 		}
-		cuts := cdc.Boundaries(data)
+		cuts := Boundaries(cdc, data)
 		checkBounds(t, cdc, data, cuts)
 		got := streamCuts(t, cdc, &fixedReader{b: data, n: 1 + int(readSize)})
 		if len(got) != len(cuts) || (len(cuts) > 0 && !equalInts(got, cuts)) {
 			t.Fatal("streaming and slice cuts differ")
 		}
 		if len(cuts) > 1 {
-			tail := cdc.Boundaries(data[cuts[0]:])
+			tail := Boundaries(cdc, data[cuts[0]:])
 			for i := range tail {
 				if tail[i]+cuts[0] != cuts[i+1] {
 					t.Fatal("re-chunking from the first cut diverges")

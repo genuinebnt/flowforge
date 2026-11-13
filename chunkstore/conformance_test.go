@@ -195,6 +195,125 @@ func TestChunkInv13_ConformanceBoundaries(t *testing.T) {
 			t.Fatalf("%s: masks differ", c.Name)
 		}
 	}
+	conformanceChunkers(t)
+}
+
+type chunkerCase struct {
+	Name      string `json:"name"`
+	Algo      string `json:"algo"`
+	AlgoByte  uint8  `json:"algo_byte"`
+	MinSize   int    `json:"min_size"`
+	AvgSize   int    `json:"avg_size"`
+	MaxSize   int    `json:"max_size"`
+	Generator string `json:"generator"`
+	Seed      uint64 `json:"seed"`
+	Length    int    `json:"length"`
+	Cuts      []int  `json:"cuts"`
+	// ChunksSHA256 is the SHA-256 of the concatenated chunk ids, which
+	// pins every chunk without listing hundreds of hashes.
+	ChunksSHA256 string `json:"chunk_ids_sha256"`
+}
+
+type chunkersFile struct {
+	Description string            `json:"description"`
+	Generators  map[string]string `json:"generators"`
+	Polynomial  string            `json:"rabin_polynomial"`
+	Window      int               `json:"rabin_window"`
+	ModTable    []string          `json:"rabin_mod_table"`
+	OutTable    []string          `json:"rabin_out_table"`
+	Cases       []chunkerCase     `json:"cases"`
+}
+
+func genData(t testing.TB, gen string, seed uint64, n int) []byte {
+	switch gen {
+	case "splitmix64":
+		return splitmixBytes(seed, n)
+	case "splitmix64_ascii":
+		return asciiBytes(seed, n)
+	case "zeros":
+		return make([]byte, n)
+	}
+	t.Fatalf("unknown generator %q", gen)
+	return nil
+}
+
+// conformanceChunkers is CHUNK-INV-13 for the Rabin, fixed-size and
+// whole-blob chunkers: their cut points on seeded inputs, and the Rabin
+// tables, equal conformance/chunkstore/chunkers.json (FORMAT.md §1.2-1.4);
+// a port checks its chunkers against the file.
+func conformanceChunkers(t *testing.T) {
+	type spec struct {
+		cfg  ChunkerConfig
+		gen  string
+		seed uint64
+		n    int
+	}
+	var specs []spec
+	for i, n := range []int{0, 1, 2047, 2048, 2049, 10_000, 65536, 65537, 300_000} {
+		specs = append(specs, spec{ChunkerConfig{Algo: ChunkRabin}, "splitmix64", uint64(i + 1), n})
+	}
+	specs = append(specs,
+		spec{ChunkerConfig{Algo: ChunkRabin}, "splitmix64_ascii", 100, 300_000},
+		spec{ChunkerConfig{Algo: ChunkRabin}, "zeros", 0, 200_000},
+		spec{ChunkerConfig{Algo: ChunkRabin, MinSize: 64, AvgSize: 256, MaxSize: 1024}, "splitmix64", 400, 20_000},
+		spec{ChunkerConfig{Algo: ChunkRabin, MinSize: 256, AvgSize: 1024, MaxSize: 8192}, "splitmix64_ascii", 401, 50_000},
+		spec{ChunkerConfig{Algo: ChunkFixed}, "splitmix64", 500, 100_000},
+		spec{ChunkerConfig{Algo: ChunkFixed, AvgSize: 1000}, "splitmix64_ascii", 501, 10_001},
+		spec{ChunkerConfig{Algo: ChunkWhole}, "splitmix64", 600, 100_000},
+		spec{ChunkerConfig{Algo: ChunkWhole, MaxSize: 4096}, "zeros", 0, 10_000},
+	)
+	cf := chunkersFile{
+		Description: "Rabin, fixed-size and whole-blob chunkers (FORMAT.md 1.2-1.4). Rabin: fingerprint over GF(2) modulo rabin_polynomial of the last rabin_window bytes; mod[b] = ((b << 53) mod P) | (b << 53); out[b] = fingerprint of b followed by 47 zero bytes; cut after byte i (i+1 >= min) when fp & (avg-1) == avg-1, hashing from min-48 with an all-zero window. cuts[i] is the end offset of chunk i; chunk_ids_sha256 is SHA-256 over the concatenated 32-byte chunk ids.",
+		Generators: map[string]string{
+			"splitmix64":       "SplitMix64(seed) outputs, each appended as 8 little-endian bytes, truncated to length",
+			"splitmix64_ascii": "one SplitMix64(seed) output per byte: byte = 0x61 + (u64 mod 16)",
+			"zeros":            "length zero bytes",
+		},
+		Polynomial: hexU64(RabinPolynomial), Window: RabinWindow,
+	}
+	for b := range 256 {
+		cf.ModTable = append(cf.ModTable, hexU64(rabinMod[b]))
+		cf.OutTable = append(cf.OutTable, hexU64(rabinOut[b]))
+	}
+	for _, sp := range specs {
+		c := mustCutter(t, sp.cfg)
+		cc := c.Config()
+		data := genData(t, sp.gen, sp.seed, sp.n)
+		cuts := Boundaries(c, data)
+		var ids []byte
+		prev := 0
+		for _, x := range cuts {
+			id := SumChunk(data[prev:x])
+			ids = append(ids, id[:]...)
+			prev = x
+		}
+		sum := SumChunk(ids)
+		if cuts == nil {
+			cuts = []int{}
+		}
+		cf.Cases = append(cf.Cases, chunkerCase{
+			Name: fmt.Sprintf("%s-%s-seed%d-len%d-%d-%d-%d", cc.Algo, sp.gen, sp.seed, sp.n, cc.MinSize, cc.AvgSize, cc.MaxSize),
+			Algo: cc.Algo.String(), AlgoByte: uint8(cc.Algo), MinSize: cc.MinSize, AvgSize: cc.AvgSize, MaxSize: cc.MaxSize,
+			Generator: sp.gen, Seed: sp.seed, Length: sp.n, Cuts: cuts, ChunksSHA256: hexs(sum[:]),
+		})
+	}
+	writeOrCompare(t, "chunkers.json", cf)
+
+	var loaded chunkersFile
+	if err := json.Unmarshal(testkit.ReadFile(t, suite, "chunkers.json"), &loaded); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range loaded.Cases {
+		algo, err := ParseChunkAlgo(c.Algo)
+		if err != nil || uint8(algo) != c.AlgoByte {
+			t.Fatalf("%s: algorithm %q byte %d", c.Name, c.Algo, c.AlgoByte)
+		}
+		cut := mustCutter(t, ChunkerConfig{Algo: algo, MinSize: c.MinSize, AvgSize: c.AvgSize, MaxSize: c.MaxSize})
+		got := streamCuts(t, cut, bytes.NewReader(genData(t, c.Generator, c.Seed, c.Length)))
+		if !slices.Equal(got, c.Cuts) && !(len(got) == 0 && len(c.Cuts) == 0) {
+			t.Fatalf("%s: streaming cuts differ", c.Name)
+		}
+	}
 }
 
 type goldenRecord struct {
@@ -236,12 +355,21 @@ type goldenIndex struct {
 }
 
 type goldenManifest struct {
-	Description string   `json:"description"`
-	Hex         string   `json:"hex"`
-	ManifestID  string   `json:"manifest_id"`
-	TotalLen    uint64   `json:"total_len"`
-	Chunks      []string `json:"chunks"`
-	Content     string   `json:"content"`
+	Description string         `json:"description"`
+	Hex         string         `json:"hex"`
+	ManifestID  string         `json:"manifest_id"`
+	TotalLen    uint64         `json:"total_len"`
+	Chunks      []string       `json:"chunks"`
+	Chunker     *goldenChunker `json:"chunker,omitempty"`
+	Content     string         `json:"content"`
+}
+
+type goldenChunker struct {
+	Algo     string `json:"algo"`
+	AlgoByte uint8  `json:"algo_byte"`
+	MinSize  int    `json:"min_size"`
+	AvgSize  int    `json:"avg_size"`
+	MaxSize  int    `json:"max_size"`
 }
 
 type goldenRef struct {
@@ -337,6 +465,16 @@ func TestChunkInv14_GoldenFormats(t *testing.T) {
 	}
 	writeOrCompare(t, "golden_manifest.json", gm)
 
+	m2 := Manifest{TotalLen: total, Chunks: ids, Chunking: ChunkerConfig{Algo: ChunkRabin, MinSize: 64, AvgSize: 256, MaxSize: 1024}}
+	mb2 := m2.Encode()
+	mid2 := m2.ID()
+	gm2 := goldenManifest{
+		Description: "FFMF v2: magic|version u16 = 2|flags u16|total_len u64|chunk_count u32|algo u8 (1 fastcdc, 2 rabin, 3 fixed, 4 whole)|reserved[3]|min_size u32|avg_size u32|max_size u32|ids[count][32]|crc32c(all before) u32. The golden v1 manifest's chunks, recorded as cut by Rabin 64/256/1024.",
+		Hex:         hexs(mb2), ManifestID: hexs(mid2[:]), TotalLen: total, Content: hexs(content), Chunks: gm.Chunks,
+		Chunker: &goldenChunker{Algo: "rabin", AlgoByte: uint8(ChunkRabin), MinSize: 64, AvgSize: 256, MaxSize: 1024},
+	}
+	writeOrCompare(t, "golden_manifest_v2.json", gm2)
+
 	ref := Ref{Generation: 7, Packs: []PackID{pid, PackID(SumChunk([]byte("another pack")))}}
 	rb, _ := ref.Encode()
 	dr, _ := DecodeRef(rb)
@@ -363,9 +501,10 @@ func TestChunkInv14_GoldenFormats(t *testing.T) {
 	// Decode the files as a port would and check the meaning.
 	var lp goldenPack
 	var li goldenIndex
-	var lm goldenManifest
+	var lm, lm2 goldenManifest
 	var lr goldenRef
-	for name, v := range map[string]any{"golden_pack.json": &lp, "golden_index.json": &li, "golden_manifest.json": &lm, "golden_ref.json": &lr} {
+	for name, v := range map[string]any{"golden_pack.json": &lp, "golden_index.json": &li, "golden_manifest.json": &lm,
+		"golden_manifest_v2.json": &lm2, "golden_ref.json": &lr} {
 		if err := json.Unmarshal(testkit.ReadFile(t, suite, name), v); err != nil {
 			t.Fatal(err)
 		}
@@ -411,8 +550,16 @@ func TestChunkInv14_GoldenFormats(t *testing.T) {
 	if err != nil || dm.TotalLen != lm.TotalLen || len(dm.Chunks) != len(lm.Chunks) {
 		t.Fatalf("golden manifest: %v", err)
 	}
-	if !bytes.Equal(dm.Encode(), unhex(lm.Hex)) || SumChunk(unhex(lm.Hex)).String() != lm.ManifestID {
+	if !bytes.Equal(dm.Encode(), unhex(lm.Hex)) || SumChunk(unhex(lm.Hex)).String() != lm.ManifestID || dm.Chunking.Algo != 0 {
 		t.Fatal("golden manifest: id or re-encoding differs")
+	}
+	dm2, err := DecodeManifest(unhex(lm2.Hex))
+	if err != nil || dm2.TotalLen != lm2.TotalLen || len(dm2.Chunks) != len(lm2.Chunks) || lm2.Chunker == nil ||
+		dm2.Chunking != (ChunkerConfig{Algo: ChunkAlgo(lm2.Chunker.AlgoByte), MinSize: lm2.Chunker.MinSize, AvgSize: lm2.Chunker.AvgSize, MaxSize: lm2.Chunker.MaxSize}) {
+		t.Fatalf("golden manifest v2: %+v %v", dm2, err)
+	}
+	if !bytes.Equal(dm2.Encode(), unhex(lm2.Hex)) || SumChunk(unhex(lm2.Hex)).String() != lm2.ManifestID {
+		t.Fatal("golden manifest v2: id or re-encoding differs")
 	}
 	if drr, err := DecodeRef(unhex(lr.Hex)); err != nil || drr.Generation != lr.Generation || len(drr.Packs) != len(lr.Packs) {
 		t.Fatalf("golden ref: %v", err)

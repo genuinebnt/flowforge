@@ -92,9 +92,12 @@ var algoCandidates = []struct {
 }{
 	{"default", Algorithms{}},
 	{"keyword-map", Algorithms{Keywords: KeywordMap}},
+	{"keyword-perfect-hash", Algorithms{Keywords: KeywordPerfectHash}},
 	{"bmp-bitmap", Algorithms{IdentClass: IdentBMPBitmap}},
+	{"ascii-branches", Algorithms{ASCIIClass: ASCIIBranches}},
 	{"cascade", Algorithms{Binary: BinaryCascade}},
-	{"all-alternatives", Algorithms{Keywords: KeywordMap, IdentClass: IdentBMPBitmap, Binary: BinaryCascade}},
+	{"all-alternatives", Algorithms{Keywords: KeywordMap, IdentClass: IdentBMPBitmap, ASCIIClass: ASCIIBranches, Binary: BinaryCascade}},
+	{"all-alternatives-phash", Algorithms{Keywords: KeywordPerfectHash, IdentClass: IdentBMPBitmap, ASCIIClass: ASCIIBranches, Binary: BinaryCascade}},
 }
 
 // BenchmarkJSAlgo compares the candidates of each decision point
@@ -114,10 +117,69 @@ func BenchmarkJSAlgo(b *testing.B) {
 	}
 	b.Run("keyword/switch/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{}) })
 	b.Run("keyword/map/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{Keywords: KeywordMap}) })
+	b.Run("keyword/perfect-hash/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{Keywords: KeywordPerfectHash}) })
+	// The lexer alone isolates the keyword lookup, which is a few percent
+	// of a full parse: every IdentifierName is looked up once.
+	goals := goalSequence(b, ascii)
+	for _, kw := range []struct {
+		name string
+		k    KeywordLookup
+	}{{"switch", KeywordSwitch}, {"map", KeywordMap}, {"perfect-hash", KeywordPerfectHash}} {
+		b.Run("keyword-lex/"+kw.name+"/bundle-1MB", func(b *testing.B) {
+			b.SetBytes(int64(len(ascii)))
+			b.ReportAllocs()
+			for b.Loop() {
+				l := NewLexer(ascii, false)
+				l.alt = Algorithms{Keywords: kw.k}
+				for _, g := range goals {
+					l.Next(g)
+				}
+			}
+		})
+	}
 	b.Run("idclass/unicode-tables/nonascii-1MB", func(b *testing.B) { run(b, uni, Algorithms{}) })
 	b.Run("idclass/bmp-bitmap/nonascii-1MB", func(b *testing.B) { run(b, uni, Algorithms{IdentClass: IdentBMPBitmap}) })
+	b.Run("asciiclass/table/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{}) })
+	b.Run("asciiclass/branches/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{ASCIIClass: ASCIIBranches}) })
 	b.Run("binary/climbing/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{}) })
 	b.Run("binary/cascade/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{Binary: BinaryCascade}) })
+}
+
+// TestJSKeywordPerfectHash: the perfect hash gives every word of
+// keywordNames its own slot and agrees with the switch on every word,
+// every proper prefix and extension of one, and every ASCII and non-ASCII
+// identifier of the corpus; the ASCII classifiers agree on all 128 bytes.
+func TestJSKeywordPerfectHash(t *testing.T) {
+	slots := map[uint64]string{}
+	for _, w := range keywordNames {
+		if o, dup := slots[keywordSlot(w)]; dup {
+			t.Fatalf("%s and %s share slot %d", w, o, keywordSlot(w))
+		}
+		slots[keywordSlot(w)] = w
+	}
+	words := []string{"", "a", "x", "ifx", "Await", "constructors", "__proto_", "lett", "étais"}
+	for _, w := range keywordNames {
+		words = append(words, w, w[:len(w)-1], w+"s", "_"+w)
+	}
+	for _, c := range corpus(t, 200) {
+		l := NewLexer(c.src, false)
+		for tok := l.Next(GoalDiv); tok.Kind != TEOF; tok = l.Next(GoalDiv) {
+			if tok.Kind == TIdentifier {
+				words = append(words, tok.Value)
+			}
+		}
+	}
+	for _, w := range words {
+		if a, b := lookupKeyword(w), perfectHashKeyword(w); a != b || keywordMap[w] != a {
+			t.Fatalf("%q: switch %v, perfect hash %v, map %v", w, a, b, keywordMap[w])
+		}
+	}
+	for c := range byte(0x80) {
+		t1, b1 := Algorithms{}, Algorithms{ASCIIClass: ASCIIBranches}
+		if t1.asciiIDStart(c) != b1.asciiIDStart(c) || t1.asciiIDPart(c) != b1.asciiIDPart(c) {
+			t.Fatalf("byte %#x: table and branches disagree", c)
+		}
+	}
 }
 
 // TestJSAlgoEquivalent: every candidate gives the same tree on valid

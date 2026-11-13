@@ -69,6 +69,11 @@ type Config struct {
 	KeyframeInterval int
 	// CacheBytes bounds the decoded-blob cache (default 64 MiB).
 	CacheBytes int
+	// Pipeline derives captures (default: content.Process, stamped with
+	// DerivationStamp). Snapshots derived under another stamp are
+	// re-derived by Rederive, and by an ingest before it uses one as its
+	// predecessor.
+	Pipeline Pipeline
 }
 
 // Store is the content store: capture ingest, the diff pipeline, findings
@@ -104,6 +109,7 @@ func New(cfg Config) (*Store, error) {
 	if cfg.CacheBytes <= 0 {
 		cfg.CacheBytes = 64 << 20
 	}
+	cfg.Pipeline = cfg.Pipeline.withDefaults()
 	return &Store{cfg: cfg, cache: newBlobCache(cfg.CacheBytes)}, nil
 }
 

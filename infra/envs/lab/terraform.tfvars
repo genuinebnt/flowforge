@@ -16,6 +16,7 @@ images = {
   notifier       = "us-central1-docker.pkg.dev/flowforge-lab/flowforge/notifier@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   similarity     = "us-central1-docker.pkg.dev/flowforge-lab/flowforge/similarity@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   "tool-runner"  = "us-central1-docker.pkg.dev/flowforge-lab/flowforge/tool-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  content        = "us-central1-docker.pkg.dev/flowforge-lab/flowforge/content@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   "egress-proxy" = "us-central1-docker.pkg.dev/flowforge-lab/flowforge/egress-proxy@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   migrate        = "us-central1-docker.pkg.dev/flowforge-lab/flowforge/migrate@sha256:0000000000000000000000000000000000000000000000000000000000000000"
 }
@@ -34,6 +35,7 @@ scaling = {
   notifier      = { concurrency = 80, max = 1 }
   similarity    = { concurrency = 40, max = 1, memory = "1Gi" }
   "tool-runner" = { concurrency = 10, max = 1, memory = "1Gi" }
+  content       = { concurrency = 20, max = 1, memory = "1Gi" } # one writer (G-CST-03)
 }
 
 # e2-micro, 10 GB boot + 20 GB data, pd-standard: the Compute Engine free tier.
@@ -44,9 +46,9 @@ redis_enabled   = false
 
 topic_prefix = "ff."
 
-# One signing key: secrets = ff-signing-key-2026-11 + ff-db-password = 2 of
-# the 6 free active versions (redis_enabled, llm_api_key_enabled, webhooks
-# and tool secrets each add one).
+# One signing key: secrets = ff-signing-key-2026-11 + ff-db-password +
+# ff-content-kek = 3 of the 6 free active versions (redis_enabled,
+# llm_api_key_enabled, webhooks and tool secrets each add one).
 signing_key_kids    = ["2026-11"]
 current_signing_kid = "2026-11"
 

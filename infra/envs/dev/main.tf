@@ -39,7 +39,12 @@ locals {
   project_number = data.google_project.this.number
   labels         = { app = "flowforge", env = var.env }
 
-  service_names = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "egress-proxy"]
+  zone = coalesce(var.zone, "${var.region}-a")
+
+  # Cloud Run services. The egress proxy is not one of them: it runs on a
+  # VM (module.egress, G-OPS-15/G-SVC-14), because Cloud Run cannot serve
+  # CONNECT to arbitrary ports, SOCKS5 or DNS over UDP.
+  service_names = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "content"]
 
   # Cloud Run URLs are deterministic (https://<service>-<project number>.<region>.run.app),
   # which breaks the gateway <-> internal-service reference cycle (JWKS URL
@@ -47,8 +52,10 @@ locals {
   run_url = { for s in local.service_names : s => "https://ff-${s}-${local.project_number}.${var.region}.run.app" }
 
   # Databases users: one per service that owns a schema (spec 10), plus the
-  # migrations owner. similarity reads/writes graph.embeddings (spec 22).
-  db_users = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "migrator"]
+  # migrations owner. similarity reads/writes graph.embeddings (spec 22);
+  # content owns the content schema (migration 0031, role ff_content,
+  # subject to RLS).
+  db_users = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "content", "migrator"]
 
   # Internal-token signing keys (spec 13.2, 13.7; G-OPS-12). Every key id in
   # signing_key_kids is mounted as FF_SIGNING_KEY_<KID> (upper case, "-" ->
@@ -78,6 +85,9 @@ locals {
     [for t in var.tool_secrets : "ff-tool-${t}"],
     [for u in local.db_users : "ff-db-${u}-password"],
     ["ff-redis-auth", "ff-redis-ca"],
+    # The content service's key-encryption key (FF_CONTENT_KEK, 32 bytes hex
+    # or base64), added out of band like the signing keys.
+    ["ff-content-kek"],
   )
 
   # --- spec 17.5 environment variables.
@@ -114,6 +124,8 @@ locals {
   }
   secret_db = { for u in local.db_users : u => { PGPASSWORD = { secret = "ff-db-${u}-password" } } }
   addr      = { for s in local.service_names : s => { "FF_${upper(replace(s, "-", "_"))}_ADDR" = local.run_url[s] } }
+  # The egress proxy VM on its internal address (HTTP/CONNECT port).
+  env_proxy = { FF_EGRESS_PROXY = module.egress.proxy_url }
 
   # --- spec 17.1 service mapping and 17.2 roles. Resource-scoped grants
   # (topics, subscriptions, bucket prefixes, invokers) are declared below.
@@ -130,6 +142,7 @@ locals {
       liveness   = "/healthz"
       env = merge(local.env_common, local.env_db["gateway"], local.env_redis, local.env_signing,
         local.addr["engine"], local.addr["scope"], local.addr["graph"], local.addr["notifier"], local.addr["similarity"], local.addr["tool-runner"],
+        local.addr["content"],
         {
           FF_JWT_AUDIENCE      = var.jwt_audience_public
           FF_INTERNAL_AUDIENCE = var.jwt_audience_internal
@@ -146,10 +159,9 @@ locals {
       roles      = ["roles/cloudsql.client"]
       health     = null
       liveness   = null
-      env = merge(local.env_common, local.env_db["engine"], local.env_redis, local.env_bucket, local.env_signing,
+      env = merge(local.env_common, local.env_db["engine"], local.env_redis, local.env_bucket, local.env_signing, local.env_proxy,
         local.addr["scope"], local.addr["graph"], local.addr["tool-runner"],
         {
-          FF_EGRESS_PROXY         = local.run_url["egress-proxy"]
           FF_TICK_OIDC_AUDIENCE   = local.run_url["engine"]
           FF_TICK_SERVICE_ACCOUNT = google_service_account.scheduler.email
           FF_LLM_ENDPOINT         = var.llm_endpoint
@@ -195,9 +207,7 @@ locals {
       roles      = ["roles/cloudsql.client"]
       health     = null
       liveness   = null
-      env = merge(local.env_common, local.env_db["notifier"], {
-        FF_EGRESS_PROXY = local.run_url["egress-proxy"]
-      })
+      env        = merge(local.env_common, local.env_db["notifier"], local.env_proxy)
       secret_env = merge(local.secret_db["notifier"], local.webhook_env)
     }
     similarity = {
@@ -223,52 +233,65 @@ locals {
       roles      = [] # no database access (spec 17.2)
       health     = null
       liveness   = null
-      env = merge(local.env_common, local.env_redis, local.env_bucket, local.env_signing, local.addr["scope"], {
-        FF_EGRESS_PROXY = local.run_url["egress-proxy"]
-      })
+      env        = merge(local.env_common, local.env_redis, local.env_bucket, local.env_signing, local.env_proxy, local.addr["scope"], local.addr["content"])
       secret_env = merge(local.secret_redis, local.tool_secret_env, local.signing_key_env)
     }
-    egress-proxy = {
+    # The content service (V2_DESIGN §6-§8; G-OPS-16, G-CST-01): chunk packs
+    # and text indexes in the content bucket (FF_CONTENT_BUCKET, G-CST-02),
+    # rows in the content schema as ff_content. CPU always allocated: the
+    # content.changes outbox relay and the retention/GC sweep run in the
+    # background. One instance at most (var.scaling validation): chunkstore
+    # allows one writer per tenant namespace (G-CST-03).
+    content = {
       ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
       public     = false
       http2      = true
-      cpu_always = false
-      subnet     = module.network.egress_subnet_id
-      sql        = false
-      roles      = []
+      cpu_always = true
+      subnet     = module.network.services_subnet_id
+      sql        = true
+      roles      = ["roles/cloudsql.client"]
       health     = null
       liveness   = null
-      env        = merge(local.env_common, local.env_signing, local.addr["scope"])
-      secret_env = local.signing_key_env
+      env = merge(local.env_common, local.env_db["content"], {
+        FF_CONTENT_BUCKET = module.content_bucket.name
+        FF_CONTENT_KEK_ID = var.content_kek_id
+      })
+      secret_env = merge(local.secret_db["content"], { FF_CONTENT_KEK = { secret = "ff-content-kek" } })
     }
   }
 
   # Cloud Run Invoker grants (spec 17.2): callee => callers.
   invokers = {
-    engine       = ["gateway"]
-    scope        = ["gateway", "engine", "tool-runner", "egress-proxy", "graph", "similarity"]
-    graph        = ["gateway", "engine", "similarity"]
-    notifier     = ["gateway"]
-    similarity   = ["gateway"]
-    tool-runner  = ["engine", "gateway"]
-    egress-proxy = ["tool-runner", "engine", "notifier"]
+    engine      = ["gateway"]
+    scope       = ["gateway", "engine", "tool-runner", "graph", "similarity"]
+    graph       = ["gateway", "engine", "similarity"]
+    notifier    = ["gateway"]
+    similarity  = ["gateway"]
+    tool-runner = ["engine", "gateway"]
+    content     = ["gateway", "tool-runner"]
   }
   invoker_pairs = merge([
     for callee, callers in local.invokers : { for c in callers : "${callee}/${c}" => { callee = callee, caller = c } }
   ]...)
 
-  # Event topics (spec 11.7): producers and consumers.
+  # Event topics (spec 11.7, V2 §6): producers and consumers ("egress-proxy"
+  # is the VM).
   topics = {
     "run.events"      = { publishers = ["engine"], consumers = ["notifier", "gateway"] }
     "approval.events" = { publishers = ["engine"], consumers = ["notifier"] }
     "graph.changes"   = { publishers = ["graph"], consumers = ["notifier", "engine", "similarity"] }
     "scope.events"    = { publishers = ["scope"], consumers = ["engine", "tool-runner", "egress-proxy", "notifier"] }
     "auth.events"     = { publishers = ["gateway"], consumers = ["notifier"] }
+    "content.changes" = { publishers = ["content"], consumers = ["graph", "notifier"] }
   }
+  members = merge(
+    { for s, m in module.svc : s => m.service_account_member },
+    { egress-proxy = module.egress.service_account_member },
+  )
 
   runtime_sas = merge(
     { for s, m in module.svc : s => m.service_account_id },
-    { migrate = google_service_account.migrate.name },
+    { migrate = google_service_account.migrate.name, egress-proxy = module.egress.service_account_id },
   )
 }
 
@@ -376,6 +399,76 @@ module "artifacts" {
   }
 }
 
+# The content service's chunk packs and text indexes (G-OPS-16, G-CST-02):
+# chunks/t/<tenant>/{ref,packs/<id>.pack,packs/<id>.idx} and
+# index/<tenant>/<program>/... (chunkstore/gcsstore). Packs are immutable
+# and the live set is named by each tenant's ref, so no lifecycle rule
+# deletes anything here: the content service's GC removes unreferenced packs
+# after swapping the ref. Soft delete (7 days by default) keeps what GC
+# removed recoverable.
+module "content_bucket" {
+  source        = "../../modules/storage-bucket"
+  project_id    = var.project_id
+  name          = "${var.project_id}-ff-content"
+  location      = var.region
+  kms_key_name  = var.artifact_kms_key
+  force_destroy = !var.deletion_protection
+  labels        = local.labels
+
+  lifecycle_rules = []
+
+  # The content service lists, reads, writes and deletes (GC) the whole
+  # bucket; nobody else is granted anything.
+  iam = {
+    content = {
+      role   = "roles/storage.objectUser"
+      member = module.svc["content"].service_account_member
+    }
+  }
+}
+
+# ---------------------------------------------------------------- egress proxy VM (G-OPS-15, G-SVC-14)
+
+module "egress" {
+  source        = "../../modules/egress-vm"
+  project_id    = var.project_id
+  region        = var.region
+  zone          = local.zone
+  name          = local.name
+  network_id    = module.network.network_id
+  subnetwork_id = module.network.egress_subnet_id
+  network_tags  = [module.network.egress_proxy_tag]
+  machine_type  = var.egress_machine_type
+  registry      = "${var.region}-docker.pkg.dev"
+  repository    = google_artifact_registry_repository.images.repository_id
+  image         = var.images["egress-proxy"]
+
+  # Calls scope (decisions) and consumes scope.events, like the services.
+  env        = merge(local.env_common, local.env_signing, local.addr["scope"])
+  secret_env = { for k, v in local.signing_key_env : k => v.secret }
+  secret_ids = { for k, v in local.signing_key_env : v.secret => google_secret_manager_secret.this[v.secret].id }
+
+  # Every port from the tool-runner; the HTTP port also from the services
+  # subnet, for the notifier's webhook path (G-SVC-08). The proxy
+  # authenticates every request with the internal token either way.
+  tool_cidrs        = [module.network.tools_cidr]
+  http_client_cidrs = [module.network.services_cidr]
+  tool_runner_tag   = module.network.tool_runner_tag
+
+  deletion_protection = var.deletion_protection
+  labels              = local.labels
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_cloud_run_v2_service_iam_member" "egress_scope" {
+  project  = var.project_id
+  location = var.region
+  name     = module.svc["scope"].name
+  role     = "roles/run.invoker"
+  member   = module.egress.service_account_member
+}
+
 # ---------------------------------------------------------------- secrets (spec 17.1)
 
 resource "google_secret_manager_secret" "this" {
@@ -474,8 +567,8 @@ module "topic" {
   project_number = local.project_number
   name           = each.key
   prefix         = var.topic_prefix
-  publishers     = { for p in each.value.publishers : p => module.svc[p].service_account_member }
-  consumers      = { for c in each.value.consumers : c => module.svc[c].service_account_member }
+  publishers     = { for p in each.value.publishers : p => local.members[p] }
+  consumers      = { for c in each.value.consumers : c => local.members[c] }
   labels         = local.labels
 
   depends_on = [google_project_service.apis]
@@ -759,10 +852,20 @@ resource "google_cloud_run_v2_job_iam_member" "ci_admin_migrate" {
   member   = google_service_account.ci.member
 }
 
+# The deploy workflow rolls the egress proxy forward by setting the VM's
+# metadata key ff-egress-proxy-image (the VM watches it), as in the lab.
+resource "google_compute_instance_iam_member" "ci_egress_vm" {
+  project       = var.project_id
+  zone          = local.zone
+  instance_name = module.egress.instance_name
+  role          = "roles/compute.instanceAdmin.v1"
+  member        = google_service_account.ci.member
+}
+
 # Service Account User on the runtime accounts, so CI can deploy revisions
-# that run as them.
+# that run as them (and update the VM that runs as the proxy's account).
 resource "google_service_account_iam_member" "ci_act_as" {
-  for_each           = toset(concat(local.service_names, ["migrate"]))
+  for_each           = toset(concat(local.service_names, ["migrate", "egress-proxy"]))
   service_account_id = local.runtime_sas[each.value]
   role               = "roles/iam.serviceAccountUser"
   member             = google_service_account.ci.member
@@ -785,7 +888,8 @@ module "monitoring" {
 }
 
 # Optional budget-triggered shutdown (G-OPS-20): closes the gateway, pauses
-# the scheduler jobs, sets min instances 0 and stops Cloud SQL. Memorystore,
+# the scheduler jobs, sets min instances 0 and stops Cloud SQL and the egress
+# VM. Memorystore,
 # NAT, the load balancer and reserved IPs keep billing; `make gcp-down`
 # removes them.
 module "budget_shutdown" {
@@ -806,6 +910,10 @@ module "budget_shutdown" {
   scale_down_services = { for s, v in var.scaling : module.svc[s].name => module.svc[s].service_account_id if v.min > 0 }
   scheduler_jobs      = concat(google_cloud_scheduler_job.tick[*].name, [for j in google_cloud_scheduler_job.schedule : j.name])
   sql_instance        = module.sql.instance_name
+  vm = {
+    name = module.egress.instance_name
+    zone = local.zone
+  }
 
   depends_on = [google_project_service.apis]
 }
@@ -820,6 +928,17 @@ output "api_ip" {
 output "egress_ips" {
   description = "Static egress IPs of the egress proxy (publish to programs for allowlisting)."
   value       = module.network.nat_ips
+}
+
+output "egress_proxy" {
+  description = "The egress proxy VM: FF_EGRESS_PROXY, the SOCKS5 and DNS addresses it advertises, its instance."
+  value = {
+    proxy_url = module.egress.proxy_url
+    socks     = module.egress.socks_addr
+    dns       = module.egress.dns_addr
+    instance  = module.egress.instance_name
+    zone      = local.zone
+  }
 }
 
 output "service_urls" {
@@ -852,8 +971,8 @@ output "power" {
     warm_services  = join(" ", [for s, v in var.scaling : "${module.svc[s].name}=${v.min}" if v.min > 0])
     scheduler_jobs = join(" ", concat(google_cloud_scheduler_job.tick[*].name, [for j in google_cloud_scheduler_job.schedule : j.name]))
     sql_instance   = module.sql.instance_name
-    vm             = ""
-    vm_zone        = ""
+    vm             = module.egress.instance_name
+    vm_zone        = local.zone
   }
 }
 

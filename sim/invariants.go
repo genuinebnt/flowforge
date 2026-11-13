@@ -60,6 +60,7 @@ func CheckInvariants(h *History) []Violation {
 		}
 	}
 	checkScope(h, logs, add)
+	checkKillSwitches(h, add)
 	checkSagas(h, logs, comps, add)
 	checkAlerts(h, add)
 	checkGraph(h, logs, add)
@@ -506,13 +507,15 @@ func checkGraph(h *History, logs map[string]*parsedLog, add addFn) {
 	}
 }
 
-// inv_10: per rl:h key, every request the executor received was admitted
-// by the limiter (matched in order per actor), and in every window of
-// executor arrival times the request count stays within the GCRA bound
-// burst + rate*(window + dispatch delay), where the dispatch delay is the
-// longest time a request of the window spent between admission and
-// arrival (the engine admits before it records effect_started). Transport
-// duplicates of one request count once.
+// inv_10, measured at the network edge (G-ENG-09): per rl:h key,
+// (a) every request the executor received was admitted by the engine's
+// limiter (matched in order per actor; transport duplicates are one
+// request there), (b) every request delivered to the tool, duplicates
+// included, passed the edge's limiter at its arrival time, and (c) in
+// every window of delivery times the count stays within the GCRA bound
+// burst + rate*window. The bound has no allowance for dispatch delay: the
+// edge admits at arrival, so how long a call spent between the engine's
+// admission and the edge does not matter.
 func checkRate(h *History, add addFn) {
 	type ak struct {
 		actor uint64
@@ -523,27 +526,40 @@ func checkRate(h *History, add addFn) {
 		k := ak{a.Actor, a.Key}
 		adm[k] = append(adm[k], a.At)
 	}
+	type ek struct {
+		key string
+		at  time.Time
+	}
+	edge := map[ek]int{}
+	for _, a := range h.EdgeAdmissions {
+		edge[ek{a.Key, a.At}]++
+	}
 	calls := slices.Clone(h.ToolCalls)
 	slices.SortStableFunc(calls, compareCalls)
-	type arrival struct {
-		at, admitted time.Time
-	}
-	byKey := map[string][]arrival{}
+	byKey := map[string][]time.Time{}
 	used := map[ak]int{}
 	for _, c := range calls {
-		if c.LimitKey == "" || c.Duplicate {
+		if c.LimitKey == "" {
 			continue
 		}
-		k := ak{c.Actor, c.LimitKey}
-		i := used[k]
-		if i >= len(adm[k]) {
-			add(Inv10, c.Run, "%s call at %s (%s) was never admitted by the limiter", c.Tool, c.Path, c.LimitKey)
+		if !c.Duplicate {
+			k := ak{c.Actor, c.LimitKey}
+			i := used[k]
+			if i >= len(adm[k]) {
+				add(Inv10, c.Run, "%s call at %s (%s) was never admitted by the limiter", c.Tool, c.Path, c.LimitKey)
+				continue
+			}
+			used[k] = i + 1
+		}
+		if !c.Delivered {
 			continue
 		}
-		used[k] = i + 1
-		if c.Delivered {
-			byKey[c.LimitKey] = append(byKey[c.LimitKey], arrival{c.At, adm[k][i]})
+		if e := (ek{c.LimitKey, c.At}); edge[e] > 0 {
+			edge[e]--
+		} else {
+			add(Inv10, c.Run, "%s call at %s (%s) reached the tool without passing the edge's limiter", c.Tool, c.Path, c.LimitKey)
 		}
+		byKey[c.LimitKey] = append(byKey[c.LimitKey], c.At)
 	}
 	ceiling := func(key string) (RateCeiling, bool) {
 		for _, rc := range h.RateCeilings {
@@ -564,19 +580,54 @@ func checkRate(h *History, add addFn) {
 			continue
 		}
 		as := byKey[key]
-		slices.SortFunc(as, func(a, b arrival) int { return a.at.Compare(b.at) })
+		slices.SortFunc(as, time.Time.Compare)
+		// The densest windows start and end at arrivals, so checking every
+		// pair (i, j) covers every window.
 		for i := range as {
-			delay := time.Duration(0)
 			for j := i; j < len(as); j++ {
-				delay = max(delay, as[j].at.Sub(as[j].admitted))
-				w := as[j].at.Sub(as[i].at)
-				limit := float64(rc.Burst) + rc.Rate*(w+delay).Seconds() + 1e-9
-				if float64(j-i+1) > limit {
-					add(Inv10, "", "%s: %d requests within %s (dispatch delay %s), ceiling %d+%.1f/s",
-						key, j-i+1, w, delay, rc.Burst, rc.Rate)
+				w := as[j].Sub(as[i])
+				if limit := float64(rc.Burst) + rc.Rate*w.Seconds() + 1e-9; float64(j-i+1) > limit {
+					add(Inv10, "", "%s: %d requests within %s at the edge, ceiling %d+%.1f/s", key, j-i+1, w, rc.Burst, rc.Rate)
 					return
 				}
 			}
+		}
+	}
+}
+
+// inv_06, kill switches: no target-facing call (passive and above) was
+// delivered while a kill switch covering its run's tenant or program was
+// engaged throughout the call's instant (an engaged kill switch turns
+// every decision into a deny, spec 4.3). Calls the edge refused in such a
+// race are History.KillSwitchRaces, reported but not violations.
+func checkKillSwitches(h *History, add addFn) {
+	if len(h.KillSwitches) == 0 {
+		return
+	}
+	runs := map[string]RunRecord{}
+	for _, r := range h.Runs {
+		runs[r.ID] = r
+	}
+	// engaged reports whether a switch covering (tenant, program) is on
+	// after the changes with At < t (strict) or At <= t (!strict).
+	engaged := func(tenant, program string, t time.Time, strict bool) bool {
+		on := map[string]bool{}
+		for _, k := range h.KillSwitches {
+			if k.At.After(t) || (strict && k.At.Equal(t)) {
+				break
+			}
+			on[k.Level+":"+k.ID] = k.Engaged
+		}
+		return on[engine.KillGlobal+":"] || on[engine.KillTenant+":"+tenant] || on[engine.KillProgram+":"+program]
+	}
+	for _, c := range h.ToolCalls {
+		cls, err := core.ParseActivityClass(c.Class)
+		if err != nil || cls == core.ClassNone || !c.Delivered {
+			continue
+		}
+		r := runs[c.Run]
+		if engaged(r.Tenant, r.Program, c.At, true) && engaged(r.Tenant, r.Program, c.At, false) {
+			add(Inv06, c.Run, "%s call at %s was delivered at %s while a kill switch was engaged", c.Tool, c.Path, c.At.Format(time.RFC3339Nano))
 		}
 	}
 }

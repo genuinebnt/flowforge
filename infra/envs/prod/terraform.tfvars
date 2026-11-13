@@ -18,21 +18,23 @@ images = {
   notifier       = "us-central1-docker.pkg.dev/flowforge-prod/flowforge/notifier@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   similarity     = "us-central1-docker.pkg.dev/flowforge-prod/flowforge/similarity@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   "tool-runner"  = "us-central1-docker.pkg.dev/flowforge-prod/flowforge/tool-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  content        = "us-central1-docker.pkg.dev/flowforge-prod/flowforge/content@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   "egress-proxy" = "us-central1-docker.pkg.dev/flowforge-prod/flowforge/egress-proxy@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   migrate        = "us-central1-docker.pkg.dev/flowforge-prod/flowforge/migrate@sha256:0000000000000000000000000000000000000000000000000000000000000000"
 }
 
 # spec 17.1 concurrency and min instances; max instances are the cost cap
-# (spec 17.6). Prod keeps a warm gateway.
+# (spec 17.6). Prod keeps a warm gateway. content stays at one instance
+# (G-CST-03). The egress proxy is a VM (egress_machine_type).
 scaling = {
-  gateway        = { concurrency = 80, min = 1, max = 20 }
-  engine         = { concurrency = 20, min = 1, max = 20, cpu = "2", memory = "1Gi" }
-  scope          = { concurrency = 80, min = 1, max = 10 }
-  graph          = { concurrency = 20, min = 1, max = 20, memory = "1Gi" }
-  notifier       = { concurrency = 80, min = 1, max = 5 }
-  similarity     = { concurrency = 40, min = 1, max = 10, cpu = "2", memory = "2Gi" }
-  "tool-runner"  = { concurrency = 10, min = 0, max = 20, cpu = "2", memory = "2Gi" }
-  "egress-proxy" = { concurrency = 80, min = 1, max = 10 }
+  gateway       = { concurrency = 80, min = 1, max = 20 }
+  engine        = { concurrency = 20, min = 1, max = 20, cpu = "2", memory = "1Gi" }
+  scope         = { concurrency = 80, min = 1, max = 10 }
+  graph         = { concurrency = 20, min = 1, max = 20, memory = "1Gi" }
+  notifier      = { concurrency = 80, min = 1, max = 5 }
+  similarity    = { concurrency = 40, min = 1, max = 10, cpu = "2", memory = "2Gi" }
+  "tool-runner" = { concurrency = 10, min = 0, max = 20, cpu = "2", memory = "2Gi" }
+  content       = { concurrency = 20, min = 1, max = 1, cpu = "2", memory = "2Gi" }
 }
 
 nat_ip_count = 2

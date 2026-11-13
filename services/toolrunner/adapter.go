@@ -7,7 +7,7 @@
 // only through the egress proxy (Egress), carrying the pinned decision.
 //
 // Adapters that work without the internet (spec 20, M7): dnsresolve
-// (passive; injectable resolver), httpprobe (active; HTTP GET through the
+// (passive; through the proxy's DNS forwarder), httpprobe (active; HTTP GET through the
 // proxy), tcpconnect (active; CONNECT through the proxy) and mock. The v2
 // tools add portscan, tlscert, ctlog, rdap, asn and the content tools of
 // V2_DESIGN §8 (ContentAdapters: collect, crawl, wellknown, extract,
@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -28,7 +29,7 @@ import (
 )
 
 // Spec describes a tool (spec 6.2). The proto ToolSpec is derived from it
-// (convert.ToolSpecProto) with the shared default retry policy.
+// (convert.ToolSpecProto), retry policy and idempotency class included.
 type Spec struct {
 	Name, Version, Description string
 	InputType, OutputType      string // DSL type texts
@@ -38,12 +39,48 @@ type Spec struct {
 	RateBurst, Concurrency     int
 	Timeout                    time.Duration
 	Idempotent                 bool
+	// Idempotency is the engine.Idempotency* class ("" derives it from
+	// Idempotent).
+	Idempotency string
+	// Retry is the tool's retry policy (spec 6.2 "retry"); the zero value
+	// means the default passed to EngineSpec.
+	Retry engine.RetryPolicy
 }
 
-// EngineSpec converts s to the engine's tool spec (hash included).
-func (s Spec) EngineSpec(retry engine.RetryPolicy) engine.ToolSpec {
+// Retry policies of the built-in tools (spec 6.2, 9.5). Every code they
+// list is one the runner reports with retryable set: "unavailable" (a
+// transport or upstream failure), "deadline_exceeded" (the call's or the
+// tool's own timeout) and, for the content tools, "content_unavailable".
+// A rate-limit denial at the egress proxy is not in any list: the runner
+// reports it as rate_limited with a retry delay, which the engine waits
+// out without counting an attempt.
+var (
+	// RetryTransient is the policy of target-facing tools: 3 attempts,
+	// 1 s doubling to 30 s, full jitter.
+	RetryTransient = engine.RetryPolicy{MaxAttempts: 3, RetryOn: []string{"unavailable", "deadline_exceeded"},
+		Backoff: engine.Backoff{InitialMs: 1000, MaxMs: 30000, Multiplier: 2, Jitter: "full"}}
+	// RetryIntel is the policy of tools that query public intelligence
+	// sources (crt.sh, RDAP, Team Cymru), which are slow and shed load: 4
+	// attempts, 2 s doubling to 60 s.
+	RetryIntel = engine.RetryPolicy{MaxAttempts: 4, RetryOn: []string{"unavailable", "deadline_exceeded"},
+		Backoff: engine.Backoff{InitialMs: 2000, MaxMs: 60000, Multiplier: 2, Jitter: "full"}}
+	// RetryContent is RetryTransient plus content_unavailable (the content
+	// service was unreachable).
+	RetryContent = engine.RetryPolicy{MaxAttempts: 3, RetryOn: []string{"unavailable", "deadline_exceeded", "content_unavailable"},
+		Backoff: engine.Backoff{InitialMs: 1000, MaxMs: 30000, Multiplier: 2, Jitter: "full"}}
+	// RetryNever is one attempt (tools whose failures are deterministic).
+	RetryNever = engine.RetryPolicy{MaxAttempts: 1}
+)
+
+// EngineSpec converts s to the engine's tool spec (hash included);
+// defaultRetry applies when s declares no policy.
+func (s Spec) EngineSpec(defaultRetry engine.RetryPolicy) engine.ToolSpec {
+	retry := s.Retry
+	if retry.MaxAttempts == 0 {
+		retry = defaultRetry
+	}
 	es := engine.ToolSpec{Name: s.Name, Version: s.Version, Description: s.Description, InputType: s.InputType,
-		OutputType: s.OutputType, Observes: s.Observes, Idempotent: s.Idempotent, Retry: retry,
+		OutputType: s.OutputType, Observes: s.Observes, Idempotent: s.Idempotent, Idempotency: s.Idempotency, Retry: retry,
 		Rate:      engine.Rate{RequestsPerSecond: s.RateRPS, Burst: s.RateBurst, Concurrency: s.Concurrency},
 		TimeoutMs: s.Timeout.Milliseconds()}
 	es.EffectClass = "read" // tools that touch no target (spec 7.5)
@@ -71,11 +108,13 @@ type Emitter interface {
 	Skipped(target, reason string) error
 }
 
-// ToolError is a structured tool failure (proto ToolError).
+// ToolError is a structured tool failure (proto ToolError). RetryAfter is
+// set with code rate_limited when the network edge denied a request.
 type ToolError struct {
-	Code      string
-	Message   string
-	Retryable bool
+	Code       string
+	Message    string
+	Retryable  bool
+	RetryAfter time.Duration
 }
 
 func (e *ToolError) Error() string { return e.Code + ": " + e.Message }
@@ -86,7 +125,7 @@ func Errorf(code string, retryable bool, msg string) *ToolError {
 }
 
 // ToolCtx is what an adapter may use: the call's identity and scope, the
-// re-check function, the egress proxy and the resolver for passive lookups.
+// re-check function and the egress proxy.
 type ToolCtx struct {
 	Tenant, Program, Run core.UUID
 	Path                 string
@@ -106,9 +145,64 @@ type ToolCtx struct {
 	// Net, when set, replaces Egress as the route out (tests use recorded
 	// fixtures).
 	Net Network
-	// Resolver serves passive name resolution when the proxy has no DNS
-	// forwarder (dnsresolve's A/AAAA fallback).
-	Resolver scope.Resolver
+	// Raw receives the raw protocol bytes the egress paths read (nil:
+	// none are recorded; G-SVC-16).
+	Raw *RawCapture
+
+	edgeMu   sync.Mutex
+	edgeKill bool
+	edgeWait time.Duration
+}
+
+// Proxy refusal reasons that describe the network edge rather than the
+// target (services/egressproxy).
+const (
+	refusedKillSwitch  = "kill_switch"
+	refusedRateLimited = "rate_limited"
+	refusedConcurrency = "concurrency_limited"
+)
+
+// concurrencyWait is the retry delay of a concurrency_limited refusal,
+// which carries none: about one request time.
+const concurrencyWait = time.Second
+
+// noteRefusal remembers proxy refusals that concern the whole execution:
+// a kill switch, and per-target rate or concurrency limits (with the
+// longest retry delay). Execute reports them in place of the tool's
+// result (edgeOutcome).
+func (tc *ToolCtx) noteRefusal(re *RefusedError) {
+	if tc == nil || re == nil {
+		return
+	}
+	tc.edgeMu.Lock()
+	defer tc.edgeMu.Unlock()
+	switch re.Reason {
+	case refusedKillSwitch:
+		tc.edgeKill = true
+	case refusedRateLimited:
+		tc.edgeWait = max(tc.edgeWait, re.RetryAfter, time.Millisecond)
+	case refusedConcurrency:
+		tc.edgeWait = max(tc.edgeWait, re.RetryAfter, concurrencyWait)
+	}
+}
+
+// edgeOutcome is the execution's result as the network edge decided it:
+// a kill-switch refusal (engine.CodeKillSwitch: the switch was engaged
+// after the engine's re-check, a race the engine reports), else a
+// rate-limit wait (engine.CodeRateLimited with the delay, which the engine
+// waits out without counting an attempt), else nil. Either overrides what
+// the adapter returned, since its result lacks what the edge refused.
+func (tc *ToolCtx) edgeOutcome() *ToolError {
+	tc.edgeMu.Lock()
+	defer tc.edgeMu.Unlock()
+	switch {
+	case tc.edgeKill:
+		return &ToolError{Code: engine.CodeKillSwitch, Message: "the egress proxy refused a request: a kill switch is engaged"}
+	case tc.edgeWait > 0:
+		return &ToolError{Code: engine.CodeRateLimited, Message: "the egress proxy's per-target limit refused a request",
+			Retryable: true, RetryAfter: tc.edgeWait}
+	}
+	return nil
 }
 
 // Network returns the route out: Net, else Egress, else nil.

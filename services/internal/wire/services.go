@@ -213,9 +213,7 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 type ToolRunnerOptions struct {
 	ScopeAddr   string
 	EgressProxy string
-	// Resolver serves dnsresolve (default net.Resolver).
-	Resolver   scope.Resolver
-	ProbePorts []toolrunner.ProbePort
+	ProbePorts  []toolrunner.ProbePort
 	// Adapters replaces the default adapters.
 	Adapters []toolrunner.Adapter
 	// ContentAddr is the content service; set adds the content tools
@@ -245,9 +243,6 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 	if eg != nil {
 		eg.IDTokens = env.IDTokens
 		eg.TargetTLS = o.TargetTLS
-	}
-	if o.Resolver == nil {
-		o.Resolver = scopesvc.NetResolver{}
 	}
 	ads := o.Adapters
 	if ads == nil {
@@ -279,8 +274,15 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 	if clock == nil {
 		clock = env.Clock
 	}
+	raw, err := toolrunner.RawStoreFor(env.Blobs, clock)
+	if err != nil {
+		for _, c := range closers {
+			c()
+		}
+		return nil, err
+	}
 	srv := toolrunner.NewServer(toolrunner.Options{Adapters: ads, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "tool-runner"),
-		Egress: eg, Resolver: o.Resolver, Clock: clock, Logger: env.Logger, Raw: env.Blobs})
+		Egress: eg, Clock: clock, Logger: env.Logger, Raw: raw})
 	return &Component{Register: func(g *grpc.Server) { pb.RegisterToolRunnerServiceServer(g, srv) }, Close: func() {
 		for _, c := range closers {
 			c()

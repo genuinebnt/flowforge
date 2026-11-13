@@ -3,135 +3,22 @@ package blob_test
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
-	"hash/crc32"
-	"io"
-	"mime"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"strings"
-	"sync"
 	"testing"
 
-	"google.golang.org/api/option"
-
-	"cloud.google.com/go/storage"
-
+	"github.com/genuinebnt/flowforge/chunkstore/gcsstore/gcsfake"
 	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/services/internal/blob"
 )
 
-// fakeGCS implements the subset of the Cloud Storage JSON API the GCS
-// adapter uses, and nothing more: multipart upload
-// (POST /upload/storage/v1/b/{bucket}/o?uploadType=multipart), media
-// download (GET /storage/v1/b/{bucket}/o/{object}?alt=media, with
-// storage.WithJSONReads) and delete (DELETE /storage/v1/b/{bucket}/o/{object}).
-// It returns the CRC32C the client verifies after an upload. Not covered:
-// resumable uploads, preconditions, ACLs, retries on 5xx, the XML read
-// path and authentication.
-type fakeGCS struct {
-	mu      sync.Mutex
-	objects map[string][]byte // bucket/name
-	reqs    []string
-}
-
-func (f *fakeGCS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	f.mu.Lock()
-	f.reqs = append(f.reqs, r.Method+" "+r.URL.Path)
-	f.mu.Unlock()
-	switch {
-	case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/upload/storage/v1/b/"):
-		bucket := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/upload/storage/v1/b/"), "/o")
-		if r.URL.Query().Get("uploadType") != "multipart" {
-			http.Error(w, "only multipart uploads", http.StatusNotImplemented)
-			return
-		}
-		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		mr := multipart.NewReader(r.Body, params["boundary"])
-		meta, err := mr.NextPart()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		var obj struct {
-			Name        string `json:"name"`
-			ContentType string `json:"contentType"`
-		}
-		if err := json.NewDecoder(meta).Decode(&obj); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		media, err := mr.NextPart()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		data, _ := io.ReadAll(media)
-		f.mu.Lock()
-		f.objects[bucket+"/"+obj.Name] = data
-		f.mu.Unlock()
-		var crc [4]byte
-		binary.BigEndian.PutUint32(crc[:], crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli)))
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"bucket": bucket, "name": obj.Name, "size": itoa(len(data)),
-			"contentType": obj.ContentType, "generation": "1", "crc32c": base64.StdEncoding.EncodeToString(crc[:])})
-	case strings.HasPrefix(r.URL.Path, "/storage/v1/b/"):
-		rest := strings.TrimPrefix(r.URL.Path, "/storage/v1/b/")
-		bucket, name, ok := strings.Cut(rest, "/o/")
-		if !ok {
-			http.NotFound(w, r)
-			return
-		}
-		name, _ = url.PathUnescape(name)
-		key := bucket + "/" + name
-		f.mu.Lock()
-		data, found := f.objects[key]
-		if found && r.Method == http.MethodDelete {
-			delete(f.objects, key)
-		}
-		f.mu.Unlock()
-		if !found {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"error":{"code":404,"message":"No such object"}}`))
-			return
-		}
-		switch {
-		case r.Method == http.MethodDelete:
-			w.WriteHeader(http.StatusNoContent)
-		case r.Method == http.MethodGet && r.URL.Query().Get("alt") == "media":
-			w.Header().Set("Content-Length", itoa(len(data)))
-			w.Header().Set("X-Goog-Generation", "1")
-			_, _ = w.Write(data)
-		default:
-			http.Error(w, "unsupported", http.StatusNotImplemented)
-		}
-	default:
-		http.NotFound(w, r)
-	}
-}
-
-func itoa(n int) string {
-	b, _ := json.Marshal(n)
-	return string(b)
-}
-
-func newGCS(t *testing.T) (*blob.GCS, *fakeGCS) {
+// newGCS opens the GCS adapter on the in-process fake of the JSON API
+// (chunkstore/gcsstore/gcsfake), shared with the chunk store's adapter.
+func newGCS(t *testing.T) (*blob.GCS, *gcsfake.Server) {
 	t.Helper()
-	f := &fakeGCS{objects: map[string][]byte{}}
-	srv := httptest.NewServer(f)
-	t.Cleanup(srv.Close)
-	st, closeFn, err := blob.Open(context.Background(), blob.Config{Bucket: "ff-artifacts", ClientOptions: []option.ClientOption{
-		option.WithEndpoint(srv.URL + "/storage/v1/"), option.WithoutAuthentication(), storage.WithJSONReads()}})
+	f := gcsfake.New(t)
+	st, closeFn, err := blob.Open(context.Background(), blob.Config{Bucket: "ff-artifacts", ClientOptions: f.ClientOptions()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,8 +66,33 @@ func TestRegress_GOPS14_BlobAdapters(t *testing.T) {
 	if err := gcs.Delete(ctx, gcs.URI("raw/ten_1/run_1/obs_1.json")); err != nil {
 		t.Fatal(err)
 	}
-	if len(fake.objects) != 0 {
-		t.Fatalf("delete left %v", fake.objects)
+	if names := fake.Names("ff-artifacts"); len(names) != 0 {
+		t.Fatalf("delete left %v", names)
+	}
+	if err := gcs.Delete(ctx, gcs.URI("raw/ten_1/run_1/obs_1.json")); err != nil {
+		t.Fatalf("delete of a missing object: %v", err)
+	}
+	// Put replaces (the BlobStore contract: snapshot files are rewritten
+	// under the same name), and a refused read is an error, not "not
+	// found".
+	uri, err := gcs.Put(ctx, "graph/snap.json", []byte("v1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := gcs.Put(ctx, "graph/snap.json", []byte("v2")); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := gcs.Get(ctx, uri); err != nil || string(got) != "v2" {
+		t.Fatalf("replaced blob: %q %v", got, err)
+	}
+	fake.Fault = func(op gcsfake.Op) gcsfake.Fault {
+		if op.Method == "get" {
+			return gcsfake.Fault{Status: 403}
+		}
+		return gcsfake.Fault{}
+	}
+	if _, err := gcs.Get(ctx, uri); err == nil || errors.Is(err, graphstore.ErrBlobNotFound) {
+		t.Fatalf("server error on read: %v", err)
 	}
 }
 

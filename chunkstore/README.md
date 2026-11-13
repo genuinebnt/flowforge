@@ -3,20 +3,26 @@
 Content-addressed, deduplicating, compressed blob store for Flowforge v2
 (V2_DESIGN §6.1, §6.3). Layer 1: imports the standard library, `core`
 and `github.com/klauspost/compress/zstd` only. `chunkstore/fsstore` is
-the directory adapter. Byte formats: [FORMAT.md](FORMAT.md) (normative,
+the directory adapter, `chunkstore/gcsstore` the Cloud Storage adapter
+(its own README is its package comment). Byte formats: [FORMAT.md](FORMAT.md) (normative,
 the Rust port's contract). Open issues: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
 
 ## Design in one paragraph
 
-FastCDC (normalized chunking, 2 KiB / 8 KiB / 64 KiB, gear table from
-`core.SplitMix64(0x46464344)`) splits a blob into chunks named by the
-SHA-256 of their bytes. New chunks are zstd-compressed (level 3; raw when
+A chunker (`Config.Chunking`, a pluggable decision: FastCDC by default,
+Rabin fingerprint CDC, fixed-size or whole-blob; see
+[docs/ALGORITHMS.md, "Content-defined chunking"](../docs/ALGORITHMS.md))
+splits a blob into chunks named by the SHA-256 of their bytes; FastCDC
+uses normalized chunking, 2 KiB / 8 KiB / 64 KiB, gear table from
+`core.SplitMix64(0x46464344)`. New chunks are zstd-compressed (level 3; raw when
 zstd saves less than 1/8) and appended to an open pack, sealed at
 `TargetPackSize` (16 MiB) or at the end of each Put; sealing writes the
 pack ("FFPK"), its fan-out index ("FFPI") and then the ref ("FFRF") that
 names the live packs — the single commit point. The blob's manifest
 ("FFMF": total length + ordered ids) is stored as a chunk, so its id is
-a content id. A Store is scoped to one tenant namespace
+a content id; it records the chunker that cut it (version 2), so one
+store holds blobs of any mix of chunkers and each blob can be re-cut
+exactly. A Store is scoped to one tenant namespace
 (`t/<ns>/...`): dedupe, presence, stats, GC and fsck never cross it.
 
 ## API
@@ -35,9 +41,18 @@ _ = s.Flush(ctx); _ = s.Close(ctx)
 * **Port:** `Backend` (`Put`, `Get`, `GetRange`, `List`, `Delete` of
   named objects; atomic Put, idempotent Delete). Implementations:
   `MemBackend`, `fsstore.Dir` (temp file + fsync + rename + directory
-  fsync; `NoSync` for tests).
-* **Concrete pieces:** `FastCDC` (`Cut`, `Boundaries`, streaming
-  `NewChunker`), `PackWriter`/`DecodePack`, `NewIndex`/`Index.Encode`/
+  fsync; `NoSync` for tests), `gcsstore.Backend` (one object per name,
+  generation-conditional writes and deletes so a second writer fails with
+  `ErrConflict`; tests against the in-process JSON API fake
+  `gcsstore/gcsfake`). `chunkstore/backendtest` is the contract suite every
+  implementation runs (`Contract`, and `Store` for a Store's whole life
+  over reopened instances).
+* **Chunkers:** `Cutter` (`Cut`, `Config`), `NewCutter(ChunkerConfig{Algo:
+  ChunkFastCDC | ChunkRabin | ChunkFixed | ChunkWhole, ...})`,
+  `ParseChunkAlgo`, `Boundaries(c, data)`, streaming `NewChunker(c, r)`;
+  `FastCDC` keeps its own `Cut`/`Boundaries`/`NewChunker`.
+  `ManifestInfo.Chunking` and `Manifest.Chunking` name a blob's chunker.
+* **Concrete pieces:** `PackWriter`/`DecodePack`, `NewIndex`/`Index.Encode`/
   `DecodeIndex`/`Index.Lookup`, `Manifest.Encode`/`DecodeManifest`,
   `Ref.Encode`/`DecodeRef`.
 * **Delta frames:** `EncodeDelta(raw, dict)`, `DecodeDelta`, `IsDelta`
@@ -63,11 +78,11 @@ _ = s.Flush(ctx); _ = s.Close(ctx)
 
 | Id | Test | Statement |
 |----|------|-----------|
-| CHUNK-INV-01 | `TestChunkInv01_RoundTrip` | Get(Put(x)) == x for sizes 0, 1, every min/avg/max boundary ±1 and random sizes, in several configurations; Stat reports the size. |
-| CHUNK-INV-02 | `TestChunkInv02_BoundariesArePure` | Cut points are a pure function of the bytes since the previous cut: re-chunking from any cut reproduces the remaining cuts. |
-| CHUNK-INV-03 | `TestChunkInv03_ShiftResistance` | Inserting 1–64 bytes in the first 4 KiB of 1 MiB of random data preserves ≥ 90 % of the chunks (and changes at most a constant number). |
-| CHUNK-INV-04 | `TestChunkInv04_ChunkLengthBounds` | Every chunk is in [min, max] except the last, which is in [1, max]; cuts increase strictly and end at the input length. |
-| CHUNK-INV-05 | `TestChunkInv05_StreamingEqualsSlice` | The streaming chunker yields the slice API's boundaries for every read size (1 B … 1 MiB, one-byte, half, data+EOF, random). |
+| CHUNK-INV-01 | `TestChunkInv01_RoundTrip` | Get(Put(x)) == x for sizes 0, 1, every min/avg/max boundary ±1 and random sizes, in several configurations and under every chunker; Stat reports the size and the recorded chunker. |
+| CHUNK-INV-02 | `TestChunkInv02_BoundariesArePure` | Cut points are a pure function of the bytes since the previous cut: re-chunking from any cut reproduces the remaining cuts (every chunker). |
+| CHUNK-INV-03 | `TestChunkInv03_ShiftResistance` | For the content-defined chunkers (FastCDC, Rabin): inserting 1–64 bytes in the first 4 KiB of 1 MiB of random data preserves ≥ 90 % of the chunks (and changes at most a constant number). |
+| CHUNK-INV-04 | `TestChunkInv04_ChunkLengthBounds` | Every chunk is in [min, max] except the last, which is in [1, max] (whole blob: every chunk but the last is exactly max); cuts increase strictly and end at the input length (every chunker). |
+| CHUNK-INV-05 | `TestChunkInv05_StreamingEqualsSlice` | The streaming chunker yields the slice API's boundaries for every read size (1 B … 1 MiB, one-byte, half, data+EOF, random) and every chunker, including a 16 MiB whole-blob chunker past its initial buffer. |
 | CHUNK-INV-06 | `TestChunkInv06_Dedupe` | Storing the same content twice adds zero chunks and zero bytes and writes nothing; repeats inside one input are stored once. |
 | CHUNK-INV-07 | `TestChunkInv07_StoreCorruptionDetected` | Flipping any byte of any pack, index or ref is reported by fsck as that object's `*_BAD_MAGIC` (bytes 0–3) or `*_CHECKSUM` code; Open fails with it for indexes and refs; Get never returns wrong bytes. |
 | CHUNK-INV-08 | `TestChunkInv08_DecoderCorruptionCodes` | Each decoder maps any single flipped byte to `*_BAD_MAGIC`/`*_CHECKSUM` and any truncation to a coded error; a flipped record byte gives `RECORD_MALFORMED` (lengths) or `RECORD_CHECKSUM`. |
@@ -75,8 +90,8 @@ _ = s.Flush(ctx); _ = s.Close(ctx)
 | CHUNK-INV-10 | `TestChunkInv10_GCCrashSafety` | A crash injected at every mutating backend call of GC (call fails, or succeeds with the ack lost) leaves a consistent, complete store; the next GC finishes the job with a problem-free fsck. |
 | CHUNK-INV-11 | `TestChunkInv11_Determinism` | Same inputs, order and clock → byte-identical packs, indexes, manifests and ref; manifest ids do not depend on packing; index bytes do not depend on entry order. |
 | CHUNK-INV-12 | `TestChunkInv12_ZstdDeterminismAndFormatIndependence` | The pinned encoder is byte-deterministic (instances, repeats, concurrency 1 vs 8); records written by other encoders/levels read back with the same ids and a clean fsck. |
-| CHUNK-INV-13 | `TestChunkInv13_ConformanceBoundaries` | The gear table and the cut points/chunk hashes of the seeded inputs equal `gear.json` and `boundaries.json`; the default masks are the paper's. |
-| CHUNK-INV-14 | `TestChunkInv14_GoldenFormats` | The golden pack, index, manifest and ref decode to their documented fields, and encoding those fields reproduces the bytes. |
+| CHUNK-INV-13 | `TestChunkInv13_ConformanceBoundaries` | The gear table and the cut points/chunk hashes of the seeded inputs equal `gear.json` and `boundaries.json`; the default masks are the paper's; the Rabin tables and the Rabin, fixed-size and whole-blob cut points equal `chunkers.json`. |
+| CHUNK-INV-14 | `TestChunkInv14_GoldenFormats` | The golden pack, index, manifests (version 1 and 2) and ref decode to their documented fields, and encoding those fields reproduces the bytes. |
 | CHUNK-INV-15 | `TestChunkInv15_PutCrashSafety` | A crash at any mutating call of a Put leaves an fsck-clean store with every earlier blob intact; the interrupted blob is complete or absent. |
 | CHUNK-INV-16 | `TestChunkInv16_Concurrency` | Concurrent Put/Get/GC are race-free and lose no blob whose Put completed. |
 | CHUNK-INV-17 | `TestChunkInv17_TenantIsolation` | Two namespaces with identical content each pay for their own chunks; presence, Get, Stat, Stats, Metrics, GC and Fsck of one never reflect the other; namespaces are mandatory and validated. |
@@ -86,10 +101,14 @@ _ = s.Flush(ctx); _ = s.Close(ctx)
 | CHUNK-INV-21 | `TestChunkInv21_GCGrace` | A blob put before a GC survives that GC unnamed and is collected by the next GC that does not name it. |
 | CHUNK-INV-22 | `TestChunkInv22_RecompressionRule` | GC recompression keeps ids and content, stores zstd only when `8*stored_len <= 7*raw_len` and never grows a record. |
 | CHUNK-INV-23 | `TestChunkInv23_MetricsConsistency` | Metrics equal the sums of Put stats and the backend's object sizes; ratios follow from the counters. |
+| CHUNK-INV-24 | `TestChunkInv24_MixedChunkers` | One namespace written by every chunker in turn serves every blob; each manifest records its chunker, and re-cutting the blob with it reproduces the chunk list; the same content dedupes under one chunker and is stored apart under another; fsck is clean and flags lengths the recorded chunker cannot produce (`MANIFEST_CHUNKING_MISMATCH`); GC keeps every named blob. |
+| CHUNK-INV-25 | `TestChunkInv25_ManifestChunkerDescriptor` | Every canonical chunker encodes as manifest version 2 and decodes to itself; an unset chunker is version 1 (the bytes written before version 2); unknown algorithms are `MANIFEST_UNSUPPORTED`, bad reserved bytes or descriptors `MANIFEST_MALFORMED`; the descriptor is part of the manifest id. |
 
-Also: `TestChunkAcceptance_FiftyVersions` (V2_DESIGN acceptance),
-`fsstore` contract/lifecycle tests, and fuzz targets `FuzzChunker`
-(INV-02/04/05 as assertions), `FuzzPackDecode`, `FuzzIndexDecode`,
+Also: `TestChunkRabinPolynomialIrreducible` (Ben-Or's test on the Rabin
+polynomial; rolling update equals direct fingerprinting),
+`TestChunkerAlgoConfigValidation`, `TestChunkAcceptance_FiftyVersions` (V2_DESIGN acceptance),
+`fsstore` and `gcsstore` contract/lifecycle tests (`backendtest`), and fuzz targets `FuzzChunker`
+(INV-02/04/05 as assertions, every chunker), `FuzzPackDecode`, `FuzzIndexDecode`,
 `FuzzManifestDecode`, `FuzzRefDecode` (coded errors only; accepted input
 re-encodes to itself; each target also decodes a CRC-repaired variant so
 the structural checks behind the checksum are fuzzed).
@@ -99,8 +118,10 @@ the structural checks behind the checksum are fuzzed).
 `gear.json` (256 u64), `boundaries.json` (19 cases: SplitMix64 bytes,
 SplitMix64 ASCII and zeros, default and three other parameter sets, with
 cut offsets and per-chunk SHA-256; generators documented in the file),
-`golden_pack.json`, `golden_index.json`, `golden_manifest.json`,
-`golden_ref.json` (hex plus decoded fields), `zstd.json` (pinned
+`chunkers.json` (Rabin polynomial and tables; Rabin, fixed-size and
+whole-blob cut points on seeded inputs, with a hash over the chunk ids),
+`golden_pack.json`, `golden_index.json`, `golden_manifest.json` (version 1),
+`golden_manifest_v2.json`, `golden_ref.json` (hex plus decoded fields), `zstd.json` (pinned
 settings; informative Go frame hash). Regenerate only for a deliberate
 format change: `go test ./chunkstore -run Conformance|Golden -update`.
 

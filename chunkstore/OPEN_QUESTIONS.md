@@ -48,7 +48,11 @@ conservative option taken and the test that pins it.
 
 8. **Single writer per namespace.** Orphan deletion in GC assumes no
    other process is writing packs in the namespace. Multi-writer needs a
-   lock object or leases in the Backend (not in v1).
+   lock object or leases in the Backend (not in v1; G-CST-03, v3).
+   `gcsstore` detects a second writer instead: generation preconditions
+   turn the ref replacement into a compare-and-swap, and the sweep checks
+   the ref generation before each delete (see its package comment for the
+   window that remains).
 
 9. **Put durability.** By default each Put seals its own pack (small
    packs for small blobs: about 1.1 KiB of index overhead each). With

@@ -13,6 +13,7 @@ import (
 type Algorithms struct {
 	Keywords   KeywordLookup
 	IdentClass IdentClassifier
+	ASCIIClass ASCIIClassifier
 	Binary     BinaryStrategy
 }
 
@@ -26,6 +27,25 @@ const (
 	KeywordSwitch KeywordLookup = iota
 	// KeywordMap is a hash-map lookup.
 	KeywordMap
+	// KeywordPerfectHash is a minimal-probe perfect hash: the first two
+	// and last two bytes and the length, packed into a uint64, times a
+	// constant, top 7 bits; every keyword has its own slot of a
+	// 128-entry table, so a lookup is one multiply and at most one string
+	// comparison.
+	KeywordPerfectHash
+)
+
+// ASCIIClassifier is how ASCII bytes are tested for IdentifierStart /
+// IdentifierPart in the lexer's identifier loop and dispatch.
+type ASCIIClassifier uint8
+
+// ASCII classification candidates.
+const (
+	// ASCIITable indexes a 128-entry class table (asciiIdent).
+	ASCIITable ASCIIClassifier = iota
+	// ASCIIBranches compares ranges: a letter after case folding with
+	// c|0x20, a digit, '$' or '_'.
+	ASCIIBranches
 )
 
 // IdentClassifier is how non-ASCII code points are tested for ID_Start /
@@ -74,10 +94,74 @@ var keywordNames = []string{
 }
 
 func (a Algorithms) keyword(s string) Keyword {
-	if a.Keywords == KeywordMap {
+	switch a.Keywords {
+	case KeywordMap:
 		return keywordMap[s]
+	case KeywordPerfectHash:
+		return perfectHashKeyword(s)
 	}
 	return lookupKeyword(s)
+}
+
+// keywordHashMul is the multiplier of the keyword perfect hash, the first
+// SplitMix64 output (seed "keyword" read as a big-endian integer,
+// 0x6b6579776f7264, ORed with 1) after 990,456 others that maps all 58
+// words to distinct slots; TestJSKeywordPerfectHash checks it.
+const keywordHashMul = 0xde0bb5a880f98a31
+
+// keywordSlot is a word's slot: the packed bytes s[0], s[1], s[n-2],
+// s[n-1] and n, multiplied by keywordHashMul (mod 2^64), top 7 bits.
+// len(s) >= 2.
+func keywordSlot(s string) uint64 {
+	n := len(s)
+	k := uint64(s[0]) | uint64(s[1])<<8 | uint64(s[n-2])<<16 | uint64(s[n-1])<<24 | uint64(n)<<32
+	return (k * keywordHashMul) >> 57
+}
+
+type keywordEntry struct {
+	name string
+	kw   Keyword
+}
+
+// keywordTable is the perfect hash table: slot → word (empty: none).
+var keywordTable = func() (t [128]keywordEntry) {
+	for _, name := range keywordNames {
+		h := keywordSlot(name)
+		if t[h].name != "" {
+			panic("jsparse: keyword perfect hash collision: " + name + " and " + t[h].name)
+		}
+		t[h] = keywordEntry{name, lookupKeyword(name)}
+	}
+	return t
+}()
+
+// perfectHashKeyword is lookupKeyword through keywordTable.
+func perfectHashKeyword(s string) Keyword {
+	if len(s) < 2 || len(s) > 11 {
+		return KwNone
+	}
+	if e := &keywordTable[keywordSlot(s)]; e.name == s {
+		return e.kw
+	}
+	return KwNone
+}
+
+// asciiIDStart and asciiIDPart classify an ASCII byte (c < 0x80) by the
+// configured candidate; both give asciiIdent's answer.
+func (a Algorithms) asciiIDStart(c byte) bool {
+	if a.ASCIIClass == ASCIIBranches {
+		l := c | 0x20
+		return (l >= 'a' && l <= 'z') || c == '$' || c == '_'
+	}
+	return asciiIdent[c]&1 != 0
+}
+
+func (a Algorithms) asciiIDPart(c byte) bool {
+	if a.ASCIIClass == ASCIIBranches {
+		l := c | 0x20
+		return (l >= 'a' && l <= 'z') || (c >= '0' && c <= '9') || c == '$' || c == '_'
+	}
+	return asciiIdent[c]&2 != 0
 }
 
 // idBitmaps holds ID_Start (index 0) and ID_Continue (index 1) for the

@@ -147,3 +147,19 @@ func TestCStoreRegress_RLSWithoutTenant(t *testing.T) {
 		t.Fatalf("tenants %v %v", ts, err)
 	}
 }
+
+func pgRepo(t *testing.T) contentstore.Repo { return pg.New(freshPoolAs(t, "ff_content")) }
+
+// TestCStoreInv14_RederiveIdempotentPostgres: CSTORE-INV-14 on Postgres.
+func TestCStoreInv14_RederiveIdempotentPostgres(t *testing.T) {
+	storetest.RederiveIdempotent(t, pgRepo)
+}
+
+// TestCStoreInv15_RederiveNoChangePostgres: CSTORE-INV-15 on Postgres.
+func TestCStoreInv15_RederiveNoChangePostgres(t *testing.T) { storetest.RederiveNoChange(t, pgRepo) }
+
+// TestCStoreInv16_RederiveEqualsFreshIngestPostgres: CSTORE-INV-16 on
+// Postgres.
+func TestCStoreInv16_RederiveEqualsFreshIngestPostgres(t *testing.T) {
+	storetest.RederiveEqualsFresh(t, pgRepo)
+}

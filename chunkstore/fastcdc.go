@@ -1,7 +1,6 @@
 package chunkstore
 
 import (
-	"errors"
 	"io"
 	"math/bits"
 
@@ -68,26 +67,6 @@ func maskWithBits(k int) uint64 {
 	return m
 }
 
-// ChunkerConfig selects the FastCDC parameters. The zero value means the
-// defaults (2 KiB / 8 KiB / 64 KiB).
-type ChunkerConfig struct {
-	MinSize int // every chunk but the last is at least this long
-	AvgSize int // normalization point; must be a power of two
-	MaxSize int // no chunk is longer
-}
-
-// DefaultChunkerConfig returns the format's default parameters.
-func DefaultChunkerConfig() ChunkerConfig {
-	return ChunkerConfig{MinSize: DefaultMinSize, AvgSize: DefaultAvgSize, MaxSize: DefaultMaxSize}
-}
-
-func (c ChunkerConfig) withDefaults() ChunkerConfig {
-	if c == (ChunkerConfig{}) {
-		return DefaultChunkerConfig()
-	}
-	return c
-}
-
 // FastCDC is a validated, immutable chunker configuration. It is safe for
 // concurrent use.
 type FastCDC struct {
@@ -95,20 +74,17 @@ type FastCDC struct {
 	maskS, maskL  uint64
 }
 
-// NewFastCDC validates cfg and derives the masks.
+// NewFastCDC validates cfg (whose Algo must be unset or ChunkFastCDC) and
+// derives the masks.
 func NewFastCDC(cfg ChunkerConfig) (*FastCDC, error) {
-	cfg = cfg.withDefaults()
-	if cfg.AvgSize <= 0 || cfg.AvgSize&(cfg.AvgSize-1) != 0 {
-		return nil, errf(CodeInvalidConfig, "", "AvgSize %d is not a power of two", cfg.AvgSize)
+	if cfg.Algo != 0 && cfg.Algo != ChunkFastCDC {
+		return nil, errf(CodeInvalidConfig, "", "NewFastCDC given the %s algorithm", cfg.Algo)
+	}
+	cfg, err := cfg.canonical()
+	if err != nil {
+		return nil, err
 	}
 	b := bits.TrailingZeros(uint(cfg.AvgSize))
-	if b < MinAvgBits || b > MaxAvgBits {
-		return nil, errf(CodeInvalidConfig, "", "AvgSize %d outside [2^%d, 2^%d]", cfg.AvgSize, MinAvgBits, MaxAvgBits)
-	}
-	if cfg.MinSize < MinChunkFloor || cfg.MinSize >= cfg.AvgSize || cfg.AvgSize >= cfg.MaxSize || cfg.MaxSize > MaxChunkCeiling {
-		return nil, errf(CodeInvalidConfig, "", "need %d <= MinSize < AvgSize < MaxSize <= %d, got %d/%d/%d",
-			MinChunkFloor, MaxChunkCeiling, cfg.MinSize, cfg.AvgSize, cfg.MaxSize)
-	}
 	return &FastCDC{
 		min: cfg.MinSize, avg: cfg.AvgSize, max: cfg.MaxSize,
 		maskS: maskWithBits(b + NormalizationLevel),
@@ -118,7 +94,7 @@ func NewFastCDC(cfg ChunkerConfig) (*FastCDC, error) {
 
 // Config returns the parameters.
 func (f *FastCDC) Config() ChunkerConfig {
-	return ChunkerConfig{MinSize: f.min, AvgSize: f.avg, MaxSize: f.max}
+	return ChunkerConfig{Algo: ChunkFastCDC, MinSize: f.min, AvgSize: f.avg, MaxSize: f.max}
 }
 
 // MaskS returns the strict mask used before the average size.
@@ -171,87 +147,7 @@ func (f *FastCDC) Cut(data []byte) int {
 
 // Boundaries returns the end offset of every chunk of data, in order. The
 // last element is len(data); empty data has no chunks.
-func (f *FastCDC) Boundaries(data []byte) []int {
-	var out []int
-	for pos := 0; pos < len(data); {
-		pos += f.Cut(data[pos:])
-		out = append(out, pos)
-	}
-	return out
-}
+func (f *FastCDC) Boundaries(data []byte) []int { return Boundaries(f, data) }
 
-// NewChunker returns a streaming chunker over r. Its chunks are exactly
-// those of Boundaries over the concatenated stream, whatever the read
-// sizes of r.
-func (f *FastCDC) NewChunker(r io.Reader) *Chunker {
-	size := 2 * f.max
-	if size < 256<<10 {
-		size = 256 << 10
-	}
-	return &Chunker{f: f, r: r, buf: make([]byte, size)}
-}
-
-// Chunker splits a stream into chunks. It is not safe for concurrent use.
-type Chunker struct {
-	f          *FastCDC
-	r          io.Reader
-	buf        []byte
-	start, end int
-	eof        bool
-	err        error
-}
-
-// errNoProgress mirrors bufio's guard against readers that return (0, nil)
-// forever.
-var errNoProgress = errors.New("chunkstore: reader returned no data 100 times")
-
-// Next returns the next chunk, or io.EOF after the last one. The slice is
-// valid until the next call. A read error is returned as is.
-func (c *Chunker) Next() ([]byte, error) {
-	if c.err != nil {
-		return nil, c.err
-	}
-	if c.end-c.start < c.f.max && !c.eof {
-		if err := c.fill(); err != nil {
-			c.err = err
-			return nil, err
-		}
-	}
-	if c.start == c.end {
-		c.err = io.EOF
-		return nil, io.EOF
-	}
-	n := c.f.Cut(c.buf[c.start:c.end])
-	chunk := c.buf[c.start : c.start+n]
-	c.start += n
-	return chunk, nil
-}
-
-// fill reads until at least max bytes are buffered or the reader ends.
-func (c *Chunker) fill() error {
-	if c.start > 0 {
-		copy(c.buf, c.buf[c.start:c.end])
-		c.end -= c.start
-		c.start = 0
-	}
-	empty := 0
-	for c.end < c.f.max && !c.eof {
-		n, err := c.r.Read(c.buf[c.end:])
-		if n < 0 || n > len(c.buf)-c.end {
-			return errors.New("chunkstore: reader returned an invalid count")
-		}
-		c.end += n
-		switch {
-		case err == io.EOF:
-			c.eof = true
-		case err != nil:
-			return err
-		case n == 0:
-			empty++
-			if empty >= 100 {
-				return errNoProgress
-			}
-		}
-	}
-	return nil
-}
+// NewChunker returns a streaming chunker over r (NewChunker(f, r)).
+func (f *FastCDC) NewChunker(r io.Reader) *Chunker { return NewChunker(f, r) }

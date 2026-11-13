@@ -300,7 +300,7 @@ func TestEgressV2_DNSForwarder(t *testing.T) {
 	}
 	dnsAddr := e.st.Addrs[devstack.DNSName]
 	q := func(name string, typ dnsmsg.Type) (egressproxy.DNSAnswer, error) {
-		return toolrunner.QueryDNS(e.ctx, dnsAddr, tk.Ticket, name, typ)
+		return toolrunner.QueryDNS(e.ctx, dnsAddr, tk.Ticket, name, typ, nil)
 	}
 	ans, err := q("app.test.", dnsmsg.TypeA)
 	if err != nil || len(ans.Answers) != 1 || ans.Answers[0].Data.IP.String() != "127.0.0.1" {
@@ -335,7 +335,7 @@ func TestEgressV2_DNSForwarder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := toolrunner.QueryDNS(e.ctx, dnsAddr, atk.Ticket, "1.2.0.192.origin.asn.cymru.test.", dnsmsg.TypeTXT); refusedReason(err) != "dns_refused" {
+	if _, err := toolrunner.QueryDNS(e.ctx, dnsAddr, atk.Ticket, "1.2.0.192.origin.asn.cymru.test.", dnsmsg.TypeTXT, nil); refusedReason(err) != "dns_refused" {
 		t.Fatalf("intel name under an active decision: %v", err)
 	}
 	// No ticket, or a forged one: REFUSED (a raw UDP query built with dnsmsg).

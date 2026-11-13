@@ -88,8 +88,8 @@ variable "images" {
   }
 
   validation {
-    condition     = length(setsubtract(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "egress-proxy", "migrate"], keys(var.images))) == 0
-    error_message = "images must contain gateway, engine, scope, graph, notifier, similarity, tool-runner, egress-proxy and migrate."
+    condition     = length(setsubtract(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "content", "egress-proxy", "migrate"], keys(var.images))) == 0
+    error_message = "images must contain gateway, engine, scope, graph, notifier, similarity, tool-runner, content, egress-proxy and migrate."
   }
 }
 
@@ -105,9 +105,20 @@ variable "scaling" {
   }))
 
   validation {
-    condition     = length(setsubtract(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner"], keys(var.scaling))) == 0
-    error_message = "scaling must contain gateway, engine, scope, graph, notifier, similarity and tool-runner (the egress proxy runs on the VM)."
+    condition     = length(setsubtract(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "content"], keys(var.scaling))) == 0
+    error_message = "scaling must contain gateway, engine, scope, graph, notifier, similarity, tool-runner and content (the egress proxy runs on the VM)."
   }
+
+  validation {
+    condition     = try(var.scaling["content"].max, 0) == 1
+    error_message = "content runs at most one instance: chunkstore allows one writer per tenant namespace (docs/GAPS.md G-CST-03)."
+  }
+}
+
+variable "content_kek_id" {
+  description = "FF_CONTENT_KEK_ID: the name of the content key-encryption key in ff-content-kek (wrapped data keys record it)."
+  type        = string
+  default     = "kek-1"
 }
 
 # --- network
@@ -197,9 +208,21 @@ variable "redis_enabled" {
 }
 
 variable "proxy_port" {
-  description = "HTTP/CONNECT port of the egress proxy on the VM (FF_EGRESS_PROXY). 1080 (SOCKS5) and 53 (DNS) are reserved for the v2 proxy."
+  description = "HTTP/CONNECT port of the egress proxy on the VM (FF_EGRESS_PROXY)."
   type        = number
   default     = 3128
+}
+
+variable "socks_port" {
+  description = "SOCKS5 port of the egress proxy on the VM (tool-runner subnet only). Above 1024: the container runs unprivileged."
+  type        = number
+  default     = 1080
+}
+
+variable "dns_port" {
+  description = "DNS port (UDP and TCP) of the egress proxy on the VM (tool-runner subnet only). Not 53: the container has no CAP_NET_BIND_SERVICE; tickets advertise the port."
+  type        = number
+  default     = 8053
 }
 
 # --- storage

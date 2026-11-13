@@ -4,7 +4,8 @@
 // 14 and 18, and the §12 amendments that win over them: no cross-tenant
 // dedupe, pinning, validity intervals and unchanged re-fetches (§12.12),
 // redaction before storage and indexing (§12.11), cause, baseline,
-// classes and newness (§12.2, §12.3, §12.13), search defaults (§12.14)).
+// classes and newness (§12.2, §12.3, §12.13), search defaults (§12.14),
+// re-derive jobs (§12.2)).
 //
 // Layer 4: it composes the pure content pipeline (package content) with
 // the chunk store (per-tenant namespaces), the text index (one index per
@@ -29,6 +30,11 @@
 // the chunk codec leaves dedupe and compression to chunkstore. Retention
 // rewrites the dependents of a deleted base as keyframes first, and chunk
 // GC reclaims what no row references.
+//
+// Re-derive (V2 §12.2, Rederive): snapshots derived by an older pipeline
+// stamp are re-derived from their stored raw bodies in place, their diffs
+// recomputed between snapshots of one derivation and re-indexed, without
+// adding a version, diff, event or alert.
 //
 // PORT: no map iteration order reaches an output (keys are sorted before
 // they are); record encodings are canonical JSON (core.CanonicalJSON);

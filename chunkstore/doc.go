@@ -26,8 +26,9 @@
 //	m := s.Metrics()                          // dedupe and compression ratios as values
 //
 // Backend is the only port (named objects: Put/Get/GetRange/List/Delete);
-// MemBackend is the in-memory implementation and chunkstore/fsstore the
-// directory adapter. FastCDC, the format codecs (DecodePack, DecodeIndex,
+// MemBackend is the in-memory implementation, chunkstore/fsstore the
+// directory adapter and chunkstore/gcsstore the Cloud Storage adapter;
+// chunkstore/backendtest is the contract suite all three run. FastCDC, the format codecs (DecodePack, DecodeIndex,
 // DecodeManifest, DecodeRef and their encoders) and the error codes are
 // usable on their own.
 //

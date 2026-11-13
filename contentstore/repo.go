@@ -82,6 +82,22 @@ type Tx interface {
 	// keyframe rewrite before its base is deleted); the plain content is
 	// unchanged.
 	RewriteBlobs(ctx context.Context, id core.UUID, b BlobRefs) error
+	// StaleSnapshots returns up to limit snapshots of program whose
+	// DeriveStamp is not stamp, in (ValidFrom, ID) ascending order, after
+	// the position after (nil: from the start). Re-derive jobs page with
+	// it; the stamps themselves record their progress.
+	StaleSnapshots(ctx context.Context, program core.UUID, stamp string, after *Cursor, limit int) ([]Snapshot, error)
+	// LockSnapshot returns a snapshot and locks it against concurrent
+	// writers until the transaction ends (Postgres: SELECT ... FOR UPDATE):
+	// a re-derive and an ingest whose delta base or predecessor it is
+	// serialize on it.
+	LockSnapshot(ctx context.Context, id core.UUID) (Snapshot, bool, error)
+	// UpdateDerived replaces a snapshot's derived columns from s (re-derive):
+	// the blob refs and encoding (HeadersRef, BodyManifest,
+	// NormalizedManifest, FeaturesRef, Codec, DeltaBase, DeltaDepth), Kind,
+	// NormalizerVersion, Coverage, SimHash and DeriveStamp. Identity,
+	// validity, lineage and the raw columns are unchanged.
+	UpdateDerived(ctx context.Context, s Snapshot) error
 	// DeleteSnapshots deletes snapshots with their findings and every
 	// diff that touches them (diffs follow snapshots, V2 §6.2); children
 	// keep living with parent links cleared.
@@ -91,6 +107,11 @@ type Tx interface {
 	NextDiffSeq(ctx context.Context, program core.UUID) (int64, error)
 	InsertDiff(ctx context.Context, d Diff) error
 	GetDiff(ctx context.Context, id core.UUID) (Diff, bool, error)
+	// RewriteDiff replaces a stored diff's derived columns from d (Levels,
+	// Algorithm, NormalizerVersion, Stats, HunksRef, SemanticRef,
+	// StoredSize, IndexDocs), keeping its id, seq, sides and times
+	// (re-derive: a recomputed diff is the same diff).
+	RewriteDiff(ctx context.Context, d Diff) error
 	// DiffInto returns the stored diff whose new side is snapshot to.
 	DiffInto(ctx context.Context, to core.UUID) (Diff, bool, error)
 	// DiffsAfter lists a program's diffs with Seq > after, by Seq, at

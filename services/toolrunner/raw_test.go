@@ -2,63 +2,52 @@ package toolrunner_test
 
 import (
 	"context"
-	"encoding/json"
-	"net"
+	"net/netip"
 	"strings"
 	"testing"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/types/known/structpb"
-
-	"github.com/genuinebnt/flowforge/auth"
-	"github.com/genuinebnt/flowforge/core"
-	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
+	"github.com/genuinebnt/flowforge/dnsmsg"
 	"github.com/genuinebnt/flowforge/graphstore"
-	"github.com/genuinebnt/flowforge/services/internal/platform"
+	"github.com/genuinebnt/flowforge/scope"
+	"github.com/genuinebnt/flowforge/services/egressproxy"
 	"github.com/genuinebnt/flowforge/services/internal/servicetest"
 	"github.com/genuinebnt/flowforge/services/toolrunner"
 )
 
-// TestRegress_GOPS14_RawOutputToBlobStore: with a blob store each
-// observation is stored as the tool reported it and its raw_ref names the
-// object (spec 10.5 graph.observations.raw_ref); the same effect run twice
-// writes the same object.
-func TestRegress_GOPS14_RawOutputToBlobStore(t *testing.T) {
-	clock := &core.SystemClock{}
-	keys, _ := platform.NewDevKeys("t")
-	v, _ := keys.Verifier(clock)
-	tokens, _ := keys.Tokens(clock)
-	blobs := &graphstore.MemBlobs{}
-	srv := toolrunner.NewServer(toolrunner.Options{Adapters: []toolrunner.Adapter{toolrunner.DNSResolve{}}, Scope: checker{},
-		Resolver: servicetest.NewResolver(map[string]string{"app.test": "127.0.0.1"}), Raw: blobs})
-	g := platform.NewGRPCServer(platform.ServerOptions{Service: "tool-runner", Verifier: v})
-	pb.RegisterToolRunnerServiceServer(g, srv)
-	lis := bufconn.Listen(1 << 20)
-	go func() { _ = g.Serve(lis) }()
-	defer g.Stop()
-	conn, err := platform.Dial("passthrough:///buf", platform.ClientOptions{Tokens: tokens},
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return lis.Dial() }))
+// wireDNS is dnsNet that also records each answer as the wire message a
+// forwarder would have sent (Egress.LookupDNS does that for real queries).
+type wireDNS struct{ dnsNet }
+
+func (n *wireDNS) LookupDNS(ctx context.Context, tc *toolrunner.ToolCtx, d scope.Decision, name string, t dnsmsg.Type) (egressproxy.DNSAnswer, error) {
+	ans, err := n.dnsNet.LookupDNS(ctx, tc, d, name, t)
 	if err != nil {
-		t.Fatal(err)
+		return ans, err
 	}
-	defer conn.Close()
-	c := pb.NewToolRunnerServiceClient(conn)
-	ctx := platform.WithIdentity(context.Background(), platform.Identity{Tenant: servicetest.TenantA, Actor: "service:engine", Role: auth.RoleAnalyst})
-	prog := core.PublicID(core.PrefixProgram, core.MustParseUUID("0190a1b2-0000-7000-8000-0000000000f1"))
-	run := core.PublicID(core.PrefixRun, core.MustParseUUID("0190a1b2-0000-7000-8000-0000000000f2"))
+	m := dnsmsg.NewQuery(1, name, t)
+	m.Header.Response, m.Answers = true, ans.Answers
+	b, err := dnsmsg.Encode(m)
+	if err != nil {
+		return ans, err
+	}
+	tc.Raw.Add(toolrunner.RawDNSMessage, "dns:"+name, b)
+	return ans, nil
+}
+
+// TestRegress_GOPS14_RawOutputToBlobStore: with a raw store, raw tool
+// output reaches object storage and each observation's raw_ref names it
+// (spec 10.5 graph.observations.raw_ref); the blob store adapter keeps one
+// object per distinct transcript, named by its hash under the tenant and
+// day, so the same effect run twice with the same bytes writes the same
+// object. (Since G-SVC-16 the object is the FFRW transcript of the
+// protocol bytes, not the observation.)
+func TestRegress_GOPS14_RawOutputToBlobStore(t *testing.T) {
+	blobs := &graphstore.MemBlobs{}
+	nw := &wireDNS{dnsNet{answers: map[string]string{"app.test.": "127.0.0.1"}}}
+	c, ctx := runnerClient(t, toolrunner.Options{Adapters: []toolrunner.Adapter{toolrunner.DNSResolve{}}, Net: nw,
+		Raw: toolrunner.BlobRaw{Blobs: blobs}})
 	refs := map[string]bool{}
 	for range 2 {
-		in, _ := structpb.NewValue("app.test")
-		s, err := c.Execute(ctx, &pb.ExecuteRequest{Tool: "dnsresolve", Input: in, ProgramId: prog, RunId: run, EffectPath: "3", IdempotencyKey: "k"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		for {
-			m, err := s.Recv()
-			if err != nil {
-				break
-			}
+		for _, m := range execute(t, c, ctx, "dnsresolve", "app.test") {
 			if o := m.GetObservation(); o != nil {
 				refs[o.GetRawRef()] = true
 			}
@@ -68,15 +57,20 @@ func TestRegress_GOPS14_RawOutputToBlobStore(t *testing.T) {
 		t.Fatalf("raw refs %v, want one object for the repeated effect", refs)
 	}
 	for ref := range refs {
-		if !strings.HasPrefix(ref, "mem://raw/"+core.PublicID(core.PrefixTenant, servicetest.TenantA)+"/"+prog+"/"+run+"/") {
+		if !strings.HasPrefix(ref, "mem://raw/"+servicetest.TenantA.String()+"/") || !strings.HasSuffix(ref, ".ffrw") {
 			t.Fatalf("raw_ref %q", ref)
 		}
 		data, err := blobs.Get(ctx, ref)
-		var obs struct {
-			Entities []json.RawMessage `json:"entities"`
+		if err != nil {
+			t.Fatal(err)
 		}
-		if err != nil || json.Unmarshal(data, &obs) != nil || len(obs.Entities) != 2 {
-			t.Fatalf("raw object %s: %v", data, err)
+		tr, err := toolrunner.DecodeRawTranscript(data)
+		if err != nil || len(tr.Records) != 5 { // A, AAAA, MX, NS, TXT
+			t.Fatalf("raw object: %+v %v", tr, err)
+		}
+		m, _, err := dnsmsg.Decode(tr.Records[0].Data, dnsmsg.Strict)
+		if err != nil || len(m.Answers) != 1 || m.Answers[0].Data.IP != netip.MustParseAddr("127.0.0.1") {
+			t.Fatalf("first record is not the A answer: %+v %v", m, err)
 		}
 	}
 }

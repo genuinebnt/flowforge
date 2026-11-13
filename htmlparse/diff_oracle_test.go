@@ -178,7 +178,7 @@ func TestHTMLDiffOracle(t *testing.T) {
 			if !ok {
 				t.Fatalf("%s: oracle failed", c.ID)
 			}
-			ours := runDatCase(c)
+			ours := runDatCase(c, CharRefTrie)
 			known := slicesContains(knownTreeFailures, c.ID)
 			if oracle == c.Document && ours != c.Document && !known {
 				t.Errorf("%s: oracle matches the expectation but we do not", c.ID)

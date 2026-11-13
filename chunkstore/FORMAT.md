@@ -1,4 +1,4 @@
-# chunkstore byte formats (version 1)
+# chunkstore byte formats
 
 Normative. The Go code in this directory and the Rust port must produce
 and accept exactly these bytes; `conformance/chunkstore/` holds the test
@@ -7,12 +7,30 @@ vectors. All integers are **little-endian**, unsigned unless noted.
 reflected 0x82F63B78, init and xorout 0xFFFFFFFF; `crc32c("123456789") =
 0xE3069283`). **SHA-256** is FIPS 180-4.
 
-## 1. Chunking (FastCDC, normalized chunking)
+## 1. Chunking
 
-Parameters `(min, avg, max)`; defaults **2048 / 8192 / 65536**, which
-are part of the format (stores dedupe only against identical
-parameters). Constraints: `avg` is a power of two `2^b` with
-`8 <= b <= 20`; `64 <= min < avg < max <= 16 MiB`.
+A chunker is an algorithm byte and three sizes `(min, avg, max)`, the
+*descriptor* that version-2 manifests record (§5). Stores dedupe only
+between blobs cut by the same descriptor. The canonical descriptors:
+
+| algo byte | Name | Sizes | Defaults |
+|---|---|---|---|
+| 1 | FastCDC (§1.1, the default) | `(min, avg, max)` | 2048 / 8192 / 65536 |
+| 2 | Rabin (§1.2) | `(min, avg, max)` | 2048 / 8192 / 65536 |
+| 3 | fixed-size (§1.3) | `(size, size, size)` | 8192 |
+| 4 | whole blob (§1.4) | `(0, 0, max)` | 16 MiB |
+
+For FastCDC and Rabin, `avg` is a power of two `2^b` with
+`8 <= b <= 20` and `64 <= min < avg < max <= 16 MiB`; a fixed size is in
+`[64, 16 MiB]`; a whole-blob `max` is in `[64, 16 MiB]`. Every chunker
+cuts a stream by repeated cuts from offset 0, and every cut depends only
+on the bytes from the previous cut on; an empty stream has no chunks.
+`conformance/chunkstore/chunkers.json` holds cut points of the
+non-FastCDC chunkers on seeded inputs.
+
+### 1.1 FastCDC (normalized chunking)
+
+Parameters `(min, avg, max)`; defaults **2048 / 8192 / 65536**.
 
 **Gear table.** `gear[i]` for `i = 0..255` is the `(i+1)`-th output of
 SplitMix64 seeded with `0x46464344` ("FFCD" as a big-endian u32):
@@ -64,8 +82,53 @@ next chunk. A stream is chunked by repeated cuts from offset 0; an empty
 stream has no chunks. Every chunk but the last is in `[min, max]`; the
 last is in `[1, max]`. Boundaries depend only on the bytes.
 
+### 1.2 Rabin fingerprint
+
+The LBFS 2001 scheme with fixed constants. Fingerprints are polynomials
+over GF(2) reduced modulo the irreducible degree-53 polynomial
+`P = 0x3DA3358B4DC173` (bit `i` is the coefficient of `x^i`), over a
+rolling window of `W = 48` bytes. Two 256-entry tables (also in
+`chunkers.json`):
+
+```text
+mod[b] = ((b << 53) mod P) | (b << 53)
+out[b] = fingerprint of the W bytes  b, 0, 0, ..., 0
+```
+
+where `x mod P` is GF(2) polynomial division (XOR in shifted copies of
+`P` while `deg(x) >= 53`) and the fingerprint of a byte string is
+`fp = ((fp << 8) | byte) mod P` folded over it from `fp = 0`. Cut:
+
+```text
+n = len(data)
+if n <= min: return n
+if n > max: n = max
+fp = 0; window = W zero bytes (a ring; w = 0)
+for i in [min - W, n):
+    fp ^= out[window[w]];  window[w] = data[i];  w = (w + 1) mod W
+    fp = ((fp << 8) | data[i]) ^ mod[fp >> 45]
+    if i + 1 >= min and fp & (avg - 1) == avg - 1: return i + 1
+return n
+```
+
+The cut follows the window's last byte (unlike FastCDC's). Starting the
+window at `min - W` with zero bytes (whose fingerprint is 0) makes the
+first test see exactly `data[min-W : min]`. Testing for all-one low bits
+keeps runs of zero bytes (fingerprint 0) from cutting at every `min`.
+
+### 1.3 Fixed-size
+
+`cut(data) = min(len(data), size)`.
+
+### 1.4 Whole blob
+
+`cut(data) = min(len(data), max)`: one chunk per blob, split every `max`
+bytes (a record holds at most 64 MiB; the default `max` is 16 MiB).
+
+### Chunk ids
+
 **Chunk id** = SHA-256 of the chunk's uncompressed bytes. It never depends
-on compression.
+on compression or on the chunker.
 
 ## 2. Compression
 
@@ -155,24 +218,43 @@ non-overlapping → else `INDEX_MALFORMED`. An index is a pure function of
 
 ## 5. Manifest "FFMF"
 
+Version 2 (written by every Put):
+
 ```text
 0    4      magic "FFMF"
-4    2      version = 1
+4    2      version = 2
 6    2      flags = 0
 8    8      total_len u64 (sum of the chunk lengths)
 16   4      chunk_count N
-20   32*N   chunk ids, in blob order (repeats allowed)
-20+32N 4    crc32c of bytes [0, 20+32N)
+20   1      algo (§1: 1 FastCDC, 2 Rabin, 3 fixed-size, 4 whole blob)
+21   3      reserved = 0
+24   4      min_size u32
+28   4      avg_size u32
+32   4      max_size u32
+36   32*N   chunk ids, in blob order (repeats allowed)
+36+32N 4    crc32c of bytes [0, 36+32N)
 ```
 
-Constraints: size exactly `24 + 32N`; `N <= (MaxRecordRaw-24)/32`;
-`N <= total_len <= N * MaxRecordRaw`; `N == 0` iff `total_len == 0`
-(the empty blob has a 24-byte manifest). **ManifestID** = SHA-256 of
-these bytes. The manifest is stored as an ordinary record (in the same
-pack as the blob's last new chunks), so it is deduplicated like any chunk.
-Codes: `MANIFEST_TRUNCATED`, `_BAD_MAGIC`, `_CHECKSUM`, `_UNSUPPORTED`,
-`_MALFORMED`; a reader also checks that the chunks' raw lengths sum to
-`total_len` (`MANIFEST_LENGTH_MISMATCH`).
+Version 1 (written before chunkers were recorded; still read, and
+written only for a manifest whose chunker is unset): the same without
+bytes 20-35, so ids start at 20 and the CRC is at `20+32N`.
+
+Constraints: size exactly `40 + 32N` (version 2) or `24 + 32N`
+(version 1); `N <= (MaxRecordRaw-40)/32` (version 2) or
+`(MaxRecordRaw-24)/32` (version 1); `N <= total_len <= N * MaxRecordRaw`;
+`N == 0` iff `total_len == 0`; in version 2 the descriptor is canonical
+(§1 table) and valid. **ManifestID** = SHA-256 of these bytes, so the
+same content cut by two chunkers has two manifests (both readable; their
+chunks are deduplicated wherever the cuts agree). The recorded chunker
+re-cuts the blob into exactly its chunk list (CHUNK-INV-24), and fsck
+checks the chunk lengths against its bounds (`MANIFEST_CHUNKING_MISMATCH`).
+The manifest is stored as an ordinary record (in the same pack as the
+blob's last new chunks), so it is deduplicated like any chunk. Codes:
+`MANIFEST_TRUNCATED`, `_BAD_MAGIC`, `_CHECKSUM`, `_UNSUPPORTED` (also an
+unknown algorithm byte), `_MALFORMED` (also non-zero reserved bytes or a
+non-canonical descriptor); a reader also checks that the chunks' raw
+lengths sum to `total_len` (`MANIFEST_LENGTH_MISMATCH`). Golden files:
+`golden_manifest.json` (version 1), `golden_manifest_v2.json`.
 
 ## 6. Ref "FFRF"
 

@@ -146,8 +146,9 @@ func decodeDiffBlob(b []byte) ([]byte, error) {
 }
 
 // blobCache is an LRU of decoded snapshot blobs, bounded by bytes. A
-// snapshot's plain blobs never change (a keyframe rewrite changes only
-// their encoding), so entries need no invalidation.
+// snapshot's plain blobs change only when it is re-derived (a keyframe
+// rewrite changes only their encoding), which drops its entry; the cache
+// is per Store, which is why one process writes a tenant (ChunkStores).
 //
 // PORT: container/list stores interface values; a Rust port uses an
 // indexed LRU (e.g. the lru crate). The cache never affects output.
@@ -197,5 +198,17 @@ func (c *blobCache) put(tenant, id core.UUID, v plainBlobs) {
 		c.order.Remove(e)
 		delete(c.items, ce.key)
 		c.used -= ce.val.size()
+	}
+}
+
+// drop removes a snapshot's entry (its derived blobs were rewritten).
+func (c *blobCache) drop(tenant, id core.UUID) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	k := [2]core.UUID{tenant, id}
+	if e, ok := c.items[k]; ok {
+		c.order.Remove(e)
+		delete(c.items, k)
+		c.used -= e.Value.(*cacheEntry).val.size()
 	}
 }

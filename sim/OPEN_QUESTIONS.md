@@ -14,21 +14,27 @@
    simulator does not use `placement`. Ownership safety does not depend on
    it (leases and fences do); when the engine adds it, worker ticks should
    be delayed by rank.
-3. **inv_10 and dispatch delay.** The engine admits a call at the limiter
-   before it appends `effect_started`, so a slow append moves the request
-   later and the executor can see admissions bunched. The checker
-   therefore bounds arrivals in a window `w` by
-   `burst + rate*(w + d)` with `d` the longest admission-to-arrival delay
-   of the window's requests (exact for GCRA admissions), and requires a
-   matching admission for every request. A strict executor-side bound
-   would need the limiter at the egress (the tool runner), as 23.3's
-   target affinity suggests.
+3. **inv_10 at the network edge (G-ENG-09).** The engine admits a call at
+   its limiter before it appends `effect_started`, so a slow append moves
+   the request later and arrivals can bunch. The simulated executor now
+   plays the egress proxy, which charges every request against its own
+   per-target GCRA at arrival (V2_DESIGN §9), so the checker bounds
+   deliveries in a window `w` by `burst + rate*w` with no dispatch-delay
+   allowance, and requires an edge admission for every delivery besides
+   the engine admission for every request. Edge denials come back as
+   `rate_limited` with a delay that the engine waits out uncounted
+   (spec 9.5).
 4. **Transport duplicates and inv_10.** A request the network delivers
-   twice counts once (it is one request with one key and attempt); the
-   tool still sees both (inv_04 allows it).
-5. **Kill switch races.** A kill switch engaged between the re-check and
-   the delivery of a call is not reported: no allow decision is violated,
-   and the egress proxy is the enforcement point in production.
+   twice is one request for the engine's limiter (one key and attempt) but
+   two at the edge: the second copy is charged and dropped there when the
+   limit is spent, and both deliveries count in the edge bound. The tool
+   still sees both (inv_04 allows it).
+5. **Kill switch races.** A kill switch engaged between the engine's
+   re-check and the arrival of a call is enforced at the edge: the call is
+   refused (`kill_switch_active`), recorded in `History.KillSwitchRaces`
+   and counted in `Stats.KillSwitchRaces`, and the engine cancels the run
+   with reason `kill_switch_race[:level]`. A delivery while a switch is
+   engaged throughout the call's instant is an inv_06 violation.
 6. **"Prior" decisions (inv_06)** are judged by store commit time against
    the call's arrival, because a call re-executed after a crash keeps its
    original `effect_started` and may follow a revalidation decision

@@ -8,6 +8,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 )
 
@@ -30,7 +31,8 @@ func (*Collect) Spec() Spec {
 	return Spec{Name: "collect", Version: "1.0.0", Description: "Capture a URL (and a page's scripts and styles) into the content store",
 		InputType: "(InScope<Url>, String)", OutputType: "Snapshot",
 		Observes: []string{oam.TypeURL, oam.TypeFile, oam.TypeEndpoint, oam.TypeProductRelease},
-		Class:    core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 4, Timeout: 5 * time.Minute, Idempotent: true}
+		Class:    core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 4, Timeout: 5 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryContent}
 }
 
 // Run implements Adapter.

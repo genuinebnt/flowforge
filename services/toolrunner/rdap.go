@@ -16,6 +16,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/core/netnorm"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 )
@@ -559,7 +560,8 @@ func (*RDAP) Spec() Spec {
 	return Spec{Name: "rdap", Version: "1.0.0", Description: "RDAP registration data (bootstrap, domain and ip network objects)",
 		InputType: "Host", OutputType: "List<Organization>",
 		Observes: []string{oam.TypeDomainRecord, oam.TypeIPNetRecord, oam.TypeOrganization, oam.TypeNetblock, oam.TypeFQDN, oam.TypeIPAddress},
-		Class:    core.ClassPassive, RateRPS: 2, RateBurst: 4, Concurrency: 2, Timeout: 2 * time.Minute, Idempotent: true}
+		Class:    core.ClassPassive, RateRPS: 2, RateBurst: 4, Concurrency: 2, Timeout: 2 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryIntel}
 }
 
 // Run implements Adapter.

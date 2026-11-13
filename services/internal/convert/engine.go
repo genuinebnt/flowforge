@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -161,9 +162,10 @@ func ApprovalProto(a engine.Approval) *pb.Approval {
 	}
 }
 
-// DefaultToolRetry is the retry policy attached to every tool the engine
-// learns from ToolRunnerService.ListTools: the proto ToolSpec has no retry
-// field, so both sides use this constant and compute the same spec hash.
+// DefaultToolRetry is the retry policy of a tool whose spec declares none:
+// an adapter without its own policy, or a proto ToolSpec without the retry
+// field (a runner older than G-SVC-09). Both sides apply it the same way,
+// so they compute the same spec hash.
 var DefaultToolRetry = engine.RetryPolicy{
 	MaxAttempts: 3, RetryOn: []string{"unavailable", "deadline_exceeded"},
 	Backoff: engine.Backoff{InitialMs: 1000, MaxMs: 30000, Multiplier: 2, Jitter: "full"},
@@ -182,15 +184,35 @@ func ToolSpecProto(s engine.ToolSpec) *pb.ToolSpec {
 		Observes: s.Observes, EffectClass: cls, RateRps: s.Rate.RequestsPerSecond, RateBurst: int32(s.Rate.Burst),
 		Concurrency: int32(s.Rate.Concurrency), Timeout: Dur(time.Duration(s.TimeoutMs) * time.Millisecond),
 		Idempotent: s.Idempotent, SpecSha256: hex.EncodeToString(sha[:]),
+		Retry: &pb.RetryPolicy{MaxAttempts: int32(s.Retry.MaxAttempts), RetryOn: s.Retry.RetryOn, Backoff: &pb.Backoff{
+			InitialMs: s.Retry.Backoff.InitialMs, MaxMs: s.Retry.Backoff.MaxMs, Multiplier: s.Retry.Backoff.Multiplier, Jitter: s.Retry.Backoff.Jitter}},
+		Idempotency: idempotencyProto[s.Idempotency],
 	}
 }
 
-// ToolSpec converts a proto tool spec, attaching DefaultToolRetry and
-// computing SpecSHA256.
+var idempotencyProto = map[string]pb.IdempotencyClass{
+	engine.IdempotencyIdempotent: pb.IdempotencyClass_IDEMPOTENCY_CLASS_IDEMPOTENT,
+	engine.IdempotencyKeyed:      pb.IdempotencyClass_IDEMPOTENCY_CLASS_KEYED,
+	engine.IdempotencyNone:       pb.IdempotencyClass_IDEMPOTENCY_CLASS_NON_IDEMPOTENT,
+}
+
+// RetryPolicy converts a proto retry policy; nil (a runner that predates
+// the field) is DefaultToolRetry.
+func RetryPolicy(p *pb.RetryPolicy) engine.RetryPolicy {
+	if p == nil {
+		return DefaultToolRetry
+	}
+	b := p.GetBackoff()
+	return engine.RetryPolicy{MaxAttempts: int(p.GetMaxAttempts()), RetryOn: p.GetRetryOn(), Backoff: engine.Backoff{
+		InitialMs: b.GetInitialMs(), MaxMs: b.GetMaxMs(), Multiplier: b.GetMultiplier(), Jitter: b.GetJitter()}}
+}
+
+// ToolSpec converts a proto tool spec (retry: RetryPolicy) and computes
+// SpecSHA256. Call Validate on the result before registering it.
 func ToolSpec(p *pb.ToolSpec) engine.ToolSpec {
 	s := engine.ToolSpec{
 		Name: p.GetName(), Version: p.GetVersion(), Description: p.GetDescription(), InputType: p.GetInputType(),
-		OutputType: p.GetOutputType(), Observes: p.GetObserves(), Idempotent: p.GetIdempotent(), Retry: DefaultToolRetry,
+		OutputType: p.GetOutputType(), Observes: p.GetObserves(), Idempotent: p.GetIdempotent(), Retry: RetryPolicy(p.GetRetry()),
 		Rate:      engine.Rate{RequestsPerSecond: p.GetRateRps(), Burst: int(p.GetRateBurst()), Concurrency: int(p.GetConcurrency())},
 		TimeoutMs: Duration(p.GetTimeout()).Milliseconds(),
 	}
@@ -199,6 +221,16 @@ func ToolSpec(p *pb.ToolSpec) engine.ToolSpec {
 	s.EffectClass = "read"
 	if c := ClassFrom(p.GetEffectClass()); c != core.ClassNone {
 		s.EffectClass = c.String()
+	}
+	if c := p.GetIdempotency(); c != pb.IdempotencyClass_IDEMPOTENCY_CLASS_UNSPECIFIED {
+		// A class this build does not know stays visible so Validate
+		// rejects the spec instead of guessing (fail closed).
+		s.Idempotency = fmt.Sprintf("unknown_%d", c)
+		for k, v := range idempotencyProto {
+			if v == c {
+				s.Idempotency = k
+			}
+		}
 	}
 	s.SpecSHA256 = s.ComputeSHA256()
 	return s

@@ -106,6 +106,42 @@ included) added a string.
 calls it. Measured equal within noise on the SPA (below); inline keeps
 "searchable when Ingest returns".
 
+## Re-derive jobs (V2 §12.2)
+
+Every snapshot records the stamp of the pipeline that derived it
+(`Snapshot.DeriveStamp`; `Config.Pipeline`, default `content.Process`
+stamped by `DerivationStamp()`: a hash over every normalizer's version and
+rule table and every extractor's version; migration 0032 adds the column).
+After an upgrade changes the stamp, `Store.Rederive(tenant,
+RederiveOptions{Program, BatchSize})` re-derives up to `BatchSize` (64)
+stale snapshots per call, oldest first per program, and reports
+`Remaining`; the content service's maintenance sweep runs one batch per
+tenant per pass (`services/content` `Sweep`, `RederiveTenant`,
+`Options.RederiveBatch`). For each snapshot:
+
+* the raw capture is rebuilt from the stored record and body (seals
+  opened, body hash checked) and processed again with the learned
+  volatility set it was derived with and its page URL (now in the capture
+  record); its integrity verdict is kept (validity never moves);
+* the normalized text, features record, kind, coverage, simhash and
+  normalizer_version are rewritten in place, encoded as at ingest; every
+  snapshot whose delta base it is gets re-encoded against the new blobs in
+  the same transaction;
+* the diff into it is recomputed against its (already re-derived)
+  predecessor, keeping the diff's id and seq; a diff out of it into a
+  still-stale successor keeps its content with its hunks inlined, and the
+  successor's own re-derive recomputes it; changed diffs' index documents
+  are replaced (the latest-snapshot document too);
+* no snapshot, diff, finding, outbox event or capture count is added: a
+  re-derive is not a change, so it raises no alert.
+
+An ingest whose open version (or lineage predecessor) is stale re-derives
+it first, so a new change is always computed between two snapshots of one
+derivation. Concurrent ingests and jobs serialize on the predecessor row
+(`Tx.LockSnapshot`) and retry on conflict. Progress lives in the stamps,
+so an interrupted job resumes where it stopped and a repeated one does
+nothing.
+
 ## Retention, GC, quotas
 
 Per key: keep the newest `KeepLast` (50) ∪ fetched within `KeepFor`
@@ -149,6 +185,13 @@ bytes failed verification), `INTERNAL`.
 | CSTORE-INV-11 | `TestCStoreInv11_SPAEndToEnd` | Renamed bundles link to their predecessors (lineage key, then SimHash) and an unrelated chunk does not; masked-only versions produce no documents; planted changes are findable by field query and regex; events carry a decodable observation and a valid patch; baselines are not alertable, the planted change is. |
 | CSTORE-INV-12 | `TestCStoreInv12_VolatilityLearned` | A non-feature attribute changing on every capture of a stable page is frozen once (version 1), later captures use the learned normalizer and diff masked-only; feature paths are never counted. |
 | CSTORE-INV-13 | `TestCStoreInv13_ObservationReplay` | The re-published observation of an unchanged re-fetch equals processing the capture afresh, byte for byte. |
+| CSTORE-INV-14 | `TestCStoreInv14_RederiveIdempotent` (+`Postgres`) | After a normalizer upgrade, re-deriving in batches of one, in one batch, and with three concurrent jobs reach the same state, every snapshot carries the new stamp, and a second run re-derives nothing and changes nothing; a new stamp with an unchanged pipeline rewrites no record. |
+| CSTORE-INV-15 | `TestCStoreInv15_RederiveNoChange` (+`Postgres`) | Re-derive inserts no snapshot, diff, finding or outbox event, allocates no diff seq, closes or touches no version and learns no volatility; ids, sides, validity, lineage and seqs are kept and the new normalizer_version recorded; an ingest after the upgrade re-derives its predecessor first, so its diff is between snapshots of one derivation. |
+| CSTORE-INV-16 | `TestCStoreInv16_RederiveEqualsFreshIngest` (+`Postgres`) | After re-derive, every snapshot's normalized text, features record and derived columns, every diff's levels, stats, hunks and change set, and the search and first-appeared answers of a query set equal those of a store that ingested the same captures under the new pipeline. |
+
+CSTORE-INV-14..16 live in `storetest` (`RederiveIdempotent`,
+`RederiveNoChange`, `RederiveEqualsFresh`, with `UpgradedPipeline` as the
+stand-in upgrade) so the Postgres adapter runs them too.
 
 Contract suite (`storetest.Run`): `TestCStoreContract_Mem`,
 `TestCStoreContract_Postgres` (as role `ff_content`, RLS on; skipped

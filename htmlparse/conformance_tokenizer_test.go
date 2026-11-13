@@ -97,8 +97,16 @@ func loadTokenizerSuite(t testing.TB) map[string]h5TokFile {
 	return out
 }
 
+// TestHTMLConformanceTokenizer runs the html5lib tokenizer suite under
+// every named character reference strategy (each must pass it alike).
 func TestHTMLConformanceTokenizer(t *testing.T) {
 	suite := loadTokenizerSuite(t)
+	for _, st := range CharRefStrategies() {
+		t.Run(st.String(), func(t *testing.T) { tokenizerSuite(t, suite, st) })
+	}
+}
+
+func tokenizerSuite(t *testing.T, suite map[string]h5TokFile, cr CharRefStrategy) {
 	files := make([]string, 0, len(suite))
 	for f := range suite {
 		files = append(files, f)
@@ -119,7 +127,7 @@ func TestHTMLConformanceTokenizer(t *testing.T) {
 			}
 			for _, st := range states {
 				total++
-				r := runTokenizerCase(t, f, i, tc, st, xml)
+				r := runTokenizerCase(t, f, i, tc, st, xml, cr)
 				if r.tokensOK {
 					passTokens++
 				} else {
@@ -163,7 +171,7 @@ func quoteList(ss []string) string {
 	return b.String()
 }
 
-func runTokenizerCase(t *testing.T, file string, idx int, tc h5TokTest, st string, xml bool) tokenizerCaseResult {
+func runTokenizerCase(t *testing.T, file string, idx int, tc h5TokTest, st string, xml bool, cr CharRefStrategy) tokenizerCaseResult {
 	id := fmt.Sprintf("%s#%d[%s] %s", file, idx, st, tc.Description)
 	res := tokenizerCaseResult{id: id}
 	input, err := decodeJSONStringWTF8(tc.Input)
@@ -177,7 +185,7 @@ func runTokenizerCase(t *testing.T, file string, idx int, tc h5TokTest, st strin
 	if !ok {
 		t.Fatalf("%s: unknown state %q", id, st)
 	}
-	toks, errs := Tokenize(input, TokenizeOptions{InitialState: state, LastStartTag: tc.LastStartTag})
+	toks, errs := Tokenize(input, TokenizeOptions{InitialState: state, LastStartTag: tc.LastStartTag, CharRefLookup: cr})
 	got := tokensToH5(toks, xml)
 	want := expectedH5(t, id, tc.Output, tc.DoubleEscaped)
 	res.tokensOK = reflect.DeepEqual(got, want)

@@ -26,6 +26,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// IdempotencyClass says whether the engine may re-execute an effect whose
+// outcome is unknown after a crash (spec 9.5 "Idempotency and at-least-once
+// execution").
+type IdempotencyClass int32
+
+const (
+	IdempotencyClass_IDEMPOTENCY_CLASS_UNSPECIFIED    IdempotencyClass = 0 // derived from ToolSpec.idempotent
+	IdempotencyClass_IDEMPOTENCY_CLASS_IDEMPOTENT     IdempotencyClass = 1 // a repeated execution has no further effect (lookups, captures)
+	IdempotencyClass_IDEMPOTENCY_CLASS_KEYED          IdempotencyClass = 2 // the tool deduplicates by idempotency_key, so a re-execution is safe
+	IdempotencyClass_IDEMPOTENCY_CLASS_NON_IDEMPOTENT IdempotencyClass = 3 // effect_outcome_unknown, then an operator or #[on_unknown(retry)]
+)
+
+// Enum value maps for IdempotencyClass.
+var (
+	IdempotencyClass_name = map[int32]string{
+		0: "IDEMPOTENCY_CLASS_UNSPECIFIED",
+		1: "IDEMPOTENCY_CLASS_IDEMPOTENT",
+		2: "IDEMPOTENCY_CLASS_KEYED",
+		3: "IDEMPOTENCY_CLASS_NON_IDEMPOTENT",
+	}
+	IdempotencyClass_value = map[string]int32{
+		"IDEMPOTENCY_CLASS_UNSPECIFIED":    0,
+		"IDEMPOTENCY_CLASS_IDEMPOTENT":     1,
+		"IDEMPOTENCY_CLASS_KEYED":          2,
+		"IDEMPOTENCY_CLASS_NON_IDEMPOTENT": 3,
+	}
+)
+
+func (x IdempotencyClass) Enum() *IdempotencyClass {
+	p := new(IdempotencyClass)
+	*p = x
+	return p
+}
+
+func (x IdempotencyClass) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IdempotencyClass) Descriptor() protoreflect.EnumDescriptor {
+	return file_flowforge_v1_toolrunner_proto_enumTypes[0].Descriptor()
+}
+
+func (IdempotencyClass) Type() protoreflect.EnumType {
+	return &file_flowforge_v1_toolrunner_proto_enumTypes[0]
+}
+
+func (x IdempotencyClass) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use IdempotencyClass.Descriptor instead.
+func (IdempotencyClass) EnumDescriptor() ([]byte, []int) {
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{0}
+}
+
 type ToolSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -40,7 +95,9 @@ type ToolSpec struct {
 	Concurrency   int32                  `protobuf:"varint,10,opt,name=concurrency,proto3" json:"concurrency,omitempty"`
 	Timeout       *durationpb.Duration   `protobuf:"bytes,11,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	Idempotent    bool                   `protobuf:"varint,12,opt,name=idempotent,proto3" json:"idempotent,omitempty"`
-	SpecSha256    string                 `protobuf:"bytes,13,opt,name=spec_sha256,json=specSha256,proto3" json:"spec_sha256,omitempty"`
+	SpecSha256    string                 `protobuf:"bytes,13,opt,name=spec_sha256,json=specSha256,proto3" json:"spec_sha256,omitempty"`                     // canonical hash of the engine spec, retry and idempotency included
+	Retry         *RetryPolicy           `protobuf:"bytes,14,opt,name=retry,proto3" json:"retry,omitempty"`                                                 // unset: the engine's default policy (runners older than G-SVC-09)
+	Idempotency   IdempotencyClass       `protobuf:"varint,15,opt,name=idempotency,proto3,enum=flowforge.v1.IdempotencyClass" json:"idempotency,omitempty"` // UNSPECIFIED: derived from idempotent
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -166,6 +223,153 @@ func (x *ToolSpec) GetSpecSha256() string {
 	return ""
 }
 
+func (x *ToolSpec) GetRetry() *RetryPolicy {
+	if x != nil {
+		return x.Retry
+	}
+	return nil
+}
+
+func (x *ToolSpec) GetIdempotency() IdempotencyClass {
+	if x != nil {
+		return x.Idempotency
+	}
+	return IdempotencyClass_IDEMPOTENCY_CLASS_UNSPECIFIED
+}
+
+// RetryPolicy is the "retry" member of spec 6.2, honoured by the engine as
+// spec 9.5 "Retries" says: retry only if the error is retryable, its code
+// is in retry_on (when retry_on is not empty) and attempts remain.
+type RetryPolicy struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MaxAttempts   int32                  `protobuf:"varint,1,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"` // attempts including the first; 0 means one attempt
+	RetryOn       []string               `protobuf:"bytes,2,rep,name=retry_on,json=retryOn,proto3" json:"retry_on,omitempty"`              // error codes (classes) retried, e.g. "unavailable", "deadline_exceeded"
+	Backoff       *Backoff               `protobuf:"bytes,3,opt,name=backoff,proto3" json:"backoff,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryPolicy) Reset() {
+	*x = RetryPolicy{}
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryPolicy) ProtoMessage() {}
+
+func (x *RetryPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryPolicy.ProtoReflect.Descriptor instead.
+func (*RetryPolicy) Descriptor() ([]byte, []int) {
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RetryPolicy) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *RetryPolicy) GetRetryOn() []string {
+	if x != nil {
+		return x.RetryOn
+	}
+	return nil
+}
+
+func (x *RetryPolicy) GetBackoff() *Backoff {
+	if x != nil {
+		return x.Backoff
+	}
+	return nil
+}
+
+// Backoff is delay(n) = min(max_ms, initial_ms * multiplier^(n-1)) with
+// "full" jitter (spec 9.5).
+type Backoff struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InitialMs     int64                  `protobuf:"varint,1,opt,name=initial_ms,json=initialMs,proto3" json:"initial_ms,omitempty"`
+	MaxMs         int64                  `protobuf:"varint,2,opt,name=max_ms,json=maxMs,proto3" json:"max_ms,omitempty"`
+	Multiplier    float64                `protobuf:"fixed64,3,opt,name=multiplier,proto3" json:"multiplier,omitempty"`
+	Jitter        string                 `protobuf:"bytes,4,opt,name=jitter,proto3" json:"jitter,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Backoff) Reset() {
+	*x = Backoff{}
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Backoff) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Backoff) ProtoMessage() {}
+
+func (x *Backoff) ProtoReflect() protoreflect.Message {
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Backoff.ProtoReflect.Descriptor instead.
+func (*Backoff) Descriptor() ([]byte, []int) {
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Backoff) GetInitialMs() int64 {
+	if x != nil {
+		return x.InitialMs
+	}
+	return 0
+}
+
+func (x *Backoff) GetMaxMs() int64 {
+	if x != nil {
+		return x.MaxMs
+	}
+	return 0
+}
+
+func (x *Backoff) GetMultiplier() float64 {
+	if x != nil {
+		return x.Multiplier
+	}
+	return 0
+}
+
+func (x *Backoff) GetJitter() string {
+	if x != nil {
+		return x.Jitter
+	}
+	return ""
+}
+
 type ListToolsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -174,7 +378,7 @@ type ListToolsRequest struct {
 
 func (x *ListToolsRequest) Reset() {
 	*x = ListToolsRequest{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[1]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -186,7 +390,7 @@ func (x *ListToolsRequest) String() string {
 func (*ListToolsRequest) ProtoMessage() {}
 
 func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[1]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -199,7 +403,7 @@ func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListToolsRequest.ProtoReflect.Descriptor instead.
 func (*ListToolsRequest) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{1}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{3}
 }
 
 type ListToolsResponse struct {
@@ -211,7 +415,7 @@ type ListToolsResponse struct {
 
 func (x *ListToolsResponse) Reset() {
 	*x = ListToolsResponse{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[2]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -223,7 +427,7 @@ func (x *ListToolsResponse) String() string {
 func (*ListToolsResponse) ProtoMessage() {}
 
 func (x *ListToolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[2]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,7 +440,7 @@ func (x *ListToolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListToolsResponse.ProtoReflect.Descriptor instead.
 func (*ListToolsResponse) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{2}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListToolsResponse) GetTools() []*ToolSpec {
@@ -264,7 +468,7 @@ type ExecuteRequest struct {
 
 func (x *ExecuteRequest) Reset() {
 	*x = ExecuteRequest{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[3]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +480,7 @@ func (x *ExecuteRequest) String() string {
 func (*ExecuteRequest) ProtoMessage() {}
 
 func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[3]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +493,7 @@ func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{3}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ExecuteRequest) GetTool() string {
@@ -373,7 +577,7 @@ type OamEntity struct {
 
 func (x *OamEntity) Reset() {
 	*x = OamEntity{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[4]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -385,7 +589,7 @@ func (x *OamEntity) String() string {
 func (*OamEntity) ProtoMessage() {}
 
 func (x *OamEntity) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[4]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -398,7 +602,7 @@ func (x *OamEntity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OamEntity.ProtoReflect.Descriptor instead.
 func (*OamEntity) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{4}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OamEntity) GetRef() string {
@@ -433,7 +637,7 @@ type OamRelation struct {
 
 func (x *OamRelation) Reset() {
 	*x = OamRelation{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[5]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +649,7 @@ func (x *OamRelation) String() string {
 func (*OamRelation) ProtoMessage() {}
 
 func (x *OamRelation) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[5]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +662,7 @@ func (x *OamRelation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OamRelation.ProtoReflect.Descriptor instead.
 func (*OamRelation) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{5}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *OamRelation) GetRelationType() string {
@@ -493,7 +697,7 @@ type OamEdge struct {
 
 func (x *OamEdge) Reset() {
 	*x = OamEdge{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[6]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -505,7 +709,7 @@ func (x *OamEdge) String() string {
 func (*OamEdge) ProtoMessage() {}
 
 func (x *OamEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[6]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -518,7 +722,7 @@ func (x *OamEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OamEdge.ProtoReflect.Descriptor instead.
 func (*OamEdge) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{6}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *OamEdge) GetFrom() string {
@@ -553,7 +757,7 @@ type OamProperty struct {
 
 func (x *OamProperty) Reset() {
 	*x = OamProperty{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[7]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +769,7 @@ func (x *OamProperty) String() string {
 func (*OamProperty) ProtoMessage() {}
 
 func (x *OamProperty) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[7]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +782,7 @@ func (x *OamProperty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OamProperty.ProtoReflect.Descriptor instead.
 func (*OamProperty) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{7}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *OamProperty) GetPropertyType() string {
@@ -612,7 +816,7 @@ type OamTag struct {
 
 func (x *OamTag) Reset() {
 	*x = OamTag{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[8]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -624,7 +828,7 @@ func (x *OamTag) String() string {
 func (*OamTag) ProtoMessage() {}
 
 func (x *OamTag) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[8]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -637,7 +841,7 @@ func (x *OamTag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OamTag.ProtoReflect.Descriptor instead.
 func (*OamTag) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{8}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *OamTag) GetTarget() string {
@@ -669,7 +873,7 @@ type Observation struct {
 
 func (x *Observation) Reset() {
 	*x = Observation{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[9]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -681,7 +885,7 @@ func (x *Observation) String() string {
 func (*Observation) ProtoMessage() {}
 
 func (x *Observation) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[9]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -694,7 +898,7 @@ func (x *Observation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Observation.ProtoReflect.Descriptor instead.
 func (*Observation) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{9}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Observation) GetObservationId() string {
@@ -757,7 +961,7 @@ type Progress struct {
 
 func (x *Progress) Reset() {
 	*x = Progress{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[10]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +973,7 @@ func (x *Progress) String() string {
 func (*Progress) ProtoMessage() {}
 
 func (x *Progress) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[10]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +986,7 @@ func (x *Progress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Progress.ProtoReflect.Descriptor instead.
 func (*Progress) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{10}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Progress) GetItemsDone() int64 {
@@ -806,18 +1010,23 @@ func (x *Progress) GetMessage() string {
 	return ""
 }
 
+// ToolError is a structured tool failure. retry_after is set with code
+// "rate_limited" when the network edge (the egress proxy's per-target
+// limit, V2_DESIGN §9) denied the request: per spec 9.5 that is not a
+// failure, so the engine waits retry_after without counting an attempt.
 type ToolError struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	Retryable     bool                   `protobuf:"varint,3,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	RetryAfter    *durationpb.Duration   `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ToolError) Reset() {
 	*x = ToolError{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[11]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -829,7 +1038,7 @@ func (x *ToolError) String() string {
 func (*ToolError) ProtoMessage() {}
 
 func (x *ToolError) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[11]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -842,7 +1051,7 @@ func (x *ToolError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolError.ProtoReflect.Descriptor instead.
 func (*ToolError) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{11}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ToolError) GetCode() string {
@@ -866,6 +1075,13 @@ func (x *ToolError) GetRetryable() bool {
 	return false
 }
 
+func (x *ToolError) GetRetryAfter() *durationpb.Duration {
+	if x != nil {
+		return x.RetryAfter
+	}
+	return nil
+}
+
 type Skipped struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
@@ -876,7 +1092,7 @@ type Skipped struct {
 
 func (x *Skipped) Reset() {
 	*x = Skipped{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[12]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +1104,7 @@ func (x *Skipped) String() string {
 func (*Skipped) ProtoMessage() {}
 
 func (x *Skipped) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[12]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +1117,7 @@ func (x *Skipped) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Skipped.ProtoReflect.Descriptor instead.
 func (*Skipped) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{12}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Skipped) GetTarget() string {
@@ -929,7 +1145,7 @@ type Done struct {
 
 func (x *Done) Reset() {
 	*x = Done{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[13]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1157,7 @@ func (x *Done) String() string {
 func (*Done) ProtoMessage() {}
 
 func (x *Done) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[13]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1170,7 @@ func (x *Done) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Done.ProtoReflect.Descriptor instead.
 func (*Done) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{13}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Done) GetOutput() *structpb.Value {
@@ -994,7 +1210,7 @@ type ExecuteResponse struct {
 
 func (x *ExecuteResponse) Reset() {
 	*x = ExecuteResponse{}
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[14]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1006,7 +1222,7 @@ func (x *ExecuteResponse) String() string {
 func (*ExecuteResponse) ProtoMessage() {}
 
 func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[14]
+	mi := &file_flowforge_v1_toolrunner_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1019,7 +1235,7 @@ func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteResponse) Descriptor() ([]byte, []int) {
-	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{14}
+	return file_flowforge_v1_toolrunner_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ExecuteResponse) GetEvent() isExecuteResponse_Event {
@@ -1112,7 +1328,7 @@ var File_flowforge_v1_toolrunner_proto protoreflect.FileDescriptor
 
 const file_flowforge_v1_toolrunner_proto_rawDesc = "" +
 	"\n" +
-	"\x1dflowforge/v1/toolrunner.proto\x12\fflowforge.v1\x1a\x19flowforge/v1/common.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\x03\n" +
+	"\x1dflowforge/v1/toolrunner.proto\x12\fflowforge.v1\x1a\x19flowforge/v1/common.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x04\n" +
 	"\bToolSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12 \n" +
@@ -1133,7 +1349,21 @@ const file_flowforge_v1_toolrunner_proto_rawDesc = "" +
 	"idempotent\x18\f \x01(\bR\n" +
 	"idempotent\x12\x1f\n" +
 	"\vspec_sha256\x18\r \x01(\tR\n" +
-	"specSha256\"\x12\n" +
+	"specSha256\x12/\n" +
+	"\x05retry\x18\x0e \x01(\v2\x19.flowforge.v1.RetryPolicyR\x05retry\x12@\n" +
+	"\vidempotency\x18\x0f \x01(\x0e2\x1e.flowforge.v1.IdempotencyClassR\vidempotency\"|\n" +
+	"\vRetryPolicy\x12!\n" +
+	"\fmax_attempts\x18\x01 \x01(\x05R\vmaxAttempts\x12\x19\n" +
+	"\bretry_on\x18\x02 \x03(\tR\aretryOn\x12/\n" +
+	"\abackoff\x18\x03 \x01(\v2\x15.flowforge.v1.BackoffR\abackoff\"w\n" +
+	"\aBackoff\x12\x1d\n" +
+	"\n" +
+	"initial_ms\x18\x01 \x01(\x03R\tinitialMs\x12\x15\n" +
+	"\x06max_ms\x18\x02 \x01(\x03R\x05maxMs\x12\x1e\n" +
+	"\n" +
+	"multiplier\x18\x03 \x01(\x01R\n" +
+	"multiplier\x12\x16\n" +
+	"\x06jitter\x18\x04 \x01(\tR\x06jitter\"\x12\n" +
 	"\x10ListToolsRequest\"A\n" +
 	"\x11ListToolsResponse\x12,\n" +
 	"\x05tools\x18\x01 \x03(\v2\x16.flowforge.v1.ToolSpecR\x05tools\"\xf4\x02\n" +
@@ -1187,11 +1417,13 @@ const file_flowforge_v1_toolrunner_proto_rawDesc = "" +
 	"items_done\x18\x01 \x01(\x03R\titemsDone\x12\x1f\n" +
 	"\vitems_total\x18\x02 \x01(\x03R\n" +
 	"itemsTotal\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"W\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x93\x01\n" +
 	"\tToolError\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
-	"\tretryable\x18\x03 \x01(\bR\tretryable\"9\n" +
+	"\tretryable\x18\x03 \x01(\bR\tretryable\x12:\n" +
+	"\vretry_after\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"retryAfter\"9\n" +
 	"\aSkipped\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"\x8f\x01\n" +
@@ -1205,7 +1437,12 @@ const file_flowforge_v1_toolrunner_proto_rawDesc = "" +
 	"\x05error\x18\x03 \x01(\v2\x17.flowforge.v1.ToolErrorH\x00R\x05error\x121\n" +
 	"\askipped\x18\x04 \x01(\v2\x15.flowforge.v1.SkippedH\x00R\askipped\x12(\n" +
 	"\x04done\x18\x05 \x01(\v2\x12.flowforge.v1.DoneH\x00R\x04doneB\a\n" +
-	"\x05event2\xab\x01\n" +
+	"\x05event*\x9a\x01\n" +
+	"\x10IdempotencyClass\x12!\n" +
+	"\x1dIDEMPOTENCY_CLASS_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cIDEMPOTENCY_CLASS_IDEMPOTENT\x10\x01\x12\x1b\n" +
+	"\x17IDEMPOTENCY_CLASS_KEYED\x10\x02\x12$\n" +
+	" IDEMPOTENCY_CLASS_NON_IDEMPOTENT\x10\x032\xab\x01\n" +
 	"\x11ToolRunnerService\x12L\n" +
 	"\tListTools\x12\x1e.flowforge.v1.ListToolsRequest\x1a\x1f.flowforge.v1.ListToolsResponse\x12H\n" +
 	"\aExecute\x12\x1c.flowforge.v1.ExecuteRequest\x1a\x1d.flowforge.v1.ExecuteResponse0\x01B>Z<github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1b\x06proto3"
@@ -1222,60 +1459,68 @@ func file_flowforge_v1_toolrunner_proto_rawDescGZIP() []byte {
 	return file_flowforge_v1_toolrunner_proto_rawDescData
 }
 
-var file_flowforge_v1_toolrunner_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_flowforge_v1_toolrunner_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_flowforge_v1_toolrunner_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_flowforge_v1_toolrunner_proto_goTypes = []any{
-	(*ToolSpec)(nil),              // 0: flowforge.v1.ToolSpec
-	(*ListToolsRequest)(nil),      // 1: flowforge.v1.ListToolsRequest
-	(*ListToolsResponse)(nil),     // 2: flowforge.v1.ListToolsResponse
-	(*ExecuteRequest)(nil),        // 3: flowforge.v1.ExecuteRequest
-	(*OamEntity)(nil),             // 4: flowforge.v1.OamEntity
-	(*OamRelation)(nil),           // 5: flowforge.v1.OamRelation
-	(*OamEdge)(nil),               // 6: flowforge.v1.OamEdge
-	(*OamProperty)(nil),           // 7: flowforge.v1.OamProperty
-	(*OamTag)(nil),                // 8: flowforge.v1.OamTag
-	(*Observation)(nil),           // 9: flowforge.v1.Observation
-	(*Progress)(nil),              // 10: flowforge.v1.Progress
-	(*ToolError)(nil),             // 11: flowforge.v1.ToolError
-	(*Skipped)(nil),               // 12: flowforge.v1.Skipped
-	(*Done)(nil),                  // 13: flowforge.v1.Done
-	(*ExecuteResponse)(nil),       // 14: flowforge.v1.ExecuteResponse
-	(ActivityClass)(0),            // 15: flowforge.v1.ActivityClass
-	(*durationpb.Duration)(nil),   // 16: google.protobuf.Duration
-	(*structpb.Value)(nil),        // 17: google.protobuf.Value
-	(*structpb.Struct)(nil),       // 18: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(IdempotencyClass)(0),         // 0: flowforge.v1.IdempotencyClass
+	(*ToolSpec)(nil),              // 1: flowforge.v1.ToolSpec
+	(*RetryPolicy)(nil),           // 2: flowforge.v1.RetryPolicy
+	(*Backoff)(nil),               // 3: flowforge.v1.Backoff
+	(*ListToolsRequest)(nil),      // 4: flowforge.v1.ListToolsRequest
+	(*ListToolsResponse)(nil),     // 5: flowforge.v1.ListToolsResponse
+	(*ExecuteRequest)(nil),        // 6: flowforge.v1.ExecuteRequest
+	(*OamEntity)(nil),             // 7: flowforge.v1.OamEntity
+	(*OamRelation)(nil),           // 8: flowforge.v1.OamRelation
+	(*OamEdge)(nil),               // 9: flowforge.v1.OamEdge
+	(*OamProperty)(nil),           // 10: flowforge.v1.OamProperty
+	(*OamTag)(nil),                // 11: flowforge.v1.OamTag
+	(*Observation)(nil),           // 12: flowforge.v1.Observation
+	(*Progress)(nil),              // 13: flowforge.v1.Progress
+	(*ToolError)(nil),             // 14: flowforge.v1.ToolError
+	(*Skipped)(nil),               // 15: flowforge.v1.Skipped
+	(*Done)(nil),                  // 16: flowforge.v1.Done
+	(*ExecuteResponse)(nil),       // 17: flowforge.v1.ExecuteResponse
+	(ActivityClass)(0),            // 18: flowforge.v1.ActivityClass
+	(*durationpb.Duration)(nil),   // 19: google.protobuf.Duration
+	(*structpb.Value)(nil),        // 20: google.protobuf.Value
+	(*structpb.Struct)(nil),       // 21: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
 }
 var file_flowforge_v1_toolrunner_proto_depIdxs = []int32{
-	15, // 0: flowforge.v1.ToolSpec.effect_class:type_name -> flowforge.v1.ActivityClass
-	16, // 1: flowforge.v1.ToolSpec.timeout:type_name -> google.protobuf.Duration
-	0,  // 2: flowforge.v1.ListToolsResponse.tools:type_name -> flowforge.v1.ToolSpec
-	17, // 3: flowforge.v1.ExecuteRequest.input:type_name -> google.protobuf.Value
-	16, // 4: flowforge.v1.ExecuteRequest.timeout:type_name -> google.protobuf.Duration
-	18, // 5: flowforge.v1.OamEntity.content:type_name -> google.protobuf.Struct
-	18, // 6: flowforge.v1.OamRelation.content:type_name -> google.protobuf.Struct
-	5,  // 7: flowforge.v1.OamEdge.relation:type_name -> flowforge.v1.OamRelation
-	18, // 8: flowforge.v1.OamProperty.content:type_name -> google.protobuf.Struct
-	7,  // 9: flowforge.v1.OamTag.property:type_name -> flowforge.v1.OamProperty
-	19, // 10: flowforge.v1.Observation.observed_at:type_name -> google.protobuf.Timestamp
-	4,  // 11: flowforge.v1.Observation.entities:type_name -> flowforge.v1.OamEntity
-	6,  // 12: flowforge.v1.Observation.edges:type_name -> flowforge.v1.OamEdge
-	8,  // 13: flowforge.v1.Observation.tags:type_name -> flowforge.v1.OamTag
-	17, // 14: flowforge.v1.Done.output:type_name -> google.protobuf.Value
-	16, // 15: flowforge.v1.Done.elapsed:type_name -> google.protobuf.Duration
-	9,  // 16: flowforge.v1.ExecuteResponse.observation:type_name -> flowforge.v1.Observation
-	10, // 17: flowforge.v1.ExecuteResponse.progress:type_name -> flowforge.v1.Progress
-	11, // 18: flowforge.v1.ExecuteResponse.error:type_name -> flowforge.v1.ToolError
-	12, // 19: flowforge.v1.ExecuteResponse.skipped:type_name -> flowforge.v1.Skipped
-	13, // 20: flowforge.v1.ExecuteResponse.done:type_name -> flowforge.v1.Done
-	1,  // 21: flowforge.v1.ToolRunnerService.ListTools:input_type -> flowforge.v1.ListToolsRequest
-	3,  // 22: flowforge.v1.ToolRunnerService.Execute:input_type -> flowforge.v1.ExecuteRequest
-	2,  // 23: flowforge.v1.ToolRunnerService.ListTools:output_type -> flowforge.v1.ListToolsResponse
-	14, // 24: flowforge.v1.ToolRunnerService.Execute:output_type -> flowforge.v1.ExecuteResponse
-	23, // [23:25] is the sub-list for method output_type
-	21, // [21:23] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	18, // 0: flowforge.v1.ToolSpec.effect_class:type_name -> flowforge.v1.ActivityClass
+	19, // 1: flowforge.v1.ToolSpec.timeout:type_name -> google.protobuf.Duration
+	2,  // 2: flowforge.v1.ToolSpec.retry:type_name -> flowforge.v1.RetryPolicy
+	0,  // 3: flowforge.v1.ToolSpec.idempotency:type_name -> flowforge.v1.IdempotencyClass
+	3,  // 4: flowforge.v1.RetryPolicy.backoff:type_name -> flowforge.v1.Backoff
+	1,  // 5: flowforge.v1.ListToolsResponse.tools:type_name -> flowforge.v1.ToolSpec
+	20, // 6: flowforge.v1.ExecuteRequest.input:type_name -> google.protobuf.Value
+	19, // 7: flowforge.v1.ExecuteRequest.timeout:type_name -> google.protobuf.Duration
+	21, // 8: flowforge.v1.OamEntity.content:type_name -> google.protobuf.Struct
+	21, // 9: flowforge.v1.OamRelation.content:type_name -> google.protobuf.Struct
+	8,  // 10: flowforge.v1.OamEdge.relation:type_name -> flowforge.v1.OamRelation
+	21, // 11: flowforge.v1.OamProperty.content:type_name -> google.protobuf.Struct
+	10, // 12: flowforge.v1.OamTag.property:type_name -> flowforge.v1.OamProperty
+	22, // 13: flowforge.v1.Observation.observed_at:type_name -> google.protobuf.Timestamp
+	7,  // 14: flowforge.v1.Observation.entities:type_name -> flowforge.v1.OamEntity
+	9,  // 15: flowforge.v1.Observation.edges:type_name -> flowforge.v1.OamEdge
+	11, // 16: flowforge.v1.Observation.tags:type_name -> flowforge.v1.OamTag
+	19, // 17: flowforge.v1.ToolError.retry_after:type_name -> google.protobuf.Duration
+	20, // 18: flowforge.v1.Done.output:type_name -> google.protobuf.Value
+	19, // 19: flowforge.v1.Done.elapsed:type_name -> google.protobuf.Duration
+	12, // 20: flowforge.v1.ExecuteResponse.observation:type_name -> flowforge.v1.Observation
+	13, // 21: flowforge.v1.ExecuteResponse.progress:type_name -> flowforge.v1.Progress
+	14, // 22: flowforge.v1.ExecuteResponse.error:type_name -> flowforge.v1.ToolError
+	15, // 23: flowforge.v1.ExecuteResponse.skipped:type_name -> flowforge.v1.Skipped
+	16, // 24: flowforge.v1.ExecuteResponse.done:type_name -> flowforge.v1.Done
+	4,  // 25: flowforge.v1.ToolRunnerService.ListTools:input_type -> flowforge.v1.ListToolsRequest
+	6,  // 26: flowforge.v1.ToolRunnerService.Execute:input_type -> flowforge.v1.ExecuteRequest
+	5,  // 27: flowforge.v1.ToolRunnerService.ListTools:output_type -> flowforge.v1.ListToolsResponse
+	17, // 28: flowforge.v1.ToolRunnerService.Execute:output_type -> flowforge.v1.ExecuteResponse
+	27, // [27:29] is the sub-list for method output_type
+	25, // [25:27] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_flowforge_v1_toolrunner_proto_init() }
@@ -1284,7 +1529,7 @@ func file_flowforge_v1_toolrunner_proto_init() {
 		return
 	}
 	file_flowforge_v1_common_proto_init()
-	file_flowforge_v1_toolrunner_proto_msgTypes[14].OneofWrappers = []any{
+	file_flowforge_v1_toolrunner_proto_msgTypes[16].OneofWrappers = []any{
 		(*ExecuteResponse_Observation)(nil),
 		(*ExecuteResponse_Progress)(nil),
 		(*ExecuteResponse_Error)(nil),
@@ -1296,13 +1541,14 @@ func file_flowforge_v1_toolrunner_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flowforge_v1_toolrunner_proto_rawDesc), len(file_flowforge_v1_toolrunner_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   15,
+			NumEnums:      1,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_flowforge_v1_toolrunner_proto_goTypes,
 		DependencyIndexes: file_flowforge_v1_toolrunner_proto_depIdxs,
+		EnumInfos:         file_flowforge_v1_toolrunner_proto_enumTypes,
 		MessageInfos:      file_flowforge_v1_toolrunner_proto_msgTypes,
 	}.Build()
 	File_flowforge_v1_toolrunner_proto = out.File

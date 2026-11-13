@@ -22,6 +22,9 @@ var (
 	// was advancing (an append failed with eventstore.ErrFenced). The
 	// worker stops advancing that run immediately (spec 9.4).
 	ErrLeaseLost = errors.New("engine: lease lost")
+	// ErrInvalidToolSpec is returned by ToolSpec.Validate for a retry
+	// policy or idempotency class the engine cannot honour.
+	ErrInvalidToolSpec = errors.New("engine: invalid tool spec")
 )
 
 func apiErr(kind core.Kind, reason, format string, args ...any) *core.Error {

@@ -49,7 +49,8 @@ every fixed bug also has a targeted regression test in its package.
    w1 (Engine, skewed clock)  w2 ...  wN    (crash -> restart as new id)
         |  faultStore -------> eventstore.MemStore (store clock = true clock)
         |  faultScope -------> fake scope service (versioned docs, kill switches)
-        |  toolExec ---------> recording tool runner (faults, deterministic results)
+        |  toolExec ---------> network edge (kill switch, per-target GCRA) ->
+        |                      recording tool runner (faults, deterministic results)
         |  faultIngester ----> Pub/Sub (dup, delay, reorder) -> graphstore.Mem
         |  faultPublisher ---> Pub/Sub (run.events)          -> alerts.Processor (inbox)
         |  simLimiter -------> limiter.GCRA (rl:h 2/s burst 4, store clock)
@@ -65,9 +66,12 @@ every fixed bug also has a targeted regression test in its package.
   approver and operator ticks). Faults are decided when the call is
   resumed, so they see the current time.
 * **Engine goroutines.** `execBatch` runs the tool calls of a par_map round
-  on goroutines; they only reach `toolExec`, which draws their faults from
-  a generator seeded by (seed, key, attempt, delivery) and accumulates the
-  round's latency as a max, so their order does not matter. The per-run
+  concurrently in production; `toolExec` implements
+  `engine.SerialExecutor`, so here they reach it one after the other in
+  task order (the edge's limiter is shared state, and the history must be
+  a function of the seed). It draws their faults from a generator seeded
+  by (seed, key, attempt, delivery) and accumulates the round's latency as
+  a max, so the round still costs the time of its slowest call. The per-run
   watchdog uses a wall-clock ticker: `PollInterval` is set beyond any test
   so it never fires, and each worker is a separate `Engine`, so the API
   engine's in-process notifications never reach it; workers see
@@ -118,12 +122,23 @@ every fixed bug also has a targeted regression test in its package.
 | inv_03 | no commit with a fence lower than one already granted (store linearization order) |
 | inv_04 | at most one terminal result per effect; every executor call of (run, path) carries `sha256(run/path)` and no key serves two effects; a recorded tool result came from a delivered call; one run per submission key |
 | inv_05 | a fresh VM driven by the log's recorded results (par_map children and compensations included) asks for the same effects (kind, args hash) in the log's order per VM, and reaches the logged output or failure code; engine-imposed ends (cancel, timeout, nondeterminism, budget) may stop at the frontier |
-| inv_06 | every delivered active call names a target with an allow decision for it and the call's scope version committed before the call, cites only recorded allow decisions, and the scope document of that version (independent oracle) allows it |
+| inv_06 | every delivered active call names a target with an allow decision for it and the call's scope version committed before the call, cites only recorded allow decisions, and the scope document of that version (independent oracle) allows it; no target-facing call (passive and above) is delivered while a kill switch covering its program is engaged |
 | inv_07 | a failed/cancelled run with registered compensations recorded compensation_started, steps 0..n-1, and finished completed (all ok) or failed (operator); no step is "cancelled"; when completed, the executor saw the undo calls in reverse order of the forward results |
 | inv_08 | per rule, every matching run event yields exactly one alert record (delivered or throttled), none for other events, no two deliveries of a dedupe key within the throttle, despite redeliveries |
 | inv_09 | the graph equals the accepted observations applied once each in id order to an empty `graphstore.Mem`; one content per observation id; every logged observation was accepted |
-| inv_10 | per `rl:h` key every request was admitted (matched per actor in order) and arrivals in any window stay within `burst + rate*(window + dispatch delay)`; transport duplicates count once |
+| inv_10 | measured at the network edge (G-ENG-09): per `rl:h` key every request was admitted by the engine's limiter (matched per actor in order; a transport duplicate is the same request there), every delivery passed the edge's limiter at its arrival (duplicates included), and deliveries in any window stay within `burst + rate*window` |
 | inv_11 | every run is terminal, at most `LivenessBound` (2 h) after faults stop |
+
+**The network edge** (G-ENG-09). `toolExec` first plays the egress proxy:
+a target-facing call for a program under an engaged kill switch is
+refused (`kill_switch_active`, recorded in `KillSwitchRaces`: the switch
+was engaged after the engine's re-check), and a call with an `rl:h` key is
+charged against the edge's own GCRA at the store clock (same rate as the
+engine's limiter, separate state, as the proxy's `rl:edge:h` keys are); a
+denial answers `rate_limited` with the limiter's delay, which the engine
+waits out without counting an attempt. The `edge` workload contends one
+registrable domain with many fan-outs and pulses a kill switch, so both
+paths run under every fault profile (`TestRegress_G_ENG_09_EdgeWorkload`).
 
 Each invariant has unit tests (`TestInv01_*` .. `TestInv11_*`) that break a
 clean history and assert the checker reports it.

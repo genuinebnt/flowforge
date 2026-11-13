@@ -5,9 +5,10 @@
 #   - Cloud Run services scale to zero (min 0, max 1-2) and serve on run.app;
 #     the gateway is INGRESS_TRAFFIC_ALL with the invoker check off (its own
 #     auth applies), there is no load balancer, Cloud Armor or managed cert.
-#   - Postgres 16, optional Redis and the egress proxy (HTTP/CONNECT) run in
-#     containers on ONE e2-micro Container-Optimized OS VM (vm.tf); no Cloud
-#     SQL, Memorystore, Cloud NAT or Serverless VPC Access connector.
+#   - Postgres 16, optional Redis and the egress proxy (HTTP/CONNECT, SOCKS5,
+#     DNS) run in containers on ONE e2-micro Container-Optimized OS VM
+#     (vm.tf); no Cloud SQL, Memorystore, Cloud NAT or Serverless VPC Access
+#     connector.
 #   - One database role and one password secret instead of one per service,
 #     to stay within Secret Manager's free active-version allowance.
 #   - One Cloud Scheduler job (the schedules tick), Artifact Registry cleanup
@@ -55,7 +56,7 @@ locals {
 
   # Cloud Run services. The egress proxy is not one of them: it runs on the
   # VM, because the lab has no Cloud NAT and the v2 proxy needs raw TCP/UDP.
-  service_names = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner"]
+  service_names = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "content"]
 
   # Deterministic run.app URLs (https://<service>-<project number>.<region>.run.app).
   run_url = { for s in local.service_names : s => "https://ff-${s}-${local.project_number}.${var.region}.run.app" }
@@ -82,6 +83,8 @@ locals {
   secret_names = concat(
     [for k in var.signing_key_kids : "ff-signing-key-${k}"],
     [local.db_password],
+    # FF_CONTENT_KEK (32 bytes hex or base64), added out of band.
+    ["ff-content-kek"],
     var.redis_enabled ? ["ff-redis-auth"] : [],
     var.llm_api_key_enabled ? ["ff-llm-api-key"] : [],
     [for c in var.webhook_channels : "ff-webhook-${c}"],
@@ -134,6 +137,7 @@ locals {
       liveness = "/healthz"
       env = merge(local.env_common, local.env_db, local.env_redis, local.env_signing,
         local.addr["engine"], local.addr["scope"], local.addr["graph"], local.addr["notifier"], local.addr["similarity"], local.addr["tool-runner"],
+        local.addr["content"],
         {
           FF_JWT_AUDIENCE      = var.jwt_audience_public
           FF_INTERNAL_AUDIENCE = var.jwt_audience_internal
@@ -206,8 +210,27 @@ locals {
       subnet     = module.network.tools_subnet_id
       health     = null
       liveness   = null
-      env        = merge(local.env_common, local.env_bucket, local.env_signing, local.env_proxy, local.addr["scope"])
+      env        = merge(local.env_common, local.env_bucket, local.env_signing, local.env_proxy, local.addr["scope"], local.addr["content"])
       secret_env = merge(local.tool_secret_env, local.signing_key_env)
+    }
+    # The content service (G-OPS-16, G-CST-01): chunk packs and text indexes
+    # in the content bucket (G-CST-02), rows in the content schema on the
+    # VM's Postgres (the lab's one database role, like every lab service).
+    # Request-based CPU: its content.changes relay and sweeps progress
+    # while it serves captures, which is when they have work. One instance
+    # at most (G-CST-03).
+    content = {
+      ingress  = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+      public   = false
+      http2    = true
+      subnet   = module.network.services_subnet_id
+      health   = null
+      liveness = null
+      env = merge(local.env_common, local.env_db, {
+        FF_CONTENT_BUCKET = module.content_bucket.name
+        FF_CONTENT_KEK_ID = var.content_kek_id
+      })
+      secret_env = merge(local.secret_db, { FF_CONTENT_KEK = { secret = "ff-content-kek" } })
     }
   }
 
@@ -220,6 +243,7 @@ locals {
     notifier    = ["gateway"]
     similarity  = ["gateway"]
     tool-runner = ["engine", "gateway"]
+    content     = ["gateway", "tool-runner"]
   }
   invoker_pairs = merge([
     for callee, callers in local.invokers : { for c in callers : "${callee}/${c}" => { callee = callee, caller = c } }
@@ -232,6 +256,7 @@ locals {
     "graph.changes"   = { publishers = ["graph"], consumers = ["notifier", "engine", "similarity"] }
     "scope.events"    = { publishers = ["scope"], consumers = ["engine", "tool-runner", "egress-proxy", "notifier"] }
     "auth.events"     = { publishers = ["gateway"], consumers = ["notifier"] }
+    "content.changes" = { publishers = ["content"], consumers = ["graph", "notifier"] }
   }
   members = merge(
     { for s, m in module.svc : s => m.service_account_member },
@@ -364,6 +389,32 @@ module "artifacts" {
       role   = "roles/storage.objectCreator"
       member = module.svc["tool-runner"].service_account_member
       prefix = "raw/"
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# The content service's chunk packs and text indexes (chunkstore/gcsstore):
+# chunks/t/<tenant>/... and index/<tenant>/<program>/... No lifecycle rule
+# deletes anything (the content service's GC removes unreferenced packs
+# after swapping the ref); soft delete is off because soft-deleted objects
+# are billed as stored.
+module "content_bucket" {
+  source        = "../../modules/storage-bucket"
+  project_id    = var.project_id
+  name          = "${var.project_id}-ff-content"
+  location      = upper(var.region)
+  force_destroy = !var.deletion_protection
+  labels        = local.labels
+
+  soft_delete_seconds = 0
+  lifecycle_rules     = []
+
+  iam = {
+    content = {
+      role   = "roles/storage.objectUser"
+      member = module.svc["content"].service_account_member
     }
   }
 

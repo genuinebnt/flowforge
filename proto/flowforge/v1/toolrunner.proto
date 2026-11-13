@@ -22,7 +22,31 @@ message ToolSpec {
   ActivityClass effect_class = 7;
   double rate_rps = 8; int32 rate_burst = 9; int32 concurrency = 10;
   google.protobuf.Duration timeout = 11; bool idempotent = 12;
-  string spec_sha256 = 13;
+  string spec_sha256 = 13;                                         // canonical hash of the engine spec, retry and idempotency included
+  RetryPolicy retry = 14;                                          // unset: the engine's default policy (runners older than G-SVC-09)
+  IdempotencyClass idempotency = 15;                               // UNSPECIFIED: derived from idempotent
+}
+
+// RetryPolicy is the "retry" member of spec 6.2, honoured by the engine as
+// spec 9.5 "Retries" says: retry only if the error is retryable, its code
+// is in retry_on (when retry_on is not empty) and attempts remain.
+message RetryPolicy {
+  int32 max_attempts = 1;                                          // attempts including the first; 0 means one attempt
+  repeated string retry_on = 2;                                    // error codes (classes) retried, e.g. "unavailable", "deadline_exceeded"
+  Backoff backoff = 3;
+}
+// Backoff is delay(n) = min(max_ms, initial_ms * multiplier^(n-1)) with
+// "full" jitter (spec 9.5).
+message Backoff { int64 initial_ms = 1; int64 max_ms = 2; double multiplier = 3; string jitter = 4; }
+
+// IdempotencyClass says whether the engine may re-execute an effect whose
+// outcome is unknown after a crash (spec 9.5 "Idempotency and at-least-once
+// execution").
+enum IdempotencyClass {
+  IDEMPOTENCY_CLASS_UNSPECIFIED    = 0;                            // derived from ToolSpec.idempotent
+  IDEMPOTENCY_CLASS_IDEMPOTENT     = 1;                            // a repeated execution has no further effect (lookups, captures)
+  IDEMPOTENCY_CLASS_KEYED          = 2;                            // the tool deduplicates by idempotency_key, so a re-execution is safe
+  IDEMPOTENCY_CLASS_NON_IDEMPOTENT = 3;                            // effect_outcome_unknown, then an operator or #[on_unknown(retry)]
 }
 message ListToolsRequest {}
 message ListToolsResponse { repeated ToolSpec tools = 1; }
@@ -47,7 +71,11 @@ message Observation {
   repeated OamEntity entities = 4; repeated OamEdge edges = 5; repeated OamTag tags = 6; string raw_ref = 7;
 }
 message Progress { int64 items_done = 1; int64 items_total = 2; string message = 3; }
-message ToolError { string code = 1; string message = 2; bool retryable = 3; }
+// ToolError is a structured tool failure. retry_after is set with code
+// "rate_limited" when the network edge (the egress proxy's per-target
+// limit, V2_DESIGN §9) denied the request: per spec 9.5 that is not a
+// failure, so the engine waits retry_after without counting an attempt.
+message ToolError { string code = 1; string message = 2; bool retryable = 3; google.protobuf.Duration retry_after = 4; }
 message Skipped { string target = 1; string reason = 2; }          // runner-level scope re-check denied a target
 message Done { google.protobuf.Value output = 1; int64 observations = 2; google.protobuf.Duration elapsed = 3; }
 

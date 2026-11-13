@@ -73,6 +73,10 @@ type effectState struct {
 	inFlight  bool
 	startedAt time.Time
 	failures  int
+	// uncounted is the number of effect_failed events marked Uncounted
+	// (edge rate-limit waits): attempt - uncounted is the number of
+	// attempts the retry policy has used.
+	uncounted int
 
 	retryPending bool
 	retryAt      time.Time
@@ -267,6 +271,9 @@ func (l *runLog) applyPayload(ev eventstore.Event) error {
 		}
 		e.inFlight, e.unknown = false, false
 		e.failures++
+		if p.Uncounted {
+			e.uncounted++
+		}
 		e.failErr = p.Error
 		if p.Final {
 			code, ok := bytecode.ParseFailCode(p.FailCode)

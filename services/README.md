@@ -53,7 +53,9 @@ separately and talks to these over gRPC.
 
 `services/content` serves `ContentService` (`proto/flowforge/v1/content.proto`)
 over `contentstore` (Postgres `content` schema, migration 0031, or memory;
-chunk store and text indexes under `FF_CONTENT_DIR`). Authorization: ingest
+chunk store and text indexes in the Cloud Storage bucket `FF_CONTENT_BUCKET`
+(`chunkstore/gcsstore`), else under `FF_CONTENT_DIR`, else in memory, which
+prod refuses). Authorization: ingest
 needs `runs:submit` (analysts and service identities acting for a run), raw
 reads (secrets restored) `programs:admin`, pinning `alerts:write`, the rest
 `read`; tenant from the internal token, RLS set per transaction.
@@ -97,10 +99,13 @@ observation to the graph, so the tools emit none themselves
 set's levels and a redacted unified excerpt, which the notifier exposes to
 rules as the `diff` variable and shows in the alert payload.
 
-Not provisioned in Terraform (`infra/`): the Cloud Run service, its
-database user `ff_content`, the `FF_CONTENT_KEK` secret and the
-`content.changes` Pub/Sub topic with graph and notifier subscriptions are
-follow-ups; the local profiles (one process, `cmd/content` binary) work.
+Terraform (`infra/envs/{dev,prod,lab}`) provisions the Cloud Run service
+`ff-content` (max one instance: one chunk-store writer per tenant,
+G-CST-03), its database user `ff_content` (dev/prod; the lab's single
+role), the `ff-content-kek` secret (value added out of band), the
+`<project>-ff-content` bucket and the `content.changes` topic with graph and
+notifier subscriptions, and sets `FF_CONTENT_ADDR` on the gateway and the
+tool runner.
 
 ## Tools (tool runner)
 
@@ -134,10 +139,11 @@ Every cloud dependency sits behind a port with a local adapter
 | | mem (one process) | local multi-process | gcp |
 |---|---|---|---|
 | Start | `go run ./cmd/flowforge dev` | `make local-up` (deploy/compose.local.yml) or the binaries with the env below | Terraform (`infra/`, `make gcp-lab-up`) |
-| Processes | one: gateway + every service | one per service (containers or OS processes) | one Cloud Run service each; egress proxy on the lab VM |
+| Processes | one: gateway + every service | one per service (containers or OS processes) | one Cloud Run service each; the egress proxy on a VM (the lab VM; `infra/modules/egress-vm` in dev/prod), since Cloud Run cannot serve SOCKS5, DNS or CONNECT to any port |
 | Database | memory, or Postgres with `-db` | Postgres 16 | Postgres on the lab VM, or Cloud SQL |
 | Event bus (`FF_BUS`) | `mem` | `postgres` (migration 0016, LISTEN/NOTIFY) | `pubsub` (`FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX`) |
 | Blobs (raw output, snapshots, archives) | memory | `FF_BLOB_DIR` | `FF_ARTIFACT_BUCKET` (Cloud Storage) |
+| Content chunks and text indexes | memory | `FF_CONTENT_DIR` | `FF_CONTENT_BUCKET` (Cloud Storage) |
 | Signing keys | generated per process | `FF_SIGNING_KID` + `FF_SIGNING_KEY_<KID>` from an env file (`deploy/.local/local.env`) | Secret Manager, mounted as env |
 | Schedules and maintenance | in process (engine) | in process (engine), or `migrate maintain` from cron | one Cloud Scheduler job: `POST /internal/schedules:tick` every minute; `FF_MAINTENANCE_INTERVAL=0` |
 | Rate limits | in process | in process, or Redis (`--profile redis`) | Redis on the VM, or Memorystore |
@@ -220,7 +226,8 @@ Background work uses `platform.AsService(ctx, tenant, "engine")` (actor
 | `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_NOTIFIER_ADDR`, `FF_SIMILARITY_ADDR` | callers | service addresses |
 | `FF_CONTENT_ADDR` | gateway, tool-runner (optional) | the content service; unset, the gateway's `/v1/snapshots` and `/v1/changes` routes answer 503 and the tool runner registers no content tools |
 | `FF_CRAWL_REVISIT` | tool-runner | crawl's revisit policy: `adaptive` (default) or `fixed` (docs/ALGORITHMS.md) |
-| `FF_CONTENT_DIR` | content | chunk store (`chunks/`) and text indexes (`index/<tenant>/<program>`); unset: memory |
+| `FF_CONTENT_BUCKET` | content | Cloud Storage bucket for the chunk store (`chunks/t/<tenant>/...`) and text indexes (`index/<tenant>/<program>/...`), Application Default Credentials; wins over `FF_CONTENT_DIR`; writes are generation-conditional, so a second writer fails with a conflict instead of corrupting (`chunkstore/gcsstore`) |
+| `FF_CONTENT_DIR` | content | chunk store (`chunks/`) and text indexes (`index/<tenant>/<program>`); unset (and no bucket): memory, refused in prod |
 | `FF_CONTENT_KEK`, `FF_CONTENT_KEK_ID` | content | the 32-byte key-encryption key (hex or base64) that wraps per-tenant data keys; required in prod (dev: an ephemeral key) |
 | `FF_CONTENT_CODEC`, `FF_CONTENT_INDEX_MODE`, `FF_CONTENT_INDEX_LATEST` | content | `delta`/`chunk`, `inline`/`batched`, index latest snapshots (docs/ALGORITHMS.md) |
 | `FF_CONTENT_QUOTA_CAPTURES_PER_DAY`, `FF_CONTENT_QUOTA_STORED_BYTES`, `FF_CONTENT_QUOTA_INDEX_BYTES` | content | default per-tenant quotas (0: unlimited; `QUOTA_EXCEEDED`) |

@@ -23,11 +23,18 @@ const (
 	WorkloadCancel      = "cancel"
 	WorkloadKillSwitch  = "killswitch"
 	WorkloadScopeChange = "scopechange"
+	// WorkloadEdge exercises the network edge (G-ENG-09): many concurrent
+	// fan-outs probe one registrable domain of program B, so the edge's
+	// per-target limit is contended, and a kill switch on program B is
+	// flipped on and off without the operator's cancel call, so calls the
+	// engine re-checked before a flip reach the edge after it (kill-switch
+	// races).
+	WorkloadEdge = "edge"
 )
 
 // WorkloadNames lists the workloads in a fixed order.
 var WorkloadNames = []string{WorkloadMixed, WorkloadLinear, WorkloadFanout, WorkloadSaga, WorkloadRetry,
-	WorkloadCancel, WorkloadKillSwitch, WorkloadScopeChange}
+	WorkloadCancel, WorkloadKillSwitch, WorkloadScopeChange, WorkloadEdge}
 
 // workload is what the simulated clients and operators do: which
 // workflows they submit (with idempotency keys, some submitted twice),
@@ -39,6 +46,7 @@ type workload struct {
 	cancel      bool
 	killSwitch  bool
 	scopeChange bool
+	edge        bool
 }
 
 func lookupWorkload(name string) (workload, error) {
@@ -59,6 +67,8 @@ func lookupWorkload(name string) (workload, error) {
 		return workload{kinds: []string{wfLongrun, wfScan}, runs: 10, killSwitch: true}, nil
 	case WorkloadScopeChange:
 		return workload{kinds: []string{wfLongrun, wfFanout}, runs: 10, scopeChange: true}, nil
+	case WorkloadEdge:
+		return workload{kinds: []string{wfFanout}, runs: 16, edge: true}, nil
 	}
 	return workload{}, fmt.Errorf("sim: unknown workload %q (want one of %v)", name, WorkloadNames)
 }
@@ -85,7 +95,12 @@ func (c *cluster) input(kind string, wl workload) (core.UUID, json.RawMessage) {
 	case wfScan:
 		v = map[string]any{"roots": c.pickNames(all, 2, 4)}
 	case wfFanout:
-		v = map[string]any{"names": c.pickNames(all, 3, 6)}
+		if wl.edge {
+			program = programB
+			v = map[string]any{"names": c.pickNames(acmeNames, 3, 5)}
+		} else {
+			v = map[string]any{"names": c.pickNames(all, 3, 6)}
+		}
 	case wfSaga:
 		v = map[string]any{"amount": 1 + core.IntN(c.rng, 40)}
 	case wfRetry:
@@ -121,12 +136,21 @@ func (c *cluster) plan(wl workload) {
 	}
 	if wl.killSwitch {
 		c.s.after(d*4/10, func() {
-			c.scope.setKill(engine.KillProgram, programB, true)
+			c.setKill(engine.KillProgram, programB, true)
 			c.control("kill switch", func(ctx context.Context) error {
 				return c.api.HandleKillSwitch(ctx, engine.KillProgram, programB)
 			}, 0)
 		})
-		c.s.after(d*4/10+3*time.Minute, func() { c.scope.setKill(engine.KillProgram, programB, false) })
+		c.s.after(d*4/10+3*time.Minute, func() { c.setKill(engine.KillProgram, programB, false) })
+	}
+	if wl.edge {
+		// Short kill-switch pulses while the fan-outs run; the engine
+		// learns of each at its next advance, the edge at once.
+		for at := d / 10; at < d*7/10; at += between(c.rng, time.Minute, 3*time.Minute) {
+			on := between(c.rng, 2*time.Second, 20*time.Second)
+			c.s.after(at, func() { c.setKill(engine.KillProgram, programB, true) })
+			c.s.after(at+on, func() { c.setKill(engine.KillProgram, programB, false) })
+		}
 	}
 	if wl.scopeChange {
 		c.s.after(d*3/10, func() { c.publishScope(docAllowing("acme.com")) })
@@ -134,6 +158,16 @@ func (c *cluster) plan(wl workload) {
 	}
 	c.s.after(20*time.Second, c.approverTick)
 	c.s.after(time.Minute, c.operatorTick)
+}
+
+// setKill engages or releases a kill switch and records the change.
+func (c *cluster) setKill(level string, id core.UUID, engaged bool) {
+	c.scope.setKill(level, id, engaged)
+	ch := KillSwitchChange{At: c.clock.Now(), Level: level, Engaged: engaged}
+	if level != engine.KillGlobal {
+		ch.ID = id.String()
+	}
+	c.hist.KillSwitches = append(c.hist.KillSwitches, ch)
 }
 
 func (c *cluster) publishScope(doc scope.Document) {

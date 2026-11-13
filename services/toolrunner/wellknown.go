@@ -11,6 +11,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/wellknown"
 )
@@ -42,7 +43,8 @@ var OpenAPIPaths = []string{"/openapi.json", "/swagger.json", "/v3/api-docs", "/
 func (*WellKnown) Spec() Spec {
 	return Spec{Name: "wellknown", Version: "1.0.0", Description: "robots.txt, security.txt, sitemaps, OpenAPI and GraphQL discovery",
 		InputType: "InScope<Host>", OutputType: "List<Url>", Observes: []string{oam.TypeURL, oam.TypeEndpoint},
-		Class: core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 4, Timeout: 10 * time.Minute, Idempotent: true}
+		Class: core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 4, Timeout: 10 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryContent}
 }
 
 // Run implements Adapter.

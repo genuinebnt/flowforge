@@ -116,8 +116,8 @@ func parseContext(s string) ContextElement {
 }
 
 // runDatCase parses one case and returns our dump.
-func runDatCase(c datCase) string {
-	opts := Options{Scripting: c.ScriptOn}
+func runDatCase(c datCase, cr CharRefStrategy) string {
+	opts := Options{Scripting: c.ScriptOn, CharRefLookup: cr}
 	var doc *Document
 	if c.HasFrag {
 		doc, _ = ParseFragment([]byte(c.Data), parseContext(c.Fragment), opts)
@@ -142,8 +142,16 @@ var knownTreeFailures = []string{
 	"scripted_webkit01.dat#1",
 }
 
+// TestHTMLConformanceTree runs the html5lib tree-construction suite under
+// every named character reference strategy.
 func TestHTMLConformanceTree(t *testing.T) {
 	cases := loadDatSuite(t)
+	for _, st := range CharRefStrategies() {
+		t.Run(st.String(), func(t *testing.T) { treeSuite(t, cases, st) })
+	}
+}
+
+func treeSuite(t *testing.T, cases []datCase, cr CharRefStrategy) {
 	var failed []string
 	var details []string
 	counts := map[string]int{}
@@ -158,7 +166,7 @@ func TestHTMLConformanceTree(t *testing.T) {
 			kind += "/script-off"
 		}
 		counts[kind+" total"]++
-		got := runDatCase(c)
+		got := runDatCase(c, cr)
 		if got == c.Document {
 			counts[kind+" pass"]++
 			continue

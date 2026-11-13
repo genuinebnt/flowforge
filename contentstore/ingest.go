@@ -240,10 +240,20 @@ func (s *Store) ingestOnce(ctx context.Context, tenant core.UUID, req IngestRequ
 		return IngestResult{}, &core.Error{Kind: core.KindFailedPrecondition, Reason: ReasonOutOfOrder,
 			Message: "capture fetched at " + core.FormatTime(c.FetchedAt) + " is older than the open version (" + core.FormatTime(st.open.ValidFrom) + ")"}
 	}
-	if st.hasOpen && st.open.Signature == sig {
-		if !c.FetchedAt.After(st.open.LastSeen) {
-			return IngestResult{Snapshot: st.open, Duplicate: true}, nil
+	if st.hasOpen && st.open.Signature == sig && !c.FetchedAt.After(st.open.LastSeen) {
+		return IngestResult{Snapshot: st.open, Duplicate: true}, nil
+	}
+	// V2 §12.2: an open version derived by another pipeline is re-derived
+	// before a new version is compared with it (so a change is reported
+	// only between snapshots of one derivation) and before a re-fetch
+	// re-publishes its observation. The retry re-reads it.
+	if st.hasOpen && st.open.DeriveStamp != s.cfg.Pipeline.Stamp {
+		if _, err := s.rederiveChain(ctx, tenant, st.open.ID); err != nil {
+			return IngestResult{}, err
 		}
+		return IngestResult{}, conflict("predecessor %s re-derived", st.open.PublicID())
+	}
+	if st.hasOpen && st.open.Signature == sig {
 		return s.refetch(ctx, tenant, req, c, st)
 	}
 	// Early refusal before any chunk is written; the exact check (with
@@ -289,7 +299,7 @@ func (s *Store) refetch(ctx context.Context, tenant core.UUID, req IngestRequest
 		if err != nil {
 			return err
 		}
-		if !ok || cur.ID != st.open.ID {
+		if !ok || cur.ID != st.open.ID || !sameBlobs(cur, st.open) {
 			return conflict("open version moved")
 		}
 		l, err := s.limitsOf(ctx, tx)
@@ -438,7 +448,7 @@ func (s *Store) store(ctx context.Context, tenant core.UUID, req IngestRequest, 
 			popts.HostBodies = append(popts.HostBodies, content.HostBody{URL: h.URL, SimHash: h.SimHash})
 		}
 	}
-	cur, err := content.Process(c, popts)
+	cur, err := s.cfg.Pipeline.Process(c, popts)
 	if err != nil {
 		return IngestResult{}, invalid("%v", err)
 	}
@@ -467,6 +477,12 @@ func (s *Store) store(ctx context.Context, tenant core.UUID, req IngestRequest, 
 		}
 		if m, ok := content.FindPredecessor(c.URL, main.Fingerprint, lc, s.cfg.LineageOptions); ok {
 			lineage, linParent = &m, byURL[m.URL]
+			if linParent.DeriveStamp != s.cfg.Pipeline.Stamp {
+				if _, err := s.rederiveChain(ctx, tenant, linParent.ID); err != nil {
+					return IngestResult{}, err
+				}
+				return IngestResult{}, conflict("lineage predecessor %s re-derived", linParent.PublicID())
+			}
 			prev, history = rebase(procs[m.URL], c.URL), hists[m.URL]
 		}
 	}
@@ -492,7 +508,7 @@ func (s *Store) store(ctx context.Context, tenant core.UUID, req IngestRequest, 
 		Host: hostOf(k.URL), Profile: k.Profile, RunID: req.RunID, EffectPath: req.EffectPath, FetchedAt: c.FetchedAt,
 		LastSeen: c.FetchedAt, ValidFrom: c.FetchedAt, Status: c.Status, Mime: c.ContentType(), Kind: string(main.Kind),
 		Signature: sig, BodySHA256: sha256Hex(c.Body), RawSize: int64(len(c.Body) + len(content.HeaderBlock(c.Headers))),
-		NormalizerVersion: main.Normalized.Version, Outcome: string(cur.Integrity.Outcome), Coverage: string(cur.Coverage),
+		NormalizerVersion: main.Normalized.Version, DeriveStamp: s.cfg.Pipeline.Stamp, Outcome: string(cur.Integrity.Outcome), Coverage: string(cur.Coverage),
 		Degraded: degraded, SimHash: cur.SimHash, CreatedAt: s.cfg.Clock.Now()}
 	if degraded {
 		snap.ValidTo = snap.ValidFrom
@@ -509,6 +525,7 @@ func (s *Store) store(ctx context.Context, tenant core.UUID, req IngestRequest, 
 	defer tc.gate.RUnlock()
 	body, bodySpans := redact("body", c.Body)
 	rec, hdrSpans := newCaptureRecord(c)
+	rec.PageURL = req.PageURL
 	recBytes, err := core.CanonicalJSON(rec)
 	if err != nil {
 		return IngestResult{}, internal("capture record", err)
@@ -651,6 +668,22 @@ func (s *Store) store(ctx context.Context, tenant core.UUID, req IngestRequest, 
 		}
 		if ok != st.hasOpen || ok && open.ID != st.open.ID {
 			return conflict("open version of %s moved", k.URL)
+		}
+		// The diff and the delta frames were computed from the
+		// predecessor's derived blobs: a re-derive that committed since
+		// (Rederive rewrites them) makes them stale. The open version is
+		// locked by OpenVersion, a lineage predecessor here.
+		if ok && !sameBlobs(open, st.open) {
+			return conflict("open version of %s re-derived", k.URL)
+		}
+		if lineage != nil {
+			lp, found, err := tx.LockSnapshot(ctx, linParent.ID)
+			if err != nil {
+				return err
+			}
+			if !found || !sameBlobs(lp, linParent) {
+				return conflict("lineage predecessor of %s moved", k.URL)
+			}
 		}
 		if _, dup, err := tx.GetSnapshot(ctx, id); err != nil {
 			return err
@@ -805,4 +838,11 @@ func urlTemplate(u string) string {
 		return t
 	}
 	return u
+}
+
+// sameBlobs reports whether two reads of one snapshot have the same blob
+// refs and derivation (nothing rewrote it in between).
+func sameBlobs(a, b Snapshot) bool {
+	return a.HeadersRef == b.HeadersRef && a.BodyManifest == b.BodyManifest && a.NormalizedManifest == b.NormalizedManifest &&
+		a.FeaturesRef == b.FeaturesRef && a.DeriveStamp == b.DeriveStamp && a.DeltaBase == b.DeltaBase
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/genuinebnt/flowforge/bytecode"
@@ -23,6 +24,7 @@ type execution struct {
 	policy       RetryPolicy
 	call         ToolCall
 	attempt      int
+	uncounted    int // e.uncounted when the call was prepared
 	siteDeadline time.Time
 }
 
@@ -86,7 +88,7 @@ func (r *runner) doToolCall(s vm.Suspended, e *effectState, ph phase) (*stepResu
 	reexec := false
 	if e.inFlight {
 		ann := r.mod.Annotations
-		if spec.Idempotent || site.Idempotent || r.attrs.OnUnknownRetry || (ann != nil && ann.Idempotent) {
+		if spec.ReexecSafe() || site.Idempotent || r.attrs.OnUnknownRetry || (ann != nil && ann.Idempotent) {
 			reexec = true // same attempt, same idempotency key, no new effect_started
 		} else {
 			err := r.append(ev(EvEffectOutcomeUnknown, ActorEngine, EffectOutcomeUnknownPayload{Path: e.path, Attempt: e.attempt}))
@@ -157,7 +159,7 @@ func (r *runner) doToolCall(s vm.Suspended, e *effectState, ph phase) (*stepResu
 		Timeout: time.Duration(spec.TimeoutMs) * time.Millisecond,
 	}
 	return &stepResult{kind: stepExec, exec: &execution{
-		e: e, spec: spec, policy: effectivePolicy(spec, site), call: call, attempt: attempt, siteDeadline: siteDeadline,
+		e: e, spec: spec, policy: effectivePolicy(spec, site), call: call, attempt: attempt, uncounted: e.uncounted, siteDeadline: siteDeadline,
 	}}, nil
 }
 
@@ -245,6 +247,20 @@ func (r *runner) execBatch(execs []*execution, ph phase) (*stepResult, error) {
 	ctx, end := r.beginExec()
 	results := make(chan execResult, len(execs))
 	now := r.now()
+	run := func(i int, call ToolCall, timeout time.Duration) {
+		cctx, cancel := ctx, context.CancelFunc(func() {})
+		if timeout > 0 {
+			cctx, cancel = context.WithTimeout(ctx, timeout)
+		}
+		defer cancel()
+		start := r.e.d.Clock.Monotonic()
+		out, err := r.e.d.Executor.Execute(cctx, call)
+		if err == nil && cctx.Err() != nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		results <- execResult{i: i, out: out, err: err, dur: r.e.d.Clock.Monotonic() - start}
+	}
+	timeouts := make([]time.Duration, len(execs))
 	for i, x := range execs {
 		timeout := x.call.Timeout
 		bound := func(t time.Time) {
@@ -258,19 +274,18 @@ func (r *runner) execBatch(execs []*execution, ph phase) (*stepResult, error) {
 		if ph == phaseBody {
 			bound(r.rec.DeadlineAt)
 		}
-		go func(i int, call ToolCall, timeout time.Duration) {
-			cctx, cancel := ctx, context.CancelFunc(func() {})
-			if timeout > 0 {
-				cctx, cancel = context.WithTimeout(ctx, timeout)
+		timeouts[i] = timeout
+	}
+	if se, ok := r.e.d.Executor.(SerialExecutor); ok && se.SerialBatches() {
+		go func() {
+			for i, x := range execs {
+				run(i, x.call, timeouts[i])
 			}
-			defer cancel()
-			start := r.e.d.Clock.Monotonic()
-			out, err := r.e.d.Executor.Execute(cctx, call)
-			if err == nil && cctx.Err() != nil && ctx.Err() != nil {
-				err = ctx.Err()
-			}
-			results <- execResult{i: i, out: out, err: err, dur: r.e.d.Clock.Monotonic() - start}
-		}(i, x.call, timeout)
+		}()
+	} else {
+		for i, x := range execs {
+			go run(i, x.call, timeouts[i])
+		}
 	}
 	got := make([]*execResult, len(execs))
 	done := ctx.Done()
@@ -314,6 +329,20 @@ func (r *runner) execBatch(execs []*execution, ph phase) (*stepResult, error) {
 		}
 		return halt(haltCancel, ""), nil
 	}
+	if ph == phaseBody && slices.ContainsFunc(got, func(res *execResult) bool { return res != nil && isKillSwitchRefusal(res.err) }) {
+		// A kill-switch race: the switch was engaged after this advance's
+		// re-check, and the network edge (the egress proxy, the enforcement
+		// point) refused a call before it reached its target. The run halts
+		// as the watchdog's kill-switch interrupt would, recording no
+		// outcome for the batch, and the cancellation reason reports the
+		// race ("kill_switch_race[:level]", G-ENG-09).
+		r.reqsDirty.Store(true)
+		r.killReason = "kill_switch_race"
+		if ks, err := r.e.d.Scope.KillSwitch(r.ctx, r.rec.Tenant, r.rec.ProgramID); err == nil && ks.Engaged {
+			r.killReason += ":" + ks.Level
+		}
+		return halt(haltCancel, ""), nil
+	}
 	var evs []pending
 	for i, x := range execs {
 		res := got[i]
@@ -337,40 +366,78 @@ func (r *runner) outcome(x *execution, res *execResult) ([]pending, error) {
 	if res.err == nil {
 		v, err := decodeToolOutput(r.lm, x.spec.Name, res.out.Output)
 		if err != nil {
-			return r.failureEvents(x, EffectError{Code: "invalid_output", Message: err.Error()}), nil
+			return r.failureEvents(x, EffectError{Code: "invalid_output", Message: err.Error()}, 0), nil
 		}
 		obs, err := r.ingest(x, res.out.Observations)
 		if err != nil {
-			return r.failureEvents(x, EffectError{Code: "ingest_unavailable", Message: err.Error(), Retryable: true}), nil
+			return r.failureEvents(x, EffectError{Code: "ingest_unavailable", Message: err.Error(), Retryable: true}, 0), nil
 		}
 		val, disp, err := encodeResult(r.mod, v)
 		if err != nil {
-			return r.failureEvents(x, EffectError{Code: "invalid_output", Message: err.Error()}), nil
+			return r.failureEvents(x, EffectError{Code: "invalid_output", Message: err.Error()}, 0), nil
 		}
 		return append(obs, ev(EvEffectCompleted, actor, EffectCompletedPayload{
 			Path: x.e.path, Result: disp, Value: val, DurationMs: res.dur.Milliseconds(),
 		})), nil
 	}
-	return r.failureEvents(x, classify(res.err)), nil
+	te, edgeWait := classify(res.err)
+	return r.failureEvents(x, te, edgeWait), nil
 }
 
-// classify maps an executor error to an effect error (spec 9.5).
-func classify(err error) EffectError {
+// effectError is classify without the edge wait (effects that are not
+// tool calls).
+func effectError(err error) EffectError {
+	ee, _ := classify(err)
+	return ee
+}
+
+// isKillSwitchRefusal reports a ToolError with CodeKillSwitch.
+func isKillSwitchRefusal(err error) bool {
+	var te *ToolError
+	return errors.As(err, &te) && te.Code == CodeKillSwitch
+}
+
+// classify maps an executor error to an effect error (spec 9.5). edgeWait
+// is the retry delay of a rate-limit denial at the network edge (a
+// ToolError with CodeRateLimited and RetryAfter), else 0.
+func classify(err error) (ee EffectError, edgeWait time.Duration) {
 	var te *ToolError
 	switch {
 	case errors.As(err, &te):
-		return EffectError{Code: te.Code, Message: te.Message, Retryable: te.Retryable}
+		if te.Code == CodeRateLimited && te.RetryAfter > 0 {
+			edgeWait = te.RetryAfter
+		}
+		return EffectError{Code: te.Code, Message: te.Message, Retryable: te.Retryable}, edgeWait
 	case errors.Is(err, context.DeadlineExceeded):
-		return EffectError{Code: "deadline_exceeded", Message: err.Error(), Retryable: true}
+		return EffectError{Code: "deadline_exceeded", Message: err.Error(), Retryable: true}, 0
 	case errors.Is(err, context.Canceled):
-		return EffectError{Code: "cancelled", Message: err.Error()}
+		return EffectError{Code: "cancelled", Message: err.Error()}, 0
 	}
-	return EffectError{Code: "unavailable", Message: err.Error(), Retryable: true}
+	return EffectError{Code: "unavailable", Message: err.Error(), Retryable: true}, 0
 }
 
-func (r *runner) failureEvents(x *execution, te EffectError) []pending {
+// failureEvents records a failed attempt and, when the policy allows,
+// schedules the next one (spec 9.5). A rate-limit denial at the network
+// edge (edgeWait > 0) is not a failure: the effect waits edgeWait (no
+// jitter: the edge computed the delay) and the attempt is marked
+// Uncounted, up to Config.MaxEdgeWaits times per effect. The policy's
+// attempt budget and backoff use the counted attempts only.
+func (r *runner) failureEvents(x *execution, te EffectError, edgeWait time.Duration) []pending {
 	actor := ToolActor(x.spec.Name)
 	now := r.now()
+	inDeadlines := func(at time.Time) bool {
+		return (r.rec.DeadlineAt.IsZero() || at.Before(r.rec.DeadlineAt)) && (x.siteDeadline.IsZero() || at.Before(x.siteDeadline))
+	}
+	if edgeWait > 0 && x.uncounted < r.e.cfg.MaxEdgeWaits {
+		at := msTime(now.Add(edgeWait))
+		if inDeadlines(at) {
+			return []pending{
+				ev(EvEffectFailed, actor, EffectFailedPayload{Path: x.e.path, Attempt: x.attempt, Error: te, Uncounted: true}),
+				ev(EvEffectRetryScheduled, ActorEngine, EffectRetryScheduledPayload{Path: x.e.path, Attempt: x.attempt, RetryAt: fmtTime(at)}),
+			}
+		}
+	}
+	counted := x.attempt - x.uncounted
 	code := bytecode.FailEffectFailed
 	switch te.Code {
 	case "scope_denied":
@@ -380,10 +447,10 @@ func (r *runner) failureEvents(x *execution, te EffectError) []pending {
 	}
 	if te.Code == "deadline_exceeded" && !x.siteDeadline.IsZero() && !now.Before(x.siteDeadline) {
 		code = bytecode.FailTimeout
-	} else if retryable(x.policy, te) && x.attempt < x.policy.MaxAttempts {
-		wait := FullJitter(r.e.d.Rng, BackoffDelay(x.policy.Backoff, x.attempt))
+	} else if retryable(x.policy, te) && counted < x.policy.MaxAttempts {
+		wait := FullJitter(r.e.d.Rng, BackoffDelay(x.policy.Backoff, counted))
 		at := msTime(now.Add(wait))
-		if (r.rec.DeadlineAt.IsZero() || at.Before(r.rec.DeadlineAt)) && (x.siteDeadline.IsZero() || at.Before(x.siteDeadline)) {
+		if inDeadlines(at) {
 			return []pending{
 				ev(EvEffectFailed, actor, EffectFailedPayload{Path: x.e.path, Attempt: x.attempt, Error: te}),
 				ev(EvEffectRetryScheduled, ActorEngine, EffectRetryScheduledPayload{Path: x.e.path, Attempt: x.attempt, RetryAt: fmtTime(at)}),

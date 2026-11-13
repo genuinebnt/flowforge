@@ -7,10 +7,11 @@ package htmlparse
 //go:generate sh -c "cd .. && go run ./htmlparse/internal/gen -src \"$(go list -m -f '{{.Dir}}' golang.org/x/net)/html/entity.go\" -go htmlparse/entities_table.go -json conformance/htmlparse/entities.json"
 
 // CharRefStrategy selects the named character reference lookup
-// algorithm. Both find the longest name in the WHATWG table that prefixes
+// algorithm. All find the longest name in the WHATWG table that prefixes
 // the input (HTML §13.2.5 "named character reference state") and give
-// identical results (HTML-INV-11); they differ only in speed and table
-// size. See README.md "Performance comparison" for why the default won.
+// identical results (HTML-INV-11, and the html5lib suites run under each);
+// they differ only in speed and table size. docs/ALGORITHMS.md "Named
+// character references" has the measurements.
 type CharRefStrategy uint8
 
 const (
@@ -20,9 +21,79 @@ const (
 	CharRefTrie CharRefStrategy = iota
 	// CharRefSortedSearch narrows a range of the sorted name table with
 	// two binary searches per input byte; it needs no table beyond the
-	// names themselves but is about 1.6x slower on entity-dense text.
+	// names themselves.
 	CharRefSortedSearch
+	// CharRefMap reads the run of name bytes, then probes a hash map of
+	// the names from the longest candidate prefix down (the ';'-terminated
+	// form first): up to 33 lookups per reference, plus a map of 2231
+	// entries built at start-up.
+	CharRefMap
 )
+
+// CharRefStrategies lists every strategy, the default first.
+func CharRefStrategies() []CharRefStrategy {
+	return []CharRefStrategy{CharRefTrie, CharRefSortedSearch, CharRefMap}
+}
+
+// String returns "trie", "sorted" or "map".
+func (s CharRefStrategy) String() string {
+	switch s {
+	case CharRefTrie:
+		return "trie"
+	case CharRefSortedSearch:
+		return "sorted"
+	case CharRefMap:
+		return "map"
+	}
+	return "unknown"
+}
+
+// lookup dispatches to the strategy's longest-match search.
+func (s CharRefStrategy) lookup(b []byte) (int, int) {
+	switch s {
+	case CharRefSortedSearch:
+		return lookupEntity(b)
+	case CharRefMap:
+		return lookupEntityMap(b)
+	}
+	return lookupEntityTrie(b)
+}
+
+// entityIndex maps each reference name to its index in entityNames. It
+// is built once and never written afterwards.
+//
+// PORT: any hash map works; the lookup order (longest first) alone
+// decides the result, not the map's iteration order.
+var entityIndex = func() map[string]int16 {
+	m := make(map[string]int16, entityCount)
+	for i, n := range entityNames {
+		m[n] = int16(i)
+	}
+	return m
+}()
+
+// lookupEntityMap is lookupEntity over a hash map. Every name is ASCII
+// alphanumerics optionally followed by one ';', so the longest name that
+// prefixes b is either the alphanumeric run plus a following ';', or a
+// prefix of the run: probing those lengths from the longest down finds
+// it. The map[string(bytes)] lookups do not allocate.
+func lookupEntityMap(b []byte) (int, int) {
+	n := 0
+	for n < len(b) && n < entityMaxLen && isASCIIAlnumB(b[n]) {
+		n++
+	}
+	if n < len(b) && n < entityMaxLen && b[n] == ';' {
+		if i, ok := entityIndex[string(b[:n+1])]; ok {
+			return n + 1, int(i)
+		}
+	}
+	for k := n; k > 0; k-- {
+		if i, ok := entityIndex[string(b[:k])]; ok {
+			return k, int(i)
+		}
+	}
+	return 0, -1
+}
 
 // entityTrieNode is a node of the generated prefix trie: its outgoing
 // edges are entityTrieEdges[first : first+count]; entity is the index in
@@ -156,12 +227,7 @@ func (t *Tokenizer) flushCharRef() {
 
 // namedCharacterReferenceState is the named character reference state.
 func (t *Tokenizer) namedCharacterReferenceState() {
-	var n, idx int
-	if t.charRef == CharRefSortedSearch {
-		n, idx = lookupEntity(t.in[t.pos:])
-	} else {
-		n, idx = lookupEntityTrie(t.in[t.pos:])
-	}
+	n, idx := t.charRef.lookup(t.in[t.pos:])
 	if n == 0 {
 		t.flushCharRef()
 		t.state = stateAmbiguousAmpersand

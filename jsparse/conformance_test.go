@@ -78,15 +78,26 @@ func sourceTypeOf(name string) SourceType {
 	return SourceScript
 }
 
-func parseFile(f test262File) (*Program, error) {
-	return Parse(f.src, Options{SourceType: sourceTypeOf(f.name)})
+func parseFile(f test262File) (*Program, error) { return parseFileWith(f, Algorithms{}) }
+
+func parseFileWith(f test262File, alg Algorithms) (*Program, error) {
+	return Parse(f.src, Options{SourceType: sourceTypeOf(f.name), Algorithms: alg})
 }
 
 // TestJSConformanceTest262 runs the tc39 test262-parser-tests suite: pass
 // files parse, fail and early files are rejected, and pass/X.js has the
 // same canonical AST as pass-explicit/X.js. The deviations allowed are
-// exactly those in conformance/jsparse/test262_exceptions.json.
+// exactly those in conformance/jsparse/test262_exceptions.json. The suite
+// runs under every candidate of Algorithms (docs/CONVENTIONS.md
+// "Pluggable algorithms"): each must deviate exactly as the default.
 func TestJSConformanceTest262(t *testing.T) {
+	for _, cand := range algoCandidates {
+		t.Run(cand.name, func(t *testing.T) { test262Suite(t, cand.alg) })
+	}
+}
+
+func test262Suite(t *testing.T, alg Algorithms) {
+	parseFile := func(f test262File) (*Program, error) { return parseFileWith(f, alg) }
 	ex := loadExceptions(t)
 	check := func(t *testing.T, what string, got []string, want []test262Exception) {
 		t.Helper()

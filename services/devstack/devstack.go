@@ -309,7 +309,7 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	st.serveEgressListeners(runCtx, proxy, lis)
 
 	trC, err := wire.ToolRunner(env(ToolRunnerName), wire.ToolRunnerOptions{ScopeAddr: st.Addrs[ScopeName],
-		EgressProxy: "http://" + st.Addrs[EgressName], Resolver: o.Resolver, ProbePorts: o.ProbePorts,
+		EgressProxy: "http://" + st.Addrs[EgressName], ProbePorts: o.ProbePorts,
 		ContentAddr: st.Addrs[ContentName], Content: o.Content, TargetTLS: o.TargetTLS, Clock: o.ToolClock})
 	if err != nil {
 		return fail(err)

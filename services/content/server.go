@@ -27,6 +27,9 @@ import (
 type Options struct {
 	Store  *contentstore.Store
 	Logger *slog.Logger
+	// RederiveBatch bounds the snapshots each Sweep re-derives per tenant
+	// after a pipeline upgrade (contentstore.Rederive; default 64).
+	RederiveBatch int
 }
 
 // Server implements flowforge.v1.ContentService.
@@ -310,9 +313,12 @@ func (s *Server) GetQuotaStatus(ctx context.Context, _ *pb.GetQuotaStatusRequest
 		StoredBytes: q.Usage.StoredBytes, IndexBytes: q.Usage.IndexBytes}, nil
 }
 
-// Sweep runs one background pass over every tenant: retention with chunk
-// GC, then (batched mode) indexing of pending diffs. Errors of one tenant
-// are logged and do not stop the others.
+// Sweep runs one background pass over every tenant: a bounded batch of
+// re-derivation (V2 §12.2: snapshots derived by an older normalizer or
+// extractor are re-derived from their raw bodies, a batch per pass until
+// none remain; no event or alert results), retention with chunk GC, then
+// (batched mode) indexing of pending diffs. Errors of one tenant are
+// logged and do not stop the others.
 func (s *Server) Sweep(ctx context.Context, tenants func(context.Context) ([]core.UUID, error), index bool) {
 	ts, err := tenants(ctx)
 	if err != nil {
@@ -323,6 +329,7 @@ func (s *Server) Sweep(ctx context.Context, tenants func(context.Context) ([]cor
 		if ctx.Err() != nil {
 			return
 		}
+		s.RederiveTenant(ctx, t)
 		if rep, err := s.o.Store.ApplyRetention(ctx, t); err != nil {
 			s.o.Logger.WarnContext(ctx, "content.retention_failed", "tenant_id", t.String(), "error", err.Error())
 		} else if rep.Snapshots > 0 {
@@ -346,4 +353,20 @@ func (s *Server) IndexTenant(ctx context.Context, t core.UUID) {
 			s.o.Logger.WarnContext(ctx, "content.index_failed", "tenant_id", t.String(), "program_id", p.String(), "error", err.Error())
 		}
 	}
+}
+
+// RederiveTenant re-derives one batch (Options.RederiveBatch) of a
+// tenant's snapshots whose derivation stamp is not the store's pipeline's
+// and reports whether stale snapshots remain. Failures are logged.
+func (s *Server) RederiveTenant(ctx context.Context, t core.UUID) bool {
+	rep, err := s.o.Store.Rederive(ctx, t, contentstore.RederiveOptions{BatchSize: s.o.RederiveBatch})
+	if err != nil {
+		s.o.Logger.WarnContext(ctx, "content.rederive_failed", "tenant_id", t.String(), "error", err.Error())
+		return true
+	}
+	if rep.Snapshots > 0 {
+		s.o.Logger.InfoContext(ctx, "content.rederived", "tenant_id", t.String(), "snapshots", rep.Snapshots,
+			"rewritten", rep.Rewritten, "diffs", rep.Diffs, "remaining", rep.Remaining)
+	}
+	return rep.Remaining
 }

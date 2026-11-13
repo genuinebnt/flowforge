@@ -54,15 +54,17 @@ GitHub environment for prod federation, deletion protection.
 
 | Spec | Resources |
 |------|-----------|
-| 3.1, 17.1 | Cloud Run services `ff-gateway`, `ff-engine`, `ff-scope`, `ff-graph`, `ff-notifier`, `ff-similarity`, `ff-tool-runner`, `ff-egress-proxy`; gen2; h2c (HTTP/2) on every gRPC service; concurrency 80 gateway / 20 engine and graph; CPU always allocated for engine and notifier (and similarity, a pull consumer); min instances 1 for engine and scope; ingress `INTERNAL_LOAD_BALANCER` for the gateway, `INTERNAL_ONLY` for the rest |
+| 3.1, 17.1 | Cloud Run services `ff-gateway`, `ff-engine`, `ff-scope`, `ff-graph`, `ff-notifier`, `ff-similarity`, `ff-tool-runner`, `ff-content`; gen2; h2c (HTTP/2) on every gRPC service; concurrency 80 gateway / 20 engine, graph and content; CPU always allocated for engine, notifier and content (and similarity, a pull consumer); min instances 1 for engine and scope; `ff-content` at most one instance (G-CST-03); ingress `INTERNAL_LOAD_BALANCER` for the gateway, `INTERNAL_ONLY` for the rest |
+| 17.1, V2 §9 | Egress proxy VM `ff-<env>-egress` (`modules/egress-vm`, e2-small COS, G-OPS-15/G-SVC-14): HTTP + CONNECT on 3128, SOCKS5 on 1080, DNS (UDP+TCP) on 8053, internal static address in the egress subnet, no external IP (Cloud NAT's reserved IPs); every port from the tool-runner subnet only, the HTTP port also from the services subnet (notifier notify path); SSH through IAP; image rolled by the metadata key `ff-egress-proxy-image` |
+| V2 §6 | Content bucket `<project>-ff-content` (`chunks/t/<tenant>/...` packs, indexes and refs; `index/<tenant>/<program>/...` text indexes), `roles/storage.objectUser` for `sa-content` only, no lifecycle delete rule (the service's GC deletes unreferenced packs after the ref swap), soft delete 7 days |
 | 17.1 | Cloud Run job `ff-migrate` (runs `./cmd/migrate`) |
-| 17.1, 17.3 | tool-runner on its own subnet, default-deny egress except the private Google VIP (egress proxy, scope, GCS) and Memorystore; egress proxy on the only NATed subnet (reserved static IPs, output `egress_ips`) |
-| 17.1 | Cloud SQL Postgres 16, private IP only, TLS only, `REGIONAL` in prod; users `ff_<service>` with passwords in `ff-db-<service>-password` |
+| 17.1, 17.3 | tool-runner on its own subnet, default-deny egress except the private Google VIP (scope, content, GCS), Memorystore and the egress VM's ports; egress proxy VM on the only NATed subnet (reserved static IPs, output `egress_ips`) |
+| 17.1 | Cloud SQL Postgres 16, private IP only, TLS only, `REGIONAL` in prod; users `ff_<service>` with passwords in `ff-db-<service>-password` (`ff_content` included: migration 0031's role, owner of the `content` schema, subject to RLS) |
 | 17.1 | Memorystore Redis, AUTH + TLS (`ff-redis-auth`, `ff-redis-ca`), `STANDARD_HA` in prod |
-| 11.7, 17.1 | Topics `ff.run.events`, `ff.approval.events`, `ff.graph.changes`, `ff.scope.events`, `ff.auth.events`; subscription `<topic>.<consumer>` per consumer with ordering, exponential retry 10 s–600 s, ack deadline 60 s, dead-letter after 10 attempts to `<topic>.dead-letter` (14 days) |
+| 11.7, 17.1 | Topics `ff.run.events`, `ff.approval.events`, `ff.graph.changes`, `ff.scope.events`, `ff.auth.events`, `ff.content.changes` (content → graph, notifier); subscription `<topic>.<consumer>` per consumer with ordering, exponential retry 10 s–600 s, ack deadline 60 s, dead-letter after 10 attempts to `<topic>.dead-letter` (14 days) |
 | 17.1 | Cloud Scheduler job `ff-<env>-schedules-tick` posting `/internal/schedules:tick` on the engine every minute with an OIDC token of `sa-scheduler` (G-OPS-10: the engine fires due schedules in process); optional per-schedule jobs from `var.schedules` posting `/internal/schedules/{id}:fire` |
 | 17.1 | Artifact bucket `<project>-ff-artifacts` (uniform access, public access prevention, optional CMEK) |
-| 17.1 | Secret Manager: `ff-signing-key-<kid>`, `ff-llm-api-key`, `ff-webhook-<channel>`, `ff-db-<service>-password`, `ff-redis-auth`, `ff-redis-ca`, `ff-tool-<name>` |
+| 17.1 | Secret Manager: `ff-signing-key-<kid>`, `ff-llm-api-key`, `ff-webhook-<channel>`, `ff-db-<service>-password`, `ff-redis-auth`, `ff-redis-ca`, `ff-tool-<name>`, `ff-content-kek` (the content key-encryption key, added out of band) |
 | 17.2 | One SA per service; grants on the narrowest resource (topic, subscription, bucket prefix via IAM condition, Cloud Run service, secret). Only `roles/cloudsql.client` is project-level |
 | 17.2 | `sa-ci-deploy` (spec "sa-ci"; account ids need 6+ characters) via Workload Identity Federation for this repository: Artifact Registry Writer on the repo, Cloud Run Admin on its services and the migrate job, Service Account User on the runtime SAs |
 | 17.1 | Artifact Registry `flowforge` (immutable tags; Container Scanning API on) |
@@ -74,14 +76,16 @@ GitHub environment for prod federation, deletion protection.
 | Variable | Set on |
 |----------|--------|
 | `FF_ENV`, `FF_BUS=pubsub`, `FF_JWKS_URL`, `FF_JWT_ISSUER`, `FF_JWT_AUDIENCE`, `FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX` | all services |
-| `FF_DB_DSN` (`host=/cloudsql/<conn> … user=ff_<service>`) + `PGPASSWORD` (secret) | gateway, engine, scope, graph, notifier, similarity |
+| `FF_DB_DSN` (`host=/cloudsql/<conn> … user=ff_<service>`) + `PGPASSWORD` (secret) | gateway, engine, scope, graph, notifier, similarity, content |
 | `FF_REDIS_ADDR`, `FF_REDIS_AUTH` (secret), `FF_REDIS_CA` (secret) | gateway, engine, scope, tool-runner |
 | `FF_ARTIFACT_BUCKET` | engine, tool-runner, graph |
-| `FF_EGRESS_PROXY` | tool-runner (and engine, notifier: see below) |
+| `FF_EGRESS_PROXY` (`http://<egress VM>:3128`) | tool-runner (and engine, notifier: see below) |
+| `FF_CONTENT_BUCKET`, `FF_CONTENT_KEK_ID`, `FF_CONTENT_KEK` (secret `ff-content-kek`) | content |
+| `FF_EGRESS_SOCKS_LISTEN`/`_ADVERTISE`, `FF_EGRESS_DNS_LISTEN`/`_ADVERTISE`, `PORT` | the egress VM (set by `modules/egress-vm` or the lab VM; tickets carry the advertised addresses) |
 | `FF_LLM_ENDPOINT`, `FF_LLM_MODEL`, `FF_LLM_API_KEY` (secret) | engine |
 | `FF_FUEL_DEFAULT`, `FF_PLAN_FUEL_DEFAULT` | engine |
 | `FF_TICK_OIDC_AUDIENCE` (engine URL), `FF_TICK_SERVICE_ACCOUNT` (`sa-scheduler`) | engine (accepts Cloud Scheduler's ID token on the tick) |
-| `FF_<SERVICE>_ADDR` | callers (gateway → engine/scope/graph/notifier/similarity, engine → scope/graph/tool-runner, tool-runner → scope) |
+| `FF_<SERVICE>_ADDR` | callers (gateway → engine/scope/graph/notifier/similarity/content, engine → scope/graph/tool-runner, tool-runner → scope/content, egress VM → scope) |
 | `FF_SIGNING_KEY_<KID>` (secrets `ff-signing-key-<kid>`), `FF_SIGNING_KID`, `FF_SIGNING_KIDS` | every service that calls another: gateway, engine, graph, similarity, tool-runner, egress proxy (scope and notifier only verify, through `FF_JWKS_URL`) |
 | `FF_WEBHOOK_<CHANNEL>` (secrets) | notifier |
 
@@ -133,8 +137,8 @@ Redis is plaintext (see the lab section).
 that reuses the modules. What it creates:
 
 * **Cloud Run** `ff-gateway`, `ff-engine`, `ff-scope`, `ff-graph`,
-  `ff-notifier`, `ff-similarity`, `ff-tool-runner`. Min instances 0, max 1
-  (gateway 2), CPU only during requests (request-based billing), Direct VPC
+  `ff-notifier`, `ff-similarity`, `ff-tool-runner`, `ff-content`. Min
+  instances 0, max 1 (gateway 2; content exactly 1 at most, G-CST-03), CPU only during requests (request-based billing), Direct VPC
   egress (no connector). The gateway uses ingress `INGRESS_TRAFFIC_ALL` with
   the invoker check off and serves the API on its `run.app` URL (output
   `api_url`, Google-managed TLS). The other services are internal-only. There
@@ -149,14 +153,16 @@ that reuses the modules. What it creates:
     citext, and vector if the image has it).
   * `ff-redis`: optional (`redis_enabled`).
   * `ff-egress-proxy`: HTTP + CONNECT on port 3128 (`FF_EGRESS_PROXY =
-    http://<vm ip>:3128`), image from Artifact Registry. Ports 1080
-    (SOCKS5) and 53 (DNS) are reserved for the v2 proxy and not opened.
+    http://<vm ip>:3128`), SOCKS5 on 1080 and DNS over UDP and TCP on 8053
+    (`socks_port`, `dns_port`; not 53, the container is unprivileged),
+    image from Artifact Registry.
   * `ff-image-watch`: restarts the proxy when the metadata key
     `ff-egress-proxy-image` changes (the deploy workflow sets it).
 
   Secrets come from Secret Manager through the metadata-server token into
   `/run/ff` (tmpfs). Firewall: Postgres/Redis only from the services subnet,
-  the proxy from the services and tool-runner subnets, SSH only from IAP
+  the proxy's HTTP port from the services and tool-runner subnets, SOCKS5
+  and DNS from the tool-runner subnet only, SSH only from IAP
   (`35.235.240.0/20`). The VPC firewall and the host's iptables both enforce
   this. The tool-runner's default-deny egress gets a single exception: the
   proxy.
@@ -233,7 +239,7 @@ Cloud Run and disk checks. Each check is lifted only by naming it in
    -target=google_artifact_registry_repository.images
    -target=google_secret_manager_secret.this`. Next run `gcloud auth
    configure-docker us-central1-docker.pkg.dev` and `make gcp-lab-images`,
-   which builds the 9 images and writes
+   which builds the 10 images and writes
    `infra/envs/lab/images.auto.tfvars.json`.
 6. **Signing key** (out of band, so its value never enters Terraform state):
    `openssl rand -hex 32 | gcloud secrets versions add
@@ -307,14 +313,15 @@ input `lab`.
 - **Egress for engine and notifier**: spec 17.1 makes the egress proxy the
   only identity with internet access, so webhook deliveries (notifier) and an
   external LLM endpoint (engine) also go through it; both get
-  `FF_EGRESS_PROXY` and Invoker on the proxy. Notifier webhook and Slack
+  `FF_EGRESS_PROXY` (the VM's HTTP port, open to the services subnet).
+  Notifier webhook and Slack
   deliveries use the proxy's notify path (`X-Flowforge-Egress-Purpose:
   notify`, see `services/egressproxy/README.md`): no scope decision, but the
   destination host must be on the proxy's `FF_NOTIFY_ALLOWLIST`
   (comma-separated host names, `.suffix` entries for subdomains; empty
   refuses every delivery), and the proxy resolves it and connects only to
   public addresses (the webhook SSRF rules of spec 15.4). Set
-  `FF_NOTIFY_ALLOWLIST` on `ff-egress-proxy` (for example
+  `FF_NOTIFY_ALLOWLIST` (`notify_allowlist`, on the egress VM) (for example
   `hooks.slack.com`); the notifier refuses to start in prod without
   `FF_EGRESS_PROXY`. With Vertex AI the engine needs
   no proxy (set `llm_api_key_enabled = false`).
@@ -322,9 +329,9 @@ input `lab`.
   their own subscription for gateway (run.events SSE fan-out), tool-runner
   and egress proxy (scope.events cache invalidation) as 11.7 lists them as
   consumers; Secret Accessor on each service's own DB password and the Redis
-  AUTH/CA secrets that 17.5 mounts; Invoker on the egress proxy (tool-runner,
-  engine, notifier), on similarity (gateway), on tool-runner (gateway:
-  `ListTools`), on scope (graph, similarity, egress proxy) and on graph
+  AUTH/CA secrets that 17.5 mounts; Invoker on similarity (gateway), on
+  tool-runner (gateway: `ListTools`), on scope (graph, similarity, the
+  egress VM's account), on content (gateway, tool-runner) and on graph
   (similarity), matching the `FF_*_ADDR` each binary dials. `sa-similarity`,
   `sa-egress-proxy`, `sa-migrate` and `sa-scheduler` are not in 17.2 and
   get only what they use.
@@ -378,7 +385,14 @@ input `lab`.
   the client uses TLS on port 443 and sends the ID token (for example in
   `X-Serverless-Authorization`, leaving `authorization` for the internal
   JWT). This affects all three environments and is outside `infra/`.
-- dev/prod run the egress proxy as a Cloud Run service. A forward proxy
-  needs CONNECT (and v2 needs raw TCP/UDP), which a Cloud Run front end is
-  not designed to carry. The lab already runs the proxy on a VM. dev/prod
-  probably want the small MIG that spec 17.1 allows (G-OPS-15).
+- The egress proxy runs on one VM per environment (dev/prod:
+  `modules/egress-vm`; lab: the shared VM), because a Cloud Run front end
+  carries neither CONNECT to arbitrary ports nor raw TCP/UDP (G-OPS-15,
+  G-SVC-14). It is one VM, not a MIG: a restart or `make gcp-pause` drops
+  open tunnels, and the per-target limiter is in process. The deploy
+  workflow must roll it through the metadata key `ff-egress-proxy-image`
+  in dev/prod as it does in the lab (CI holds `roles/compute.instanceAdmin.v1`
+  on the VM and Service Account User on its account).
+- The content service writes one chunk store per tenant from one process
+  (G-CST-03, v3); Terraform pins `ff-content` to one instance, and the GCS
+  adapter's generation preconditions make a second writer fail loudly.

@@ -40,9 +40,18 @@ type History struct {
 	Commits []Commit     `json:"commits"`
 	Runs    []RunRecord  `json:"runs"`
 
-	ToolCalls    []ToolCall    `json:"tool_calls"`
-	Admissions   []Admission   `json:"admissions"`
-	RateCeilings []RateCeiling `json:"rate_ceilings"`
+	ToolCalls  []ToolCall  `json:"tool_calls"`
+	Admissions []Admission `json:"admissions"`
+	// EdgeAdmissions are the per-target admissions of the network edge
+	// (the egress proxy's limiter, V2_DESIGN §9), one per request that
+	// passed it, duplicates included.
+	EdgeAdmissions []Admission   `json:"edge_admissions"`
+	RateCeilings   []RateCeiling `json:"rate_ceilings"`
+	// KillSwitches is the timeline of kill switch changes; KillSwitchRaces
+	// are the calls the edge refused because a kill switch was engaged
+	// after the engine's re-check (reported, not violations).
+	KillSwitches    []KillSwitchChange `json:"kill_switches"`
+	KillSwitchRaces []KillSwitchRace   `json:"kill_switch_races"`
 
 	Scopes []ScopeVersion `json:"scopes"`
 
@@ -125,9 +134,32 @@ type ToolCall struct {
 	// transport.
 	Delivered bool `json:"delivered"`
 	Duplicate bool `json:"duplicate,omitempty"`
+	// EdgeRefused is the network edge's refusal of a request it did not
+	// pass on: "rate_limited" or "kill_switch" (Delivered is then false).
+	EdgeRefused string `json:"edge_refused,omitempty"`
 }
 
-// Admission is one rl:h key admitted by the limiter.
+// KillSwitchChange is one kill switch engaged or released: level global,
+// tenant or program, and the tenant or program id it applies to.
+type KillSwitchChange struct {
+	At      time.Time `json:"at"`
+	Level   string    `json:"level"`
+	ID      string    `json:"id,omitempty"`
+	Engaged bool      `json:"engaged"`
+}
+
+// KillSwitchRace is a call the engine dispatched after its re-check and
+// the network edge refused because a kill switch was engaged meanwhile.
+type KillSwitchRace struct {
+	At    time.Time `json:"at"`
+	Run   string    `json:"run"`
+	Path  string    `json:"path"`
+	Tool  string    `json:"tool"`
+	Level string    `json:"level"`
+}
+
+// Admission is one per-target key admitted by a limiter: the engine's
+// (rl:h, Actor the calling worker) or the network edge's (Actor 0).
 type Admission struct {
 	At    time.Time `json:"at"`
 	Actor uint64    `json:"actor"`
@@ -230,6 +262,10 @@ type Stats struct {
 	PubDuplicates  int    `json:"pub_duplicates"`
 	Alerts         int    `json:"alerts"`
 	Observations   int    `json:"observations"`
+	// EdgeDenials are requests the edge's per-target limit refused;
+	// KillSwitchRaces is len(History.KillSwitchRaces).
+	EdgeDenials     int `json:"edge_denials"`
+	KillSwitchRaces int `json:"kill_switch_races"`
 }
 
 // Violation is one broken invariant.

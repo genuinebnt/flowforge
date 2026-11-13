@@ -63,14 +63,20 @@ type Snapshot struct {
 	NormalizedManifest string
 	FeaturesRef        string
 	NormalizerVersion  string
-	ParentID           core.UUID // previous version of the same key (Nil: none)
-	LineageParentID    core.UUID // lineage predecessor of a renamed script (Nil: none)
-	Outcome            string    // integrity outcome: complete, partial, failed, degraded
-	Coverage           string    // oam coverage of the reading
-	Degraded           bool
-	SimHash            uint64
-	Pinned             bool
-	PinReason          string
+	// DeriveStamp identifies the pipeline (normalizers, extractors and
+	// their rule tables: Pipeline.Stamp) that derived NormalizedManifest,
+	// FeaturesRef, Kind, Coverage and SimHash. A snapshot whose stamp is
+	// not the store's is re-derived (Store.Rederive, V2 §12.2); "" for rows
+	// written before stamps existed.
+	DeriveStamp     string
+	ParentID        core.UUID // previous version of the same key (Nil: none)
+	LineageParentID core.UUID // lineage predecessor of a renamed script (Nil: none)
+	Outcome         string    // integrity outcome: complete, partial, failed, degraded
+	Coverage        string    // oam coverage of the reading
+	Degraded        bool
+	SimHash         uint64
+	Pinned          bool
+	PinReason       string
 	// Codec is the blob codec ("delta" or "chunk"); with "delta" the
 	// blobs are FFZB frames against DeltaBase's blobs (Nil: a keyframe),
 	// DeltaDepth versions from the last keyframe.

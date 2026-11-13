@@ -240,6 +240,7 @@ func fsck(ctx context.Context, b Backend, ns namespace, c *codec, manifests []Ma
 		}
 		var sum uint64
 		missing := false
+		lens := make([]uint32, 0, len(m.Chunks))
 		for _, cid := range m.Chunks {
 			cl, ok := locs[cid]
 			if !ok {
@@ -248,9 +249,16 @@ func fsck(ctx context.Context, b Backend, ns namespace, c *codec, manifests []Ma
 				continue
 			}
 			sum += uint64(cl.e.RawLen)
+			lens = append(lens, cl.e.RawLen)
 		}
 		if !missing && sum != m.TotalLen {
 			rep.add(SeverityError, obj, errf(CodeManifestLengthMismatch, obj, "chunks hold %d bytes, manifest says %d", sum, m.TotalLen))
+		}
+		if !missing && m.Chunking.Algo != 0 {
+			if i, ok := chunkLengthsFit(m.Chunking, lens); !ok {
+				rep.add(SeverityError, obj, errf(CodeManifestChunking, obj, "chunk %d has %d bytes, outside the bounds of %s %d/%d/%d",
+					i, lens[i], m.Chunking.Algo, m.Chunking.MinSize, m.Chunking.AvgSize, m.Chunking.MaxSize))
+			}
 		}
 	}
 	return rep, nil
@@ -273,4 +281,23 @@ func checkIndexAgainstPack(rep *FsckReport, in string, ix *Index, pk *Pack) {
 			rep.add(SeverityError, in, errf(CodeIndexPackMismatch, e.ID.String(), "entry does not match a record"))
 		}
 	}
+}
+
+// chunkLengthsFit checks chunk lengths against a recorded chunker's
+// bounds (FORMAT.md §1): every chunk but the last in [min, max] (whole
+// blob: exactly max), the last in [1, max]. It returns the first
+// offending chunk. The index's raw lengths suffice, so fsck reads no
+// chunk payload for it; re-cutting the bytes (CHUNK-INV-24) is the exact
+// check.
+func chunkLengthsFit(c ChunkerConfig, lens []uint32) (int, bool) {
+	lo, hi := c.MinSize, c.MaxSize
+	if c.Algo == ChunkWhole {
+		lo = hi
+	}
+	for i, n := range lens {
+		if int(n) > hi || (i < len(lens)-1 && int(n) < lo) {
+			return i, false
+		}
+	}
+	return 0, true
 }

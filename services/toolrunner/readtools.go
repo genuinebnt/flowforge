@@ -10,6 +10,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
@@ -20,7 +21,8 @@ import (
 
 func readSpec(name, desc, in, outType string) Spec {
 	return Spec{Name: name, Version: "1.0.0", Description: desc, InputType: in, OutputType: outType, Class: core.ClassNone,
-		Timeout: time.Minute, Idempotent: true}
+		Timeout: time.Minute, Idempotent: true, Idempotency: engine.IdempotencyIdempotent,
+		Retry: RetryContent}
 }
 
 // Extract is the read tool extract: `(Snapshot) -> Features`, the

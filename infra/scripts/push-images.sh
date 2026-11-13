@@ -21,7 +21,7 @@ project="${GCP_PROJECT:-$(tfvar project_id)}"
 region="${GCP_REGION:-$(tfvar region)}"
 registry="$region-docker.pkg.dev/$project/flowforge"
 tag="bootstrap-$(git -C "$root" rev-parse --short=12 HEAD)-$(date +%s)"
-services="gateway engine scope graph notifier similarity tool-runner egress-proxy migrate"
+services="gateway engine scope graph notifier similarity tool-runner content egress-proxy migrate"
 
 out="$dir/images.auto.tfvars.json"
 {

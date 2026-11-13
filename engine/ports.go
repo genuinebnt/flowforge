@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -231,14 +233,94 @@ type ToolSpec struct {
 	// EffectClass is the tool's declared effect (spec 7.5): passive,
 	// active or intrusive for target-facing tools, otherwise read, write,
 	// financial_write or llm.
-	EffectClass string      `json:"effect_class"`
-	Idempotent  bool        `json:"idempotent"`
+	EffectClass string `json:"effect_class"`
+	Idempotent  bool   `json:"idempotent"`
+	// Idempotency refines Idempotent (proto IdempotencyClass): one of the
+	// Idempotency* constants, or empty to derive it from Idempotent. It is
+	// omitted from the canonical JSON when empty, so the hashes of specs
+	// registered before it existed are unchanged.
+	Idempotency string      `json:"idempotency,omitempty"`
 	Retry       RetryPolicy `json:"retry"`
 	Rate        Rate        `json:"rate"`
 	// TimeoutMs bounds one execution (0: no limit beyond the run's).
 	TimeoutMs int64 `json:"timeout_ms"`
 	// SpecSHA256 is the hash a module's TOOLS table pins.
 	SpecSHA256 [32]byte `json:"-"`
+}
+
+// Idempotency classes of a tool (ToolSpec.Idempotency, spec 9.5).
+const (
+	// IdempotencyIdempotent: a repeated execution has no further effect.
+	IdempotencyIdempotent = "idempotent"
+	// IdempotencyKeyed: the tool deduplicates by the call's idempotency
+	// key, so re-executing with the same key is safe.
+	IdempotencyKeyed = "keyed"
+	// IdempotencyNone: a re-execution may repeat the effect; an ambiguous
+	// outcome needs an operator or #[on_unknown(retry)].
+	IdempotencyNone = "non_idempotent"
+)
+
+// MaxToolAttempts bounds RetryPolicy.MaxAttempts (a tool that needs more
+// is misconfigured; the run deadline bounds the rest).
+const MaxToolAttempts = 10
+
+// ReexecSafe reports whether the engine may re-execute a call of the tool
+// whose outcome is unknown after a crash (spec 9.5): idempotent and keyed
+// tools may, others may not. An empty class follows Idempotent.
+func (s ToolSpec) ReexecSafe() bool {
+	switch s.Idempotency {
+	case IdempotencyIdempotent, IdempotencyKeyed:
+		return true
+	case IdempotencyNone:
+		return false
+	}
+	return s.Idempotent
+}
+
+// Validate checks the retry policy and idempotency class (spec 6.2, 9.5):
+// MaxAttempts in [0, MaxToolAttempts], non-empty RetryOn codes, a
+// non-negative backoff with MaxMs >= InitialMs when both are set, a
+// multiplier of 0 (default) or at least 1, jitter "" or "full", and an
+// idempotency class that agrees with Idempotent. Errors wrap
+// ErrInvalidToolSpec.
+func (s ToolSpec) Validate() error {
+	bad := func(format string, args ...any) error {
+		return fmt.Errorf("%w: %s: %s", ErrInvalidToolSpec, s.Name, fmt.Sprintf(format, args...))
+	}
+	p := s.Retry
+	if p.MaxAttempts < 0 || p.MaxAttempts > MaxToolAttempts {
+		return bad("max_attempts %d outside [0, %d]", p.MaxAttempts, MaxToolAttempts)
+	}
+	for _, c := range p.RetryOn {
+		if c == "" {
+			return bad("empty retry_on code")
+		}
+	}
+	b := p.Backoff
+	switch {
+	case b.InitialMs < 0 || b.MaxMs < 0:
+		return bad("negative backoff")
+	case b.InitialMs > 0 && b.MaxMs > 0 && b.MaxMs < b.InitialMs:
+		return bad("backoff max_ms %d below initial_ms %d", b.MaxMs, b.InitialMs)
+	case b.Multiplier != 0 && (b.Multiplier < 1 || math.IsNaN(b.Multiplier) || math.IsInf(b.Multiplier, 0)):
+		return bad("backoff multiplier %v", b.Multiplier)
+	case b.Jitter != "" && b.Jitter != "full":
+		return bad("backoff jitter %q (only \"full\")", b.Jitter)
+	}
+	switch s.Idempotency {
+	case "":
+	case IdempotencyIdempotent, IdempotencyKeyed:
+		if !s.Idempotent {
+			return bad("idempotency %s on a tool not marked idempotent", s.Idempotency)
+		}
+	case IdempotencyNone:
+		if s.Idempotent {
+			return bad("idempotency non_idempotent on a tool marked idempotent")
+		}
+	default:
+		return bad("unknown idempotency class %q", s.Idempotency)
+	}
+	return nil
 }
 
 // ComputeSHA256 returns the canonical hash of the spec (SHA-256 of its
@@ -296,7 +378,35 @@ type ToolError struct {
 	Code      string `json:"code"`
 	Message   string `json:"message"`
 	Retryable bool   `json:"retryable"`
+	// RetryAfter, with Code CodeRateLimited, is the network edge's retry
+	// delay: the egress proxy's per-target limit denied the request before
+	// it reached the target (V2_DESIGN §9). Spec 9.5: a rate-limit denial
+	// is not a failure, so the engine waits RetryAfter and tries again
+	// without counting an attempt.
+	RetryAfter time.Duration `json:"retry_after,omitempty"`
 }
+
+// SerialExecutor is an optional capability of a ToolExecutor. When
+// SerialBatches reports true the engine runs the calls of one batch one
+// after the other, in task order, on one goroutine, instead of
+// concurrently; cancellation and timeouts apply as usual. A deterministic
+// simulation needs it once the executor's answers depend on the order
+// calls reach it (the network edge's shared per-target limiter, G-ENG-09);
+// production executors do not implement it.
+type SerialExecutor interface {
+	SerialBatches() bool
+}
+
+// Tool error codes the engine interprets.
+const (
+	// CodeRateLimited is a rate-limit denial (with ToolError.RetryAfter:
+	// at the network edge).
+	CodeRateLimited = "rate_limited"
+	// CodeKillSwitch is a refusal because a kill switch is engaged; the
+	// egress proxy reports it when a kill switch is engaged between the
+	// engine's re-check and the request reaching the network edge.
+	CodeKillSwitch = "kill_switch_active"
+)
 
 func (e *ToolError) Error() string { return e.Code + ": " + e.Message }
 

@@ -10,10 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 
 	"github.com/genuinebnt/flowforge/chunkstore"
 	"github.com/genuinebnt/flowforge/chunkstore/fsstore"
+	"github.com/genuinebnt/flowforge/chunkstore/gcsstore"
 	"github.com/genuinebnt/flowforge/contentstore"
 	contentpg "github.com/genuinebnt/flowforge/contentstore/pg"
 	"github.com/genuinebnt/flowforge/core"
@@ -27,8 +30,18 @@ import (
 
 // ContentOptions configure the content service.
 type ContentOptions struct {
+	// Bucket (FF_CONTENT_BUCKET) holds the chunk store (objects
+	// chunks/t/<tenant>/...) and the text indexes
+	// (index/<tenant>/<program>/...) in Cloud Storage (chunkstore/gcsstore,
+	// Application Default Credentials). It wins over Dir.
+	Bucket string
+	// ClientOptions are added to the storage client's options (tests point
+	// it at a fake).
+	ClientOptions []option.ClientOption
 	// Dir holds the chunk store (Dir/chunks) and the text indexes
-	// (Dir/index/<tenant>/<program>); "" keeps both in memory.
+	// (Dir/index/<tenant>/<program>); "" with no Bucket keeps both in
+	// memory, which prod refuses (the Postgres rows would outlive the
+	// chunks they name).
 	Dir string
 	// KEK is the 32-byte key-encryption key (hex or base64) and KEKID its
 	// name; empty generates an ephemeral development key (refused in prod).
@@ -102,7 +115,25 @@ func Content(env *Env, o ContentOptions) (*Component, *contentsvc.Server, error)
 	}
 	var backend chunkstore.Backend = chunkstore.NewMemBackend()
 	idx := &contentstore.Indexes{Mode: o.IndexMode, IndexLatest: o.IndexLatest}
-	if o.Dir != "" {
+	closeStorage := func() {}
+	kind := ContentStorageKind(o)
+	switch kind {
+	case "gcs":
+		// JSON reads: the API the adapter is tested against (gcsfake).
+		cl, err := storage.NewClient(context.Background(), append([]option.ClientOption{storage.WithJSONReads()}, o.ClientOptions...)...)
+		if err != nil {
+			return nil, nil, fmt.Errorf("content: storage client: %w", err)
+		}
+		b, err := gcsstore.New(cl, o.Bucket, gcsstore.Options{Prefix: "chunks/"})
+		if err != nil {
+			_ = cl.Close()
+			return nil, nil, err
+		}
+		backend, closeStorage = b, func() { _ = cl.Close() }
+		idx.Dirs = func(tenant, program core.UUID) (textindex.Directory, error) {
+			return gcsstore.NewDirectory(cl, o.Bucket, "index/"+tenant.String()+"/"+program.String()+"/")
+		}
+	case "dir":
 		d, err := fsstore.New(filepath.Join(o.Dir, "chunks"), fsstore.Options{})
 		if err != nil {
 			return nil, nil, err
@@ -111,17 +142,23 @@ func Content(env *Env, o ContentOptions) (*Component, *contentsvc.Server, error)
 		idx.Dirs = func(tenant, program core.UUID) (textindex.Directory, error) {
 			return textindex.NewFSDirectory(filepath.Join(o.Dir, "index", tenant.String(), program.String()))
 		}
+	default:
+		if o.Prod {
+			return nil, nil, errors.New("content: FF_CONTENT_BUCKET or FF_CONTENT_DIR is required in prod")
+		}
 	}
+	env.Logger.Info("content.storage", "backend", kind)
 	chunks := contentstore.NewChunkStores(backend, chunkstore.Config{Clock: env.Clock})
 	store, err := contentstore.New(contentstore.Config{Repo: repo, Chunks: chunks,
 		Keys: &contentstore.Keyring{Repo: repo, KEK: kek, Rng: core.SystemRng{}, Clock: env.Clock}, Index: idx, Clock: env.Clock,
 		DefaultLimits: o.Limits, Codec: o.Codec, Retention: o.Retention})
 	if err != nil {
+		closeStorage()
 		return nil, nil, err
 	}
 	srv := contentsvc.NewServer(contentsvc.Options{Store: store, Logger: env.Logger})
 	c := &Component{Register: func(g *grpc.Server) { pb.RegisterContentServiceServer(g, srv) }, Ready: repo.Ping,
-		Close: func() { _ = chunks.Close(context.Background()); _ = idx.Close() },
+		Close: func() { _ = chunks.Close(context.Background()); _ = idx.Close(); closeStorage() },
 		// Captures carry bodies up to content.MaxResponseBytes (V2 §12.10).
 		ServerOptions: []grpc.ServerOption{grpc.MaxRecvMsgSize(toolrunner.ContentMaxMessage)}}
 	if env.Bus != nil {
@@ -163,6 +200,18 @@ func Content(env *Env, o ContentOptions) (*Component, *contentsvc.Server, error)
 	return c, srv, nil
 }
 
+// ContentStorageKind names the chunk and index storage Content uses for
+// o: "gcs" (Bucket), "dir" (Dir) or "mem".
+func ContentStorageKind(o ContentOptions) string {
+	switch {
+	case o.Bucket != "":
+		return "gcs"
+	case o.Dir != "":
+		return "dir"
+	}
+	return "mem"
+}
+
 // every runs f every d until ctx ends.
 func every(ctx context.Context, d time.Duration, f func()) {
 	t := time.NewTicker(d)
@@ -191,13 +240,14 @@ func (m memContentOutbox) Claim(ctx context.Context, limit int, publish func(con
 }
 
 // ContentConfigFromEnv reads the content service's variables:
+// FF_CONTENT_BUCKET (Cloud Storage; wins over the directory),
 // FF_CONTENT_DIR, FF_CONTENT_KEK, FF_CONTENT_KEK_ID, FF_CONTENT_CODEC
 // (delta, chunk), FF_CONTENT_INDEX_MODE (inline, batched),
 // FF_CONTENT_INDEX_LATEST, FF_CONTENT_QUOTA_CAPTURES_PER_DAY,
 // FF_CONTENT_QUOTA_STORED_BYTES, FF_CONTENT_QUOTA_INDEX_BYTES,
 // FF_CONTENT_SWEEP_INTERVAL (Go duration; "-1s" disables).
 func ContentConfigFromEnv(getenv func(string) string, prod bool) (ContentOptions, error) {
-	o := ContentOptions{Dir: getenv("FF_CONTENT_DIR"), KEK: getenv("FF_CONTENT_KEK"), KEKID: getenv("FF_CONTENT_KEK_ID"), Prod: prod,
+	o := ContentOptions{Bucket: getenv("FF_CONTENT_BUCKET"), Dir: getenv("FF_CONTENT_DIR"), KEK: getenv("FF_CONTENT_KEK"), KEKID: getenv("FF_CONTENT_KEK_ID"), Prod: prod,
 		IndexLatest: getenv("FF_CONTENT_INDEX_LATEST") == "true"}
 	var err error
 	if o.Codec, err = contentstore.ParseBlobCodec(getenv("FF_CONTENT_CODEC")); err != nil {

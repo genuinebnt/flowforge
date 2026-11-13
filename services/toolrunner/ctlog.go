@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 )
@@ -84,7 +85,8 @@ type CTLog struct {
 func (*CTLog) Spec() Spec {
 	return Spec{Name: "ctlog", Version: "1.0.0", Description: "Certificate transparency search (crt.sh)",
 		InputType: "Fqdn", OutputType: "List<Fqdn>", Observes: []string{oam.TypeTLSCertificate, oam.TypeFQDN},
-		Class: core.ClassPassive, RateRPS: 1, RateBurst: 5, Concurrency: 1, Timeout: 3 * time.Minute, Idempotent: true}
+		Class: core.ClassPassive, RateRPS: 1, RateBurst: 5, Concurrency: 1, Timeout: 3 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryIntel}
 }
 
 // Run implements Adapter.

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 var DefaultRate = scope.Rate{RequestsPerSecond: 10, Burst: 20, Concurrency: 8}
 
 // hostLimits is the per-target limit at the network edge (V2_DESIGN §9,
-// spec 14.3): GCRA per rl:h:<program>:<registrable domain or ip> at the
+// spec 14.3): GCRA per EdgeKey(program, registrable domain or ip) at the
 // program's scope rate, plus a cap on concurrent requests and tunnels per
 // key. Every HTTP request, CONNECT tunnel and SOCKS tunnel acquires it, so
 // tools with internal parallelism cannot exceed the program's rate.
@@ -69,8 +70,8 @@ func (p *Proxy) admit(ctx context.Context, rq *request) (func(), *refusal) {
 	}
 	prm, conc := params(rate)
 	program := rq.rec.Program.String()
-	key := limiter.HostKey(program, limitTarget(rq.host))
-	pattern := limiter.HostKey(program, "") + "*"
+	key := EdgeKey(program, limitTarget(rq.host))
+	pattern := EdgeKey(program, "") + "*"
 	if rq.intel != nil && rq.intel.Rate.RequestsPerSecond > 0 {
 		pattern = key
 	}
@@ -114,6 +115,17 @@ func (p *Proxy) admit(ctx context.Context, rq *request) (func(), *refusal) {
 			l.mu.Unlock()
 		})
 	}, nil
+}
+
+// EdgeKey is the proxy's per-target limiter key,
+// rl:edge:h:<program>:<target>: the engine's rl:h key (limiter.HostKey)
+// in its own family: the engine admits each call at rl:h before
+// dispatch (spec 14.3) and the proxy admits each request at the edge, and
+// with one shared Redis the same key would charge every request twice
+// (G-ENG-09). Both run at the program's rate, so the edge bound is the
+// one inv_10 measures.
+func EdgeKey(program, target string) string {
+	return "rl:edge:" + strings.TrimPrefix(limiter.HostKey(program, target), "rl:")
 }
 
 // setRetry writes the retry hints of a rate-limit refusal.

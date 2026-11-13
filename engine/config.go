@@ -47,6 +47,12 @@ type Config struct {
 	// RateLimitErrorBackoff is how long a tool call waits when the limiter
 	// itself fails (fail closed, default 1 s).
 	RateLimitErrorBackoff time.Duration
+	// MaxEdgeWaits bounds how many times one effect waits out a rate-limit
+	// denial from the network edge (ToolError.RetryAfter) without counting
+	// an attempt (spec 9.5); past it the denial counts as an ordinary
+	// retryable failure, so a target that is never admitted cannot keep an
+	// effect busy forever (default 100).
+	MaxEdgeWaits int
 	// Executor is the executor name recorded in effect_started.
 	Executor string
 	// DrainTimeout bounds the graceful drain of Worker.Run once its context
@@ -93,6 +99,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.LogCap <= 0 {
 		c.LogCap = 4096
+	}
+	if c.MaxEdgeWaits <= 0 {
+		c.MaxEdgeWaits = 100
 	}
 	if c.MaxEscalations <= 0 {
 		c.MaxEscalations = 3

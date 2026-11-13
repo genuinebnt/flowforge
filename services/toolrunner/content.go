@@ -18,6 +18,7 @@ import (
 	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/core/netnorm"
+	"github.com/genuinebnt/flowforge/engine"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/scope"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
@@ -306,7 +307,9 @@ func (c *contentTools) fetch(ctx context.Context, tc *ToolCtx, out Emitter, rawU
 			if errors.As(err, &re) {
 				_ = out.Skipped(cur, "egress_refused:"+re.Reason)
 				if re.RetryAfter > 0 {
-					return nil, Errorf("egress_rate_limited", true, re.Error())
+					// Stop here: Execute reports the edge's delay
+					// (ToolCtx.edgeOutcome) and the engine waits it out.
+					return nil, &ToolError{Code: engine.CodeRateLimited, Message: re.Error(), Retryable: true, RetryAfter: re.RetryAfter}
 				}
 			} else {
 				_ = out.Skipped(cur, "fetch_failed")

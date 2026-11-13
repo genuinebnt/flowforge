@@ -41,6 +41,7 @@ func Run(t *testing.T, open func(t *testing.T) contentstore.Repo) {
 	t.Run("SnapshotRoundTrip", func(t *testing.T) { roundTrip(t, open(t)) })
 	t.Run("StoreFlow", func(t *testing.T) { storeFlow(t, open(t)) })
 	t.Run("ConcurrentQuotaAndIdempotence", func(t *testing.T) { concurrency(t, open) })
+	t.Run("RederiveRepo", func(t *testing.T) { rederiveRepo(t, open(t)) })
 }
 
 func snap(i int, url string, at time.Time, open bool) contentstore.Snapshot {
@@ -377,6 +378,7 @@ func roundTrip(t *testing.T, r contentstore.Repo) {
 	s.EntityID, s.RunID, s.EffectPath, s.Mime, s.RawSize, s.StoredSize = "ent_X", "run_Y", "0/1", "text/html", 99, 42
 	s.SimHash, s.Degraded, s.ValidTo = 1<<63|5, true, s.ValidFrom
 	s.BodySeal, s.HeadersSeal, s.KeyID, s.Codec, s.Pinned, s.PinReason = []byte{1, 2, 3}, []byte{4}, "enc/1", "delta", true, "r"
+	s.DeriveStamp = "content/0123"
 	inTx(t, r, tenantA, func(tx contentstore.Tx) error { return tx.InsertSnapshot(ctx, s) })
 	inTx(t, r, tenantA, func(tx contentstore.Tx) error {
 		got, ok, err := tx.GetSnapshot(ctx, s.ID)

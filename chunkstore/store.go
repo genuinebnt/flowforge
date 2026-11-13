@@ -16,7 +16,10 @@ const DefaultTargetPackSize = 16 << 20
 
 // Config configures a Store. The zero value is valid.
 type Config struct {
-	// Chunking selects the FastCDC parameters (zero: the defaults).
+	// Chunking selects the chunking algorithm and its parameters (zero:
+	// FastCDC with the defaults). Each manifest records the chunker that
+	// cut it, so a store holds and serves blobs cut by any mix of
+	// chunkers; dedupe works only between blobs cut alike.
 	Chunking ChunkerConfig
 	// TargetPackSize seals the open pack once it holds this many bytes
 	// (zero: DefaultTargetPackSize).
@@ -42,8 +45,11 @@ type Stats struct {
 
 // ManifestInfo describes a stored blob.
 type ManifestInfo struct {
-	ID           ManifestID
-	Size         uint64 // total uncompressed length
+	ID   ManifestID
+	Size uint64 // total uncompressed length
+	// Chunking is the chunker the manifest records (Algo zero: a version-1
+	// manifest, which does not record it).
+	Chunking     ChunkerConfig
 	Chunks       int    // chunk references, in order
 	UniqueChunks int    // distinct chunks
 	StoredBytes  uint64 // record bytes of the distinct chunks plus the manifest
@@ -80,7 +86,7 @@ type Store struct {
 	b     Backend
 	cfg   Config
 	ns    namespace
-	cdc   *FastCDC
+	cut   Cutter
 	codec *codec
 
 	mu          sync.RWMutex
@@ -121,7 +127,7 @@ func Open(ctx context.Context, b Backend, ns string, cfg Config) (*Store, error)
 	if err != nil {
 		return nil, err
 	}
-	cdc, err := NewFastCDC(cfg.Chunking)
+	cut, err := NewCutter(cfg.Chunking)
 	if err != nil {
 		return nil, err
 	}
@@ -131,12 +137,12 @@ func Open(ctx context.Context, b Backend, ns string, cfg Config) (*Store, error)
 	if cfg.TargetPackSize < 0 {
 		return nil, errf(CodeInvalidConfig, "", "TargetPackSize %d", cfg.TargetPackSize)
 	}
-	cfg.Chunking = cdc.Config()
+	cfg.Chunking = cut.Config()
 	c, err := newCodec()
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{b: b, cfg: cfg, ns: nsv, cdc: cdc, codec: c, locs: map[ChunkID]loc{},
+	s := &Store{b: b, cfg: cfg, ns: nsv, cut: cut, codec: c, locs: map[ChunkID]loc{},
 		inflight: map[*putState]struct{}{}, recent: map[ManifestID]struct{}{}}
 	if err := s.load(ctx); err != nil {
 		c.close()
@@ -248,8 +254,8 @@ func (s *Store) Put(ctx context.Context, r io.Reader) (ManifestID, Stats, error)
 		delete(s.inflight, ps)
 		s.mu.Unlock()
 	}()
-	ch := s.cdc.NewChunker(r)
-	var m Manifest
+	ch := NewChunker(s.cut, r)
+	m := Manifest{Chunking: s.cfg.Chunking}
 	for {
 		if err := ctx.Err(); err != nil {
 			return ManifestID{}, st, err
@@ -547,7 +553,7 @@ func (s *Store) Stat(ctx context.Context, id ManifestID) (ManifestInfo, error) {
 	if err != nil {
 		return ManifestInfo{}, err
 	}
-	info := ManifestInfo{ID: id, Size: m.TotalLen, Chunks: len(m.Chunks)}
+	info := ManifestInfo{ID: id, Size: m.TotalLen, Chunks: len(m.Chunks), Chunking: m.Chunking}
 	seen := make(map[ChunkID]struct{}, len(m.Chunks))
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -655,6 +661,9 @@ func (s *Store) Metrics() Metrics {
 	}
 	return m
 }
+
+// Chunking returns the canonical configuration of the chunker new Puts use.
+func (s *Store) Chunking() ChunkerConfig { return s.cfg.Chunking }
 
 // Namespace returns the tenant namespace the store is scoped to.
 func (s *Store) Namespace() string { return string(s.ns) }

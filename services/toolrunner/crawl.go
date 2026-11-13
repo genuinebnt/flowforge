@@ -9,6 +9,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
@@ -44,7 +45,8 @@ const maxFrontier = 5000
 func (*Crawl) Spec() Spec {
 	return Spec{Name: "crawl", Version: "1.0.0", Description: "Robots-aware, scope-checked crawl frontier with adaptive revisits",
 		InputType: "(InScope<Url>, Int)", OutputType: "List<Url>", Observes: []string{oam.TypeURL},
-		Class: core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 2, Timeout: 30 * time.Minute, Idempotent: true}
+		Class: core.ClassActive, RateRPS: 10, RateBurst: 20, Concurrency: 2, Timeout: 30 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryContent}
 }
 
 // robotsRules is the robots.txt verdict for one origin: rules, or allow

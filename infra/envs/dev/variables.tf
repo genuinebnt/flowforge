@@ -12,6 +12,12 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "zone" {
+  description = "Zone of the egress proxy VM (null: <region>-a)."
+  type        = string
+  default     = null
+}
+
 variable "env" {
   description = "Environment name exported as FF_ENV (spec 17.5)."
   type        = string
@@ -28,7 +34,7 @@ variable "domain" {
 }
 
 variable "images" {
-  description = "Service => image reference by digest (REGION-docker.pkg.dev/PROJECT/flowforge/<service>@sha256:…). Keys: every service plus migrate."
+  description = "Service => image reference by digest (REGION-docker.pkg.dev/PROJECT/flowforge/<service>@sha256:…). Keys: every Cloud Run service, egress-proxy (runs on the VM) and migrate."
   type        = map(string)
 
   validation {
@@ -37,13 +43,13 @@ variable "images" {
   }
 
   validation {
-    condition     = length(setsubtract(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "egress-proxy", "migrate"], keys(var.images))) == 0
-    error_message = "images must contain gateway, engine, scope, graph, notifier, similarity, tool-runner, egress-proxy and migrate."
+    condition     = length(setsubtract(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "content", "egress-proxy", "migrate"], keys(var.images))) == 0
+    error_message = "images must contain gateway, engine, scope, graph, notifier, similarity, tool-runner, content, egress-proxy and migrate."
   }
 }
 
 variable "scaling" {
-  description = "Per-service scaling and size (spec 17.1 concurrency/min instances, 17.6 max instances)."
+  description = "Per Cloud Run service scaling and size (spec 17.1 concurrency/min instances, 17.6 max instances). The egress proxy runs on a VM (egress_machine_type)."
   type = map(object({
     concurrency = number
     min         = number
@@ -51,6 +57,28 @@ variable "scaling" {
     cpu         = optional(string, "1")
     memory      = optional(string, "512Mi")
   }))
+
+  validation {
+    condition     = sort(keys(var.scaling)) == sort(["gateway", "engine", "scope", "graph", "notifier", "similarity", "tool-runner", "content"])
+    error_message = "scaling must contain exactly gateway, engine, scope, graph, notifier, similarity, tool-runner and content (the egress proxy runs on the VM)."
+  }
+
+  validation {
+    condition     = try(var.scaling["content"].max, 0) == 1
+    error_message = "content runs at most one instance: chunkstore allows one writer per tenant namespace (docs/GAPS.md G-CST-03)."
+  }
+}
+
+variable "egress_machine_type" {
+  description = "Machine type of the egress proxy VM (G-OPS-15)."
+  type        = string
+  default     = "e2-small"
+}
+
+variable "content_kek_id" {
+  description = "FF_CONTENT_KEK_ID: the name of the content key-encryption key in ff-content-kek (wrapped data keys record it; change it when the secret's value is rotated)."
+  type        = string
+  default     = "kek-1"
 }
 
 variable "deletion_protection" {

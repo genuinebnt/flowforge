@@ -75,51 +75,6 @@ func BenchmarkHTMLParse(b *testing.B) {
 	})
 }
 
-// BenchmarkHTMLImpl compares full parsing by this package ("ours") and
-// golang.org/x/net/html ("xnethtml", scripting off like ours) on the same
-// inputs: go test -bench HTMLImpl prints the two side by side.
-func BenchmarkHTMLImpl(b *testing.B) {
-	b.Run("ours", func(b *testing.B) {
-		runSizes(b, func(b *testing.B, in []byte) {
-			for b.Loop() {
-				Parse(in, Options{})
-			}
-		})
-	})
-	b.Run("xnethtml", func(b *testing.B) {
-		runSizes(b, func(b *testing.B, in []byte) {
-			for b.Loop() {
-				if _, err := html.ParseWithOptions(bytes.NewReader(in), html.ParseOptionEnableScripting(false)); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	})
-}
-
-// BenchmarkHTMLImplTokenize compares the tokenizers: ours (Next until
-// EOF) and x/net/html's (Next until ErrorToken, materializing each
-// token as html.Token, which unescapes and allocates like ours).
-func BenchmarkHTMLImplTokenize(b *testing.B) {
-	b.Run("ours", func(b *testing.B) {
-		runSizes(b, func(b *testing.B, in []byte) {
-			for b.Loop() {
-				tokenizeAll(in, TokenizeOptions{})
-			}
-		})
-	})
-	b.Run("xnethtml", func(b *testing.B) {
-		runSizes(b, func(b *testing.B, in []byte) {
-			for b.Loop() {
-				z := html.NewTokenizer(bytes.NewReader(in))
-				for z.Next() != html.ErrorToken {
-					_ = z.Token()
-				}
-			}
-		})
-	})
-}
-
 // charRefInput is entity-dense text: every named reference of the table
 // once (with and without its semicolon where both exist), plus near
 // misses that force the longest-match search to back off.
@@ -134,19 +89,75 @@ func charRefInput() []byte {
 	return []byte(strings.Repeat(b.String(), 4))
 }
 
-// BenchmarkHTMLCharRef compares the named character reference lookup
-// strategies on entity-dense input (tokenizer only).
-func BenchmarkHTMLCharRef(b *testing.B) {
-	in := charRefInput()
-	for _, s := range []struct {
+// queryStringInput is links whose query strings put long parameter names
+// after '&' (href="/s?q=1&utm_campaign_identifier=…"), the common case
+// where '&' starts no reference and the search must give up: a strategy
+// that probes every prefix length pays for the whole name.
+func queryStringInput() []byte {
+	params := []string{"utm_campaign_identifier", "returnUrlAfterLogin", "sessionTrackingToken", "pageNumber", "sortOrderDescending", "x"}
+	var b strings.Builder
+	for i := 0; b.Len() < 1<<20; i++ {
+		b.WriteString(`<a href="/search?q=` + strings.Repeat("w", i%7))
+		for j := range 4 {
+			b.WriteString("&" + params[(i+j)%len(params)] + "=v")
+		}
+		b.WriteString(`">result</a>` + "\n")
+	}
+	return []byte(b.String())
+}
+
+// BenchmarkHTMLAlgo compares the candidates of each decision point
+// (docs/CONVENTIONS.md "Pluggable algorithms"; docs/ALGORITHMS.md
+// "htmlparse"): BenchmarkHTMLAlgo/<decision>/<candidate>/<input>.
+//
+//   - charref/<trie|sorted|map>/<entities|urls|page-1MB>: the named
+//     character reference lookup, tokenizer only, on entity-dense text
+//     (every name of the table, plus near misses that make the
+//     longest-match search back off), on links with long query-string
+//     parameter names after '&', and on the generated 1 MB page.
+//   - parse/<ours|xnethtml>/<size> and tokenize/<ours|xnethtml>/<size>:
+//     this package against golang.org/x/net/html (scripting off like ours;
+//     its tokens materialized as html.Token, which unescapes and allocates
+//     like ours). x/net/html is a comparison and test oracle only, never a
+//     selectable implementation.
+func BenchmarkHTMLAlgo(b *testing.B) {
+	inputs := []struct {
 		name string
-		st   CharRefStrategy
-	}{{"sorted", CharRefSortedSearch}, {"trie", CharRefTrie}} {
-		b.Run(s.name, func(b *testing.B) {
-			b.SetBytes(int64(len(in)))
-			b.ReportAllocs()
-			for b.Loop() {
-				tokenizeAll(in, TokenizeOptions{CharRefLookup: s.st})
+		in   []byte
+	}{{"entities", charRefInput()}, {"urls", queryStringInput()}, {"page-1MB", benchInput(1 << 20)}}
+	for _, st := range CharRefStrategies() {
+		for _, in := range inputs {
+			b.Run("charref/"+st.String()+"/"+in.name, func(b *testing.B) {
+				b.SetBytes(int64(len(in.in)))
+				b.ReportAllocs()
+				for b.Loop() {
+					tokenizeAll(in.in, TokenizeOptions{CharRefLookup: st})
+				}
+			})
+		}
+	}
+	for _, s := range benchSizes {
+		in := benchInput(s.n)
+		run := func(name string, f func()) {
+			b.Run(name+"/"+s.name, func(b *testing.B) {
+				b.SetBytes(int64(len(in)))
+				b.ReportAllocs()
+				for b.Loop() {
+					f()
+				}
+			})
+		}
+		run("parse/ours", func() { Parse(in, Options{}) })
+		run("parse/xnethtml", func() {
+			if _, err := html.ParseWithOptions(bytes.NewReader(in), html.ParseOptionEnableScripting(false)); err != nil {
+				b.Fatal(err)
+			}
+		})
+		run("tokenize/ours", func() { tokenizeAll(in, TokenizeOptions{}) })
+		run("tokenize/xnethtml", func() {
+			z := html.NewTokenizer(bytes.NewReader(in))
+			for z.Next() != html.ErrorToken {
+				_ = z.Token()
 			}
 		})
 	}

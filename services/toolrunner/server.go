@@ -2,6 +2,7 @@ package toolrunner
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/genuinebnt/flowforge/core"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
-	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
@@ -35,14 +35,21 @@ type Options struct {
 	Adapters []Adapter
 	Scope    Checker
 	Egress   *Egress
-	Resolver scope.Resolver
-	Clock    core.Clock
-	Logger   *slog.Logger
-	// Raw, when set, receives each observation as the tool reported it
-	// before it is sent (G-OPS-14); its URI becomes the observation's
-	// raw_ref (spec 10.5 graph.observations.raw_ref). Bucket lifecycle
-	// rules expire these objects (spec 10.7, observations 90 days).
-	Raw graphstore.BlobStore
+	// Net, when set, replaces Egress as every execution's route out
+	// (ToolCtx.Net; tests use recorded fixtures).
+	Net    Network
+	Clock  core.Clock
+	Logger *slog.Logger
+	// Raw, when set, keeps the raw protocol bytes of each execution (HTTP
+	// responses, DNS messages, TLS handshake records, as the egress paths
+	// read them; HTTP redacted) as an FFRW transcript; its ref becomes the
+	// raw_ref of the execution's observations (spec 10.5
+	// graph.observations.raw_ref; G-OPS-14, G-SVC-16). An observation of
+	// an execution that captured nothing has no raw_ref.
+	Raw RawStore
+	// RawLimit bounds the bytes captured per execution (default
+	// DefaultRawLimit).
+	RawLimit int
 }
 
 // Server implements flowforge.v1.ToolRunnerService.
@@ -63,13 +70,6 @@ func NewServer(o Options) *Server {
 	s := &Server{o: o, tools: map[string]Adapter{}}
 	for _, a := range o.Adapters {
 		s.tools[a.Spec().Name] = a
-	}
-	return s
-}
-
-func orNone(s string) string {
-	if s == "" {
-		return "none"
 	}
 	return s
 }
@@ -101,8 +101,14 @@ type streamEmitter struct {
 	log    *slog.Logger
 	ctx    context.Context
 	tool   oam.Tool
-	raw    graphstore.BlobStore
-	prefix string // raw/<tenant>/<program>/<run>/
+	raw    RawStore
+	cap    *RawCapture
+	tenant core.UUID
+	clock  core.Clock
+	// lastRaw and lastRef are the transcript last stored and its ref, so
+	// observations emitted with nothing captured in between share it.
+	lastRaw [32]byte
+	lastRef string
 }
 
 func (e *streamEmitter) send(r *pb.ExecuteResponse) error {
@@ -124,19 +130,8 @@ func (e *streamEmitter) Observation(o oam.Observation) error {
 	if err := o.Validate(); err != nil {
 		return Errorf("invalid_observation", false, err.Error())
 	}
-	if e.raw != nil && o.RawRef == "" && o.ObservationID != "" {
-		// The id is deterministic per (run, path, tool input), so a retried
-		// effect overwrites the same object instead of leaking a new one.
-		data, err := json.Marshal(o)
-		if err == nil {
-			if uri, perr := e.raw.Put(e.ctx, e.prefix+o.ObservationID+".json", data); perr == nil {
-				o.RawRef = uri
-			} else {
-				// Raw output is evidence, not the result: losing it must not
-				// fail the effect, so it is logged and the ref stays empty.
-				e.log.WarnContext(e.ctx, "toolrunner.raw_write_failed", "observation_id", o.ObservationID, "error", perr.Error())
-			}
-		}
+	if e.raw != nil && o.RawRef == "" {
+		o.RawRef = e.rawRef(o.ObservationID)
 	}
 	p, err := convert.ObservationProto(o)
 	if err != nil {
@@ -151,6 +146,35 @@ func (e *streamEmitter) Observation(o oam.Observation) error {
 	return nil
 }
 
+// rawRef stores the transcript captured so far and returns its ref ("" when
+// nothing was captured or the store failed). Raw bytes are evidence, not
+// the result: a failed write is logged and the observation goes out
+// without a ref. Identical transcripts (no new bytes since the last
+// observation) reuse the last ref.
+func (e *streamEmitter) rawRef(obsID string) string {
+	data := e.cap.Transcript()
+	if data == nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	e.mu.Lock()
+	if e.lastRef != "" && sum == e.lastRaw {
+		ref := e.lastRef
+		e.mu.Unlock()
+		return ref
+	}
+	e.mu.Unlock()
+	ref, err := e.raw.PutRaw(e.ctx, e.tenant, e.clock.Now(), data)
+	if err != nil {
+		e.log.WarnContext(e.ctx, "toolrunner.raw_write_failed", "observation_id", obsID, "error", err.Error())
+		return ""
+	}
+	e.mu.Lock()
+	e.lastRaw, e.lastRef = sum, ref
+	e.mu.Unlock()
+	return ref
+}
+
 func (e *streamEmitter) Progress(done, total int64, msg string) error {
 	return e.send(&pb.ExecuteResponse{Event: &pb.ExecuteResponse_Progress{Progress: &pb.Progress{ItemsDone: done, ItemsTotal: total, Message: msg}}})
 }
@@ -158,6 +182,14 @@ func (e *streamEmitter) Progress(done, total int64, msg string) error {
 func (e *streamEmitter) Skipped(target, reason string) error {
 	e.log.InfoContext(e.ctx, "toolrunner.skipped", "target", target, "reason", reason)
 	return e.send(&pb.ExecuteResponse{Event: &pb.ExecuteResponse_Skipped{Skipped: &pb.Skipped{Target: target, Reason: reason}}})
+}
+
+func toolErrorProto(te *ToolError) *pb.ToolError {
+	p := &pb.ToolError{Code: te.Code, Message: te.Message, Retryable: te.Retryable}
+	if te.RetryAfter > 0 {
+		p.RetryAfter = convert.Dur(te.RetryAfter)
+	}
+	return p
 }
 
 // Execute implements ToolRunnerService. Cancelling the call cancels the
@@ -200,7 +232,10 @@ func (s *Server) Execute(req *pb.ExecuteRequest, stream grpc.ServerStreamingServ
 	ctx = platform.WithLogFields(ctx, req.GetRunId(), req.GetEffectPath())
 	tc := &ToolCtx{Tenant: id.Tenant, Program: program, Run: run, Path: req.GetEffectPath(), ScopeVersion: req.GetScopeVersion(),
 		DecisionIDs: req.GetScopeDecisionIds(), IdempotencyKey: req.GetIdempotencyKey(), Clock: s.o.Clock,
-		Egress: s.o.Egress, Resolver: s.o.Resolver}
+		Egress: s.o.Egress, Net: s.o.Net}
+	if s.o.Raw != nil {
+		tc.Raw = NewRawCapture(s.o.RawLimit)
+	}
 	check := func(resolve bool) func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error) {
 		return func(ctx context.Context, target string, kind scope.TargetKind, class core.ActivityClass) (scope.Decision, error) {
 			if s.o.Scope == nil || program.IsZero() {
@@ -212,7 +247,7 @@ func (s *Server) Execute(req *pb.ExecuteRequest, stream grpc.ServerStreamingServ
 	}
 	tc.Check, tc.CheckPinned = check(false), check(true)
 	em := &streamEmitter{stream: stream, log: s.o.Logger, ctx: ctx, tool: oam.Tool{Name: spec.Name, Version: spec.Version}, raw: s.o.Raw,
-		prefix: "raw/" + id.TenantPublicID() + "/" + orNone(req.GetProgramId()) + "/" + orNone(req.GetRunId()) + "/"}
+		cap: tc.Raw, tenant: id.Tenant, clock: s.o.Clock}
 	start := time.Now()
 	type result struct {
 		out json.RawMessage
@@ -242,12 +277,17 @@ func (s *Server) Execute(req *pb.ExecuteRequest, stream grpc.ServerStreamingServ
 	em.mu.Lock()
 	em.closed = true
 	em.mu.Unlock()
+	if te := tc.edgeOutcome(); te != nil && stream.Context().Err() == nil {
+		res.err = te
+	}
 	if res.err != nil {
 		if te, ok := isToolError(res.err); ok {
-			return stream.Send(&pb.ExecuteResponse{Event: &pb.ExecuteResponse_Error{Error: &pb.ToolError{Code: te.Code, Message: te.Message, Retryable: te.Retryable}}})
+			return stream.Send(&pb.ExecuteResponse{Event: &pb.ExecuteResponse_Error{Error: toolErrorProto(te)}})
 		}
 		if errors.Is(res.err, context.DeadlineExceeded) && stream.Context().Err() == nil {
-			return stream.Send(&pb.ExecuteResponse{Event: &pb.ExecuteResponse_Error{Error: &pb.ToolError{Code: "timeout", Message: "tool timed out", Retryable: true}}})
+			// The tool's own timeout: spec 9.5 "deadline exceeded" (the code
+			// the retry policies list).
+			return stream.Send(&pb.ExecuteResponse{Event: &pb.ExecuteResponse_Error{Error: &pb.ToolError{Code: "deadline_exceeded", Message: "tool timed out", Retryable: true}}})
 		}
 		return res.err
 	}

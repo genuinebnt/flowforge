@@ -43,7 +43,7 @@ func (r *runner) doIndexEffect(s vm.Suspended, e *effectState) error {
 		}
 		vec, err := r.e.d.Embedder.Embed(r.ctx, r.rec.Tenant, s.Args[0].Str())
 		if err != nil {
-			return r.failEffect(e, ActorEngine, classify(err), bytecode.FailEffectFailed)
+			return r.failEffect(e, ActorEngine, effectError(err), bytecode.FailEffectFailed)
 		}
 		vals := make([]vm.Value, len(vec))
 		for i, f := range vec {
@@ -59,7 +59,7 @@ func (r *runner) doIndexEffect(s vm.Suspended, e *effectState) error {
 		}
 		ids, err := r.e.d.Similarity.Similar(r.ctx, r.rec.Tenant, s.Args[0].Str(), int(s.Args[1].AsInt()))
 		if err != nil {
-			return r.failEffect(e, ActorEngine, classify(err), bytecode.FailEffectFailed)
+			return r.failEffect(e, ActorEngine, effectError(err), bytecode.FailEffectFailed)
 		}
 		vals := make([]vm.Value, len(ids))
 		for i, id := range ids {

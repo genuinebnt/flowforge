@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
@@ -43,7 +44,8 @@ func (HTTPProbe) Spec() Spec {
 	return Spec{Name: "httpprobe", Version: "1.0.0", Description: "HTTP probing and fingerprinting through the egress proxy",
 		InputType: "InScope<Host>", OutputType: "Option<Service>",
 		Observes: []string{oam.TypeURL, oam.TypeService, oam.TypeProduct, oam.TypeFQDN, oam.TypeIPAddress},
-		Class:    core.ClassActive, RateRPS: 20, RateBurst: 40, Concurrency: 8, Timeout: 5 * time.Minute, Idempotent: true}
+		Class:    core.ClassActive, RateRPS: 20, RateBurst: 40, Concurrency: 8, Timeout: 5 * time.Minute, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryTransient}
 }
 
 var titleRE = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
@@ -230,7 +232,8 @@ type Mock struct {
 // Spec implements Adapter.
 func (Mock) Spec() Spec {
 	return Spec{Name: "mock", Version: "1.0.0", Description: "Deterministic test tool", InputType: "String",
-		OutputType: "String", Observes: []string{oam.TypeFQDN}, Class: core.ClassNone, Timeout: 10 * time.Second, Idempotent: true}
+		OutputType: "String", Observes: []string{oam.TypeFQDN}, Class: core.ClassNone, Timeout: 10 * time.Second, Idempotent: true,
+		Idempotency: engine.IdempotencyIdempotent, Retry: RetryNever}
 }
 
 // Run implements Adapter.

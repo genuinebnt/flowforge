@@ -151,6 +151,10 @@ type EffectFailedPayload struct {
 	Final      bool        `json:"final"`
 	FailCode   string      `json:"fail_code,omitempty"`
 	Resolution *Resolution `json:"resolution,omitempty"`
+	// Uncounted marks a rate-limit denial at the network edge (the tool
+	// reported rate_limited with a retry delay): spec 9.5 says it is not a
+	// failure, so it does not use up one of the policy's attempts.
+	Uncounted bool `json:"uncounted,omitempty"`
 }
 
 // EffectRetryScheduledPayload is the payload of effect_retry_scheduled.

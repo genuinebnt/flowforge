@@ -92,16 +92,31 @@ func NewEgress(addr string, tokens platform.TokenSource) (*Egress, error) {
 	return &Egress{Proxy: u, Tokens: tokens, Service: "tool-runner"}, nil
 }
 
+// decisionHolder is the decision the next hop of a client's request
+// carries: base (the client's decision) for a new request, the decision
+// of the redirect check for each later hop.
 type decisionHolder struct {
-	mu sync.Mutex
-	id string
+	mu       sync.Mutex
+	base, id string
 }
+
+func newDecisionHolder(id string) *decisionHolder { return &decisionHolder{base: id, id: id} }
 
 func (h *decisionHolder) get() string { h.mu.Lock(); defer h.mu.Unlock(); return h.id }
 func (h *decisionHolder) set(id string) {
 	h.mu.Lock()
 	h.id = id
 	h.mu.Unlock()
+}
+
+// begin starts a hop: a request that is not a redirect (net/http sets
+// Request.Response only on the requests it creates for redirects) goes
+// back to the base decision, so a client reused after a redirect never
+// sends a new request under the last hop's decision.
+func (h *decisionHolder) begin(r *http.Request) {
+	if r.Response == nil {
+		h.set(h.base)
+	}
 }
 
 func (e *Egress) headers(ctx context.Context, tc *ToolCtx, decision string) (http.Header, error) {
@@ -126,35 +141,107 @@ func (e *Egress) headers(ctx context.Context, tc *ToolCtx, decision string) (htt
 	return h, nil
 }
 
+// rawLabelKey carries a request's raw-record label (scheme://host) from
+// the round trip to the dial; the transport keeps request context values
+// on its dial context.
+type rawLabelKey struct{}
+
+func rawLabel(ctx context.Context, fallback string) string {
+	if l, ok := ctx.Value(rawLabelKey{}).(string); ok {
+		return l
+	}
+	return fallback
+}
+
+// transport is the HTTP route through the proxy for one client. Plain
+// http is sent to the proxy as a forward-proxy request (absolute form,
+// with the decision headers). https is tunnelled by the runner itself:
+// dialTarget sends CONNECT with the hop's decision and then runs the
+// target's TLS handshake, so the TLS session ends in the runner and the
+// decrypted response can be recorded byte for byte (tc.Raw, G-SVC-16).
+// Connections are never reused (each hop dials anew, carrying its own
+// decision), compression is not requested (a recorded body stays
+// scannable for redaction), and the response of either path is recorded
+// as one RawHTTPResponse per connection. Refusals are noted on tc.
 func (e *Egress) transport(tc *ToolCtx, holder *decisionHolder) http.RoundTripper {
-	tr := &http.Transport{
+	dialProxy := func(ctx context.Context, _, _ string) (net.Conn, error) {
+		conn, err := e.dialProxy(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return tc.Raw.Conn(conn, RawHTTPResponse, rawLabel(ctx, "http://")), nil
+	}
+	plain := &http.Transport{
 		Proxy:             http.ProxyURL(e.Proxy),
-		DisableKeepAlives: true,
-		GetProxyConnectHeader: func(ctx context.Context, _ *url.URL, _ string) (http.Header, error) {
-			return e.headers(ctx, tc, holder.get())
-		},
-		TLSClientConfig:       e.tlsConfig(),
+		DisableKeepAlives: true, DisableCompression: true,
+		// DialContext serves an http:// proxy, DialTLSContext an https://
+		// one (dialProxy does that TLS itself).
+		DialContext: dialProxy, DialTLSContext: dialProxy,
 		ResponseHeaderTimeout: 30 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+	}
+	tunnel := &http.Transport{
+		DisableKeepAlives: true, DisableCompression: true,
+		DialTLSContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
+			return e.dialTarget(ctx, tc, holder.get(), addr)
+		},
+		ResponseHeaderTimeout: 30 * time.Second,
 	}
 	return roundTripper(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Scheme == "http" {
-			h, err := e.headers(r.Context(), tc, holder.get())
-			if err != nil {
-				return nil, err
-			}
-			r = r.Clone(r.Context())
-			for k, v := range h {
-				r.Header[k] = v
-			}
+		holder.begin(r)
+		r = r.WithContext(context.WithValue(r.Context(), rawLabelKey{}, r.URL.Scheme+"://"+r.URL.Host))
+		if r.URL.Scheme != "http" {
+			return tunnel.RoundTrip(r)
 		}
-		return tr.RoundTrip(r)
+		h, err := e.headers(r.Context(), tc, holder.get())
+		if err != nil {
+			return nil, err
+		}
+		r = r.Clone(r.Context())
+		for k, v := range h {
+			r.Header[k] = v
+		}
+		resp, err := plain.RoundTrip(r)
+		if err == nil && resp.Header.Get(platform.HeaderRefused) != "" {
+			tc.noteRefusal(refusedFrom(resp))
+		}
+		return resp, err
 	})
 }
 
-// tlsConfig is the transport's TLS configuration: for the proxy hop of an
-// https:// proxy (and then also the target), else for the target.
-func (e *Egress) tlsConfig() *tls.Config {
+// dialTarget opens a TLS session with addr (host:port) through a CONNECT
+// tunnel carrying decision, verified with the target TLS configuration
+// (TargetTLS behind an http:// proxy, TLS behind an https:// one, the
+// system roots when nil). The handshake is bounded by 10 s.
+func (e *Egress) dialTarget(ctx context.Context, tc *ToolCtx, decision, addr string) (net.Conn, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := e.connect(ctx, tc, scope.Decision{ID: decision}, addr, nil)
+	if err != nil {
+		return nil, err
+	}
+	conf := &tls.Config{MinVersion: tls.VersionTLS12}
+	if base := e.targetTLS(); base != nil {
+		conf = base.Clone()
+	}
+	if conf.ServerName == "" {
+		conf.ServerName = host
+	}
+	conf.NextProtos = []string{"http/1.1"} // the transports speak HTTP/1.1 only
+	hctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	tconn := tls.Client(conn, conf)
+	if err := tconn.HandshakeContext(hctx); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return tc.Raw.Conn(tconn, RawHTTPResponse, rawLabel(ctx, "https://"+addr)), nil
+}
+
+// targetTLS is the TLS configuration towards program targets: with an
+// https:// proxy one configuration serves both hops (TLS), else TargetTLS.
+func (e *Egress) targetTLS() *tls.Config {
 	if e.Proxy.Scheme != "https" && e.TargetTLS != nil {
 		return e.TargetTLS
 	}
@@ -168,7 +255,7 @@ func (e *Egress) tlsConfig() *tls.Config {
 // Location (class active), whose decision the next hop then carries; a
 // denied hop is reported through skip and not followed (spec 4.5).
 func (e *Egress) HTTPClient(tc *ToolCtx, d scope.Decision, skip func(target, reason string)) *http.Client {
-	holder := &decisionHolder{id: d.ID}
+	holder := newDecisionHolder(d.ID)
 	return &http.Client{
 		Transport: e.transport(tc, holder),
 		Timeout:   60 * time.Second,
@@ -195,7 +282,7 @@ func (e *Egress) HTTPClient(tc *ToolCtx, d scope.Decision, skip func(target, rea
 // IntelClient implements Network: every hop carries d; the proxy refuses
 // hops that leave the intelligence-source allowlist.
 func (e *Egress) IntelClient(tc *ToolCtx, d scope.Decision) *http.Client {
-	return IntelHTTPClient(e.transport(tc, &decisionHolder{id: d.ID}))
+	return IntelHTTPClient(e.transport(tc, newDecisionHolder(d.ID)))
 }
 
 // IntelHTTPClient wraps rt with the redirect policy of intelligence-source
@@ -250,7 +337,9 @@ func (e *Egress) DialTCP(ctx context.Context, tc *ToolCtx, d scope.Decision, hos
 	return e.connect(ctx, tc, d, net.JoinHostPort(host, strconv.Itoa(port)), declared)
 }
 
-func (e *Egress) connect(ctx context.Context, tc *ToolCtx, d scope.Decision, hostport string, declared []int) (net.Conn, error) {
+// dialProxy opens a connection to the proxy (TLS for an https:// proxy;
+// Cloud Run serves TLS on 443 only).
+func (e *Egress) dialProxy(ctx context.Context) (net.Conn, error) {
 	var dl net.Dialer
 	addr := e.Proxy.Host
 	if e.Proxy.Port() == "" {
@@ -279,6 +368,14 @@ func (e *Egress) connect(ctx context.Context, tc *ToolCtx, d scope.Decision, hos
 		}
 		conn = tlsConn
 	}
+	return conn, nil
+}
+
+func (e *Egress) connect(ctx context.Context, tc *ToolCtx, d scope.Decision, hostport string, declared []int) (net.Conn, error) {
+	conn, err := e.dialProxy(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if dl, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(dl)
 	}
@@ -304,7 +401,9 @@ func (e *Egress) connect(ctx context.Context, tc *ToolCtx, d scope.Decision, hos
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		conn.Close()
-		return nil, refusedFrom(resp)
+		re := refusedFrom(resp)
+		tc.noteRefusal(re)
+		return nil, re
 	}
 	_ = conn.SetDeadline(time.Time{})
 	if br.Buffered() > 0 {
@@ -358,7 +457,9 @@ func (e *Egress) Ticket(ctx context.Context, tc *ToolCtx, d scope.Decision, decl
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return egressproxy.TicketResponse{}, refusedFrom(resp)
+		re := refusedFrom(resp)
+		tc.noteRefusal(re)
+		return egressproxy.TicketResponse{}, re
 	}
 	var t egressproxy.TicketResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&t); err != nil || t.Ticket == "" {
@@ -400,6 +501,10 @@ func (e *Egress) DialSOCKS(ctx context.Context, tc *ToolCtx, d scope.Decision, h
 		conn.Close()
 		var se *socks5.Error
 		if errors.As(err, &se) && se.Code == socks5.CodeRequestFailed {
+			// SOCKS5 replies carry no reason (RFC 1928 §6), so a kill switch
+			// or rate-limit refusal is not told apart here; the ticket
+			// request before it carries the reason when the decision was
+			// already refused.
 			return nil, &RefusedError{Reason: "socks5_" + se.Reply.String(), Status: "SOCKS5 reply " + strconv.Itoa(int(se.Reply))}
 		}
 		return nil, err
@@ -419,12 +524,13 @@ func (e *Egress) LookupDNS(ctx context.Context, tc *ToolCtx, d scope.Decision, n
 	if tk.DNS == "" {
 		return egressproxy.DNSAnswer{}, ErrNoDNS
 	}
-	return QueryDNS(ctx, tk.DNS, tk.Ticket, name, t)
+	return QueryDNS(ctx, tk.DNS, tk.Ticket, name, t, tc.Raw)
 }
 
 // QueryDNS sends one query for (name, t) with ticket to the forwarder at
-// addr.
-func QueryDNS(ctx context.Context, addr, ticket, name string, t dnsmsg.Type) (egressproxy.DNSAnswer, error) {
+// addr. Each response message is recorded as received in raw (nil: none),
+// before it is decoded, so a malformed answer is kept as evidence too.
+func QueryDNS(ctx context.Context, addr, ticket, name string, t dnsmsg.Type, raw *RawCapture) (egressproxy.DNSAnswer, error) {
 	id := uint16(core.SystemRng{}.Uint64())
 	q := dnsmsg.NewQuery(id, name, t)
 	q.SetEDNS(dnsmsg.EDNS{UDPSize: 1232, Options: []dnsmsg.Option{{Code: egressproxy.EDNSTicketOption, Data: []byte(ticket)}}})
@@ -432,11 +538,14 @@ func QueryDNS(ctx context.Context, addr, ticket, name string, t dnsmsg.Type) (eg
 	if err != nil {
 		return egressproxy.DNSAnswer{}, err
 	}
+	label := "dns:" + name + " type " + strconv.Itoa(int(t))
 	resp, err := dnsExchange(ctx, "udp", addr, b)
 	var m dnsmsg.Message
 	if err == nil {
+		raw.Add(RawDNSMessage, label+" udp", resp)
 		if m, _, err = dnsmsg.Decode(resp, dnsmsg.Lenient); err == nil && m.Header.Truncated {
 			if resp, err = dnsExchange(ctx, "tcp", addr, b); err == nil {
+				raw.Add(RawDNSMessage, label+" tcp", resp)
 				m, _, err = dnsmsg.Decode(resp, dnsmsg.Lenient)
 			}
 		}

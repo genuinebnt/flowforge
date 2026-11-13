@@ -20,7 +20,16 @@ checksum (no encoder is in go.mod; any decoder reads them, verified against
 klauspost/compress outside the module); `ZstdDecodeStored` reads them back.
 
 Tests: `TestRegress_GOPS14_BlobAdapters` runs the same round trip on all
-three adapters; the GCS one talks to an httptest fake of the JSON API
-subset the adapter uses (multipart upload, `alt=media` download with
-`storage.WithJSONReads`, delete). Not covered by the fake: resumable
-uploads, preconditions, retries, the XML read path and authentication.
+three adapters; the GCS one talks to `chunkstore/gcsstore/gcsfake`, the
+in-process fake of the JSON API subset shared with the chunk store's GCS
+adapter (multipart upload, `alt=media` download with
+`storage.WithJSONReads`, list, delete, generation preconditions, fault
+injection), and also checks replace, idempotent delete and that a refused
+read is not reported as "not found". Not covered: resumable uploads, the
+XML read path and authentication.
+
+Unlike `chunkstore/gcsstore`, this adapter writes without generation
+preconditions: the BlobStore contract replaces objects (graph snapshot
+files are rewritten under the same name), and raw output names are unique
+per observation. The content service's chunk packs and text indexes live
+in their own bucket through `chunkstore/gcsstore` (`FF_CONTENT_BUCKET`).

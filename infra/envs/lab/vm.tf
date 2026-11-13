@@ -3,10 +3,15 @@
 # cloud-init writes on every boot:
 #   ff-postgres       Postgres 16 (pg_trgm, citext), data on the data disk
 #   ff-redis          Redis 7, optional (redis_enabled)
-#   ff-egress-proxy   the Flowforge egress proxy, HTTP + CONNECT on proxy_port
-# SOCKS5 (1080) and DNS (53) are reserved for the v2 proxy (G-OPS-15) and
-# not opened. Only the Cloud Run Direct VPC egress subnets reach these ports
-# (VPC firewall + the host's iptables); SSH only through IAP.
+#   ff-egress-proxy   the Flowforge egress proxy (V2 §9, G-OPS-15): HTTP +
+#                     CONNECT on proxy_port, SOCKS5 on socks_port, DNS over
+#                     UDP and TCP on dns_port
+# Only the Cloud Run Direct VPC egress subnets reach these ports (VPC
+# firewall + the host's iptables): Postgres/Redis and the HTTP port from the
+# services subnet, every proxy port from the tool-runner subnet; SOCKS5 and
+# DNS from the tool-runner only. SSH only through IAP.
+# infra/modules/egress-vm is this VM's egress-proxy part on its own, which
+# dev and prod run (no Postgres there).
 
 data "google_compute_image" "cos" {
   project = "cos-cloud"
@@ -80,6 +85,12 @@ locals {
   vm_proxy_env = merge(local.env_common, local.env_signing, local.addr["scope"], {
     PORT      = tostring(var.proxy_port)
     FF_DB_DSN = "host=127.0.0.1 port=5432 dbname=flowforge user=flowforge sslmode=disable"
+    # Tickets carry the advertised addresses, so tools need only
+    # FF_EGRESS_PROXY.
+    FF_EGRESS_SOCKS_LISTEN    = ":${var.socks_port}"
+    FF_EGRESS_SOCKS_ADVERTISE = "${local.vm_ip}:${var.socks_port}"
+    FF_EGRESS_DNS_LISTEN      = ":${var.dns_port}"
+    FF_EGRESS_DNS_ADVERTISE   = "${local.vm_ip}:${var.dns_port}"
   })
 
   vm_tpl = {
@@ -87,6 +98,8 @@ locals {
     services_cidr   = var.services_cidr
     tools_cidr      = var.tools_cidr
     proxy_port      = var.proxy_port
+    socks_port      = var.socks_port
+    dns_port        = var.dns_port
     redis_enabled   = var.redis_enabled
     db_secret       = local.db_password
     redis_secret    = "ff-redis-auth"
@@ -331,6 +344,27 @@ resource "google_compute_firewall" "vm_proxy" {
   }
 }
 
+resource "google_compute_firewall" "vm_proxy_tools" {
+  project       = var.project_id
+  name          = "${local.name}-vm-allow-socks-dns"
+  network       = module.network.network_id
+  direction     = "INGRESS"
+  priority      = 1000
+  target_tags   = ["ff-lab-vm"]
+  source_ranges = [var.tools_cidr]
+  description   = "Egress proxy SOCKS5 and DNS from the tool-runner subnet only"
+
+  allow {
+    protocol = "tcp"
+    ports    = [tostring(var.socks_port), tostring(var.dns_port)]
+  }
+
+  allow {
+    protocol = "udp"
+    ports    = [tostring(var.dns_port)]
+  }
+}
+
 # IAP TCP forwarding range: `gcloud compute ssh --tunnel-through-iap`.
 resource "google_compute_firewall" "vm_iap_ssh" {
   project       = var.project_id
@@ -361,6 +395,11 @@ resource "google_compute_firewall" "tools_to_proxy" {
 
   allow {
     protocol = "tcp"
-    ports    = [tostring(var.proxy_port)]
+    ports    = [tostring(var.proxy_port), tostring(var.socks_port), tostring(var.dns_port)]
+  }
+
+  allow {
+    protocol = "udp"
+    ports    = [tostring(var.dns_port)]
   }
 }

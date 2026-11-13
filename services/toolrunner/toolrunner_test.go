@@ -49,10 +49,10 @@ func TestToolRunner(t *testing.T) {
 	keys, _ := platform.NewDevKeys("t")
 	v, _ := keys.Verifier(clock)
 	tokens, _ := keys.Tokens(clock)
-	res := servicetest.NewResolver(map[string]string{"app.test": "127.0.0.1", "evil.test": "127.0.0.1"})
+	res := &dnsNet{answers: map[string]string{"app.test.": "127.0.0.1", "evil.test.": "127.0.0.1"}}
 	sl := &slow{}
 	srv := toolrunner.NewServer(toolrunner.Options{Adapters: []toolrunner.Adapter{toolrunner.DNSResolve{}, toolrunner.Mock{}, sl, toolrunner.HTTPProbe{}},
-		Scope: checker{}, Resolver: res})
+		Scope: checker{}, Net: res})
 	g := platform.NewGRPCServer(platform.ServerOptions{Service: "tool-runner", Verifier: v})
 	pb.RegisterToolRunnerServiceServer(g, srv)
 	lis := bufconn.Listen(1 << 20)
@@ -93,19 +93,19 @@ func TestToolRunner(t *testing.T) {
 	if last == nil || last.GetObservations() != 1 || last.GetOutput().GetListValue().GetValues()[0].GetStringValue() != "127.0.0.1" {
 		t.Fatalf("dnsresolve app.test: %v", got)
 	}
-	obs := got[0].GetObservation()
+	var obs *pb.Observation
+	for _, m := range got {
+		if o := m.GetObservation(); o != nil {
+			obs = o
+		}
+	}
 	if obs == nil || len(obs.GetEntities()) != 2 || obs.GetEdges()[0].GetRelation().GetRelationType() != "BasicDNSRelation" {
-		t.Fatalf("observation %v", got[0])
+		t.Fatalf("observation %v", got)
 	}
 	// A denied target is skipped and never resolved.
 	got = exec("dnsresolve", "evil.test")
-	if got[0].GetSkipped().GetTarget() != "evil.test" || len(got[len(got)-1].GetDone().GetOutput().GetListValue().GetValues()) != 0 || res.Count("evil.test") != 0 {
-		t.Fatalf("dnsresolve evil.test: %v (lookups %d)", got, res.Count("evil.test"))
-	}
-	// An active tool without an egress proxy fails with a structured error.
-	got = exec("httpprobe", "app.test")
-	if e := got[len(got)-1].GetError(); e.GetCode() != "no_egress" {
-		t.Fatalf("httpprobe without proxy: %v", got)
+	if got[0].GetSkipped().GetTarget() != "evil.test" || len(got[len(got)-1].GetDone().GetOutput().GetListValue().GetValues()) != 0 || res.count("evil.test.") != 0 {
+		t.Fatalf("dnsresolve evil.test: %v (queries %d)", got, res.count("evil.test."))
 	}
 	// Unknown tools are NOT_FOUND.
 	s, _ := c.Execute(ctx, &pb.ExecuteRequest{Tool: "nmap"})

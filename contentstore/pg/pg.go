@@ -125,7 +125,7 @@ const snapshotCols = `id::text, program_id::text, entity_id, url, url_template, 
 	fetched_at, last_seen, valid_from, valid_to, status, mime, kind, signature, headers_ref, body_manifest, body_sha256,
 	raw_size, stored_size, normalizer_version, normalized_manifest, parent_id::text, lineage_parent_id::text, features_ref,
 	outcome, coverage, degraded, simhash, pinned, pin_reason, codec, delta_base::text, delta_depth, body_seal, headers_seal,
-	key_id, created_at`
+	key_id, created_at, derive_stamp`
 
 func (t *pgTx) scanSnapshots(rows pgx.Rows) ([]contentstore.Snapshot, error) {
 	defer rows.Close()
@@ -140,7 +140,7 @@ func (t *pgTx) scanSnapshots(rows pgx.Rows) ([]contentstore.Snapshot, error) {
 			&s.FetchedAt, &s.LastSeen, &s.ValidFrom, &validTo, &s.Status, &s.Mime, &s.Kind, &s.Signature, &s.HeadersRef,
 			&s.BodyManifest, &s.BodySHA256, &s.RawSize, &s.StoredSize, &s.NormalizerVersion, &s.NormalizedManifest, &parent,
 			&lineage, &s.FeaturesRef, &s.Outcome, &s.Coverage, &s.Degraded, &sim, &s.Pinned, &s.PinReason, &s.Codec, &base,
-			&s.DeltaDepth, &s.BodySeal, &s.HeadersSeal, &s.KeyID, &s.CreatedAt); err != nil {
+			&s.DeltaDepth, &s.BodySeal, &s.HeadersSeal, &s.KeyID, &s.CreatedAt, &s.DeriveStamp); err != nil {
 			return nil, err
 		}
 		var err error
@@ -284,15 +284,38 @@ func (t *pgTx) InsertSnapshot(ctx context.Context, s contentstore.Snapshot) erro
 		run_id, effect_path, fetched_at, last_seen, valid_from, valid_to, status, mime, kind, signature, headers_ref, body_manifest,
 		body_sha256, raw_size, stored_size, normalizer_version, normalized_manifest, parent_id, lineage_parent_id, features_ref,
 		outcome, coverage, degraded, simhash, pinned, pin_reason, codec, delta_base, delta_depth, body_seal, headers_seal, key_id,
-		created_at)
+		created_at, derive_stamp)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-		$25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)`,
+		$25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42)`,
 		s.ID.String(), t.tenant.String(), s.Program.String(), s.EntityID, s.URL, s.URLTemplate, s.Host, s.Profile, s.RunID,
 		s.EffectPath, s.FetchedAt, s.LastSeen, s.ValidFrom, nullTime(s.ValidTo), s.Status, s.Mime, s.Kind, s.Signature,
 		s.HeadersRef, s.BodyManifest, s.BodySHA256, s.RawSize, s.StoredSize, s.NormalizerVersion, s.NormalizedManifest,
 		nullUUID(s.ParentID), nullUUID(s.LineageParentID), s.FeaturesRef, s.Outcome, s.Coverage, s.Degraded, int64(s.SimHash),
-		s.Pinned, s.PinReason, codecOf(s.Codec), nullUUID(s.DeltaBase), s.DeltaDepth, s.BodySeal, s.HeadersSeal, s.KeyID, s.CreatedAt)
+		s.Pinned, s.PinReason, codecOf(s.Codec), nullUUID(s.DeltaBase), s.DeltaDepth, s.BodySeal, s.HeadersSeal, s.KeyID, s.CreatedAt,
+		s.DeriveStamp)
 	return err
+}
+
+func (t *pgTx) StaleSnapshots(ctx context.Context, program core.UUID, stamp string, after *contentstore.Cursor, limit int) ([]contentstore.Snapshot, error) {
+	where := `tenant_id = $1 AND program_id = $2 AND derive_stamp <> $3`
+	args := []any{t.tenant.String(), program.String(), stamp}
+	if after != nil {
+		where += ` AND (valid_from, id) > ($4, $5::uuid)`
+		args = append(args, after.ValidFrom, after.ID.String())
+	}
+	return t.snapshots(ctx, where+` ORDER BY valid_from, id LIMIT `+strconv.Itoa(max(limit, 1)), args...)
+}
+
+func (t *pgTx) LockSnapshot(ctx context.Context, id core.UUID) (contentstore.Snapshot, bool, error) {
+	return t.one(ctx, `tenant_id = $1 AND id = $2 FOR UPDATE`, t.tenant.String(), id.String())
+}
+
+func (t *pgTx) UpdateDerived(ctx context.Context, s contentstore.Snapshot) error {
+	return t.exec1(ctx, "snapshot to re-derive not found", `UPDATE content.snapshots SET headers_ref = $3, body_manifest = $4,
+		normalized_manifest = $5, features_ref = $6, codec = $7, delta_base = $8, delta_depth = $9, kind = $10,
+		normalizer_version = $11, coverage = $12, simhash = $13, derive_stamp = $14 WHERE tenant_id = $1 AND id = $2`,
+		t.tenant.String(), s.ID.String(), s.HeadersRef, s.BodyManifest, s.NormalizedManifest, s.FeaturesRef, codecOf(s.Codec),
+		nullUUID(s.DeltaBase), s.DeltaDepth, s.Kind, s.NormalizerVersion, s.Coverage, int64(s.SimHash), s.DeriveStamp)
 }
 
 func codecOf(c string) string {
@@ -422,6 +445,21 @@ func (t *pgTx) InsertDiff(ctx context.Context, d contentstore.Diff) error {
 		d.ID.String(), t.tenant.String(), d.Program.String(), d.Seq, nullUUID(d.From), d.To.String(), levels, d.Algorithm,
 		d.NormalizerVersion, stats, d.HunksRef, d.SemanticRef, d.StoredSize, d.IndexDocs, d.At, d.URL, d.Profile, d.CreatedAt)
 	return err
+}
+
+func (t *pgTx) RewriteDiff(ctx context.Context, d contentstore.Diff) error {
+	stats, err := json.Marshal(d.Stats)
+	if err != nil {
+		return err
+	}
+	levels := d.Levels
+	if levels == nil {
+		levels = []string{}
+	}
+	return t.exec1(ctx, "diff to rewrite not found", `UPDATE content.diffs SET levels = $3, algorithm = $4, normalizer_version = $5,
+		stats = $6, hunks_ref = $7, semantic_ref = $8, stored_size = $9, index_docs = $10 WHERE tenant_id = $1 AND id = $2`,
+		t.tenant.String(), d.ID.String(), levels, d.Algorithm, d.NormalizerVersion, stats, d.HunksRef, d.SemanticRef, d.StoredSize,
+		d.IndexDocs)
 }
 
 func (t *pgTx) oneDiff(ctx context.Context, where string, args ...any) (contentstore.Diff, bool, error) {
