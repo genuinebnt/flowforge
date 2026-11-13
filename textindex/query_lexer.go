@@ -79,11 +79,11 @@ func isIdentByte(c byte) bool  { return isIdentStart(c) || c >= '0' && c <= '9' 
 func lexQuery(q string) ([]qtoken, *QueryError) {
 	var toks []qtoken
 	state := lexStart
-	start := 0             // start of the current token
-	ident := true          // lexWord: the bytes so far form an identifier
-	valueTok := false      // the token being lexed is a field value
-	var buf []byte         // unescaped phrase or regex text
-	var flagsSeen [3]bool  // i, m, s
+	start := 0            // start of the current token
+	ident := true         // lexWord: the bytes so far form an identifier
+	valueTok := false     // the token being lexed is a field value
+	var buf []byte        // unescaped phrase or regex text
+	var flagsSeen [3]bool // i, m, s
 	emit := func(k tokKind, end int, text string) {
 		toks = append(toks, qtoken{kind: k, start: start, end: end, text: text, value: valueTok})
 		valueTok = false

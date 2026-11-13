@@ -152,10 +152,21 @@ func le64(dst []byte, v uint64) []byte { return binary.LittleEndian.AppendUint64
 // (LSB first).
 type bitmap []byte
 
-func newBitmap(n int) bitmap         { return make(bitmap, (n+7)/8) }
-func (b bitmap) get(i uint32) bool   { return int(i/8) < len(b) && b[i/8]&(1<<(i%8)) != 0 }
-func (b bitmap) set(i uint32)        { b[i/8] |= 1 << (i % 8) }
-func (b bitmap) clone() bitmap       { return slices.Clone(b) }
-func bitmapBytes(n int) int          { return (n + 7) / 8 }
-func popcount(b bitmap) (n int)      { for _, c := range b { n += popcnt8(c) }; return n }
-func popcnt8(c byte) int             { n := 0; for ; c != 0; c &= c - 1 { n++ }; return n }
+func newBitmap(n int) bitmap       { return make(bitmap, (n+7)/8) }
+func (b bitmap) get(i uint32) bool { return int(i/8) < len(b) && b[i/8]&(1<<(i%8)) != 0 }
+func (b bitmap) set(i uint32)      { b[i/8] |= 1 << (i % 8) }
+func (b bitmap) clone() bitmap     { return slices.Clone(b) }
+func bitmapBytes(n int) int        { return (n + 7) / 8 }
+func popcount(b bitmap) (n int) {
+	for _, c := range b {
+		n += popcnt8(c)
+	}
+	return n
+}
+func popcnt8(c byte) int {
+	n := 0
+	for ; c != 0; c &= c - 1 {
+		n++
+	}
+	return n
+}

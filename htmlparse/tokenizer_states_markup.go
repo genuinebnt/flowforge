@@ -43,10 +43,15 @@ func (t *Tokenizer) markupDeclarationOpenState() {
 			t.state = stateCDATASection
 			return
 		}
-		t.err(ErrCDATAInHTMLContent)
+		t.err(ErrCDATAInHTMLContent) // at the last '[' consumed
 		t.data = append(t.data, "[CDATA["...)
 		t.state = stateBogusComment
 	default:
+		// Read (and un-read) the next character first so its
+		// input-stream errors are reported before this one, as
+		// preprocessing happens before tokenization.
+		t.next()
+		t.reconsume()
 		t.errAt(ErrIncorrectlyOpenedComment, t.pos)
 		t.state = stateBogusComment
 	}

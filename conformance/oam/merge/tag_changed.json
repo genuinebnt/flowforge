@@ -1,0 +1,339 @@
+{
+ "description": "tag_changed (V2 3.4): one event per effective tag change in an observation, field-level ops for a changed visible tag, none for an identical re-report or a duplicate observation; a tag first reported by a non-authoritative observation is never withdrawn.",
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "a1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-a1",
+    "tool": {
+     "name": "httpx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:01:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme"
+      }
+     },
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "a2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-a2",
+    "tool": {
+     "name": "httpx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:02:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "a3",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-a3",
+    "tool": {
+     "name": "httpx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:03:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme Corp"
+      }
+     },
+     {
+      "target": "P",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme Inc"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "x4",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-x4",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:04:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "x-frame-options",
+       "value": "DENY"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "x5",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-x5",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:05:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "a3",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-a3",
+    "tool": {
+     "name": "httpx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:03:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme Corp"
+      }
+     },
+     {
+      "target": "P",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme Inc"
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://acme.com/",
+    "tags": [
+     {
+      "type": "HTTPHeaderProperty",
+      "name": "server",
+      "content": {
+       "name": "server",
+       "value": "nginx"
+      }
+     },
+     {
+      "type": "SimpleProperty",
+      "name": "title",
+      "content": {
+       "name": "title",
+       "value": "Acme Inc"
+      }
+     }
+    ]
+   }
+  ],
+  "edges": [],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/"
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/server",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "SimpleProperty/title",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "title",
+       "value": "Acme"
+      }
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "SimpleProperty/title",
+    "patch": [
+     {
+      "op": "replace",
+      "path": "/value",
+      "value": "Acme Inc"
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/x-frame-options",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "x-frame-options",
+       "value": "DENY"
+      }
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/x-frame-options",
+    "patch": [
+     {
+      "op": "remove",
+      "path": ""
+     }
+    ]
+   }
+  ]
+ }
+}

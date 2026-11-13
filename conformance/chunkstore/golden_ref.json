@@ -1,0 +1,9 @@
+{
+  "description": "FFRF v1: magic|version u16|flags u16|generation u64|pack_count u32|pack_ids[count][32] ascending|crc32c(all before) u32.",
+  "hex": "4646524601000000070000000000000002000000885734bb14d5abc24658d76f2391b95660a36ab51336c00bf73a9d5cbb0269f1bb00179f71cf0fb2659358dbbdc250498b3f14cec82bd865ecd805abbd05cdae5d6f6c82",
+  "generation": 7,
+  "packs": [
+    "885734bb14d5abc24658d76f2391b95660a36ab51336c00bf73a9d5cbb0269f1",
+    "bb00179f71cf0fb2659358dbbdc250498b3f14cec82bd865ecd805abbd05cdae"
+  ]
+}

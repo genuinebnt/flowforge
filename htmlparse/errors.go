@@ -208,9 +208,12 @@ func (c ErrorCode) IsTokenizerError() bool { return c <= ErrUnknownNamedCharacte
 
 // ParseError is one parse error. Offset is a byte offset into the input
 // that was given to Tokenize, Parse or ParseFragment (after decoding, never
-// into raw transport bytes). Line and Col are 1-based; Col counts Unicode
-// code points, a CR LF pair is one line break, and a lone CR is a line
-// break. For end-of-file errors Offset is len(input).
+// into raw transport bytes). Line and Col are 1-based; Col counts UTF-16
+// code units (as html5lib and browser developer tools do, so a
+// supplementary-plane character counts 2), a CR LF pair is one line
+// break, and a lone CR is a line break. For end-of-file errors Offset is
+// len(input). The error is located at the input character being consumed
+// when the error was detected.
 type ParseError struct {
 	Code   ErrorCode
 	Offset int
@@ -283,8 +286,11 @@ func fillPositions(input []byte, errs []ParseError) {
 				col++
 				pos++
 			default:
-				_, w := decodeRune(input[pos:])
+				r, w := decodeRune(input[pos:])
 				col++
+				if r >= 0x10000 {
+					col++ // two UTF-16 code units
+				}
 				pos += w
 			}
 		}

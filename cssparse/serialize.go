@@ -22,7 +22,7 @@ func Serialize(toks []Token) []byte {
 		if t.Kind == TokenComment {
 			continue
 		}
-		if needsComment(prev, prevDelim, t) {
+		if needsComment(prev, prevDelim, t) || (prev == TokenIdent && prevDelim == "--" && t.Kind == TokenDelim && t.Value == ">") {
 			b.WriteString("/**/")
 		}
 		switch t.Kind {
@@ -84,7 +84,9 @@ func Serialize(toks []Token) []byte {
 		}
 		prev = t.Kind
 		prevDelim = ""
-		if t.Kind == TokenDelim {
+		if t.Kind == TokenDelim || (t.Kind == TokenIdent && t.Value == "--") {
+			// prevDelim also remembers an ident "--", which a following
+			// ">" would turn into a CDC.
 			prevDelim = t.Value
 		}
 	}

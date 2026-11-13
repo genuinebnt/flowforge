@@ -347,7 +347,7 @@ func (t *Tokenizer) reconsume() { t.pos = t.curStart }
 // skipASCII advances over n already-inspected ASCII bytes (used by the
 // "if the next few characters are" lookahead steps).
 func (t *Tokenizer) skipASCII(n int) {
-	t.curStart = t.pos
+	t.curStart = t.pos + n - 1 // the last consumed character is current
 	t.pos += n
 	if t.pos > t.hwm {
 		t.hwm = t.pos

@@ -132,13 +132,20 @@ walk:
 					}
 					rest = append(rest, fr)
 				}
+				if block != NoNode {
+					// @import takes no block; walk a stray one raw.
+					stack = append(stack, urlFrame{id: block, ctx: URLContextValue})
+					block = NoNode
+				}
 				for i := len(rest) - 1; i >= 0; i-- {
 					stack = append(stack, rest[i])
 				}
-				block = NoNode // @import has no block
 			case "namespace":
+				if block != NoNode {
+					stack = append(stack, urlFrame{id: block, ctx: URLContextValue})
+					block = NoNode
+				}
 				push(n.FirstChild, URLContextNamespace, true)
-				block = NoNode
 			default:
 				push(n.FirstChild, URLContextValue, false)
 			}
@@ -175,7 +182,6 @@ walk:
 					if !add(URLRef{URL: d.TokenOf(s).Value, Form: URLFormFunction, Context: f.ctx, Start: n.Start, End: n.End}) {
 						break walk
 					}
-					continue
 				}
 				push(n.FirstChild, f.ctx, false)
 			case "image-set", "-webkit-image-set":

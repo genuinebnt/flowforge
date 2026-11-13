@@ -126,7 +126,7 @@ func Tokenize(src []byte, opts Options) ([]Token, []Diagnostic) {
 func tokenizeString(src string, opts Options) *tokenizer {
 	full := len(src)
 	src, cut := limitInput(src, opts.maxInput())
-	t := &tokenizer{src: src, legacy: opts.LegacyTokens, toks: make([]Token, 0, len(src)/4+4)}
+	t := &tokenizer{src: src, legacy: opts.LegacyTokens, toks: make([]Token, 0, len(src)/2+16)}
 	t.run()
 	if cut {
 		t.diag(DiagInputTooLarge, len(src), full)
