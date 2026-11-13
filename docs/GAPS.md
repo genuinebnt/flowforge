@@ -197,6 +197,20 @@ assumptions it was written against.
 | G-OPS-17 | Terraform has never been planned or applied against a real project (this session has no GCP credentials) | the first `lab` apply is an operator step |
 | G-SPEC-11 | No `ff-conform` cross-language harness | built with the Rust port |
 
+### Pluggable algorithms and comments (operator rules, 2026-11-13)
+
+| ID | Gap | Target |
+|---|---|---|
+| G-ALG-01 | scope: make the naive matcher a selectable `Matcher` in non-test code; add `BenchmarkScopeAlgo` | v1 |
+| G-ALG-02 | csr: make the adjacency-list representation a selectable baseline for BFS and PageRank; add `BenchmarkCSRAlgo` | v1 |
+| G-ALG-03 | limiter and placement: rename and consolidate their comparative benchmarks into `BenchmarkLimAlgo` and `BenchmarkPlcAlgo` | v1 |
+| G-ALG-04 | vm/treewalk and eventstore: comparative benchmarks under the Algo naming | v1 |
+| G-ALG-05 | vecindex: add HNSW as a candidate next to Vamana (recall against QPS) | v3 (C3) |
+| G-ALG-06 | chunkstore: fixed-size, Rabin CDC and whole-blob candidates with dedupe, speed and shift-resistance comparisons | v2 |
+| G-ALG-07 | v2 packages (diff, textindex, htmlparse, jsparse, sketch): pluggable candidates, benchmarks and ALGORITHMS.md entries | v2 (in progress) |
+| G-CMT-01 | Comment pass on every v1 package: correct, useful, spec-referencing comments, `PORT:` notes, no restating, no stale text | v1 (then merged forward) |
+| G-CMT-02 | Comment pass on every v2 package | v2 |
+
 ## Doc and code conflicts to resolve with the fixes
 
 1. infra and cloud-sql READMEs vs code on DB grants (G-OPS-01).
