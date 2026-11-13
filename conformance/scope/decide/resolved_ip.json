@@ -264,6 +264,71 @@
     "rule_id": "sub",
     "pinned_ips": []
    }
+  },
+  {
+   "id": "passive_resolve_pins",
+   "target": "www.acme.com",
+   "class": "passive",
+   "resolve": true,
+   "note": "D3: a passive check that asks for resolution resolves once and pins like an active one",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": [
+     "203.0.113.5",
+     "203.0.113.6"
+    ]
+   }
+  },
+  {
+   "id": "passive_resolve_denied_ip",
+   "target": "internal.acme.com",
+   "class": "passive",
+   "resolve": true,
+   "note": "D3: resolved-address deny rules apply to a resolving passive check",
+   "expect": {
+    "result": "deny",
+    "reason": "resolved_ip_denied",
+    "rule_id": "internal",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "passive_resolve_failure",
+   "target": "broken.acme.com",
+   "class": "passive",
+   "resolve": true,
+   "note": "D3: resolution was requested, so its failure denies",
+   "expect": {
+    "result": "deny",
+    "reason": "resolution_failed",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "passive_no_resolve_unchanged",
+   "target": "broken.acme.com",
+   "class": "passive",
+   "resolve": false,
+   "note": "without resolution a passive check never resolves: no failure, no pins",
+   "expect": {
+    "result": "allow",
+    "reason": "allow",
+    "rule_id": "sub",
+    "pinned_ips": []
+   }
+  },
+  {
+   "id": "passive_resolve_outside",
+   "target": "outside.example",
+   "class": "passive",
+   "resolve": true,
+   "expect": {
+    "result": "deny",
+    "reason": "no_matching_allow",
+    "pinned_ips": []
+   }
   }
  ]
 }

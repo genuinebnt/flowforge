@@ -5,11 +5,17 @@
 // Text is first interned (Interner, SplitLines, SplitWords) so every
 // sequence algorithm works on []uint32 and compares tokens as integers:
 //
-//   - Myers: linear-space O(ND) Myers (middle-snake divide and conquer),
-//     shortest edit script, optional edit-distance cap with a Capped result.
-//   - Myers: the basic greedy forward algorithm, the reference.
+//   - MyersLinearSpace (the default): O(ND) Myers with the linear-space
+//     middle-snake refinement, shortest edit script, optional edit-distance
+//     cap with a Capped result.
+//   - Myers: the basic greedy forward algorithm (O(D^2) memory).
 //   - Patience and Histogram: git's xpatience.c and xhistogram.c, falling
 //     back to Myers where git falls back to its classic diff.
+//   - Reference: the O(NM) dynamic-programming LCS, for tiny inputs and as
+//     an oracle.
+//
+// The algorithms are pluggable behind Options.Algorithm; the package
+// README's "Choosing an algorithm" compares them.
 //
 // All return an EditScript (Equal/Delete/Insert over index ranges, with the
 // changed tokens), which supports Apply, Invert, Compose, Hunks, unified

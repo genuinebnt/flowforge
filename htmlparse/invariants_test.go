@@ -288,6 +288,16 @@ func roundTripSafe(d *Document, errs []ParseError) bool {
 	}
 	for i := range d.Nodes {
 		nd := &d.Nodes[i]
+		// A CR can only come from &#13;; the serializer writes it raw and
+		// the reparse normalizes it to LF (a spec non-round-trip case).
+		if strings.Contains(nd.Data, "\r") {
+			return false
+		}
+		for _, a := range nd.Attrs {
+			if strings.Contains(a.Value, "\r") {
+				return false
+			}
+		}
 		switch nd.Kind {
 		case CommentNode:
 			if strings.Contains(nd.Data, "--") || strings.HasSuffix(nd.Data, "-") || strings.HasPrefix(nd.Data, ">") || strings.HasPrefix(nd.Data, "->") {
@@ -295,6 +305,11 @@ func roundTripSafe(d *Document, errs []ParseError) bool {
 			}
 		case ProcessingInstructionNode:
 			return false
+		case DoctypeNode:
+			// The serializer writes only the name (HTML §13.3).
+			if nd.PublicID != "" || nd.SystemID != "" {
+				return false
+			}
 		case ElementNode:
 			if nd.Namespace != HTMLNamespace {
 				return false

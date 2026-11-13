@@ -132,7 +132,10 @@ func newSegView(name string, seg *Segment, del bitmap, delGen uint64) *segView {
 func (v *segView) live() int             { return v.seg.n - v.delCount }
 func (v *segView) deleted(d uint32) bool { return v.del != nil && v.del.get(d) }
 
-// liveDF is the number of live docs of the segment containing (field, term).
+// liveDF is the number of live docs of the segment containing (field,
+// term). Statistics exclude tombstoned docs so that a merge, which drops
+// them, never changes a score (TIDX-INV-05); segments without deletions
+// use the dictionary df, others count once per snapshot (cached).
 func (v *segView) liveDF(field int, term string, scratch []byte) int {
 	if v.del == nil {
 		df, _, _, ok := v.seg.lookupTerm(field, term, scratch)
@@ -172,6 +175,8 @@ type stats struct {
 	df    map[string]int
 }
 
+// dfKey keys stats.df by (field, term). Field ids are < 64, so the first
+// rune is one byte and keys of different fields never collide.
 func dfKey(field int, term string) string { return string(rune(field)) + "\x00" + term }
 
 func collectStats(views []*segView, p *plan, nt int) *stats {

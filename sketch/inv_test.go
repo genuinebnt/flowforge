@@ -403,6 +403,7 @@ func TestSketchInv10_MulAddMod61(t *testing.T) {
 		}
 	}
 }
+
 // mulAddMod61 (schoolbook 128-bit remainder).
 func mulBig(a, b uint64) (uint64, uint64) {
 	const mask = 1<<32 - 1

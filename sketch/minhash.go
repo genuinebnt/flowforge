@@ -210,7 +210,7 @@ func NewLSH[ID comparable](bands, rows int, cmp func(a, b ID) int) (*LSH[ID], er
 	return l, nil
 }
 
-// Bands returns the number of bands; Rows the rows per band.
+// Bands returns the number of bands.
 func (l *LSH[ID]) Bands() int { return l.bands }
 
 // Rows returns the number of signature values per band.

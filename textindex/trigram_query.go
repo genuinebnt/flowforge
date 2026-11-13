@@ -34,6 +34,8 @@ type TrigramQuery struct {
 	Sub      []*TrigramQuery
 }
 
+// allQ and noneQ are shared immutable leaves; canon never mutates its
+// inputs, so sharing them is safe.
 var (
 	allQ  = &TrigramQuery{Op: TrigramAll}
 	noneQ = &TrigramQuery{Op: TrigramNone}
@@ -123,7 +125,10 @@ func (q *TrigramQuery) MatchTrigrams(set []uint32) bool {
 	return false
 }
 
-// canon builds a canonical node of op from trigrams and subs.
+// canon builds a canonical node of op from trigrams and subs (rules in the
+// TrigramQuery doc). Sorting sub-queries by their text form makes the
+// result independent of construction order, so equal queries print
+// equally (the trigram conformance vectors compare text).
 func canon(op TrigramOp, tris []uint32, subs []*TrigramQuery) *TrigramQuery {
 	var outT []uint32
 	var outS []*TrigramQuery
@@ -427,6 +432,14 @@ func literalInfo(rs []rune) regexpInfo {
 
 // analyzeRegexp is codesearch's analyze over a simplified regexp/syntax
 // tree, with the U+FFFD rule of literalInfo and of character classes.
+//
+// PORT: this walks Go's regexp/syntax tree after Simplify (counted
+// repeats expanded, case-insensitive literals as FoldCase flags, Perl
+// classes). Rust's regex-syntax HIR is shaped differently (case folding
+// pre-expanded into classes, Unicode-aware classes by default). A port
+// re-derives the same analysis on its HIR; it may produce an equivalent or
+// weaker query but never one that drops a match (TIDX-INV-03). The
+// trigram vectors pin the Go output.
 func analyzeRegexp(re *syntax.Regexp) regexpInfo {
 	var info regexpInfo
 	switch re.Op {
@@ -469,6 +482,7 @@ func analyzeRegexp(re *syntax.Regexp) regexpInfo {
 	case syntax.OpStar:
 		return anyMatch()
 	case syntax.OpRepeat:
+		// Simplify expands counted repeats; this keeps unsimplified trees safe.
 		if re.Min == 0 {
 			return anyMatch()
 		}

@@ -19,10 +19,13 @@ func BM25IDF(n, df int) float64 {
 //
 //	idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * dl / avgdl))
 //
-// evaluated in exactly this operation order in float64 (the Rust port
-// must keep it). tf is the term (or phrase) frequency in the field, dl the
-// field length in positions and avgdl the mean field length over live
-// documents.
+// tf is the term (or phrase) frequency in the field, dl the field length
+// in positions and avgdl the mean field length over live documents.
+//
+// PORT: keep the operation order of the code below. Go's math.Log is not
+// correctly rounded and neither is Rust's f64::ln, so scores can differ in
+// the last bits across languages; conformance compares them at 1e-9
+// relative.
 func BM25(idf float64, tf, dl int, avgdl float64) float64 {
 	ftf := float64(tf)
 	norm := BM25K1 * (1 - BM25B + BM25B*float64(dl)/avgdl)

@@ -96,10 +96,14 @@ func (c *Client) Policy(ctx context.Context, tenant, program core.UUID, version 
 	return p, nil
 }
 
-// Check implements engine.Scope. Engine checks always resolve and pin.
+// Check implements engine.Scope. Engine checks of active and intrusive
+// work resolve and pin; passive checks do not (resolving every passive
+// candidate would deny names that do not resolve, and DNS lookups of
+// out-of-scope names are what passive work must avoid). Tools that need
+// pins for passive connections ask for them themselves (D3).
 func (c *Client) Check(ctx context.Context, req engine.ScopeCheck) (scope.Decision, error) {
 	return c.CheckTarget(ctx, Target{Tenant: req.Tenant, Program: req.Program, Version: req.ScopeVersion, Target: req.Target,
-		Kind: req.Kind, Class: req.Class, Run: req.RunID, Path: req.Path, Resolve: true})
+		Kind: req.Kind, Class: req.Class, Run: req.RunID, Path: req.Path, Resolve: req.Class > core.ClassPassive})
 }
 
 // Target is one target check.

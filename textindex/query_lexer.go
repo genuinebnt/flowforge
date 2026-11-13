@@ -39,7 +39,8 @@ type qtoken struct {
 	value bool
 }
 
-// lexState is the state of the query lexer.
+// lexState is the state of the query lexer. The lexical grammar is
+// README "Query language" (EBNF); state names follow its productions.
 type lexState uint8
 
 const (

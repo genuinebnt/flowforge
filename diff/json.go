@@ -385,4 +385,3 @@ func (h *hashCons) id(v Value) uint32 {
 	h.ids[string(key)] = id
 	return id
 }
-

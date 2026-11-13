@@ -43,8 +43,12 @@ type postIter struct {
 	docs    [postingsBlock]uint32
 	tfs     [postingsBlock]uint32
 
-	doc     uint32
-	tf      uint32
+	doc uint32
+	tf  uint32
+	// Positions are decoded lazily, so term-only queries never touch them.
+	// posOff is where the next unread positions start; pending counts the
+	// position varints of postings passed without reading them, skipped
+	// on the next positions call. A skip jump resets both from the entry.
 	posOff  int
 	pending int
 	posRead bool

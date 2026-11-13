@@ -443,7 +443,8 @@ func (s *Server) check(ctx context.Context, id platform.Identity, req *pb.CheckR
 	_, killed := Engaged(kss, id.Tenant, pid)
 	class := convert.ClassFrom(req.GetActivityClass())
 	d := pol.Check(ctx, scope.Request{Target: req.GetTarget(), Kind: convert.TargetKind(req.GetKind()), Class: class,
-		Now: s.o.Clock.Now().UTC(), KillSwitch: killed, SkipResolution: !req.GetResolve()})
+		Now: s.o.Clock.Now().UTC(), KillSwitch: killed, SkipResolution: !req.GetResolve(),
+		ResolvePassive: req.GetResolve()})
 	did := s.newID()
 	d.ID = core.PublicID(core.PrefixDecision, did)
 	if d.DecidedAt.IsZero() {

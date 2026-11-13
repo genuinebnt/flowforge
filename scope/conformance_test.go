@@ -146,7 +146,10 @@ func runDecideCases(t *testing.T, sel func(string) bool) int {
 				req.Now = parseNow(t, c.Now, file.Now)
 				req.SkipResolution = file.Resolver == nil
 				if c.Resolve != nil {
+					// The proto resolve flag: off skips active resolution, on
+					// also asks passive checks to resolve and pin (D3).
 					req.SkipResolution = !*c.Resolve
+					req.ResolvePassive = *c.Resolve
 				}
 				got, checked := runCase(indexed, req, c.Hops)
 				ref, refChecked := runCase(linear, req, c.Hops)

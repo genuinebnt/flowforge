@@ -138,7 +138,7 @@ go test ./diff -run '^$' -bench 'DiffCapped|DiffBounded|DiffJSON|DiffTree' -benc
 ```
 
 Other baselines (same machine): `BoundedDiff` on 2 × 1 MiB of code-like
-text, 10 MB/s at the token level and 10 MB/s after falling back to lines;
+text, 8–10 MB/s both at the token level and after falling back to lines;
 `JSONDiff` of two 20,000-record arrays (1.4 MB each, 1 % changed) 56 ms,
 41 MB/s; `TreeDiff` of two 400-node trees 9 ms.
 

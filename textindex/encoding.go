@@ -6,6 +6,7 @@ import (
 	"slices"
 )
 
+// castagnoli is the CRC32C table every format section uses (V2_DESIGN §1.6).
 var castagnoli = crc32.MakeTable(crc32.Castagnoli)
 
 func crc32c(b []byte) uint32 { return crc32.Checksum(b, castagnoli) }

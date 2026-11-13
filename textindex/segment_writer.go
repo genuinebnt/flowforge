@@ -118,7 +118,10 @@ type termBuf struct {
 	lastDoc int64
 }
 
-// encodeSegment writes docs (normalized). It sorts docs by id in place.
+// encodeSegment writes docs (normalized). It sorts docs by id in place:
+// local doc ids follow external ids, which makes the bytes independent of
+// insertion order and lets a merge of any split reproduce them
+// (TIDX-INV-08).
 func encodeSegment(s Schema, docs []docFields, c *codec, pc PostingCodec) ([]byte, error) {
 	slices.SortFunc(docs, func(a, b docFields) int {
 		switch {
@@ -137,6 +140,9 @@ func encodeSegment(s Schema, docs []docFields, c *codec, pc PostingCodec) ([]byt
 	n := len(docs)
 	nt := len(s.Text)
 
+	// PORT: Go map iteration order is random. The maps only index into
+	// slices (terms, triKeys), which are sorted before writing, so map
+	// order never reaches the output bytes.
 	termIdx := map[string]int32{}
 	var terms []*termBuf
 	triIdx := map[uint32]int32{}

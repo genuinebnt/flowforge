@@ -77,6 +77,9 @@ type docJSON struct {
 	Stored  map[string]string `json:"stored,omitempty"`
 }
 
+// hitJSON is one expected hit. PORT: encoding/json writes a float64 as
+// the shortest decimal that round-trips (exponent form below 1e-6 and from
+// 1e21) and sorts map keys; compare scores numerically, not as text.
 type hitJSON struct {
 	ID    uint64  `json:"id"`
 	Score float64 `json:"score"`

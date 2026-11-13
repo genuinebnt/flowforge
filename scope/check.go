@@ -28,6 +28,13 @@ type Request struct {
 	// proxy, which connects only to pinned addresses, cannot act on it. It
 	// exists for advisory checks; the engine never sets it.
 	SkipResolution bool `json:"-"`
+	// ResolvePassive makes a passive check of a name resolve and pin like
+	// an active one (DECISIONS D3: DNS and TLS handshakes are passive but
+	// still connect only to pinned addresses). Resolved addresses in a deny
+	// cidr then deny, and a resolution failure denies; without it passive
+	// checks never resolve (the proto CheckRequest.resolve = false case,
+	// and the engine's passive checks).
+	ResolvePassive bool `json:"-"`
 }
 
 // Check runs the decision algorithm of spec 4.3 for req:
@@ -38,9 +45,10 @@ type Request struct {
 //  4. class above activity.max_class -> deny(class_exceeds_program)
 //  5. non-passive outside every window -> deny(outside_window)
 //  6. a deny rule matches -> deny(explicit_deny, rule)
-//  7. non-passive name target (unless SkipResolution): resolve once;
-//     resolution fails -> deny(resolution_failed); an address in a deny
-//     cidr -> deny(resolved_ip_denied, rule)
+//  7. name target, non-passive (unless SkipResolution) or passive with
+//     ResolvePassive: resolve once; resolution fails ->
+//     deny(resolution_failed); an address in a deny cidr ->
+//     deny(resolved_ip_denied, rule)
 //  8. an allow rule matches -> allow(rule, pinned addresses)
 //  9. otherwise deny(no_matching_allow)
 //
@@ -78,7 +86,8 @@ func (p *Policy) Check(ctx context.Context, req Request) Decision {
 		return deny(ReasonExplicitDeny, idx)
 	}
 	var pinned []netip.Addr
-	if active && t.IsName() && !req.SkipResolution {
+	resolve := (active && !req.SkipResolution) || (!active && req.ResolvePassive)
+	if resolve && t.IsName() {
 		ips, err := resolveOnce(ctx, p.resolver, t.Name())
 		if err != nil {
 			return deny(ReasonResolutionFailed, noRule)

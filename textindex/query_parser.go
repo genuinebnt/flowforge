@@ -63,8 +63,9 @@ func (q *Query) Children(n NodeID) []NodeID {
 	return out
 }
 
-// pnodeTmp is the parser's intermediate tree (compacted into the arena at
-// the end so the arena holds only reachable nodes, in pre-order).
+// astTmp is the parser's intermediate tree. Flattening nested AND/OR
+// discards inner nodes, so the tree is compacted into the arena at the
+// end: the arena then holds only reachable nodes, in pre-order.
 type astTmp struct {
 	kind  NodeKind
 	span  Span

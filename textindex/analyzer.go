@@ -93,6 +93,11 @@ var asciiClass = func() (t [128]runeClass) {
 	return t
 }()
 
+// classOf classifies r (README "Analyzer rules" 1).
+//
+// PORT: the unicode.Is* predicates use Go's Unicode 15.0 tables. Rust's
+// char methods follow the toolchain's Unicode version; generate fixed
+// tables for 15.0 so token boundaries match the conformance vectors.
 func classOf(r rune) runeClass {
 	if r < utf8.RuneSelf {
 		return asciiClass[r]
@@ -110,9 +115,13 @@ func classOf(r rune) runeClass {
 	return classOther
 }
 
-// foldRune is simple Unicode case folding as used by the analyzer:
-// toLower(toUpper(r)) with the single-rune mappings of UnicodeData.txt
-// (Go's unicode tables). ASCII takes a fast path.
+// foldRune is the analyzer's case folding: toLower(toUpper(r)) with the
+// single-rune (simple) mappings of UnicodeData.txt, so all case variants
+// of a rune fold to one rune (TIDX-INV-11). ASCII takes a fast path.
+//
+// PORT: use the simple mappings of Unicode 15.0, not Rust's
+// char::to_lowercase/to_uppercase, which are full mappings ("İ" lowercases
+// to two runes there). See OPEN_QUESTIONS 3.
 func foldRune(r rune) rune {
 	if r < utf8.RuneSelf {
 		if r >= 'A' && r <= 'Z' {
@@ -147,7 +156,9 @@ func appendFold(dst, src []byte) []byte {
 	return dst
 }
 
-// tokState is the state of the analyzer's word-segmentation machine.
+// tokState is the state of the analyzer's word-segmentation machine. The
+// machine is specified by README "Analyzer rules"; states are named after
+// what has been consumed of the current word.
 type tokState uint8
 
 const (
@@ -192,6 +203,8 @@ func (a *analyzer) run(text []byte, emit emitFunc) int {
 	for i := 0; i < len(text); {
 		r, w := rune(text[i]), 1
 		if r >= utf8.RuneSelf {
+			// PORT: an invalid byte decodes as (RuneError, 1) and is a
+			// delimiter; a valid U+FFFD is a delimiter too (class So).
 			r, w = utf8.DecodeRune(text[i:])
 		}
 		c := classOf(r)
@@ -239,7 +252,7 @@ func (a *analyzer) run(text []byte, emit emitFunc) int {
 			case state == stUpperRun && c == classUpper,
 				state == stLower && c == classLower,
 				state == stDigit && c == classDigit:
-				// continue the part
+				// no boundary: the run of this class goes on
 			default:
 				// lower→upper, letter↔digit
 				endPart(i)

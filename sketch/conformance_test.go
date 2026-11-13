@@ -310,4 +310,3 @@ func TestSketchConformance_Vecindex(t *testing.T) {
 		}
 	}
 }
-

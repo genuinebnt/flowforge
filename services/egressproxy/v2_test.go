@@ -30,6 +30,7 @@ import (
 	"github.com/genuinebnt/flowforge/services/toolrunner"
 	"github.com/genuinebnt/flowforge/socks5"
 	"github.com/genuinebnt/flowforge/testkit"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // tcpTarget is a TCP listener that answers "hello <n>" and counts accepts.
@@ -571,21 +572,17 @@ func TestEgressV2_TLSCert(t *testing.T) {
 	port, _ := strconv.Atoi(ps)
 	e := newV2(t, nil, []int{port}, nil)
 	in, _ := json.Marshal([]any{"app.test", port})
-	// scope.Policy.Check pins addresses only for non-passive classes, so a
-	// passive decision carries no pins and the proxy fails closed.
+	// D3: tlscert's passive check asks for resolution, so the decision pins
+	// addresses and the proxy accepts the tunnel.
+	d := e.decide(t, "app.test", scope.TargetHost, core.ClassPassive, true)
+	if !d.Allowed() || len(d.PinnedIPs) != 1 {
+		t.Fatalf("passive pinned decision %+v", d)
+	}
+	if nd := e.decide(t, "app.test", scope.TargetHost, core.ClassPassive, false); len(nd.PinnedIPs) != 0 {
+		t.Fatalf("passive check without resolution pinned %v", nd.PinnedIPs)
+	}
 	em := &collect{}
 	out, err := toolrunner.TLSCert{}.Run(e.ctx, in, e.tc, em)
-	if err != nil || string(out) != "null" || len(em.skipped) != 1 || em.skipped[0] != "app.test:"+ps+" egress_refused:no_pinned_ips" {
-		t.Fatalf("passive decision without pins: %s %v %v", out, err, em.skipped)
-	}
-	// With a pinned decision (what CheckPinned yields once the scope service
-	// pins passive checks on request) the chain is read through the tunnel.
-	pinned := e.tc.CheckPinned
-	e.tc.CheckPinned = func(ctx context.Context, tgt string, kind scope.TargetKind, _ core.ActivityClass) (scope.Decision, error) {
-		return pinned(ctx, tgt, kind, core.ClassActive)
-	}
-	em = &collect{}
-	out, err = toolrunner.TLSCert{}.Run(e.ctx, in, e.tc, em)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,6 +592,35 @@ func TestEgressV2_TLSCert(t *testing.T) {
 	}
 	if err := json.Unmarshal(out, &rec); err != nil || rec.Serial == "" || em.obs != 1 {
 		t.Fatalf("tlscert: %s %v %d %v", out, err, em.obs, em.skipped)
+	}
+	if reqs.Load() != 0 {
+		t.Fatal("tlscert sent an HTTP request")
+	}
+	// The same through the tool runner service (its own pinned re-check).
+	inV, _ := structpb.NewValue([]any{"app.test", float64(port)})
+	stream, err := e.st.ToolRunner.Execute(e.ctx, &pb.ExecuteRequest{Tool: "tlscert", Input: inV, ProgramId: e.prog, EffectPath: "0", IdempotencyKey: "k"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var done *pb.Done
+	var obs int
+	for {
+		m, err := stream.Recv()
+		if err != nil {
+			break
+		}
+		if m.GetObservation() != nil {
+			obs++
+		}
+		if m.GetError() != nil {
+			t.Fatalf("tool error %v", m.GetError())
+		}
+		if m.GetDone() != nil {
+			done = m.GetDone()
+		}
+	}
+	if done == nil || obs != 1 || done.GetOutput().GetStructValue().GetFields()["serial_number"].GetStringValue() != rec.Serial {
+		t.Fatalf("Execute tlscert: %v (%d observations)", done, obs)
 	}
 	if reqs.Load() != 0 {
 		t.Fatal("tlscert sent an HTTP request")

@@ -256,7 +256,9 @@ func (ix *Index) publish() {
 
 func (ix *Index) views() []*segView { return *ix.snap.Load() }
 
-// Close releases the index. Further calls fail with ErrClosed.
+// Close releases the index. Further calls fail with ErrClosed; a search
+// running concurrently with Close may fail with ErrCorrupt (its stored
+// fields can no longer be decompressed).
 func (ix *Index) Close() error {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
@@ -343,6 +345,9 @@ func (ix *Index) refreshLocked() error {
 		ids = append(ids, id)
 	}
 	slices.Sort(ids)
+	// Every pending id, add or delete, supersedes its committed version: an
+	// Add after a Delete of the same id overwrites the pending delete, so
+	// the tombstone must not depend on the pending entry's kind.
 	touched := map[int]bitmap{}
 	for _, id := range ids {
 		for si, v := range ix.segs {
@@ -358,7 +363,7 @@ func (ix *Index) refreshLocked() error {
 					bm = newBitmap(v.seg.n)
 				}
 			}
-			if !bm.get(d) {
+			if !bm.get(d) { // at most one segment holds the live version
 				bm.set(d)
 				touched[si] = bm
 				break
@@ -410,6 +415,8 @@ func (ix *Index) refreshLocked() error {
 		nextSeg++
 		next = append(next, v)
 	}
+	// The commit point is written last: until it is swapped, the files
+	// written above are unreferenced and a crash leaves the old state.
 	if err := ix.commit(next, nextSeg); err != nil {
 		return fail(err)
 	}

@@ -26,6 +26,10 @@ d := p.Check(ctx, scope.Request{
 if d.Allowed() { /* connect only to d.PinnedIPs */ }
 ```
 
+A passive check resolves and pins only when `Request.ResolvePassive` is
+set (DECISIONS D3: tlscert and DNS work are passive but connect only to
+pinned addresses); active checks resolve unless `SkipResolution`.
+
 `Policy` is immutable and safe for concurrent use. The package reads no
 clock (`Request.Now` is passed in); name resolution goes through the
 `Resolver` port, with `StaticResolver` as the in-memory fake.
