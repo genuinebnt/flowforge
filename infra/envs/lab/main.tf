@@ -90,13 +90,20 @@ locals {
 
   # --- spec 17.5 environment variables (same names as dev/prod).
   env_common = {
-    FF_ENV            = var.ff_env
-    FF_BUS            = "pubsub"
-    FF_JWKS_URL       = "${local.run_url["gateway"]}/.well-known/jwks.json"
-    FF_JWT_ISSUER     = local.jwt_issuer
-    FF_JWT_AUDIENCE   = var.jwt_audience_internal
-    FF_PUBSUB_PROJECT = var.project_id
-    FF_TOPIC_PREFIX   = var.topic_prefix
+    FF_ENV = var.ff_env
+    FF_BUS = "pubsub"
+    # Cloud Run gives a revision 10 s after SIGTERM; the engine's graceful
+    # drain (G-ENG-05) must finish inside that, so it is shorter than the
+    # 20 s default used off Cloud Run.
+    FF_DRAIN_TIMEOUT = var.drain_timeout
+    # Webhook and Slack hosts the egress proxy's notify path may reach
+    # (G-SVC-08); empty refuses every delivery (fail closed).
+    FF_NOTIFY_ALLOWLIST = join(",", var.notify_allowlist)
+    FF_JWKS_URL         = "${local.run_url["gateway"]}/.well-known/jwks.json"
+    FF_JWT_ISSUER       = local.jwt_issuer
+    FF_JWT_AUDIENCE     = var.jwt_audience_internal
+    FF_PUBSUB_PROJECT   = var.project_id
+    FF_TOPIC_PREFIX     = var.topic_prefix
   }
   env_signing = {
     FF_SIGNING_KID  = var.current_signing_kid

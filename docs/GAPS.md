@@ -89,13 +89,13 @@ assumptions it was written against.
 
 | ID | Gap | Target |
 |---|---|---|
-| G-CORE-01 | A scope version's `effective_from` is never enforced, so a future-dated scope widening applies immediately (scope OPEN_QUESTIONS 14; services/scope PutScope) | **v1** |
-| G-LIM-01 | Gateway API rate limits fail **open** when the limiter errors, against spec 2.4 "unreachable rate limiter means deny" (gateway OPEN_QUESTIONS 12) | **v1** (fail closed) |
-| G-SVC-01 | No Pub/Sub adapter: standalone binaries run with no bus, so outbox rows are never published and consumers idle (services/app/app.go) | **v1** (Postgres bus locally + Pub/Sub adapter) |
-| G-SVC-03 | Signing keys only in the in-memory dev key store, which rotates on restart, so instances cannot verify each other's tokens; no durable key custody | **v1** (env/file + Secret Manager key store) |
-| G-OPS-01 | Per-role DB grants and removal from `cloudsqlsuperuser` are documented as done by the migrations job, but nothing implements them | **v1** |
-| G-OPS-12 | Signing-key env mismatch: Terraform sets `FF_SIGNING_KEY_<KID>`; the services read `FF_SIGNING_KEY` + `FF_SIGNING_KID` | **v1** |
-| G-OPS-13 | Terraform sets `FF_REDIS_CA` (Memorystore TLS), but no Go client configures Redis TLS, so production Redis connections fail | **v1** |
+| G-CORE-01 | A scope version's `effective_from` is never enforced, so a future-dated scope widening applies immediately (scope OPEN_QUESTIONS 14; services/scope PutScope) | **closed on feat_v1** (effective_from enforced; ActivationLoop; TestRegress_G_CORE_01_*) |
+| G-LIM-01 | Gateway API rate limits fail **open** when the limiter errors, against spec 2.4 "unreachable rate limiter means deny" (gateway OPEN_QUESTIONS 12) | **closed on feat_v1** (503 + Retry-After on limiter error; TestRegress_G_LIM_01_*) |
+| G-SVC-01 | No Pub/Sub adapter: standalone binaries run with no bus, so outbox rows are never published and consumers idle (services/app/app.go) | **closed on feat_v1** (bus adapters mem/postgres/pubsub + shared contract suite; TestBusContract_*) |
+| G-SVC-03 | Signing keys only in the in-memory dev key store, which rotates on restart, so instances cannot verify each other's tokens; no durable key custody | **closed on feat_v1** (identity/keystore env/sm/dir; TestRegress_G_SVC_03_*) |
+| G-OPS-01 | Per-role DB grants and removal from `cloudsqlsuperuser` are documented as done by the migrations job, but nothing implements them | **closed on feat_v1** (0018 roles + migrate Deploy; TestRegress_G_OPS_01_*) |
+| G-OPS-12 | Signing-key env mismatch: Terraform sets `FF_SIGNING_KEY_<KID>`; the services read `FF_SIGNING_KEY` + `FF_SIGNING_KID` | **closed on feat_v1** (FF_SIGNING_KEY_<KID> in code and Terraform; TestRegress_G_OPS_12_*) |
+| G-OPS-13 | Terraform sets `FF_REDIS_CA` (Memorystore TLS), but no Go client configures Redis TLS, so production Redis connections fail | **closed on feat_v1** (platform/redisconf TLS; TestRegress_G_OPS_13_RedisTLS) |
 | G-SVC-05 | Tools run in-process without a sandbox (spec M7) | **v3** (A1, before any external binary) |
 
 ### Medium severity
@@ -103,7 +103,7 @@ assumptions it was written against.
 | ID | Gap | Target |
 |---|---|---|
 | G-CORE-02 | OAM fields tagged "verify" are unresolved (spec 20.3) | v2 (RDAP/CT adapters provide real data) |
-| G-CORE-03 | An observation naming an existing `ent_` id before that entity is ingested fails, which breaks the 23.5 any-order convergence | **v1** (defer and resolve pending references) |
+| G-CORE-03 | An observation naming an existing `ent_` id before that entity is ingested fails, which breaks the 23.5 any-order convergence | **closed on feat_v1** (pending observations buffer (oam, Mem, pg); conformance pending_refs.json) |
 | G-CORE-04 | GCS BlobStore is a port only | v2 (with chunkstore; GCS adapter + fs adapter) |
 | G-CORE-05 | Postgres ingest runs at about 470 obs/s | v3 (C4) |
 | G-LANG-01 | `#[timeout]`/`#[retry]` do not reach effects inside called fns | v3 |
@@ -111,42 +111,42 @@ assumptions it was written against.
 | G-ENG-01 | No worker heartbeats or rendezvous claiming; `engine.workers` is unused | v3 (B1) |
 | G-ENG-02 | No tenant fairness rank, no per-tool-class semaphore, no submit back-pressure | v3 (B2) |
 | G-ENG-03 | No linearizability checker or Raft store (Raft is optional in the spec) | v3 (B3–B5) |
-| G-ENG-04 | Snapshots of finished runs are never deleted | **v1** |
-| G-ENG-05 | Graceful shutdown behaves like a crash, so every deploy records outcome-unknown effects for non-idempotent tools | **v1** (drain on SIGTERM) |
+| G-ENG-04 | Snapshots of finished runs are never deleted | **closed on feat_v1** (Store.DeleteSnapshots + maintenance; TestRegress_GENG04_*) |
+| G-ENG-05 | Graceful shutdown behaves like a crash, so every deploy records outcome-unknown effects for non-idempotent tools | **closed on feat_v1** (graceful drain, FF_DRAIN_TIMEOUT (8s on Cloud Run); TestRegress_G_ENG_05_*) |
 | G-ENG-06 | The simulator does not exercise lease renewal mid-advance, the watchdog interrupt or CancelGrace | v3 |
 | G-ENG-07 | The simulator uses one tenant, does not fault the Repo, and has no membership churn | v3 (with B1/B2) |
-| G-LIM-02 | `limiter.Failover` (23.8: local budgets for passive work when Redis is down) is wired nowhere | **v1** |
-| G-LIM-03 | Argon2id is at the 13.1 floor (~22 ms), against a 200–500 ms target | **v1** (production parameters by config, measured at startup) |
+| G-LIM-02 | `limiter.Failover` (23.8: local budgets for passive work when Redis is down) is wired nowhere | **closed on feat_v1** (FailoverLimiter wired in engine) |
+| G-LIM-03 | Argon2id is at the 13.1 floor (~22 ms), against a 200–500 ms target | **closed on feat_v1** (configurable + calibrated Argon2; TestRegress_G_LIM_03_*) |
 | G-LIM-04 | The breached-password check is a small built-in list | v3 |
-| G-LIM-05 | Approvals with free-form roles (`finance_ap`, `lead`) can never be decided: no group store | **v1** |
-| G-LIM-06 | Alert throttle and digest state is in memory, so alerts duplicate after a restart (inv_08 in production) | **v1** |
-| G-LIM-07 | The default abuse rule matches `auth.signup_throttled`, which nothing emits | **v1** |
+| G-LIM-05 | Approvals with free-form roles (`finance_ap`, `lead`) can never be decided: no group store | **closed on feat_v1** (role groups (0015) + groups claim; TestRegress_G_LIM_05_*) |
+| G-LIM-06 | Alert throttle and digest state is in memory, so alerts duplicate after a restart (inv_08 in production) | **closed on feat_v1** (persisted throttle/digest state; TestRegress_GLIM06_*) |
+| G-LIM-07 | The default abuse rule matches `auth.signup_throttled`, which nothing emits | **closed on feat_v1** (auth.signup_throttled emitted; TestRegress_G_LIM_07_*) |
 | G-VEC-01 | No SIMD kernels | v3 (C2) |
 | G-VEC-02 | No pgvector adapter; similarity is in-memory only | v3 |
 | G-VEC-03 | No recovery from disk for vector tombstones and the seq map | v3 |
 | G-VEC-04 | Merges rebuild synchronously under the write lock | v3 (C3) |
 | G-VEC-05 | No semantic embedder | v4 (M3) |
 | G-VEC-06 | CSR cold open is linear in file size (b_csr_03 unmet) | v3 (C5) |
-| G-SVC-02 | The identity outbox (auth.events) has no relay | **v1** (with G-SVC-01) |
-| G-SVC-04 | The notifier cannot resolve `sm://` secret references | **v1** (with G-SVC-03) |
+| G-SVC-02 | The identity outbox (auth.events) has no relay | **closed on feat_v1** (identity outbox relay; e2e auth.login alert) |
+| G-SVC-04 | The notifier cannot resolve `sm://` secret references | **closed on feat_v1** (platform.Secrets env/file/sm; TestRegress_G_SVC_04_*) |
 | G-SVC-06 | `dnsresolve` uses the runner's resolver, not one behind the proxy | v2 (§9, in progress) |
 | G-SVC-07 | HTTPS redirects inside TLS tunnels are re-checked only by the runner's own client | v2 (§9) |
-| G-SVC-08 | Notifier webhooks bypass the egress proxy (infra README says otherwise) | **v1** (route through the proxy's intel/allowlist path, or correct the doc; decide in the fix) |
+| G-SVC-08 | Notifier webhooks bypass the egress proxy (infra README says otherwise) | **closed on feat_v1** (webhooks via egress notify path + FF_NOTIFY_ALLOWLIST (Terraform)) |
 | G-SVC-09 | Only three real adapters; the proto ToolSpec has no retry fields | v2 (§8 tools) |
-| G-OPS-02 | RLS is ENABLEd but not FORCEd; child tables are uncovered; no BYPASSRLS scheduler role | **v1** |
-| G-OPS-03 | Retention jobs (10.7), the monthly partition job and run_events archival are not scheduled | **v1** (in-process maintenance locally; Cloud Scheduler on GCP) |
-| G-OPS-04 | The SLO alert metrics `ff_scope_check_seconds` and `ff_run_submit_to_start_seconds`, and the approval log metric, are never emitted | **v1** |
-| G-OPS-05 | CI never sets `FF_SIM_SEEDS` (20 per profile instead of 200 per PR and 10,000 nightly) | **v1** |
+| G-OPS-02 | RLS is ENABLEd but not FORCEd; child tables are uncovered; no BYPASSRLS scheduler role | **closed on feat_v1** (FORCE RLS everywhere, role-scoped policies; see migrations OPEN_QUESTIONS 12) |
+| G-OPS-03 | Retention jobs (10.7), the monthly partition job and run_events archival are not scheduled | **closed on feat_v1** (services/maintenance; TestRegress_GOPS03_*) |
+| G-OPS-04 | The SLO alert metrics `ff_scope_check_seconds` and `ff_run_submit_to_start_seconds`, and the approval log metric, are never emitted | **closed on feat_v1** (metrics + approval.changed log emitted; scraped in tests) |
+| G-OPS-05 | CI never sets `FF_SIM_SEEDS` (20 per profile instead of 200 per PR and 10,000 nightly) | **closed on feat_v1** (FF_SIM_SEEDS 200 (CI) / 10000 (nightly)) |
 | G-OPS-07 | No post-deploy stage (end-to-end, b_sys_*, chaos with the invariant checker) | v3 |
 | G-OPS-08 | M10 not reached: placeholder image digests, billing and domains; no HTMX console | v3 (console); lab env in **v1** |
 | G-OPS-09 | tool-runner runs as a Cloud Run service, not Jobs or GKE with gVisor | v3 (decide with A1) |
-| G-OPS-10 | Workflow schedules created at runtime cannot create Cloud Scheduler jobs | **v1** (in-process scheduler + one Cloud Scheduler tick job) |
-| G-OPS-14 | `FF_ARTIFACT_BUCKET` is set but unused: raw tool output and archives never reach object storage | **v1** (fs/GCS blob adapter for raw_ref and archives) |
+| G-OPS-10 | Workflow schedules created at runtime cannot create Cloud Scheduler jobs | **closed on feat_v1** (in-process scheduler + tick; /v1/schedules; TestRegress_GOPS10_*) |
+| G-OPS-14 | `FF_ARTIFACT_BUCKET` is set but unused: raw tool output and archives never reach object storage | **closed on feat_v1** (services/internal/blob mem/dir/gcs; TestRegress_GOPS14_*) |
 | G-OPS-15 | The v2 egress proxy (SOCKS5, DNS over UDP) cannot run on Cloud Run | v2 (lab VM / prod MIG in Terraform) |
 | G-OPS-16 | The v2 content service, content schema user and chunk-pack bucket lifecycle are not in Terraform | v2 |
-| G-OPS-19 | No low-cost `lab` GCP environment; current envs assume paid services (LB, Armor, NAT, Cloud SQL HA, Memorystore) | **v1** |
-| G-OPS-20 | No cost guardrails beyond budget alerts: no pause or destroy commands, no budget-triggered shutdown | **v1** |
-| G-OPS-21 | No local multi-process topology: everything local is one `flowforge dev` process; no compose profile running each service with the Postgres bus | **v1** |
+| G-OPS-19 | No low-cost `lab` GCP environment; current envs assume paid services (LB, Armor, NAT, Cloud SQL HA, Memorystore) | **closed on feat_v1** (infra/envs/lab) |
+| G-OPS-20 | No cost guardrails beyond budget alerts: no pause or destroy commands, no budget-triggered shutdown | **closed on feat_v1** (make gcp-lab-*, budget shutdown, cost policy, infra/COSTS.md) |
+| G-OPS-21 | No local multi-process topology: everything local is one `flowforge dev` process; no compose profile running each service with the Postgres bus | **closed on feat_v1** (deploy/compose.local.yml, make local-up; TestRegress_GOPS21_MultiProcessTopology) |
 | G-SPEC-01 | Benchmarks b_sys_02 and b_sys_03 do not exist | v3 |
 | G-SPEC-03 | CSR benchmarks stop at 100k nodes; cold open used 20 MB, not 1 GiB | v3 (C5) |
 | G-SPEC-04 | Vector benchmarks use 20k synthetic vectors; no SIFT1M or GIST1M, no recall-vs-QPS chart | v3 (C3) |
@@ -154,7 +154,7 @@ assumptions it was written against.
 | G-SPEC-07 | graphstore has no language-neutral conformance data or required ids in modules.toml | v2 |
 | G-SPEC-09 | The v2 packages are not in modules.toml | v2 (in progress) |
 | G-DOC-02, 04, 05, 06, 07, 10, 11 | V2_DESIGN and ROADMAP_V2 inconsistencies: track D stale vs the brief; §2 table missing dnsmsg/socks5/crawl/lab; §6.2 DDL predates §12; Part II records undefined; quotas, score weights and labelled set unquantified; KMS port; PORTING_RUST v2 formats | v2 |
-| G-DOC-15 | This register did not exist | **v1** (this file) |
+| G-DOC-15 | This register did not exist | **closed on feat_v1** (this file) |
 
 ### Low severity
 
@@ -162,7 +162,7 @@ assumptions it was written against.
 |---|---|---|
 | G-CORE-06 | Merge bookkeeping in hidden `ff:` tag rows instead of a column | v3 |
 | G-CORE-07 | Time-based ageing not applied | v3 (T3) |
-| G-LANG-03 | The builtin doc says `parse_int` accepts `_` separators; the VM rejects them | **v1** (fix doc) |
+| G-LANG-03 | The builtin doc says `parse_int` accepts `_` separators; the VM rejects them | **closed on feat_v1** (doc fixed) |
 | G-LANG-04 | `Format` drops comments | v3 |
 | G-LANG-05, G-LANG-06, G-VEC-08, G-DOC-14 | Spec text out of date or wrong: `is InScope(_)`, bytecode format additions, the 21.3 SCC listing, OPEN_QUESTIONS spec fixes | spec Part II |
 | G-LANG-08 | The Plan record layout is provisional | v4 (M1) |
@@ -172,13 +172,13 @@ assumptions it was written against.
 | G-VEC-07 | `Key.Model` should carry the model version | v3 |
 | G-SVC-10 | If-Match is read-then-write, not atomic | v3 |
 | G-OPS-06 | Mutation testing configured but never run | v3 |
-| G-SPEC-02 | b_lim_03 (Redis) has no baseline and was measured at 1 connection | **v1** |
+| G-SPEC-02 | b_lim_03 (Redis) has no baseline and was measured at 1 connection | **closed on feat_v1** (b_lim_03 at 1/8/64 connections; baseline committed) |
 | G-SPEC-05 | Other benchmarks scaled down (oam, eventstore, engine, sys_01) | v3 (C4) |
-| G-SPEC-08 | Conformance suite names differ from spec 19; no vector for lim_008 atomicity | **v1** (vector) + spec |
+| G-SPEC-08 | Conformance suite names differ from spec 19; no vector for lim_008 atomicity | **closed on feat_v1** (conformance/limiter/hierarchy/lim_008_atomic.json) |
 | G-SPEC-10 | agt_001–004 absent | v4 (M1) |
 | G-DOC-01, 03, 09 | ROADMAP_V2 intro overclaims; V2_DESIGN §6.2 heading; HTML/JS nesting bounds unpinned | v2 |
 | G-DOC-08 | The `catalog` change class needs advisories, which D4 defers | v3 |
-| G-DOC-12, 13 | Stale statements: archtest entries described as missing, puddle "not in go.mod", "every package has OPEN_QUESTIONS", D1 wording, auth README listing signup and reset as missing | **v1** |
+| G-DOC-12, 13 | Stale statements: archtest entries described as missing, puddle "not in go.mod", "every package has OPEN_QUESTIONS", D1 wording, auth README listing signup and reset as missing | **closed on feat_v1** (stale statements fixed) |
 
 ### Accept as-is (operator to confirm before v4)
 
@@ -201,15 +201,25 @@ assumptions it was written against.
 
 | ID | Gap | Target |
 |---|---|---|
-| G-ALG-01 | scope: make the naive matcher a selectable `Matcher` in non-test code; add `BenchmarkScopeAlgo` | v1 |
-| G-ALG-02 | csr: make the adjacency-list representation a selectable baseline for BFS and PageRank; add `BenchmarkCSRAlgo` | v1 |
-| G-ALG-03 | limiter and placement: rename and consolidate their comparative benchmarks into `BenchmarkLimAlgo` and `BenchmarkPlcAlgo` | v1 |
-| G-ALG-04 | vm/treewalk and eventstore: comparative benchmarks under the Algo naming | v1 |
+| G-ALG-01 | scope: make the naive matcher a selectable `Matcher` in non-test code; add `BenchmarkScopeAlgo` | **closed on feat_v1** (scope.WithMatcher + BenchmarkScopeAlgo) |
+| G-ALG-02 | csr: make the adjacency-list representation a selectable baseline for BFS and PageRank; add `BenchmarkCSRAlgo` | **closed on feat_v1** (csr.AdjacencyList + BenchmarkCSRAlgo) |
+| G-ALG-03 | limiter and placement: rename and consolidate their comparative benchmarks into `BenchmarkLimAlgo` and `BenchmarkPlcAlgo` | **closed on feat_v1** (limiter.New / placement.New + LimAlgo/PlcAlgo) |
+| G-ALG-04 | vm/treewalk and eventstore: comparative benchmarks under the Algo naming | **closed on feat_v1** (VMAlgo, ESAlgo) |
 | G-ALG-05 | vecindex: add HNSW as a candidate next to Vamana (recall against QPS) | v3 (C3) |
 | G-ALG-06 | chunkstore: fixed-size, Rabin CDC and whole-blob candidates with dedupe, speed and shift-resistance comparisons | v2 |
 | G-ALG-07 | v2 packages (diff, textindex, htmlparse, jsparse, sketch): pluggable candidates, benchmarks and ALGORITHMS.md entries | v2 (in progress) |
 | G-CMT-01 | Comment pass on every v1 package: correct, useful, spec-referencing comments, `PORT:` notes, no restating, no stale text | v1 (then merged forward) |
 | G-CMT-02 | Comment pass on every v2 package | v2 |
+
+### Found during the v1 fixes
+
+| ID | Gap | Target |
+|---|---|---|
+| G-SVC-13 | Cloud Run service-to-service calls had no TLS and no Google ID token | **closed on feat_v1** (platform.Dial TLS + ID token; TestRegress_G_SVC_13_CloudRunDial) |
+| G-SVC-14 | The egress proxy on Cloud Run (dev/prod) may not support CONNECT through Cloud Run's front end | v2 (move the proxy to a VM or MIG in dev/prod, as lab already does; G-OPS-15) |
+| G-SVC-15 | Notifier replicas cache alert state independently, so two replicas can each fire once per window | v3 |
+| G-SVC-16 | `raw_ref` stores the tool's observation rather than raw protocol bytes | v2 (chunkstore raw capture) |
+| G-SEC-01 | RLS gives real isolation only for graph and similarity; engine, scope, notifier and gateway stores do not set the tenant per transaction, so they use schema-wide role policies | v3 (per-transaction tenant in every store) |
 
 ## Doc and code conflicts to resolve with the fixes
 

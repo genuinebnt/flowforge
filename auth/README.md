@@ -43,8 +43,12 @@ and `BenchmarkAuth01_Hash` use the real 13.1 parameters.
 
 ## Limitations
 
-* No signup flow, invites, password reset or Google ID token / mTLS
-  alternatives (17); those are service compositions of these primitives.
+* The signup, e-mail verification, invite and password-reset flows are not
+  in this package: they are compositions of these primitives in the gateway's
+  identity module (`services/gateway/identity`, routes `/auth/signup`,
+  `/auth/password/forgot`, `/auth/password/reset`, `/auth/invites:accept`;
+  see `services/gateway/README.md`). Google ID token / mTLS service
+  authentication (17) is not implemented (G-LIM-09).
 * `KeyCache` serializes fetches under its lock; a slow key source delays
   verifications that need a refresh (at most once per minute).
 * Rehash-on-login failures are swallowed (retried next login); the result

@@ -55,3 +55,21 @@ full verification 30-45 ms.
   staleness and deletions take effect at the next compaction.
 * The `since` filter of `neighbors` (5.9) is not supported: snapshots do
   not carry `last_seen`.
+
+## Choosing an algorithm
+
+Decision point: the analytics layout (spec 21.2). `Representations()`
+lists `csr` (every analysis) and `adjacency_list` (`NewAdjacencyList`:
+BFS reachability and PageRank only, the textbook baseline).
+`TestCSRProp_AdjacencyListMatchesCSR` checks that both give the same
+reachable sets and PageRank scores (within 1e-12, same iteration count).
+
+| Representation | BFS, V=10k | BFS, V=100k | PageRank, V=10k | PageRank, V=100k |
+|---|---|---|---|---|
+| `csr` (default, 1 worker) | 0.79 ms | 14.2 ms | 2.7 ms | 27.7 ms |
+| `adjacency_list` | 2.9 ms | 64.6 ms | 37.3 ms | 1,155 ms |
+
+`go test -run '^$' -bench CSRAlgo ./csr` (E = 10V, skewed degrees, 3
+iterations). Measured 2026-11-13 on a 4-vCPU Linux container (Go 1.26, `GOMAXPROCS=4`); see `docs/ALGORITHMS.md` for the consolidated entry. CSR wins by 4-5x on BFS and 14-40x on PageRank (contiguous
+arrays, no map lookups); an adjacency list is only the better choice for a
+graph that changes edge by edge, which the snapshot design never needs.

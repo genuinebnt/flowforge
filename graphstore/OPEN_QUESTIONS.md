@@ -159,8 +159,7 @@ test that pins it. Merge semantics themselves are oam's (see
 
 ## For other owners
 
-30. **archtest.** `graphstore/pg` imports pgx, but `internal/archtest`
-    assigns every `graphstore/...` package to the pure layer 4 with no
-    third-party allowance, so `TestArchDeps` fails until an adapter entry
-    is added before the `graphstore` one:
-    `{prefix: "graphstore/pg", layer: layerAdapters, adapter: true, thirdParty: []string{"github.com/jackc/"}}`.
+30. **archtest.** `graphstore/pg` imports pgx; `internal/archtest` has the
+    adapter entry for it (`{prefix: "graphstore/pg", layer: layerAdapters,
+    adapter: true, thirdParty: []string{"github.com/jackc/"}}`, before the
+    `graphstore` one), so `TestArchDeps` passes.

@@ -103,7 +103,13 @@ spec's names are used as written:
     UUIDv7s. Endpoints in an envelope are local refs unless they are a
     well-formed `ent_` id (bare UUIDs are not accepted as ids); refs that
     look like ids are rejected. Observation ids are free-form (<= 256 bytes)
-    and deduplicated per tenant.
+    and deduplicated per tenant. A referenced id that is not in the graph
+    (for the observation's tenant and program: another tenant's or
+    program's id counts as missing, as Postgres row-level security would
+    see it) makes the observation wait instead of failing (G-CORE-03, spec
+    23.5 any-order convergence); see the README. Released observations are
+    applied in sorted (tenant, observation id) order so change events are
+    deterministic; change events are not part of the canonical state.
 21. **Strict decoding** matches keys exactly (Go's encoding/json would match
     `Name` to `name`), rejects duplicate keys and trailing data at every
     level, and accepts unknown OAM asset types as Opaque. Unknown relation

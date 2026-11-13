@@ -207,7 +207,13 @@ Runs are never archived to the in-memory blob store.
   ff_outbox_lag_seconds{topic}, ff_graph_ingest_seconds,
   ff_approvals_pending, plus ff_egress_refused_total{reason},
   ff_alerts_total, ff_deliveries_total, ff_bus_dead_letters_total,
-  ff_rpc_requests_total{method,code}, ff_rpc_duration_seconds.
+  ff_rpc_requests_total{method,code}, ff_rpc_duration_seconds, and the
+  SLO histograms of `infra/modules/monitoring`: ff_scope_check_seconds
+  (one scope Check, decision log write included) and
+  ff_run_submit_to_start_seconds (run_submitted to run_started event
+  times), plus ff_graph_pending_observations_total{event}. The engine logs
+  `msg="approval.changed"` with `status` (requested, approved, rejected,
+  expired, cancelled) and `role` for the ff_approvals log metric (G-OPS-04).
 
 ## Tests
 

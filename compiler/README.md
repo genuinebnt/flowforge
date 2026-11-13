@@ -182,3 +182,20 @@ more than the tree-walker's Go slices (see OPEN_QUESTIONS.md).
 ## Known limitations
 
 See `OPEN_QUESTIONS.md`.
+
+## Choosing an algorithm
+
+Decision point: how a compiled workflow is evaluated (spec 8). The
+bytecode VM (`vm`) runs workflows; the tree-walking interpreter
+(`compiler/treewalk`) is the reference the differential tests compare it
+with (values and effect traces).
+
+| Evaluator | fib30 | loop_arith | map_filter_1M | string_build |
+|---|---|---|---|---|
+| `vm` (default) | 141 ms | 118 ms | 305 ms | 7.9 ms |
+| `treewalk` | 325 ms | 122 ms | 182 ms | 8.1 ms |
+
+`go test -run '^$' -bench VMAlgo ./compiler` (3 iterations). Measured 2026-11-13 on a 4-vCPU Linux container (Go 1.26, `GOMAXPROCS=4`); see `docs/ALGORITHMS.md` for the consolidated entry. The VM
+wins on calls (2.3x on fib30) and allocates far less; it is slower on list
+building (map_filter_1M), the open b_vm_01 item G-LANG-02. The VM stays
+the default because only it supports fuel, snapshots and replay.

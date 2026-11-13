@@ -369,3 +369,15 @@ variable "budget_shutdown_threshold" {
   type        = number
   default     = 1.0
 }
+
+variable "drain_timeout" {
+  description = "Engine graceful drain on SIGTERM (Go duration). Must stay below Cloud Run's 10 s termination grace."
+  type        = string
+  default     = "8s"
+}
+
+variable "notify_allowlist" {
+  description = "HTTPS hosts the notifier may deliver webhooks and Slack messages to, through the egress proxy."
+  type        = list(string)
+  default     = ["hooks.slack.com"]
+}

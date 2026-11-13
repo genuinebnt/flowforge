@@ -65,7 +65,11 @@ target, the run must hold an allow decision for it under its current scope
 version, and an active or intrusive tool without a proof is refused. The
 call then acquires the spec 14.3 limiter keys (a denial waits
 `retry_after` without counting an attempt) and runs with
-`idempotency_key = hex(sha256(run_id/path))`.
+`idempotency_key = hex(sha256(run_id/path))`. A `Limiter` that also
+implements `WorkLimiter` is told whether the call is passive (effect class
+passive or read) or active (everything else), so during a limiter-store
+outage passive work can continue on local budgets while active work waits
+(spec 23.8; `services/engine.FailoverLimiter`, G-LIM-02).
 
 Retries: `delay(n) = min(max_ms, initial_ms * multiplier^(n-1))`, wait
 uniform in `[0, delay]` from the injected Rng, only for retryable errors
@@ -73,6 +77,11 @@ uniform in `[0, delay]` from the injected Rng, only for retryable errors
 and the retry time is before the run deadline. `#[retry]` on the
 statement (bytecode ANNOTS) overrides the tool's policy; `#[timeout]` on
 the statement bounds the effect (code `timeout`).
+
+Graceful shutdown: cancelling `Worker.Run`'s context drains instead of
+crashing (`Config.DrainTimeout`, default 20 s): no new claims, in-flight
+effects finish and are recorded, runs are released at their next effect
+boundary with `next_wake_at = now` (`OPEN_QUESTIONS.md` 21, G-ENG-05).
 
 Crash recovery (9.9): `effect_started` without a terminal event is
 ambiguous. Idempotent tools (spec flag, `#[idempotent]` site or workflow)

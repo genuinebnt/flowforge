@@ -21,7 +21,7 @@ and a Go runner (`migrations.Apply`).
 | `0014_notifier_delivery_target.sql` | `notifier.deliveries.target` (Slack channel override / e-mail recipient of an action) | 15.4 (addition) |
 | `0016_v1_bus.sql` | `bus.subscriptions`, `bus.messages`, `bus.deliveries`: the Postgres event bus (services/internal/bus `PgBus`) | 11.7, 23.7 (addition; G-SVC-01) |
 | `0017_v1_maintenance.sql` | `notifier.throttle_windows`, `notifier.digest_buffers` (durable alert state), `engine.schedules`, `engine.run_archives`; `engine.forbid_mutation` lets only the archival transaction delete one archived run's events | 15.3, 17, 10.7 (addition; G-LIM-06, G-OPS-10, G-OPS-03) |
-| `0018_v1_db_roles.sql` | per-service roles and grants, forced RLS on tenant, partition and child tables, `ff_sync_roles()` | 10.7, 17.2 (addition) |
+| `0018_v1_db_roles.sql` | per-service roles and grants, forced RLS on tenant, partition and child tables, `ff_sync_roles()`; `graph.pending_observations` (pending references, G-CORE-03) | 10.7, 17.2, 23.5 (addition) |
 
 ## Usage
 
@@ -43,7 +43,10 @@ with a new file.
 (`SELECT public.ff_sync_roles()`), then `RoleProblems`. It fails the job
 when a service role is a superuser, has `BYPASSRLS`, `CREATEROLE` or
 `CREATEDB`, owns a service table, or is still in `cloudsqlsuperuser`.
-`ff_sync_roles()` is idempotent and catalog-driven, so tables added by later
+`ff_sync_roles()` is idempotent and catalog-driven (`ff_secure_table` alters
+or creates a policy only when the catalog shows it missing, so a re-run on a
+secured database takes no table locks, and the partition helper secures
+only the partition it adds), so tables added by later
 migrations get the same treatment on the next run (`Apply` also re-runs it
 when a file after 0018 was applied).
 

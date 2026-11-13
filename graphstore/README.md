@@ -64,6 +64,26 @@ and 950-1,270 obs/s with 8 writers (p50 6-8 ms, p99 12-20 ms). The Postgres
 cost is round trips (five per observation) and server CPU shared with the
 benchmark.
 
+## Pending references (G-CORE-03)
+
+An observation whose edges or tags name an `ent_`/`edg_` id that the
+tenant and program do not have yet is not rejected: `IngestResult.Pending`
+is set (`Missing` lists the ids) and the observation is applied when the
+ingest that creates the last missing id runs (`IngestResult.Released`,
+whose change events are in `Changes`). Mem buffers in its `oam.Graph`s;
+Postgres keeps them in `graph.pending_observations` (migration 0018): the
+creating transaction marks the waiting rows ready while it holds the
+record locks, and re-ingests them after its commit, each in one
+transaction that deletes its row (a crash leaves ready rows for the next
+release in that program). Bounded per tenant (`Config.MaxPending`, default
+10,000, RESOURCE_EXHAUSTED beyond), expired by observed_at
+(`Config.PendingTTL`, default 7 days, on the next buffering ingest of the
+tenant, `IngestResult.Expired`). The graph service counts
+`ff_graph_pending_observations_total{event=buffered|released|expired|rejected}`.
+`storetest.Convergence` mixes id references into its random workload
+(`AddIDReferences`); `storetest.Atomic` and the `pending_refs.json`
+conformance case pin the behaviour for both stores.
+
 ## Known limitations
 
 * `Mem` keeps every observation id and change event forever, and scans
@@ -75,5 +95,7 @@ benchmark.
 * Search similarity is whole-text trigram similarity, so typo tolerance on
   long banners is weak; substring matches always hit.
 * GCS blob storage is not implemented (port only).
+* Pending references wait only for ids created in the same tenant and
+  program; an id of another program never resolves and expires.
 
 Ambiguities and the choices made are in `OPEN_QUESTIONS.md`.

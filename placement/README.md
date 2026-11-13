@@ -42,3 +42,20 @@ and consistent-hash owners and rankings for other implementations;
   (O(workers)); the bare `Ring.Owner` is the logarithmic path.
 * No gossip/SWIM membership (spec stretch goal); `HeartbeatMembership` is
   in-process. A Postgres or Redis heartbeat table is an adapter concern.
+
+## Choosing an algorithm
+
+Decision point: run ownership (spec 23.3). `placement.New(scheme, cfg)`
+selects it; `Schemes()` lists `rendezvous` (default) and `consistent`,
+and the golden conformance data runs through `New` for each.
+
+| Scheme | Owner, 10 workers | Owner, 100 | Owner, 1,000 | Ranking, 1,000 |
+|---|---|---|---|---|
+| `rendezvous` (default) | 145 ns | 758 ns | 7.6 µs | 195 µs |
+| `consistent` | 104 ns | 381 ns | 2.7 µs | 175 µs |
+
+`go test -run '^$' -bench PlcAlgo ./placement` (200 iterations). Measured 2026-11-13 on a 4-vCPU Linux container (Go 1.26, `GOMAXPROCS=4`); see `docs/ALGORITHMS.md` for the consolidated entry. The
+ring is faster per lookup at large memberships but holds a ring that is
+rebuilt on every membership change; rendezvous needs no state, and engine
+memberships are small (tens of workers), where the two are within 2x, so it
+stays the default.
