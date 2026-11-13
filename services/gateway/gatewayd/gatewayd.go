@@ -65,7 +65,11 @@ type Config struct {
 	IDTokens      bool
 	IDTokenSource platform.IDTokenSource
 	BackendTLS    *tls.Config
-	Backends      map[string]string
+	// Backends maps each of BackendVars to its address (host:port, or an
+	// https:// URL on Cloud Run); LoadConfig requires all of them.
+	Backends map[string]string
+	// ShutdownGrace bounds the graceful HTTP shutdown after the context is
+	// cancelled (LoadConfig: 15 s).
 	ShutdownGrace time.Duration
 
 	// Env is FF_ENV (dev or prod). prod refuses the in-memory key store.
@@ -136,6 +140,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		return c, errors.New("FF_JWT_ISSUER is required")
 	}
 	if v := strings.TrimSpace(getenv("FF_TRUST_XFF")); v != "" {
+		// "0" and "1" also parse as booleans; they are read as hop counts
+		// (the same values either way).
 		if b, err := strconv.ParseBool(v); err == nil && (v != "0" && v != "1") {
 			if b {
 				c.ForwardedHops = 1
@@ -426,8 +432,10 @@ func (g *Gateway) Close() {
 }
 
 // Serve dials the backends named in backends (keyed by BackendVars),
-// serves HTTP on cfg.Addr until ctx is cancelled, then shuts down
-// gracefully.
+// starts key maintenance and the auth.events outbox relay, and serves HTTP
+// on cfg.Addr until ctx is cancelled, then shuts down gracefully. If the
+// listener fails (the address is in use) it returns that error, after
+// stopping the relay and maintenance.
 func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 	cfg, log := g.cfg, g.log
 	ids := cfg.IDTokenSource
@@ -481,14 +489,19 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 		return err
 	}
 
-	go maintain(ctx, g.keys, g.store, g.clock, log)
+	// The background loops stop with ctx or when Serve returns early: a
+	// listener error used to leave the relay running and Serve waiting for
+	// it forever (GAPS G-SVC-24).
+	bg, stopBG := context.WithCancel(ctx)
+	defer stopBG()
+	go maintain(bg, g.keys, g.store, g.clock, log)
 	if err := g.openBus(ctx); err != nil {
 		return fmt.Errorf("bus: %w", err)
 	}
 	relay := &bus.Relay{Source: g.outbox, Bus: g.bus, Logger: log, Interval: 200 * time.Millisecond}
 	relayDone := make(chan struct{})
-	go func() { defer close(relayDone); _ = relay.Run(ctx) }()
-	defer func() { <-relayDone }()
+	go func() { defer close(relayDone); _ = relay.Run(bg) }()
+	defer func() { stopBG(); <-relayDone }()
 	hs := srv.HTTPServer(cfg.Addr)
 	errc := make(chan error, 1)
 	go func() {

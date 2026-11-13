@@ -163,7 +163,8 @@ func ApprovalProto(a engine.Approval) *pb.Approval {
 
 // DefaultToolRetry is the retry policy attached to every tool the engine
 // learns from ToolRunnerService.ListTools: the proto ToolSpec has no retry
-// field, so both sides use this constant and compute the same spec hash.
+// field (GAPS G-SVC-09), so both sides use this constant and compute the
+// same spec hash.
 var DefaultToolRetry = engine.RetryPolicy{
 	MaxAttempts: 3, RetryOn: []string{"unavailable", "deadline_exceeded"},
 	Backoff: engine.Backoff{InitialMs: 1000, MaxMs: 30000, Multiplier: 2, Jitter: "full"},

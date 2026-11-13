@@ -247,6 +247,9 @@ func (b *Bus) handle(ctx context.Context, topic, consumer string, h bus.Handler,
 		}
 		b.o.Logger.WarnContext(hctx, "bus.redeliver", "topic", topic, "consumer", consumer, "event_id", env.GetEventId(),
 			"attempt", attempt, "error", err.Error())
+		// Pub/Sub moves the message itself; the counter assumes the
+		// subscription's policy is MaxAttempts (true for subscriptions this
+		// adapter creates; keep Terraform's max_delivery_attempts equal).
 		if attempt >= b.o.MaxAttempts {
 			b.o.Metrics.BusDeadLetters.Inc(topic)
 		}

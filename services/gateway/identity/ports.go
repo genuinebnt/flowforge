@@ -26,7 +26,10 @@ type Revocations interface {
 	// DenyJTI revokes one access token until ttl elapses.
 	DenyJTI(ctx context.Context, jti string, ttl time.Duration) error
 	// SetSessionVersion caches the user's session_version (subject is the
-	// usr_... id) for ttl, which must outlive every access token.
+	// usr_... id, so the key is sv:usr_...) for ttl, which must outlive
+	// every access token (SessionVersionTTL). It never lowers a cached
+	// version: a writer holding a stale value cannot undo a bump that
+	// revoked tokens.
 	SetSessionVersion(ctx context.Context, subject string, v int64, ttl time.Duration) error
 }
 
@@ -317,6 +320,10 @@ func (r *RateLimiter) Allow(ctx context.Context, key string, l auth.Limit) (bool
 	}
 	if !res.Allowed {
 		retry := res.RetryAfter
+		// A denial with no wait (redislimiter reports whole milliseconds,
+		// so a shorter wait reads as 0) or one over a day (limiter.Never)
+		// still yields a positive, bounded Retry-After: the period, capped
+		// at a day.
 		if retry <= 0 || retry > 24*time.Hour {
 			retry = min(l.Per, 24*time.Hour)
 		}
@@ -325,8 +332,8 @@ func (r *RateLimiter) Allow(ctx context.Context, key string, l auth.Limit) (bool
 	return true, 0, nil
 }
 
-// RetrySeconds rounds a retry delay up to whole seconds (at least 1), for
-// Retry-After headers.
+// RetrySeconds rounds a retry delay up to whole seconds, clamped to
+// [1, 86400], for Retry-After headers.
 func RetrySeconds(d time.Duration) int {
 	if d <= 0 {
 		return 1
@@ -338,7 +345,8 @@ func RetrySeconds(d time.Duration) int {
 	return int(s)
 }
 
-// randomReader guards against a nil reader in configs.
+// randomReader reports an error for a config without a random source,
+// so a missing reader fails construction rather than the first token.
 func randomReader(r io.Reader) error {
 	if r == nil {
 		return fmt.Errorf("identity: no random reader")

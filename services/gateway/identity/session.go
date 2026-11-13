@@ -125,7 +125,10 @@ func (s *Service) finish(ctx context.Context, user User, m Membership, issued au
 
 // Refresh rotates a refresh token (spec 13.4) and mints a new access token
 // with the user's current role and session version. Presenting a rotated
-// token again revokes the whole family and bumps the session version.
+// token again revokes the whole family and bumps the session version. A
+// session whose membership is gone, whose user is no longer active or
+// whose tenant is disabled is revoked and fails like an invalid token, as
+// Login refuses those (GAPS G-SVC-21).
 func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
 	issued, err := s.refresher.Rotate(ctx, token)
 	switch {
@@ -142,12 +145,16 @@ func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
 		return Session{}, errInternal(err)
 	}
 	m, err := s.cfg.Store.GetMembership(ctx, row.TenantID, row.UserID)
-	if errors.Is(err, ErrNotFound) || user.Status != auth.UserActive {
+	t, terr := s.cfg.Store.GetTenant(ctx, row.TenantID)
+	if errors.Is(err, ErrNotFound) || errors.Is(terr, ErrNotFound) || user.Status != auth.UserActive || (terr == nil && !t.DisabledAt.IsZero()) {
 		_ = s.refresher.RevokeSession(ctx, row.FamilyID)
 		return Session{}, errUnauthenticated(core.ReasonTokenInvalid, "refresh token is invalid")
 	}
 	if err != nil {
 		return Session{}, errInternal(err)
+	}
+	if terr != nil {
+		return Session{}, errInternal(terr)
 	}
 	return s.finish(ctx, user, m, issued)
 }
@@ -184,6 +191,8 @@ func (s *Service) Logout(ctx context.Context, in LogoutInput, ci ClientInfo) err
 	if in.RefreshToken != "" && auth.IsRefreshTokenFormat(in.RefreshToken) {
 		row, err := s.cfg.Store.FindRefreshToken(ctx, auth.HashToken(in.RefreshToken))
 		switch {
+		// A refresh token of another user than the access token's is
+		// ignored: one user's logout cannot end someone else's session.
 		case err == nil && (user.IsZero() || row.UserID == user):
 			if err := s.cfg.Store.RevokeFamily(ctx, row.FamilyID, now); err != nil {
 				return errInternal(err)

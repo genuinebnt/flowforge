@@ -6,7 +6,8 @@
 //
 // The package composes the primitives of package auth with a repository
 // port (Store) and small ports for secrets (KeyStore), e-mail (EmailSender),
-// token revocation (Revocations) and rate limits (RateLimiter). In-memory
+// token revocation (Revocations) and rate limits (LimiterFactory, applied
+// per call by RateLimiter). In-memory
 // implementations of every port live here; Postgres and Redis adapters live
 // in the pgstore and redisstore sub-packages.
 //

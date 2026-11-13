@@ -19,6 +19,7 @@ package bus
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -181,7 +182,7 @@ func (b *Mem) deliver(ctx context.Context, s *subscription, env *pb.EventEnvelop
 	b.mu.Unlock()
 	b.Metrics.BusDeadLetters.Inc(s.topic)
 	b.Logger.ErrorContext(hctx, "bus.dead_letter", "topic", s.topic, "consumer", s.consumer, "event_id", env.GetEventId(), "error", err.Error())
-	if s.topic[len(s.topic)-min(len(s.topic), len(DeadLetterSuffix)):] != DeadLetterSuffix {
+	if !strings.HasSuffix(s.topic, DeadLetterSuffix) {
 		_ = b.Publish(ctx, s.topic+DeadLetterSuffix, env)
 	}
 }

@@ -37,6 +37,37 @@ func ServiceActor(name string) string { return "service:" + name }
 // IsService reports whether the actor is a service account.
 func (i Identity) IsService() bool { return strings.HasPrefix(i.Actor, "service:") }
 
+// OperatorActor is the actor of the platform operator, the only caller
+// that may set the global kill switch (spec 4.4 "global flag", 18.2
+// "global kill switch"; GAPS G-SEC-02). Spec 13.6 has no platform role
+// above a tenant's owner, so the grant is this exact service actor on the
+// nil tenant (Operator) rather than a new membership role: the gateway
+// mints only "user:" and "apikey:" actors for a real tenant, so no tenant
+// member, owner included, can present it. Only a process holding the
+// internal signing key can mint it.
+const OperatorActor = "service:operator"
+
+// Operator returns the platform operator's identity: OperatorActor on the
+// nil tenant. Its role is viewer because the grant is the actor, not the
+// role, and the nil tenant owns no data; the token claims need a valid
+// role (auth.Minter refuses others).
+func Operator() Identity {
+	return Identity{Tenant: core.Nil, Actor: OperatorActor, Role: auth.RoleViewer}
+}
+
+// IsOperator reports whether i is the platform operator: OperatorActor on
+// the nil tenant. The same actor with a real tenant is an ordinary service
+// identity and is not the operator, so a service acting for a tenant can
+// never reach a platform-wide control by accident.
+func (i Identity) IsOperator() bool { return i.Actor == OperatorActor && i.Tenant.IsZero() }
+
+// IsMember reports whether the actor is a tenant member acting directly: a
+// user or one of the tenant's API keys (spec 13.6 applies to these), not a
+// service, schedule or the operator.
+func (i Identity) IsMember() bool {
+	return strings.HasPrefix(i.Actor, "user:") || strings.HasPrefix(i.Actor, "apikey:")
+}
+
 // AtLeast reports whether the identity's role is r or a more privileged
 // built-in role (viewer < analyst < approver < admin < owner).
 func (i Identity) AtLeast(r auth.Role) bool { return roleRank(i.Role) >= roleRank(r) }

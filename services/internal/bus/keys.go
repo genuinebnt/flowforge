@@ -39,10 +39,11 @@ func OrderingKey(topic string, env *pb.EventEnvelope) string {
 	return ""
 }
 
-// Attributes are the message attributes of spec 11.7: tenant_id, type and
-// event_id on every topic, traceparent when the envelope carries one, plus
-// role and status on approval.events. Pub/Sub filters and dead-letter
-// tooling read them without decoding the envelope.
+// Attributes are the message attributes: those of spec 11.7 (tenant_id and
+// type; role and status on approval.events) plus event_id on every topic
+// and traceparent when the envelope carries one, which this implementation
+// adds. Pub/Sub filters and dead-letter tooling read them without decoding
+// the envelope.
 func Attributes(topic string, env *pb.EventEnvelope) map[string]string {
 	a := map[string]string{"tenant_id": env.GetTenantId(), "type": env.GetType(), "event_id": env.GetEventId()}
 	if tp := env.GetTraceparent(); tp != "" {

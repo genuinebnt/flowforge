@@ -110,8 +110,12 @@ func (o *MemOutbox) Claim(ctx context.Context, limit int, publish func(context.C
 
 // PgOutbox is an outbox table with the shape of migrations 0004/0008
 // (id, event_id, topic, ordering_key, payload, created_at, published_at),
-// for example engine.outbox or scope.outbox. Concurrent relays skip each
-// other's rows (FOR UPDATE SKIP LOCKED).
+// for example engine.outbox or scope.outbox. One relay claims a table at a
+// time (a transaction-scoped advisory lock on the table name; the others
+// claim nothing until it commits), so rows are published in id order and
+// two events of one ordering key never overtake each other (spec 11.7;
+// GAPS G-SVC-25). Table is interpolated into SQL and must be a trusted
+// identifier.
 type PgOutbox struct {
 	DB    DB
 	Table string
@@ -124,8 +128,18 @@ func (o PgOutbox) Claim(ctx context.Context, limit int, publish func(context.Con
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	// Replicas each run a relay. With row locks alone (SKIP LOCKED) a
+	// second relay took the rows after the first one's batch and could
+	// publish them first, reordering a key across the two batches.
+	var mine bool
+	if err := tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))`, "ff_outbox:"+o.Table).Scan(&mine); err != nil {
+		return 0, err
+	}
+	if !mine {
+		return 0, nil
+	}
 	rows, err := tx.Query(ctx, `SELECT id, event_id::text, topic, coalesce(ordering_key, ''), payload::text, created_at FROM `+o.Table+
-		` WHERE published_at IS NULL ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED`, limit)
+		` WHERE published_at IS NULL ORDER BY id LIMIT $1 FOR UPDATE`, limit)
 	if err != nil {
 		return 0, err
 	}
@@ -199,7 +213,9 @@ func (r *Relay) RunOnce(ctx context.Context) (int, error) {
 	})
 }
 
-// Run polls until ctx is done.
+// Run publishes until ctx is done: batches back to back while there are
+// rows, then one poll every Interval (also after an error, which is
+// logged).
 func (r *Relay) Run(ctx context.Context) error {
 	if r.Logger == nil {
 		r.Logger = platform.DiscardLogger()

@@ -170,6 +170,8 @@ type Store interface {
 	GetUser(ctx context.Context, id core.UUID) (User, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	SetPasswordHash(ctx context.Context, id core.UUID, hash string) error
+	// ActivateUser moves a pending user to active (a disabled user stays
+	// disabled) and sets email_verified_at to at unless it is already set.
 	ActivateUser(ctx context.Context, id core.UUID, at time.Time) error
 	SetLastLogin(ctx context.Context, id core.UUID, at time.Time) error
 	// BumpSessionVersion increments users.session_version and returns it.
@@ -233,10 +235,16 @@ type Store interface {
 	AppendOutbox(ctx context.Context, e OutboxEvent) error
 
 	// IdemBegin inserts an in-flight row for (tenant, key) unless one
-	// exists. It returns the existing row and false, or rec and true. An
-	// in-flight row older than staleAfter is replaced (its request died).
+	// exists. It returns the existing row and false, or rec and true. A
+	// row past its expires_at, and an in-flight row older than staleAfter
+	// (its request died), is replaced.
 	IdemBegin(ctx context.Context, rec IdemRecord, staleAfter time.Duration) (IdemRecord, bool, error)
+	// IdemComplete stores the response of the in-flight row; ErrNotFound
+	// when the row is gone.
 	IdemComplete(ctx context.Context, tenant core.UUID, key string, status int, body []byte, contentType string, at time.Time) error
+	// IdemAbandon deletes the row if it is still in flight, so the key can
+	// be retried (the gateway abandons after a 5xx); a completed row, for
+	// example one a later request took over and finished, is kept.
 	IdemAbandon(ctx context.Context, tenant core.UUID, key string) error
 	// IdemPurge deletes rows past expires_at.
 	IdemPurge(ctx context.Context, now time.Time) (int, error)

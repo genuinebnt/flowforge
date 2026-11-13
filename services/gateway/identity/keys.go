@@ -23,9 +23,12 @@ type KeyManagerConfig struct {
 	Store   Store
 	Secrets KeyStore
 	Clock   core.Clock
-	IDs     core.Rng
-	Random  io.Reader // key seeds
-	Issuer  string    // iss of every token minted
+	// IDs draws token ids (jti) and kid suffixes under the manager's own
+	// lock; an Rng shared with another user (Config.IDs) must itself be
+	// safe for concurrent use, such as core.SystemRng.
+	IDs    core.Rng
+	Random io.Reader // key seeds
+	Issuer string    // iss of every token minted
 	// AccessTTL overrides the access-token lifetime (default 10 minutes).
 	AccessTTL time.Duration
 	// RotationPeriod overrides RotationPeriod.
@@ -33,15 +36,19 @@ type KeyManagerConfig struct {
 }
 
 // ErrOperatorRotation is returned by KeyManager.Rotate when the key store
-// is operator-provisioned: rotate by provisioning a new kid (a new
-// ff-signing-key-<kid> secret and FF_SIGNING_KID) and restarting.
+// is operator-provisioned: rotate by provisioning a new kid (its seed in
+// FF_SIGNING_KEY_<KID> or the ff-signing-key-<kid> secret, and
+// FF_SIGNING_KID naming it) and restarting.
 var ErrOperatorRotation = errors.New("identity: signing keys are operator-provisioned; rotate by provisioning a new FF_SIGNING_KID")
 
 // KeyManager owns the gateway's signing keys (spec 13.7): it loads
-// identity.signing_keys, makes sure exactly one active key whose private
-// half it can read exists, rotates keys (active -> retiring -> retired)
-// and exposes the current Minter, the verifying key set and the JWKS.
-// It implements auth.KeyResolver.
+// identity.signing_keys, signs with the newest active key whose private
+// half it can read (the operator's key when the KeyStore is
+// ProvisionedKeys; otherwise it rotates to a new key when there is none),
+// rotates keys (active -> retiring -> retired) and exposes the current
+// Minter, the verifying key set and the JWKS. Reads are lock-free (an
+// atomic snapshot); Reload, Rotate and Maintain are serialized. It
+// implements auth.KeyResolver.
 type KeyManager struct {
 	cfg  KeyManagerConfig
 	mu   sync.Mutex // serializes Reload/Rotate/Maintain
@@ -81,8 +88,9 @@ func NewKeyManager(ctx context.Context, cfg KeyManagerConfig) (*KeyManager, erro
 }
 
 // Reload re-reads identity.signing_keys (other gateway instances may have
-// rotated). If no active key with a readable private half exists, it
-// rotates to a new one.
+// rotated). With ProvisionedKeys it installs the operator's key; otherwise,
+// if no active key with a readable private half exists, it rotates to a
+// new one.
 func (m *KeyManager) Reload(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -212,7 +220,9 @@ func (m *KeyManager) install(recs []SigningKeyRecord, active SigningKeyRecord, s
 }
 
 // Rotate makes a new active key; the previous active key becomes retiring
-// until every token it signed has expired. The new seed is written through
+// until every token it signed has expired (retire_at = now + access-token
+// lifetime + clock skew, the longest-lived token it signs). The new seed is
+// written through
 // the KeyStore (Dir, SecretManager), so other instances read it after
 // their next Reload. With an operator-provisioned store it returns
 // ErrOperatorRotation.

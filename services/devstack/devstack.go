@@ -108,8 +108,10 @@ type Stack struct {
 	Similarity simv1.SimilarityClient
 	// Conns are the client connections by service name.
 	Conns map[string]*grpc.ClientConn
-	// Keys signs and verifies internal tokens; Tokens mints them (the
-	// gateway mints with the same key in the dev stack).
+	// Keys holds the stack's ephemeral dev key: services sign with it and
+	// verify it plus Options.TrustKeys (in flowforge dev the gateway signs
+	// with its own key manager, which TrustKeys adds). Tokens mints with
+	// it; Verifier checks both.
 	Keys     platform.Keys
 	Tokens   *platform.MinterTokens
 	Verifier *auth.Verifier
@@ -133,7 +135,8 @@ func (s *Stack) As(ctx context.Context, tenant core.UUID, actor string, role aut
 	return platform.WithIdentity(ctx, platform.Identity{Tenant: tenant, Actor: actor, Role: role})
 }
 
-// Close stops every service and waits for them.
+// Close stops every service, waits for them, closes the clients and the
+// database pool, and returns the services' serve errors joined.
 func (s *Stack) Close() error {
 	s.cancel()
 	s.wg.Wait()
@@ -293,7 +296,8 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	return st, nil
 }
 
-// anyResolver resolves a kid with the first resolver that knows it.
+// anyResolver resolves a kid with the first resolver that knows it; the
+// error is the last resolver's.
 type anyResolver []auth.KeyResolver
 
 // ResolveKey implements auth.KeyResolver.

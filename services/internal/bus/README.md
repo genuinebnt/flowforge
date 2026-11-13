@@ -76,7 +76,12 @@ Known differences, pinned by the suite or documented here:
 `Relay` publishes an `OutboxSource` (`PgOutbox` over engine.outbox,
 scope.outbox, identity.outbox; `MemOutbox`) through whichever bus is
 configured. The gateway relays identity.outbox (auth.events, G-SVC-02) the
-same way, from Postgres or from its in-memory identity store.
+same way, from Postgres or from its in-memory identity store. Every replica
+runs a relay, but only one claims a table at a time (`PgOutbox.Claim`
+takes a transaction-scoped advisory lock on the table name; the others
+claim nothing until it commits), so rows leave in id order and events of
+one ordering key never overtake each other across batches (G-SVC-25;
+graphstore/pg.Relay does the same for graph.change_events).
 
 ## Comparative benchmark: `BenchmarkBusAlgo/<adapter>/<shape>`
 

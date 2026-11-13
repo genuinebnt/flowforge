@@ -1,6 +1,7 @@
 // Package redisstore implements the identity revocation cache (spec 13.3:
-// deny:jti:<jti> and sv:<user_id>) and the login lockout state over Redis,
-// so every gateway instance shares them.
+// deny:jti:<jti> and sv:<user_id>, where the user id is the usr_... public
+// id) and the login lockout state (spec 13.1 cool-down) over Redis, so
+// every gateway instance shares them.
 package redisstore
 
 import (
@@ -63,10 +64,13 @@ func (r *Revocations) SetSessionVersion(ctx context.Context, subject string, v i
 }
 
 // Lockouts is auth.LockoutStore over Redis: a hash lock:<account key> with
-// fields failures and until (Unix ms).
+// fields failures and until (Unix ms). RecordFailure is one Lua script, so
+// concurrent failures from several gateway instances count exactly.
 type Lockouts struct {
 	c redis.Cmdable
-	// Window bounds how long failure counts are kept (default 24h).
+	// Window is how long a key lives after its latest failure (default
+	// 24h, never shorter than the cool-down): failures further apart than
+	// that start the count again.
 	Window time.Duration
 }
 
@@ -93,6 +97,9 @@ func (l *Lockouts) Get(ctx context.Context, key string) (auth.Lockout, error) {
 	return out, nil
 }
 
+// recordFailure increments failures; at ARGV[1] (the threshold) it resets
+// the count and sets until to ARGV[2], returning 0 for "locked". Every
+// call extends the key's life to ARGV[3] ms.
 var recordFailure = redis.NewScript(`
 local n = redis.call('HINCRBY', KEYS[1], 'failures', 1)
 if n >= tonumber(ARGV[1]) then

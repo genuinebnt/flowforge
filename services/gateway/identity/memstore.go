@@ -13,10 +13,11 @@ import (
 	"github.com/genuinebnt/flowforge/core"
 )
 
-// MemStore is the in-memory Store. Operations are serialized by one mutex;
-// WithTx holds it for the whole callback, so a transaction is isolated but
-// not rolled back on error (callers validate before writing). It is safe
-// for concurrent use.
+// MemStore is the in-memory Store (tests, the dev stack). Operations are
+// serialized by one mutex; WithTx holds it for the whole callback, so a
+// transaction is isolated but not rolled back on error: writes made before
+// the failing step stay (for example the tenant of a signup that lost the
+// race for its e-mail address). It is safe for concurrent use.
 type MemStore struct {
 	mu   *sync.Mutex
 	d    *memData
@@ -117,6 +118,7 @@ func (s *MemStore) GetTenant(_ context.Context, id core.UUID) (Tenant, error) {
 // CreateUser implements Store.
 func (s *MemStore) CreateUser(_ context.Context, u User) error {
 	defer s.lock()()
+	// users.email is citext: uniqueness and lookup ignore case.
 	e := strings.ToLower(u.Email)
 	if _, ok := s.d.byEmail[e]; ok {
 		return conflict("user email")
@@ -634,7 +636,10 @@ func (s *MemStore) IdemComplete(_ context.Context, tenant core.UUID, key string,
 // IdemAbandon implements Store.
 func (s *MemStore) IdemAbandon(_ context.Context, tenant core.UUID, key string) error {
 	defer s.lock()()
-	delete(s.d.idem, idemKey{tenant, key})
+	k := idemKey{tenant, key}
+	if r, ok := s.d.idem[k]; ok && r.CompletedAt.IsZero() {
+		delete(s.d.idem, k)
+	}
 	return nil
 }
 

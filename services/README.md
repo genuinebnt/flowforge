@@ -278,5 +278,7 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
   bodies, DNS packets) yet.
 * Services listen in h2c and rely on Cloud Run's front end for TLS
   (callers dial `https://` addresses with TLS); no authorization
-  beyond tenant isolation, the global kill switch (owner) and similarity's
-  include_out_of_scope (analyst+): permissions are the gateway's job.
+  beyond tenant isolation, the kill switches (global: the platform
+  operator, `platform.Operator()`; tenant and program: members with
+  programs:admin; G-SEC-02) and similarity's include_out_of_scope
+  (analyst+): other permissions are the gateway's job.

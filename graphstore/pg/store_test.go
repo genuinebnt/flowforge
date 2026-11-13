@@ -318,6 +318,62 @@ func checkRelay(t *testing.T, pool *pgxpool.Pool) {
 	}
 }
 
+// TestRegress_G_SVC_25_GraphRelaysKeepOrder: two graph replicas' relays
+// claimed graph.change_events with FOR UPDATE SKIP LOCKED, so while one
+// was publishing a batch the other took the next rows and could publish a
+// program's later change first. A second relay now publishes nothing until
+// the first commits.
+func TestRegress_G_SVC_25_GraphRelaysKeepOrder(t *testing.T) {
+	pool, _ := freshPool(t)
+	ctx := context.Background()
+	s := pg.New(pool, pg.Config{})
+	tenant, prog := storetest.TenantID("relay2"), storetest.ProgramID("relay2")
+	for i := range 2 {
+		o := oam.Observation{ObservationID: fmt.Sprint("relay2-", i), Tool: oam.Tool{Name: "dnsx"}, ObservedAt: storetest.T0, Confidence: 0.9,
+			Entities: []oam.ObservedEntity{{Ref: "a", Asset: oam.FQDN{Name: fmt.Sprintf("o%d.acme.com", i)}}}}
+		if _, err := s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var mu sync.Mutex
+	var seqs []int64
+	record := func(evs []graphstore.ChangeEvent) {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, ev := range evs {
+			seqs = append(seqs, ev.Seq)
+		}
+	}
+	inA, release := make(chan struct{}), make(chan struct{})
+	a := &pg.Relay{DB: pool, BatchSize: 1, Publish: func(_ context.Context, evs []graphstore.ChangeEvent) error {
+		close(inA)
+		<-release
+		record(evs)
+		return nil
+	}}
+	b := &pg.Relay{DB: pool, BatchSize: 10, Publish: func(_ context.Context, evs []graphstore.ChangeEvent) error {
+		record(evs)
+		return nil
+	}}
+	doneA := make(chan error, 1)
+	go func() { _, err := a.RunOnce(ctx); doneA <- err }()
+	<-inA
+	n, err := b.RunOnce(ctx)
+	close(release)
+	if err := <-doneA; err != nil {
+		t.Fatal(err)
+	}
+	if err != nil || n != 0 {
+		t.Fatalf("a second relay published %d events while the first was publishing (%v)", n, err)
+	}
+	if n, err := b.RunOnce(ctx); err != nil || n != 1 {
+		t.Fatalf("after the first relay: %d (%v)", n, err)
+	}
+	if len(seqs) != 2 || seqs[0] >= seqs[1] {
+		t.Fatalf("publication order %v", seqs)
+	}
+}
+
 // TestRegress_G_OPS_02_GraphAsServiceRole runs the store suites as
 // ff_graph, the non-owner service role of migration 0018, with row-level
 // security forced on every graph table: graphstore/pg must set

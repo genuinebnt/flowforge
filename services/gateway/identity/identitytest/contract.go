@@ -306,6 +306,16 @@ func RunStoreContract(t *testing.T, newStore func(t *testing.T) identity.Store) 
 		if err := st.IdemAbandon(ctx, tid, "stale"); err != nil {
 			t.Fatal(err)
 		}
+		if _, fresh, _ := st.IdemBegin(ctx, stale, time.Minute); !fresh {
+			t.Fatal("abandoned in-flight row not removed")
+		}
+		// Abandon keeps a completed row (G-SVC-22): "k" was completed above.
+		if err := st.IdemAbandon(ctx, tid, "k"); err != nil {
+			t.Fatal(err)
+		}
+		if got, fresh, _ := st.IdemBegin(ctx, rec, time.Minute); fresh || got.Status != 202 {
+			t.Fatalf("abandon removed a completed row: fresh=%v %+v", fresh, got)
+		}
 		n, err := st.IdemPurge(ctx, now.Add(8*24*time.Hour))
 		if err != nil || n < 2 {
 			t.Fatalf("purge: %d %v", n, err)

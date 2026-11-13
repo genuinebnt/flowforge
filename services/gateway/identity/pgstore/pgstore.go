@@ -1,9 +1,11 @@
 // Package pgstore implements identity.Store over the identity schema in
-// PostgreSQL (migrations 0002, 0008 and 0010) with pgx.
+// PostgreSQL (spec 10.2; migrations 0002, 0008 outbox, 0010 idempotency,
+// 0015 role groups) with pgx.
 //
-// The gateway's identity role must bypass row-level security (migration
-// 0007): logins, API-key lookups and refresh rotation find rows before the
-// tenant is known.
+// Logins, API-key lookups and refresh rotation find rows before the tenant
+// is known, so the store sets no app.tenant_id: as ff_gateway (migration
+// 0018) it reads through the role's cross-tenant svc_ff_gateway policy
+// under forced row-level security (GAPS G-OPS-01, G-OPS-02, G-SEC-01).
 package pgstore
 
 import (
@@ -267,29 +269,53 @@ func (s *Store) SetMemberRole(ctx context.Context, tenant, user core.UUID, role 
 	return s.exec1(ctx, "membership", `UPDATE identity.memberships SET role = $3 WHERE tenant_id = $1 AND user_id = $2`, tenant, user, string(role))
 }
 
-// AddRoleGroupMember implements identity.Store. The group row is created
-// in the same statement as the member row, so the FK of migration 0015
-// never sees a member without its group.
+// AddRoleGroupMember implements identity.Store. The group row is created,
+// or locked by a no-op ON CONFLICT update, before the member row is
+// inserted (the insert reads the CTE's row), so an add and a concurrent
+// RemoveRoleGroupMember of the same group serialize on that row: an add
+// that waits for a remove that deleted the group re-inserts it (ON
+// CONFLICT retries after a concurrent delete), and a remove that waits for
+// an add sees the new member and keeps the group (GAPS G-SVC-23).
 func (s *Store) AddRoleGroupMember(ctx context.Context, tenant core.UUID, name string, user core.UUID, at time.Time) error {
 	if _, err := s.GetMembership(ctx, tenant, user); err != nil {
 		return err
 	}
-	_, err := s.q.Exec(ctx, `WITH g AS (INSERT INTO identity.role_groups (tenant_id, name, created_at) VALUES ($1, $2, $4) ON CONFLICT DO NOTHING)
-INSERT INTO identity.role_group_members (tenant_id, name, user_id, created_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, tenant, name, user, at)
+	_, err := s.q.Exec(ctx, `WITH g AS (INSERT INTO identity.role_groups (tenant_id, name, created_at) VALUES ($1, $2, $4)
+  ON CONFLICT (tenant_id, name) DO UPDATE SET created_at = identity.role_groups.created_at RETURNING tenant_id, name)
+INSERT INTO identity.role_group_members (tenant_id, name, user_id, created_at) SELECT g.tenant_id, g.name, $3, $4 FROM g
+ON CONFLICT DO NOTHING`, tenant, name, user, at)
 	return mapErr(err)
 }
 
-// RemoveRoleGroupMember implements identity.Store. The group is deleted in
-// the same statement when user was its last member. A concurrent add of
-// another user to the same group then fails its FK check (the delete
-// holds the group row) instead of leaving a member without a group.
+// RemoveRoleGroupMember implements identity.Store. It locks the group row
+// first, then deletes the member and, in a later statement (so its
+// snapshot includes members whose adds committed while it waited for the
+// lock), the group if no member is left. Deleting the group and the member
+// in one statement let a concurrent add commit its member after that
+// statement's snapshot: the group delete then cascaded to the new member
+// (GAPS G-SVC-23).
 func (s *Store) RemoveRoleGroupMember(ctx context.Context, tenant core.UUID, name string, user core.UUID) (bool, error) {
-	var n int
-	err := s.q.QueryRow(ctx, `WITH d AS (DELETE FROM identity.role_group_members WHERE tenant_id = $1 AND name = $2 AND user_id = $3 RETURNING 1),
-g AS (DELETE FROM identity.role_groups r WHERE r.tenant_id = $1 AND r.name = $2 AND EXISTS (SELECT 1 FROM d)
-      AND NOT EXISTS (SELECT 1 FROM identity.role_group_members m WHERE m.tenant_id = $1 AND m.name = $2 AND m.user_id <> $3))
-SELECT count(*) FROM d`, tenant, name, user).Scan(&n)
-	return n > 0, mapErr(err)
+	removed := false
+	err := s.WithTx(ctx, func(st identity.Store) error {
+		tx := st.(*Store)
+		var one int
+		err := tx.q.QueryRow(ctx, `SELECT 1 FROM identity.role_groups WHERE tenant_id = $1 AND name = $2 FOR UPDATE`, tenant, name).Scan(&one)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return mapErr(err)
+		}
+		tag, err := tx.q.Exec(ctx, `DELETE FROM identity.role_group_members WHERE tenant_id = $1 AND name = $2 AND user_id = $3`, tenant, name, user)
+		if err != nil || tag.RowsAffected() == 0 {
+			return mapErr(err)
+		}
+		removed = true
+		_, err = tx.q.Exec(ctx, `DELETE FROM identity.role_groups r WHERE r.tenant_id = $1 AND r.name = $2
+  AND NOT EXISTS (SELECT 1 FROM identity.role_group_members m WHERE m.tenant_id = $1 AND m.name = $2)`, tenant, name)
+		return mapErr(err)
+	})
+	return removed, err
 }
 
 // ListRoleGroups implements identity.Store.
