@@ -1,0 +1,116 @@
+[
+  {
+    "name": "html",
+    "version": 1,
+    "rules": [
+      "parse:whatwg-html13.2 (htmlparse); valid utf-8 parsed as is, other bytes decoded (bom, transport charset, meta prescan)",
+      "emit:one line per start tag, end tag and text run; no indentation; void elements without end tag",
+      "fixpoint:output re-parsed and re-emitted until stable (at most 4 rounds; trees that do not round trip)",
+      "drop:comments,processing-instructions",
+      "text:merge adjacent runs across dropped nodes; collapse ascii whitespace; trim; drop empty",
+      "text:escape \u0026 \u003c \u003e; attributes: escape \u0026 \"",
+      "attrs:sort by qualified name (xlink:/xml:/xmlns: prefixes)",
+      "attr:class:sort and dedupe tokens",
+      "doctype:keep name and ids; quirks without ids gets an extra token to stay quirks",
+      "derived:inline script → #script-n (js, json for json/ld+json/importmap/speculationrules, text otherwise); body emptied",
+      "derived:inline style → #style-n (css); body emptied",
+      "derived:on* attributes and javascript: urls → #handlers (js); value → handler placeholder",
+      "element:plaintext → pre data-ff-plaintext",
+      "mask:nonce attribute → nonce",
+      "mask:input[name in csrf names].value, meta[name in csrf names].content → csrf",
+      "mask:input[type=hidden].value unless short numeric/boolean → hidden_value",
+      "mask:integrity attribute → build_hash",
+      "mask:url attributes (src href action data poster formaction srcset) → cache_bust query values, build_hash asset names",
+      "mask:data-* values that are timestamps/uuids/build ids, or whose name says time/nonce/token/request-id → timestamp/nonce/random_id",
+      "mask:text iso-8601 date-times → timestamp"
+    ],
+    "rule_table_sha256": "db7c52c2f2bbe0510f992a29792ed3770273f12223f7e60bfa65385988928f21"
+  },
+  {
+    "name": "js",
+    "version": 1,
+    "rules": [
+      "parse:ecma-262 15th ed. (jsparse) tolerant; script goal, module goal when only it parses cleanly",
+      "emit:jsparse readable printer (one statement per line, canonical spacing, double quotes, comments dropped); 'directives' re-quoted with \"",
+      "fallback:on any diagnostic, line normalization (leading space dropped, inner and trailing space runs → one space, lf); grade partial",
+      "mask:string literals (not keys, not directives, no '/') that are timestamps/uuids/build ids → class placeholder string",
+      "mask:iso-8601 date-times inside string and template literals → timestamp",
+      "mask:13-digit epoch-millisecond numeric literals → timestamp identifier"
+    ],
+    "rule_table_sha256": "7965e46bd07aeb144eb81f5767bc2cf1e4594b4d5748912f8ba3756a3da28ec8"
+  },
+  {
+    "name": "css",
+    "version": 1,
+    "rules": [
+      "tokenize:css-syntax-3 §4 (cssparse); tokens re-emitted from their source text",
+      "drop:comments (a comment separates like white space)",
+      "space:white-space runs → one space; none next to { } ; , ) or after ( : and function tokens; none around ! and around \u003e + ~ outside parentheses; none before a declaration colon",
+      "lines:newline after { ; } and before }; a ; directly before } or ; is dropped",
+      "string:re-quoted with \" when the value needs no escape",
+      "url:url(value) without inner white space when the value needs no escape",
+      "invalid:strings cut by eof are closed; an escape cut by eof is dropped; a final hex escape gets its space; bad-string and bad-url tokens become fixed placeholders",
+      "mask:url values → cache_bust query values, build_hash asset names"
+    ],
+    "rule_table_sha256": "c75df612bd0d5c448d749a2cbe7e7c0869f1c15a9d192311de08944d4cf5476e"
+  },
+  {
+    "name": "json",
+    "version": 1,
+    "rules": [
+      "parse:rfc-8259 (diff.ParseJSON: numbers verbatim, duplicate keys rejected); an xssi )]}' first line is dropped",
+      "emit:canonical members sorted bytewise by key, two-space indentation, one scalar or bracket per line",
+      "string:escape \" \\ and controls (\\b \\f \\n \\r \\t, else \\u00xx); everything else raw utf-8",
+      "fallback:invalid json → text@1 line normalization; grade partial",
+      "mask:values of volatile keys (case and -_ insensitive: timestamp ts time servertime now generatedat buildtime builddate buildid nonce csrf csrftoken xsrf requestid traceid spanid correlationid rid) → class by key"
+    ],
+    "rule_table_sha256": "16a8ff48e6987ac43aa63e329fa62983facd2bdd2fa7ddb53c170fd8bfa3e0bb"
+  },
+  {
+    "name": "xml",
+    "version": 1,
+    "rules": [
+      "parse:xml-1.0 5th ed. + namespaces (xmlparse); doctype subsets refused; gzip sitemaps inflated to 8 MiB",
+      "emit:one line per start tag, end tag, text run and processing instruction; empty elements as start-end pairs",
+      "attrs:namespace declarations first sorted by prefix, then attributes sorted by (namespace uri, local name)",
+      "drop:comments, xml declaration, doctype",
+      "text:cdata as text; collapse xml white space; trim; drop empty; escape \u0026 \u003c \u003e (attributes: \u0026 \u003c \" tab lf cr)",
+      "partial:a not-well-formed or limited read emits the partial tree with every open element closed"
+    ],
+    "rule_table_sha256": "27b640e17e5bf2c1248da1b5d9b1d2033d68ca0b7883689139871f4a4e2320ed"
+  },
+  {
+    "name": "headers",
+    "version": 1,
+    "rules": [
+      "input:one \"name: value\" line per field (HeaderBlock); lines without ':' ignored",
+      "keep:security-relevant headers only (securityHeaders); they are level-3 paths, so no learned rule masks them",
+      "name:lower case; value: white-space runs → one space, trimmed",
+      "csp:directives lower-cased and sorted; sources sorted and deduped; 'nonce-…' sources removed → nonce",
+      "set-cookie:value dropped (name kept); attribute names lower-cased, sorted; expires dropped → timestamp",
+      "hsts:directives lower-cased and sorted",
+      "location:query values masked → random_id",
+      "order:lines sorted by (name, value)"
+    ],
+    "rule_table_sha256": "531554724f87cbbc80dddf21db44b6894ad43b378bd0b2d96a0604cc78b08b98"
+  },
+  {
+    "name": "text",
+    "version": 1,
+    "rules": [
+      "lines:cr lf and cr → lf; a utf-8 bom starting the first non-blank line dropped; trailing spaces and tabs trimmed",
+      "lines:runs of blank lines → one blank line; leading and trailing blank lines dropped; final lf",
+      "mask:iso-8601 date-times → timestamp",
+      "d2:ts, tsx and jsx are text; they are never handed to the js parser"
+    ],
+    "rule_table_sha256": "ac1845a78f7b6fa881bf40bb9ab26e5f8e7f5da98375df86da7232e94c656214"
+  },
+  {
+    "name": "binary",
+    "version": 1,
+    "rules": [
+      "emit:one line \"binary sha256:\u003chex\u003e size:\u003cn\u003e\"; binary bodies are compared by hash only"
+    ],
+    "rule_table_sha256": "08f677122eaa2ac7c5894d6b4f424cc6a3531d45119d21e0b422d5f13c5f491d"
+  }
+]

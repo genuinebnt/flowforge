@@ -1,0 +1,27 @@
+{
+  "description": "Sniff(body, content_type, url) cases: the kind is decided by the bytes, the media type and URL are hints (V2 §12.9). Hand-written; MIME Sniffing §7.1 signatures plus Flowforge formats.",
+  "cases": [
+    {"name": "html_doctype_as_text", "body": "<!DOCTYPE html><html><head><title>t</title></head></html>", "content_type": "text/plain", "url": "https://a.example/", "kind": "html", "mismatch": true},
+    {"name": "html_leading_comment", "body": "<!-- generated --><html><body>x</body></html>", "content_type": "text/html", "url": "https://a.example/", "kind": "html", "mismatch": false},
+    {"name": "json_as_html", "body": "{\"users\": [{\"id\": 1}]}", "content_type": "text/html", "url": "https://a.example/api", "kind": "json", "mismatch": true},
+    {"name": "sourcemap_xssi", "body": ")]}'\n{\"version\":3,\"sources\":[\"a.ts\"],\"names\":[],\"mappings\":\"AAAA\"}", "content_type": "application/json", "url": "https://a.example/a.js.map", "kind": "sourcemap", "mismatch": false},
+    {"name": "js_as_octet", "body": "(function(){var a=1;function b(){return a}window.x=b})();", "content_type": "application/octet-stream", "url": "https://a.example/a.bin", "kind": "js", "mismatch": true},
+    {"name": "css_no_type", "body": "@media (max-width:100px){a{color:red;margin:0}}\nbody{font-family:x}", "content_type": "", "url": "https://a.example/s", "kind": "css", "mismatch": false},
+    {"name": "png_as_html", "body": "\u0089PNG\r\n\u001a\n\u0000\u0000", "content_type": "text/html", "url": "https://a.example/", "kind": "binary", "mismatch": true},
+    {"name": "php_source_as_text", "body": "<?php\n$db = new PDO($dsn, 'root', 'pw');\n", "content_type": "text/plain", "url": "https://a.example/config.php", "kind": "server_source", "mismatch": true, "disclosure": "php"},
+    {"name": "php_inside_html", "body": "<html><body><?php echo $x; ?></body></html>", "content_type": "text/html", "url": "https://a.example/", "kind": "html", "mismatch": false, "disclosure": "php"},
+    {"name": "jsp_source", "body": "<%@ page import=\"java.sql.*\" %>\n<% out.println(1); %>", "content_type": "text/html", "url": "https://a.example/a.jsp", "kind": "server_source", "mismatch": true, "disclosure": "jsp"},
+    {"name": "dotenv", "body": "# prod\nDB_HOST=db.internal\nDB_PASSWORD=s3cr3t\nexport API_KEY=abc\n", "content_type": "text/plain", "url": "https://a.example/.env", "kind": "server_source", "mismatch": true, "disclosure": "env"},
+    {"name": "python_script", "body": "#!/usr/bin/env python3\nimport os\n", "content_type": "text/plain", "url": "https://a.example/run", "kind": "server_source", "mismatch": true, "disclosure": "script"},
+    {"name": "node_shebang_is_js", "body": "#!/usr/bin/env node\nconst a = require('x');\nfunction f(){ return a }\n", "content_type": "application/javascript", "url": "https://a.example/cli.js", "kind": "js", "mismatch": false},
+    {"name": "robots", "body": "User-agent: *\nDisallow: /admin\nSitemap: https://a.example/sitemap.xml\n", "content_type": "text/plain", "url": "https://a.example/robots.txt", "kind": "robots", "mismatch": false},
+    {"name": "securitytxt", "body": "Contact: mailto:security@a.example\nExpires: 2027-01-01T00:00:00Z\n", "content_type": "text/plain", "url": "https://a.example/.well-known/security.txt", "kind": "securitytxt", "mismatch": false},
+    {"name": "sitemap", "body": "<?xml version=\"1.0\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"><url><loc>https://a.example/</loc></url></urlset>", "content_type": "application/xml", "url": "https://a.example/sitemap.xml", "kind": "sitemap", "mismatch": false},
+    {"name": "svg_as_xml", "body": "<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 0\"/></svg>", "content_type": "image/svg+xml", "url": "https://a.example/i.svg", "kind": "xml", "mismatch": false},
+    {"name": "tsx_by_extension", "body": "export const A = (p: Props) => <div>{p.x}</div>;\n", "content_type": "text/plain", "url": "https://a.example/src/A.tsx", "kind": "ts_text", "mismatch": false},
+    {"name": "ts_by_syntax", "body": "import type { X } from './x';\nexport interface Y { a: string }\n", "content_type": "", "url": "https://a.example/y", "kind": "ts_text", "mismatch": false},
+    {"name": "empty", "body": "  \n", "content_type": "text/html", "url": "https://a.example/", "kind": "text", "mismatch": true},
+    {"name": "nul_byte", "body": "abc\u0000def", "content_type": "text/plain", "url": "https://a.example/x", "kind": "binary", "mismatch": true},
+    {"name": "plain_text", "body": "Hello, world.\nThis is a note.\n", "content_type": "", "url": "https://a.example/readme", "kind": "text", "mismatch": false}
+  ]
+}

@@ -126,8 +126,10 @@ func (h *htmlExtract) scriptFeature(u string, id htmlparse.NodeID, typ string) F
 	if strings.EqualFold(typ, "modulepreload") {
 		typ = "module"
 	}
-	return newFeature(FeatScript, LineageKey(u), u, Attr{"sri", sri}, Attr{"third_party", third},
+	f := newFeature(FeatScript, LineageKey(u), "", Attr{"sri", sri}, Attr{"third_party", third},
 		Attr{"type", strings.ToLower(typ)}, Attr{"crossorigin", h.attr(id, "crossorigin")})
+	f.Ref = u
+	return f
 }
 
 func (h *htmlExtract) link(id htmlparse.NodeID) {
@@ -142,7 +144,9 @@ func (h *htmlExtract) link(id htmlparse.NodeID) {
 		if h.attr(id, "integrity") != "" {
 			sri = "true"
 		}
-		h.styles = append(h.styles, newFeature(FeatStyle, LineageKey(u), u, Attr{"sri", sri}))
+		f := newFeature(FeatStyle, LineageKey(u), "", Attr{"sri", sri})
+		f.Ref = u
+		h.styles = append(h.styles, f)
 	case slices.Contains(rels, "modulepreload") || slices.Contains(rels, "preload") && strings.EqualFold(h.attr(id, "as"), "script"):
 		h.scripts = append(h.scripts, h.scriptFeature(u, id, "modulepreload"))
 	default:

@@ -32,8 +32,13 @@ type Module struct {
 	// the known-vendor set, or a library banner inside the module.
 	Vendor  bool   `json:"vendor,omitempty"`
 	Library string `json:"library,omitempty"` // "name@version" from a banner inside the module
-	Start   int    `json:"start"`
-	End     int    `json:"end"`
+	// Start and End are the byte span the module occupies in the bundle
+	// (for a module table entry, the whole "id: function" property).
+	Start int `json:"start"`
+	End   int `json:"end"`
+	// hashStart and hashEnd delimit the hashed text (the module function
+	// itself, without its id).
+	hashStart, hashEnd int
 }
 
 // SplitStrategy selects the module splitter (pluggable decision
@@ -98,7 +103,10 @@ func SplitModules(prog *jsparse.Program, opts SplitOptions) []Module {
 	regions = outermost(regions)
 	var out []Module
 	for _, r := range regions {
-		r.Hash = sp.hash(r.Start, r.End, nil)
+		r.Hash = sp.hash(r.hashStart, r.hashEnd, nil)
+		if lib, ok := sp.bannerIn(r.hashStart, r.hashEnd, nil); ok {
+			r.Vendor, r.Library = true, lib.Name+"@"+lib.Version
+		}
 		out = append(out, r)
 	}
 	// Everything outside the module regions: one unit per top-level
@@ -129,8 +137,10 @@ func SplitModules(prog *jsparse.Program, opts SplitOptions) []Module {
 		if strings.Contains(m.ID, "node_modules/") || opts.VendorHashes[m.Hash] {
 			m.Vendor = true
 		}
-		if lib, ok := sp.bannerIn(m.Start, m.End); ok {
-			m.Vendor, m.Library = true, lib.Name+"@"+lib.Version
+		if m.Shape == "toplevel" || m.Shape == "runtime" {
+			if lib, ok := sp.bannerIn(m.Start, m.End, holes); ok {
+				m.Vendor, m.Library = true, lib.Name+"@"+lib.Version
+			}
 		}
 	}
 	slices.SortFunc(out, func(a, b Module) int { return cmp.Or(cmp.Compare(a.Start, b.Start), cmp.Compare(a.ID, b.ID)) })
@@ -210,7 +220,11 @@ func (sp *splitter) webpackTables() []Module {
 					return true
 				}
 				s := sp.node(fn).Span
-				mods = append(mods, Module{ID: key, Shape: "webpack", Start: int(s.Start), End: int(s.End), Size: int(s.End - s.Start)})
+				// The hole is the whole property, so the order of the ids
+				// left in the runtime text does not depend on where a
+				// module sits in the table.
+				mods = append(mods, Module{ID: key, Shape: "webpack", Start: int(pn.Span.Start), End: int(pn.Span.End),
+					Size: int(s.End - s.Start), hashStart: int(s.Start), hashEnd: int(s.End)})
 			}
 			out = append(out, mods...)
 			return false
@@ -234,7 +248,8 @@ func (sp *splitter) webpackTables() []Module {
 					continue
 				}
 				s := sp.node(e).Span
-				out = append(out, Module{ID: strconv.Itoa(i), Shape: "webpack", Start: int(s.Start), End: int(s.End), Size: int(s.End - s.Start)})
+				out = append(out, Module{ID: strconv.Itoa(i), Shape: "webpack", Start: int(s.Start), End: int(s.End),
+					Size: int(s.End - s.Start), hashStart: int(s.Start), hashEnd: int(s.End)})
 			}
 			return false
 		}
@@ -268,8 +283,9 @@ func (sp *splitter) esbuildWrappers() []Module {
 		if !ok || isAllDigits(key) || !sp.isFunction(pr.B, 4) {
 			return true
 		}
-		s := pr.Span
-		out = append(out, Module{ID: key, Shape: "esbuild", Start: int(s.Start), End: int(s.End), Size: int(s.End - s.Start)})
+		s, v := pr.Span, sp.node(pr.B).Span
+		out = append(out, Module{ID: key, Shape: "esbuild", Start: int(s.Start), End: int(s.End), Size: int(v.End - v.Start),
+			hashStart: int(v.Start), hashEnd: int(v.End)})
 		return false
 	})
 	return out
@@ -340,7 +356,7 @@ func (sp *splitter) tokenRange(start, end int) (int, int) {
 }
 
 // canonicalTokens renders the significant tokens of [start, end) minus
-// holes as canonical text: bound identifiers outside property positions
+// holes (sorted, disjoint spans) as canonical text: bound identifiers outside property positions
 // renamed positionally (or all to "$" when anonymous), strings quoted
 // canonically, numbers by value, volatile literals masked.
 func (sp *splitter) canonicalTokens(start, end int, holes [][2]int, anonymous bool) []string {
@@ -349,12 +365,16 @@ func (sp *splitter) canonicalTokens(start, end int, holes [][2]int, anonymous bo
 	names := map[string]int{}
 	var out []string
 	prevKind := jsparse.TEOF
+	h := 0 // holes are sorted and disjoint; tokens arrive in order
 	for k := i; k < j; k++ {
 		t := &toks[k]
 		if t.Kind.IsTrivia() || t.Kind == jsparse.TEOF {
 			continue
 		}
-		if overlapsAny([2]int{int(t.Start), int(t.End)}, holes) {
+		for h < len(holes) && holes[h][1] <= int(t.Start) {
+			h++
+		}
+		if h < len(holes) && holes[h][0] < int(t.End) {
 			continue
 		}
 		var s string
@@ -428,9 +448,12 @@ func (sp *splitter) hash(start, end int, holes [][2]int) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (sp *splitter) bannerIn(start, end int) (Library, bool) {
+// bannerIn finds a library banner comment inside [start, end) and outside
+// holes.
+func (sp *splitter) bannerIn(start, end int, holes [][2]int) (Library, bool) {
 	for _, c := range sp.prog.Comments {
-		if int(c.Span.Start) < start || int(c.Span.End) > end || c.Kind != jsparse.TBlockComment {
+		if int(c.Span.Start) < start || int(c.Span.End) > end || c.Kind != jsparse.TBlockComment ||
+			overlapsAny([2]int{int(c.Span.Start), int(c.Span.End)}, holes) {
 			continue
 		}
 		text := sp.prog.Source[c.Span.Start:c.Span.End]

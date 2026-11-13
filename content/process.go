@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/genuinebnt/flowforge/jsparse"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/sourcemap"
 )
@@ -20,6 +21,8 @@ type Artifact struct {
 	DocID      string `json:"doc_id"`
 	Kind       Kind   `json:"kind"`
 	BodySHA256 string `json:"body_sha256"`
+	// Size is the raw body length in bytes.
+	Size int `json:"size"`
 	// Normalized holds the normalized text after Redact (V2 §12.11: what
 	// is stored, hashed for the index, indexed or logged never carries a
 	// credential).
@@ -66,8 +69,10 @@ type Processed struct {
 	// extractor that ran graded complete.
 	Coverage     oam.Coverage `json:"coverage"`
 	CoveredRules []string     `json:"covered_rules,omitempty"`
-	SimHash      uint64       `json:"simhash"`
-	ErrorPage    bool         `json:"error_page,omitempty"`
+	// SimHash is BodySimHash of the normalized body (pages, JSON, XML
+	// and text only; 0 otherwise).
+	SimHash   uint64 `json:"simhash"`
+	ErrorPage bool   `json:"error_page,omitempty"`
 }
 
 // Main returns the body artifact.
@@ -84,7 +89,10 @@ func (p *Processed) Features() []Feature {
 		}
 		fs = append(fs, a.Features.Features...)
 	}
-	return sortFeatures(fs)
+	// One fact reported by several documents (a secret in an inline
+	// script is in the page too) is one feature: the first in sorted
+	// order, which is the one with the shortest doc suffix.
+	return slices.CompactFunc(sortFeatures(fs), func(a, b Feature) bool { return a.ID() == b.ID() && a.sameContent(b) })
 }
 
 // FeatureIDs returns the sorted, unique ids of Features.
@@ -101,8 +109,15 @@ func (p *Processed) FeatureIDs() []string {
 // Findings returns every high-tier secret finding of the capture.
 func (p *Processed) Findings() []SecretFinding {
 	var out []SecretFinding
+	seen := map[string]bool{}
 	for i := range p.Artifacts {
-		out = append(out, p.Artifacts[i].Features.Findings...)
+		for _, f := range p.Artifacts[i].Features.Findings {
+			k := f.RuleID + "\x00" + string(f.Secret)
+			if !seen[k] {
+				seen[k] = true
+				out = append(out, f)
+			}
+		}
 	}
 	return out
 }
@@ -183,7 +198,13 @@ func Process(c *Capture, opts ProcessOptions) (*Processed, error) {
 			}
 		}
 	}
-	p.SimHash = BodySimHash(main.Normalized.Text)
+	switch main.Kind {
+	case KindHTML, KindJSON, KindText, KindXML:
+		// Catch-all and soft-404 detection compare page-like bodies
+		// across a host's URLs; scripts and styles are not answered by a
+		// catch-all route, so their (large) sketch is not computed.
+		p.SimHash = BodySimHash(main.Normalized.Text)
+	}
 	p.ErrorPage = LooksLikeErrorPage(body)
 	p.Integrity = CheckIntegrity(IntegrityInput{Capture: c, Body: body, FeatureIDs: p.FeatureIDs(), SimHash: p.SimHash,
 		Previous: opts.Previous, HostBodies: opts.HostBodies})
@@ -193,10 +214,13 @@ func Process(c *Capture, opts ProcessOptions) (*Processed, error) {
 
 // buildArtifact normalizes, redacts and extracts one document.
 func buildArtifact(docID, base string, k Kind, body []byte, charset, disclosure string, at time.Time, opts ProcessOptions) Artifact {
-	a := Artifact{DocID: docID, Kind: k, BodySHA256: sha256Hex(body)}
-	a.Normalized = Normalize(k, body, NormalizeOptions{Learned: opts.Learned, Charset: charset, Limits: opts.Limits})
-	a.Normalized.Text, _ = Redact(a.Normalized.Text)
-	a.NormalizedSHA256 = sha256Hex(a.Normalized.Text)
+	a := Artifact{DocID: docID, Kind: k, BodySHA256: sha256Hex(body), Size: len(body)}
+	nopts := NormalizeOptions{Learned: opts.Learned, Charset: charset, Limits: opts.Limits}
+	finish := func(prog *jsparse.Program) {
+		a.Normalized = normalizeParsed(k, body, nopts, prog)
+		a.Normalized.Text, _ = Redact(a.Normalized.Text)
+		a.NormalizedSHA256 = sha256Hex(a.Normalized.Text)
+	}
 	suffix := ""
 	if i := strings.IndexByte(docID, '#'); i >= 0 {
 		suffix = docID[i:]
@@ -215,8 +239,10 @@ func buildArtifact(docID, base string, k Kind, body []byte, charset, disclosure 
 		sp := splitter{prog: prog, bindings: bindingNames(prog)}
 		a.Modules = SplitModules(prog, opts.Splitter)
 		a.Fingerprint = FingerprintOf(sp.canonicalTokens(0, len(prog.Source), nil, true), len(body), opts.Lineage)
+		finish(prog) // last: normalization masks the program in place
 		return a
 	}
+	finish(nil)
 	a.Features = Extract(in)
 	if k == KindCSS || k == KindTSText {
 		a.Fingerprint = FingerprintOf(LineageTokens(k, a.Normalized.Text), len(body), opts.Lineage)

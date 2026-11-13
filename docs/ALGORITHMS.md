@@ -196,6 +196,37 @@ but are not yet all selectable in non-test code or behind an
   the raw text (trigrams dominate). p50 query times: term 1.4–1.7 ms,
   phrase 6–11 ms, filtered 2.4–3 ms, regex 110–150 ms.
 
+### Content pipeline decisions (`content`)
+
+Four decision points, all selectable in non-test code. Benchmark:
+`go test -run '^$' -bench ContentAlgo -benchmem ./content`
+(`BenchmarkContentAlgo/<decision>/<candidate>`). Measured 2026-11-13 on a
+4-vCPU Xeon (Go 1.26), `-benchtime=3x`, with other work running, so the
+numbers are relative.
+
+| Decision (config) | Candidate | Measured | Default and why |
+|---|---|---|---|
+| lineage matcher (`ProcessOptions.Lineage`, `LineageOptions.Algo`; `simhash`/`minhash`/`jaccard`) | `simhash` | 13.2–13.3 ms to fingerprint a 200 KB bundle and scan 20 candidates; 8 B stored per version | **default** (V2 §5): fixed 8-byte sketch per stored version, Hamming ≤ 6 via a linear scan (sketch's multi-index is exact only to 3) |
+| | `minhash` | 21–22 ms; 1 KiB stored | when the Jaccard value itself matters (estimate with a known error) |
+| | `jaccard` | 5.7–6.0 ms; 8 B × shingles stored | exact reference; cheapest when both token streams are at hand, but every old version must keep its shingle set |
+| module splitter (`SplitOptions.Strategy`; `auto`/`webpack`/`esbuild`/`toplevel`) | `auto` | 38–41 MB/s on a 2 MB webpack bundle | **default**: webpack tables + esbuild wrappers + rollup/vite top-level statements, so every bundler shape gets module identity |
+| | `webpack` | 40–47 MB/s | webpack-only sites (the rest is one runtime unit) |
+| | `esbuild` | 33 MB/s | esbuild-only sites |
+| | `toplevel` | 36–40 MB/s | scope-hoisted (rollup/vite) output; no table detection |
+| volatility detector (`VolatilityPolicy.Algo`; `ratio`/`streak`) | `ratio` | 1.6–1.7 ms per 10,000 counters | **default**: robust to an occasional stable observation (≥ 8 observations, ≥ 90 % changed) |
+| | `streak` | 1.5 ms | learns faster (5 consecutive changes) but one stable observation resets it |
+| diff policy (`DiffOptions.Policy`; `size`/`myers`/`histogram`/`patience`) | `size` | 34–44 MB/s on a 512 KB normalized bundle, 1 % edited | **default**: MyersLinearSpace tokens up to 16 KiB (minimal scripts on small artifacts), Histogram lines above (docs/ALGORITHMS.md: Histogram for large normalized snapshots); a reordered 20 KB bundle took ≈ 0.2 s per diff at token level against the 10,000-edit cap |
+| | `myers` | 5–7 MB/s | minimal scripts up to the §5 4 MiB cap |
+| | `histogram` | 26–42 MB/s | lines always; git-compatible hunks |
+| | `patience` | 30 MB/s | lines always; more memory |
+
+All policies go through `diff.BoundedDiff`, so the §5 bounds (edit cap,
+4 MiB token / 64 MiB line caps, hash-only fallback, recorded level and
+reason) hold for every candidate.
+
+Conformance and invariant tests (CONTENT-INV-01..16) run against every
+candidate. See `content/README.md` for throughput per content kind.
+
 ## v2 decisions (being measured)
 
 * **htmlparse** against `x/net/html`, and the lookup strategy for named

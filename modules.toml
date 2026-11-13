@@ -308,3 +308,13 @@ tests = { prefix = "JSInv", required = ["01", "02", "03", "04", "05", "06", "07"
 conformance = ["third_party/test262-parser-tests/pass", "third_party/test262-parser-tests/fail", "third_party/test262-parser-tests/early", "jsparse"]
 fuzz = ["FuzzJSLexer", "FuzzJSParse", "FuzzJSPrintReparse"]
 bench = ["BenchmarkJSAlgo", "BenchmarkJSParse"]
+
+[module.content]
+layer = 2
+spec = ["V2_DESIGN 5, 12"]
+dir = "content"
+depends = ["core", "oam", "diff", "sketch", "htmlparse", "jsparse", "cssparse", "xmlparse", "sourcemap", "wellknown"]
+tests = { prefix = "ContentInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16"] }
+conformance = ["content"]
+fuzz = ["FuzzContentNormalize", "FuzzContentSniff", "FuzzContentExtract"]
+bench = ["BenchmarkContentAlgo", "BenchmarkContentNormalize", "BenchmarkContentExtract", "BenchmarkContentPipeline"]

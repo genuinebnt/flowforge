@@ -27,9 +27,11 @@ const (
 	DiffPatience
 )
 
-// LargeInputBytes is the DiffBySize threshold: 256 KiB of normalized
-// text.
-const LargeInputBytes = 256 << 10
+// LargeInputBytes is the DiffBySize threshold: 16 KiB of normalized text.
+// Above it a token-level Myers diff of a reordered bundle runs into the
+// 10,000-edit cap before falling back (about 0.2 s per diff measured on
+// 20 KB bundles), while histogram over lines takes milliseconds.
+const LargeInputBytes = 16 << 10
 
 // String returns the policy's configuration name.
 func (p DiffPolicy) String() string {

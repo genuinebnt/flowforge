@@ -114,13 +114,13 @@ func Observe(p *Processed, opts ObserveOptions) (oam.Observation, error) {
 			}
 		case FeatScript:
 			if !srcIsFile {
-				b.edge(src, b.entity(fileAsset(f.Value, KindJS)), oam.LabelLoadsScript, 0)
+				b.edge(src, b.entity(fileAsset(f.Ref, KindJS)), oam.LabelLoadsScript, 0)
 			}
 		case FeatStyle, FeatCSSImport:
 			if f.Kind == FeatStyle && srcIsFile || f.Kind == FeatCSSImport && !srcIsFile {
 				continue
 			}
-			b.edge(src, b.entity(fileAsset(f.Value, KindCSS)), oam.LabelLoadsStyle, 0)
+			b.edge(src, b.entity(fileAsset(f.Ref, KindCSS)), oam.LabelLoadsStyle, 0)
 		case FeatForm:
 			if !srcIsFile {
 				b.edge(src, endpointRef(f.Key, oam.EndpointSourceHTMLForm), oam.LabelFormAction, 0)
@@ -133,7 +133,7 @@ func Observe(p *Processed, opts ObserveOptions) (oam.Observation, error) {
 			}
 		case FeatSourceMap:
 			if srcIsFile {
-				b.edge(src, b.entity(fileAsset(f.Key, KindSourceMap)), oam.LabelSourceMap, 0)
+				b.edge(src, b.entity(fileAsset(f.Ref, KindSourceMap)), oam.LabelSourceMap, 0)
 			}
 		case FeatLibrary:
 			if srcIsFile && f.Value != "" {
@@ -184,7 +184,7 @@ func Observe(p *Processed, opts ObserveOptions) (oam.Observation, error) {
 	}
 	if opts.SnapshotID != "" {
 		b.tag(src, oam.ContentProperty{SnapshotID: opts.SnapshotID, BodySHA256: main.BodySHA256,
-			Size: int64(len(main.Normalized.Text)), Profile: p.Profile, NormalizerVersion: main.Normalized.Version,
+			Size: int64(main.Size), Profile: p.Profile, NormalizerVersion: main.Normalized.Version,
 			LastChangedAt: p.FetchedAt.UTC().Format(oam.TimeLayoutMillis)})
 	}
 	if b.overflow {

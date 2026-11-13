@@ -1,0 +1,10 @@
+Content-Type: text/html; charset=utf-8
+Date: Sat, 08 Nov 2026 10:00:00 GMT
+Server: nginx
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-n0nc3AAA111bbb'; object-src 'none'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Set-Cookie: session=7f3a9c1e5b2d8f4a; Path=/; Secure; HttpOnly; SameSite=Lax; Expires=Sun, 08 Nov 2026 11:00:00 GMT
+X-Request-Id: 3c6e0b8a-9f1d-4e2a-b5c7-1d2e3f4a5b6c
+ETag: "a1b2c3"

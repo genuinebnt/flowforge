@@ -13,6 +13,7 @@ import (
 var htmlRules = []string{
 	"parse:whatwg-html13.2 (htmlparse); valid utf-8 parsed as is, other bytes decoded (bom, transport charset, meta prescan)",
 	"emit:one line per start tag, end tag and text run; no indentation; void elements without end tag",
+	"fixpoint:output re-parsed and re-emitted until stable (at most 4 rounds; trees that do not round trip)",
 	"drop:comments,processing-instructions",
 	"text:merge adjacent runs across dropped nodes; collapse ascii whitespace; trim; drop empty",
 	"text:escape & < >; attributes: escape & \"",
@@ -37,6 +38,10 @@ var csrfNames = map[string]bool{"csrf": true, "_csrf": true, "csrf_token": true,
 	"csrfmiddlewaretoken": true, "xsrf": true, "_xsrf": true, "xsrf-token": true, "xsrf_token": true,
 	"authenticity_token": true, "__requestverificationtoken": true, "_token": true, "anticsrf": true,
 	"__eventvalidation": true, "__viewstate": true, "__viewstategenerator": true}
+
+// htmlFixpointRounds bounds the re-normalization rounds; real pages
+// converge in one.
+const htmlFixpointRounds = 4
 
 // voidElements have no end tag (WHATWG §13.1.2).
 var voidElements = map[string]bool{"area": true, "base": true, "br": true, "col": true, "embed": true, "hr": true,
@@ -81,6 +86,27 @@ func normalizeHTML(body []byte, charset string, learned VolatilitySet, lim Limit
 	h.node(doc.Root)
 	h.flushText()
 	r := normResult{text: h.w.bytes(), grade: GradeComplete}
+	// Some trees the parser builds do not survive serialize-then-reparse
+	// (misnested formatting and list elements, foreign content; htmlparse
+	// INV-3 lists them). Re-normalize the output until it is a fixed
+	// point, so normalization is idempotent. Masks, handlers and derived
+	// documents come from the first round: later rounds only see
+	// placeholders and emptied scripts.
+	for round := 0; ; round++ {
+		if round == htmlFixpointRounds {
+			r.diags = append(r.diags, "html_not_converged")
+			break
+		}
+		d2, _ := htmlparse.Parse(r.text, opts)
+		h2 := &htmlNorm{doc: d2, m: newMasker(), learned: learned, lim: lim}
+		h2.node(d2.Root)
+		h2.flushText()
+		next := h2.w.bytes()
+		if string(next) == string(r.text) {
+			break
+		}
+		r.text = next
+	}
 	for _, e := range errs {
 		switch e.Code {
 		case htmlparse.ErrNestingDepthLimit, htmlparse.ErrAttributeLimit, htmlparse.ErrInputSizeLimit:

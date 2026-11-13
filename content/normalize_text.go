@@ -10,7 +10,7 @@ import (
 // textRules is the text@1 rule table (text, robots.txt, security.txt,
 // server-side source and, per decision D2, TypeScript/TSX/JSX).
 var textRules = []string{
-	"lines:a leading utf-8 bom dropped; cr lf and cr → lf; trailing spaces and tabs trimmed",
+	"lines:cr lf and cr → lf; a utf-8 bom starting the first non-blank line dropped; trailing spaces and tabs trimmed",
 	"lines:runs of blank lines → one blank line; leading and trailing blank lines dropped; final lf",
 	"mask:iso-8601 date-times → timestamp",
 	"d2:ts, tsx and jsx are text; they are never handed to the js parser",
@@ -22,12 +22,16 @@ var binaryRules = []string{
 }
 
 func normalizeText(body []byte, _ Kind, m *masker) normResult {
-	s := strings.TrimPrefix(string(body), "\xEF\xBB\xBF")
-	s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
+	s := strings.ReplaceAll(strings.ReplaceAll(string(body), "\r\n", "\n"), "\r", "\n")
 	var w lineWriter
 	blank := false
 	wrote := false
 	for line := range strings.SplitSeq(s, "\n") {
+		if !wrote {
+			// The BOM is dropped wherever the first written line starts,
+			// so leading blank lines before it cannot hide it.
+			line = strings.TrimPrefix(line, "\xEF\xBB\xBF")
+		}
 		line = strings.TrimRight(line, " \t")
 		if line == "" {
 			blank = wrote

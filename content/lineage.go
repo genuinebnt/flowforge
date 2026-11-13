@@ -107,8 +107,8 @@ type LineageMatch struct {
 	URL string `json:"url"`
 	// By is "url" (the lineage keys agree) or the algorithm name.
 	By string `json:"by"`
-	// Distance is the Hamming distance (simhash) or 1 − Jaccard × 1000
-	// rounded down (minhash, jaccard); lower is closer.
+	// Distance is the Hamming distance (simhash) or floor((1 − J) × 1000)
+	// for the Jaccard estimate J (minhash, jaccard); lower is closer.
 	Distance int `json:"distance"`
 }
 

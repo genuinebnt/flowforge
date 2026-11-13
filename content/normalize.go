@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"strconv"
 	"strings"
+
+	"github.com/genuinebnt/flowforge/jsparse"
 )
 
 // NormalizerInfo identifies one normalizer: its name, version and rule
@@ -31,8 +33,9 @@ func info(name string, version int, rules []string) NormalizerInfo {
 }
 
 // Normalizers lists every normalizer with its version and rule-table
-// hash, in a fixed order. The README's version table is checked against
-// it (TestContentNormalizerTable).
+// hash, in a fixed order. conformance/content/normalizers pins the table
+// (TestContentConformanceNormalizers) and README.md lists it
+// (TestContentREADME).
 func Normalizers() []NormalizerInfo {
 	return []NormalizerInfo{
 		info("html", 1, htmlRules), info("js", 1, jsRules), info("css", 1, cssRules), info("json", 1, jsonRules),
@@ -113,6 +116,14 @@ type NormalizeOptions struct {
 // Normalize(k, x).Text (CONTENT-INV-01). Bodies above
 // Limits.MaxResponseBytes are cut there and graded partial.
 func Normalize(k Kind, body []byte, opts NormalizeOptions) Normalized {
+	return normalizeParsed(k, body, opts, nil)
+}
+
+// normalizeParsed is Normalize with an optional JavaScript program already
+// parsed from body (the pipeline parses a bundle once for extraction,
+// module splitting and normalization; normalization masks the program in
+// place, so it runs last).
+func normalizeParsed(k Kind, body []byte, opts NormalizeOptions, prog *jsparse.Program) Normalized {
 	lim := opts.Limits.withDefaults()
 	ni := NormalizerFor(k)
 	learned := opts.Learned
@@ -141,7 +152,10 @@ func Normalize(k Kind, body []byte, opts NormalizeOptions) Normalized {
 	case KindHTML:
 		r = normalizeHTML(body, opts.Charset, learned, lim, m)
 	case KindJS:
-		r = normalizeJS(body, m)
+		if prog == nil || out.Grade != GradeComplete {
+			prog = parseJS(body, false)
+		}
+		r = normalizeJSProgram(prog, body, m)
 	case KindCSS:
 		r = normalizeCSS(body, lim, m)
 	case KindJSON, KindSourceMap:

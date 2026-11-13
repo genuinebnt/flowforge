@@ -105,7 +105,10 @@ func DiffArtifacts(old, new *Artifact, opts DiffOptions) (ArtifactDiff, error) {
 		md := DiffModules(old.Modules, new.Modules)
 		d.Modules = &md
 	}
-	semantic := len(d.FeatureChanges) > 0 || d.Modules != nil && len(d.Modules.Changes) > 0
+	// Module-level lineage refines the text level (V2 §12.6): an unchanged
+	// module is no change wherever it moved. It does not create level-3
+	// changes; those come from the features.
+	semantic := len(d.FeatureChanges) > 0
 	if hashDiff {
 		d.Levels = append(d.Levels, oam.LevelHash)
 	}
@@ -263,6 +266,8 @@ type ChangeSet struct {
 	// items or alerts.
 	Baseline bool  `json:"baseline,omitempty"`
 	Score    Score `json:"score"`
+	// Changes are the capture-level feature changes, sorted.
+	Changes []FeatureChange `json:"changes,omitempty"`
 	// Summary holds the content_changed summary counts.
 	Summary map[string]int `json:"summary,omitempty"`
 }
@@ -331,28 +336,42 @@ func Compare(prev, cur *Processed, opts DiffOptions) (ChangeSet, error) {
 		}
 		cs.Artifacts = append(cs.Artifacts, d)
 	}
-	cs.classify(prev, cur)
+	cs.classify(prev, cur, opts)
 	return cs, nil
 }
 
-func (cs *ChangeSet) classify(prev, cur *Processed) {
+// classify aggregates the artifact diffs. Level-3 changes are computed
+// over the whole capture (body plus derived documents), so a feature that
+// moved between documents (an endpoint from an inline script to an
+// external one, a renumbered #script-n) is not a change.
+func (cs *ChangeSet) classify(prev, cur *Processed, opts DiffOptions) {
+	changes := featureChanges(prev.Features(), cur.Features(), opts)
 	levels := map[string]bool{}
-	var changes []FeatureChange
 	outcome := DiffNoChange
 	rank := map[string]int{DiffNoChange: 0, DiffNormalizedEqual: 1, DiffMaskedOnly: 2, DiffReordered: 3, DiffStructural: 4, DiffChanged: 5}
 	headersOnly := true
 	sum := map[string]int{}
 	for _, d := range cs.Artifacts {
 		for _, l := range d.Levels {
-			levels[l] = true
+			if l != oam.LevelSemantic {
+				levels[l] = true
+			}
 		}
-		if rank[d.Outcome] > rank[outcome] {
-			outcome = d.Outcome
+		o := d.Outcome
+		if o == DiffChanged {
+			// Per-document level-3 differences are re-decided at capture
+			// level below; here the document counts as a text change.
+			o = DiffStructural
+			if !slices.Contains(d.Levels, oam.LevelText) {
+				o = DiffNormalizedEqual
+			}
+		}
+		if rank[o] > rank[outcome] {
+			outcome = o
 		}
 		if d.Outcome != DiffNoChange && d.Kind != KindHeaders {
 			headersOnly = false
 		}
-		changes = append(changes, d.FeatureChanges...)
 		sum["hunks"] += len(d.Hunks)
 		sum["inserted_lines"] += d.Inserted
 		sum["deleted_lines"] += d.Deleted
@@ -361,14 +380,13 @@ func (cs *ChangeSet) classify(prev, cur *Processed) {
 			sum["modules_moved"] += d.Modules.Moved
 			sum["vendor_suppressed"] += d.Modules.VendorSuppressed
 		}
-		if d.Outcome != DiffNoChange {
-			sum["artifacts_"+d.Outcome]++
-		}
 	}
-	// One feature reported by several documents is one change.
-	changes = dedupeChanges(changes)
 	for _, c := range changes {
 		sum["features_"+c.Op]++
+	}
+	if len(changes) > 0 {
+		outcome = DiffChanged
+		levels[oam.LevelSemantic] = true
 	}
 	for _, l := range []string{oam.LevelHash, oam.LevelText, oam.LevelSemantic} {
 		if levels[l] {
@@ -381,8 +399,12 @@ func (cs *ChangeSet) classify(prev, cur *Processed) {
 			delete(sum, k)
 		}
 	}
+	if len(sum) == 0 {
+		sum = nil
+	}
 	cs.Summary = sum
-	if outcome == DiffNoChange || outcome == DiffNormalizedEqual || outcome == DiffMaskedOnly || outcome == DiffReordered {
+	cs.Changes = changes
+	if outcome != DiffChanged && outcome != DiffStructural {
 		return
 	}
 	switch {
@@ -406,13 +428,6 @@ func (cs *ChangeSet) classify(prev, cur *Processed) {
 	}
 	cs.Cause = causeOf(prev, cur)
 	cs.Score = ScoreChanges(scoreInputs(changes))
-}
-
-func dedupeChanges(cs []FeatureChange) []FeatureChange {
-	slices.SortFunc(cs, func(a, b FeatureChange) int {
-		return cmp.Or(cmp.Compare(a.Feature.Kind, b.Feature.Kind), cmp.Compare(a.Feature.Key, b.Feature.Key), cmp.Compare(a.Op, b.Op))
-	})
-	return slices.CompactFunc(cs, func(a, b FeatureChange) bool { return a.Feature.ID() == b.Feature.ID() && a.Op == b.Op })
 }
 
 // ClassOf classifies the difference between two feature lists (the

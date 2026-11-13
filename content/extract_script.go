@@ -130,7 +130,11 @@ func jsExtract(prog *jsparse.Program, docURL, base string) jsFacts {
 	}
 	if u, _, ok := prog.SourceMappingURL(); ok {
 		if abs, ok := resolveRef(docURL, u); ok {
-			f.sourcemaps = append(f.sourcemaps, newFeature(FeatSourceMap, abs, ""))
+			// Keyed by lineage key: main.3f9a1c2b.js.map renamed with its
+			// bundle is the same source map.
+			sm := newFeature(FeatSourceMap, LineageKey(abs), "")
+			sm.Ref = abs
+			f.sourcemaps = append(f.sourcemaps, sm)
 		}
 	}
 	libs := append(libraryBanners(prog), libraryGlobals(uses)...)
@@ -141,17 +145,19 @@ func jsExtract(prog *jsparse.Program, docURL, base string) jsFacts {
 		if !m.Literal || m.Specifier == "" {
 			continue
 		}
-		spec := m.Specifier
+		spec, key := m.Specifier, m.Specifier // bare specifiers ("react") stay as written
 		if strings.HasPrefix(spec, ".") || strings.HasPrefix(spec, "/") || strings.HasPrefix(spec, "http") {
 			if abs, ok := resolveRef(docURL, strings.ReplaceAll(spec, jsparse.ExprPlaceholder, "{expr}")); ok {
-				spec = abs
+				spec, key = abs, LineageKey(abs)
 			}
 		}
 		dyn := "false"
 		if m.Dynamic {
 			dyn = "true"
 		}
-		f.modules = append(f.modules, newFeature(FeatModuleImport, LineageKey(spec), spec, Attr{"dynamic", dyn}))
+		mf := newFeature(FeatModuleImport, key, "", Attr{"dynamic", dyn})
+		mf.Ref = spec
+		f.modules = append(f.modules, mf)
 	}
 	return f
 }
@@ -201,8 +207,8 @@ func callMethod(uses []jsparse.StringUse, i int, r callRule) string {
 		}
 	}
 	for j := i + 1; j < len(uses) && j <= i+4; j++ {
-		if uses[j].ArgIndex == r.urlArg && uses[j].PropertyKey == "" && r.urlArg >= 0 && j > i {
-			break // the next call of the same function
+		if r.urlArg >= 0 && uses[j].ArgIndex == r.urlArg && uses[j].PropertyKey == "" {
+			break // a URL argument again: the next call of the same function
 		}
 		if m, ok := look(j); ok {
 			if mm, err := oam.NormalizeHTTPMethod(m); err == nil {

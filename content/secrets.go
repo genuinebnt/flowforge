@@ -53,7 +53,9 @@ type KeyedHasher interface {
 type TenantKeyHasher struct{ Key []byte }
 
 // KeyedHash implements KeyedHasher.
-func (h TenantKeyHasher) KeyedHash(secret []byte) string { return oam.SecretKeyedHash(h.Key, string(secret)) }
+func (h TenantKeyHasher) KeyedHash(secret []byte) string {
+	return oam.SecretKeyedHash(h.Key, string(secret))
+}
 
 // secretRule is one named rule. scan returns the spans of matches in s.
 type secretRule struct {
@@ -150,7 +152,7 @@ func prefixScan(prefixes []string, lo, hi int, body func(byte) bool) func(string
 func assignScan(keys []string, lo, hi int, body func(byte) bool) func(string) [][2]int {
 	return func(s string) [][2]int {
 		var out [][2]int
-		ls := strings.ToLower(s)
+		ls := asciiLower(s)
 		for _, k := range keys {
 			for off := 0; ; {
 				i := strings.Index(ls[off:], k)
@@ -172,8 +174,13 @@ func assignScan(keys []string, lo, hi int, body func(byte) bool) func(string) []
 	}
 }
 
-// assignedValue parses `["']? \s* [:=] \s* ["']? VALUE` from j.
+// assignedValue parses `\\?["']? \s* [:=] \s* \\?["'`]? VALUE` from j. The
+// optional backslashes accept quotes escaped inside a string literal (a
+// JSON or JS string holding `api_key: "..."`).
 func assignedValue(s string, j, lo, hi int, body func(byte) bool) (int, int, bool) {
+	if j+1 < len(s) && s[j] == '\\' && (s[j+1] == '"' || s[j+1] == '\'') {
+		j++
+	}
 	if j < len(s) && (s[j] == '"' || s[j] == '\'') {
 		j++
 	}
@@ -185,6 +192,9 @@ func assignedValue(s string, j, lo, hi int, body func(byte) bool) (int, int, boo
 	}
 	j++
 	for j < len(s) && (s[j] == ' ' || s[j] == '\t') {
+		j++
+	}
+	if j+1 < len(s) && s[j] == '\\' && (s[j+1] == '"' || s[j+1] == '\'') {
 		j++
 	}
 	if j < len(s) && (s[j] == '"' || s[j] == '\'' || s[j] == '`') {
@@ -350,7 +360,7 @@ var connSchemes = []string{"postgres", "postgresql", "mysql", "mariadb", "mongod
 func connStringScan(schemes []string) func(string) [][2]int {
 	return func(s string) [][2]int {
 		var out [][2]int
-		ls := strings.ToLower(s)
+		ls := asciiLower(s)
 		for _, sc := range schemes {
 			p := sc + "://"
 			for off := 0; ; {
@@ -413,7 +423,7 @@ var genericKeys = []string{"api_key", "apikey", "api-key", "secret", "client_sec
 // and digits and has Shannon entropy of at least 3.5 bits per character.
 func genericScan(s string) [][2]int {
 	var out [][2]int
-	ls := strings.ToLower(s)
+	ls := asciiLower(s)
 	for _, k := range genericKeys {
 		for off := 0; ; {
 			i := strings.Index(ls[off:], k)
@@ -429,7 +439,12 @@ func genericScan(s string) [][2]int {
 				continue
 			}
 			st, en, ok := assignedValue(s, end, 16, 128, func(c byte) bool { return alnum(c) || strings.IndexByte("+/=_.~-", c) >= 0 })
-			if !ok || st == 0 || !strings.ContainsRune("\"'`", rune(s[st-1])) || en >= len(s) || s[en] != s[st-1] {
+			if !ok || st == 0 || !strings.ContainsRune("\"'`", rune(s[st-1])) || en >= len(s) {
+				continue
+			}
+			// The value must be closed by the quote that opened it (or by
+			// its escaped form inside a string literal).
+			if s[en] != s[st-1] && !(s[en] == '\\' && en+1 < len(s) && s[en+1] == s[st-1]) {
 				continue
 			}
 			if v := s[st:en]; highEntropy(v) {
@@ -589,4 +604,17 @@ func Redact(text []byte) ([]byte, []SecretFinding) {
 	}
 	b.Write(text[prev:])
 	return b.Bytes(), fs
+}
+
+// asciiLower lower-cases ASCII letters only, so byte offsets in the result
+// are offsets in s (strings.ToLower rewrites invalid UTF-8 to U+FFFD and
+// changes lengths).
+func asciiLower(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + 32
+		}
+	}
+	return string(b)
 }

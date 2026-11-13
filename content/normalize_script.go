@@ -10,7 +10,7 @@ import (
 // jsRules is the js@1 rule table.
 var jsRules = []string{
 	"parse:ecma-262 15th ed. (jsparse) tolerant; script goal, module goal when only it parses cleanly",
-	"emit:jsparse readable printer (one statement per line, canonical spacing, double quotes, comments dropped)",
+	"emit:jsparse readable printer (one statement per line, canonical spacing, double quotes, comments dropped); 'directives' re-quoted with \"",
 	"fallback:on any diagnostic, line normalization (leading space dropped, inner and trailing space runs → one space, lf); grade partial",
 	"mask:string literals (not keys, not directives, no '/') that are timestamps/uuids/build ids → class placeholder string",
 	"mask:iso-8601 date-times inside string and template literals → timestamp",
@@ -34,8 +34,9 @@ func parseJS(src []byte, tokens bool) *jsparse.Program {
 	return p
 }
 
-func normalizeJS(body []byte, m *masker) normResult {
-	prog := parseJS(body, false)
+// normalizeJSProgram normalizes a program parsed from body (it masks the
+// program in place).
+func normalizeJSProgram(prog *jsparse.Program, body []byte, m *masker) normResult {
 	if len(prog.Diagnostics) > 0 {
 		return normResult{text: jsFallbackLines(body), grade: GradePartial, diags: []string{"js_syntax_fallback"}}
 	}
@@ -67,6 +68,7 @@ func maskJSLiterals(prog *jsparse.Program, m *masker) {
 			keys[n.A], keys[n.B] = true, true
 		}
 	}
+	canonicalDirectives(prog)
 	newStr := func(s string) jsparse.StrID {
 		prog.Strings = append(prog.Strings, s)
 		return jsparse.StrID(len(prog.Strings) - 1)
@@ -102,6 +104,33 @@ func maskJSLiterals(prog *jsparse.Program, m *masker) {
 				}
 			}
 		}
+	}
+}
+
+// canonicalDirectives rewrites single-quoted directives ('use strict')
+// to double quotes in prog.Source, which is where the printer copies a
+// directive from (its raw text is significant, ECMA-262 §11.2.1). Only
+// directives without quotes or backslashes inside are rewritten, so the
+// directive's value and every span stay the same.
+func canonicalDirectives(prog *jsparse.Program) {
+	var src []byte
+	for i := range prog.Nodes {
+		n := &prog.Nodes[i]
+		if n.Kind != jsparse.KExpressionStatement || !n.Has(jsparse.NDirective) || n.A == jsparse.NoNode {
+			continue
+		}
+		sp := prog.Nodes[n.A].Span
+		raw := prog.Source[sp.Start:sp.End]
+		if len(raw) < 2 || raw[0] != '\'' || raw[len(raw)-1] != '\'' || strings.ContainsAny(raw[1:len(raw)-1], "\"'\\") {
+			continue
+		}
+		if src == nil {
+			src = []byte(prog.Source)
+		}
+		src[sp.Start], src[sp.End-1] = '"', '"'
+	}
+	if src != nil {
+		prog.Source = string(src)
 	}
 }
 

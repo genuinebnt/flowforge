@@ -87,6 +87,10 @@ type Feature struct {
 	Key    string      `json:"key"`
 	Value  string      `json:"value,omitempty"`
 	Attrs  []Attr      `json:"attrs,omitempty"`
+	// Ref is the concrete URL behind a lineage-keyed feature (a script
+	// whose key has its build hash stripped). It is not compared: a
+	// renamed bundle is the same script.
+	Ref string `json:"ref,omitempty"`
 	// Doc is the derived-document suffix the fact came from ("" for the
 	// artifact itself). It is not part of the identity used by
 	// classification: an endpoint moving from an inline script to an
@@ -194,7 +198,8 @@ func (s FeatureSet) Families() []string {
 	return slices.Compact(out)
 }
 
-// grade returns the worst grade reported for the extractor (any doc).
+// gradeOf returns the worst grade reported for the extractor (any doc)
+// and whether it reported at all.
 func (s FeatureSet) gradeOf(extractor string) (Grade, bool) {
 	g, ok := GradeComplete, false
 	for _, e := range s.Grades {

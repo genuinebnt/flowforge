@@ -1,0 +1,195 @@
+{
+  "description": "Normalize(kind, input) exact outputs, grades, mask counts and derived documents (V2 §5, §12.7, §12.8; D2). Inputs hand-written; outputs generated and reviewed by hand.",
+  "cases": [
+    {
+      "name": "html_volatile_attributes",
+      "kind": "html",
+      "input": "\u003chtml\u003e\u003cbody class='z a z' data-ts='1762596000' nonce=x1y2z3\u003e\u003cinput type=hidden name=csrf_token value=Zq81mQp2LkV0aT3n\u003e\u003cinput type=hidden name=page value=2\u003e\u003cimg srcset='/a.12ab34cd.png 1x, /b.png?v=99 2x'\u003e\u003c/body\u003e\u003c/html\u003e",
+      "expected": "\u003chtml\u003e\n\u003chead\u003e\n\u003c/head\u003e\n\u003cbody class=\"a z\" data-ts=\"__FF_MASK_TIMESTAMP__\" nonce=\"__FF_MASK_NONCE__\"\u003e\n\u003cinput name=\"csrf_token\" type=\"hidden\" value=\"__FF_MASK_CSRF__\"\u003e\n\u003cinput name=\"page\" type=\"hidden\" value=\"2\"\u003e\n\u003cimg srcset=\"/a.__FF_HASH__.png 1x, /b.png?v=__FF_MASK_CACHE_BUST__ 2x\"\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "build_hash",
+          "count": 1
+        },
+        {
+          "class": "cache_bust",
+          "count": 1
+        },
+        {
+          "class": "csrf",
+          "count": 1
+        },
+        {
+          "class": "nonce",
+          "count": 1
+        },
+        {
+          "class": "timestamp",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "html_comments_and_whitespace",
+      "kind": "html",
+      "input": "\u003c!DOCTYPE html\u003e\u003cp\u003ea\u003c!-- x --\u003eb   c\n\n d\u003c/p\u003e\u003cpre\u003e\n  keep   collapsed\u003c/pre\u003e",
+      "expected": "\u003c!DOCTYPE html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cp\u003e\nab c d\n\u003c/p\u003e\n\u003cpre\u003e\nkeep collapsed\n\u003c/pre\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
+      "grade": "complete"
+    },
+    {
+      "name": "html_inline_documents",
+      "kind": "html",
+      "input": "\u003cbutton onclick=\"go(1)\"\u003ex\u003c/button\u003e\u003cscript type=\"application/ld+json\"\u003e{\"@type\":\"Thing\"}\u003c/script\u003e\u003cstyle\u003ep{margin:0}\u003c/style\u003e\u003ca href=\"javascript:void(0)\"\u003ey\u003c/a\u003e",
+      "expected": "\u003chtml\u003e\n\u003chead\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cbutton onclick=\"__FF_MASK_HANDLER__\"\u003e\nx\n\u003c/button\u003e\n\u003cscript type=\"application/ld+json\"\u003e\n\u003c/script\u003e\n\u003cstyle\u003e\n\u003c/style\u003e\n\u003ca href=\"javascript:__FF_MASK_HANDLER__\"\u003e\ny\n\u003c/a\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "handler",
+          "count": 2
+        }
+      ],
+      "derived": [
+        "#script-1 json",
+        "#style-1 css",
+        "#handlers js"
+      ]
+    },
+    {
+      "name": "html_foreign_and_template",
+      "kind": "html",
+      "input": "\u003csvg viewBox=\"0 0 1 1\"\u003e\u003ca xlink:href=\"#x\"\u003e\u003cpath d=\"M0\"/\u003e\u003c/a\u003e\u003c/svg\u003e\u003ctemplate\u003e\u003cb\u003et\u003c/b\u003e\u003c/template\u003e",
+      "expected": "\u003chtml\u003e\n\u003chead\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003csvg viewBox=\"0 0 1 1\"\u003e\n\u003ca xlink:href=\"#x\"\u003e\n\u003cpath d=\"M0\"\u003e\n\u003c/path\u003e\n\u003c/a\u003e\n\u003c/svg\u003e\n\u003ctemplate\u003e\n\u003cb\u003e\nt\n\u003c/b\u003e\n\u003c/template\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
+      "grade": "complete"
+    },
+    {
+      "name": "html_quirks_doctype_kept",
+      "kind": "html",
+      "input": "\u003c!DOCTYPE html bogus\u003e\u003ctable\u003e\u003cp\u003ex\u003c/table\u003e",
+      "expected": "\u003c!DOCTYPE html x\u003e\n\u003chtml\u003e\n\u003chead\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cp\u003e\nx\n\u003c/p\u003e\n\u003ctable\u003e\n\u003c/table\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
+      "grade": "complete"
+    },
+    {
+      "name": "js_statements_and_masks",
+      "kind": "js",
+      "input": "var a='2026-11-13T10:00:00Z',b=1762596000123;if(a){b++}else b--;x={k:'8f14e45fceea167a5a36dedd4bea2543',path:'/api/v1/x'}",
+      "expected": "var a = \"__FF_MASK_TIMESTAMP__\", b = __FF_MASK_TIMESTAMP__;\nif (a) {\n  b++;\n} else b--;\nx = {k: \"__FF_MASK_BUILD_HASH__\", path: \"/api/v1/x\"};\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "build_hash",
+          "count": 1
+        },
+        {
+          "class": "timestamp",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "name": "js_directive_quotes",
+      "kind": "js",
+      "input": "'use strict';function f(){'use strict';return 1}",
+      "expected": "\"use strict\";\nfunction f() {\n  \"use strict\";\n  return 1;\n}\n",
+      "grade": "complete"
+    },
+    {
+      "name": "js_syntax_error_fallback",
+      "kind": "js",
+      "input": "var a = ;\n    foo(  1,\t2 )   \n\n}",
+      "expected": "var a = ;\nfoo( 1, 2 ) \n\n}\n",
+      "grade": "partial",
+      "diagnostics": [
+        "js_syntax_fallback"
+      ]
+    },
+    {
+      "name": "css_declarations",
+      "kind": "css",
+      "input": "/* banner */\na \u003e b , c { color : red !important ; background:url( /i.png?v=17 ) ; ; }\n@media (max-width: 600px) { .x { margin : 0 } }",
+      "expected": "a\u003eb,c{\ncolor:red!important;\nbackground:url(/i.png?v=__FF_MASK_CACHE_BUST__)\n}\n@media (max-width:600px){\n.x{\nmargin:0\n}\n}\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "cache_bust",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "json_canonical",
+      "kind": "json",
+      "input": "{\"b\": [1, 2.50, {\"z\": null, \"a\": \"\\u00e9\\n\"}], \"a\": true, \"requestId\": \"r-1\", \"meta\": {\"serverTime\": 1762596000}}",
+      "expected": "{\n  \"a\": true,\n  \"b\": [\n    1,\n    2.50,\n    {\n      \"a\": \"é\\n\",\n      \"z\": null\n    }\n  ],\n  \"meta\": {\n    \"serverTime\": \"__FF_MASK_TIMESTAMP__\"\n  },\n  \"requestId\": \"__FF_MASK_RANDOM_ID__\"\n}\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "random_id",
+          "count": 1
+        },
+        {
+          "class": "timestamp",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "json_invalid_fallback",
+      "kind": "json",
+      "input": "{\"a\": 1,, }",
+      "expected": "{\"a\": 1,, }\n",
+      "grade": "partial",
+      "diagnostics": [
+        "json_invalid_fallback"
+      ]
+    },
+    {
+      "name": "xml_canonical",
+      "kind": "xml",
+      "input": "\u003c?xml version=\"1.0\"?\u003e\u003cr xmlns=\"urn:x\" xmlns:p=\"urn:p\" b=\"2\" a=\"1\"\u003e\u003c!-- c --\u003e\u003cp:i  z=\"\u0026amp;\"\u003e t  \u0026lt; u \u003c/p:i\u003e\u003ce/\u003e\u003c![CDATA[x\u003cy]]\u003e\u003c/r\u003e",
+      "expected": "\u003cr xmlns=\"urn:x\" xmlns:p=\"urn:p\" a=\"1\" b=\"2\"\u003e\n\u003cp:i z=\"\u0026amp;\"\u003e\nt \u0026lt; u\n\u003c/p:i\u003e\n\u003ce\u003e\n\u003c/e\u003e\nx\u0026lt;y\n\u003c/r\u003e\n",
+      "grade": "complete"
+    },
+    {
+      "name": "headers_block",
+      "kind": "headers",
+      "input": "Date: Mon, 01 Jan 2026 00:00:00 GMT\nContent-Security-Policy: script-src 'self' 'nonce-abc123' https://cdn.example; default-src 'none'\nSet-Cookie: sid=deadbeef; Path=/; HttpOnly; Expires=Wed, 21 Oct 2026 07:28:00 GMT; Secure\nX-Request-Id: 42\nLocation: https://a.example/login?next=%2Fadmin\u0026state=xyz\nStrict-Transport-Security: max-age=63072000; includeSubDomains; preload\n",
+      "expected": "content-security-policy: default-src 'none'; script-src 'self' https://cdn.example\nlocation: https://a.example/login?next=__FF_MASK_RANDOM_ID__\u0026state=__FF_MASK_RANDOM_ID__\nset-cookie: sid; httponly; path=/; secure\nstrict-transport-security: includesubdomains; max-age=63072000; preload\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "nonce",
+          "count": 1
+        },
+        {
+          "class": "random_id",
+          "count": 2
+        },
+        {
+          "class": "timestamp",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "text_lines",
+      "kind": "text",
+      "input": "﻿\r\nfirst  \r\n\r\n\r\n  second\t\nbuilt 2026-11-13T10:00:00+01:00\n\n",
+      "expected": "first\n\n  second\nbuilt __FF_MASK_TIMESTAMP__\n",
+      "grade": "complete",
+      "masks": [
+        {
+          "class": "timestamp",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "ts_is_text",
+      "kind": "ts_text",
+      "input": "export interface User {\n  id: string;   \n}\r\n",
+      "expected": "export interface User {\n  id: string;\n}\n",
+      "grade": "complete"
+    }
+  ]
+}

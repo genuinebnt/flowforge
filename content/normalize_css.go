@@ -14,6 +14,7 @@ var cssRules = []string{
 	"lines:newline after { ; } and before }; a ; directly before } or ; is dropped",
 	"string:re-quoted with \" when the value needs no escape",
 	"url:url(value) without inner white space when the value needs no escape",
+	"invalid:strings cut by eof are closed; an escape cut by eof is dropped; a final hex escape gets its space; bad-string and bad-url tokens become fixed placeholders",
 	"mask:url values → cache_bust query values, build_hash asset names",
 }
 
@@ -27,10 +28,20 @@ func normalizeCSS(body []byte, lim Limits, m *masker) normResult {
 		}
 	}
 	src := string(body)
+	if n := len(toks); n > 0 {
+		// Only the last token can end in an escape cut by EOF. When that
+		// escape is all it is, it reads as nothing once a newline
+		// follows, so treat it as white space from the start.
+		last := &toks[n-1]
+		if txt := src[last.Start:last.End]; last.Kind != cssparse.TokenDelim && last.Kind != cssparse.TokenString &&
+			strings.TrimRight(txt, `\`) == "" && len(txt)%2 == 1 {
+			last.Kind = cssparse.TokenWhitespace
+		}
+	}
 	var b strings.Builder
 	b.Grow(len(body))
-	pending := false   // white space or a comment was seen since the last emitted token
-	lineStart := true  // nothing emitted on the current line
+	pending := false  // white space or a comment was seen since the last emitted token
+	lineStart := true // nothing emitted on the current line
 	noSpaceAfter := false
 	parens, depth := 0, 0
 	lineTokens := 0 // tokens emitted on the current line
@@ -63,6 +74,7 @@ func normalizeCSS(body []byte, lim Limits, m *masker) normResult {
 				continue
 			}
 			b.WriteByte(';')
+			lineStart = false
 			newline()
 			continue
 		case cssparse.TokenOpenCurly:
@@ -117,9 +129,34 @@ func normalizeCSS(body []byte, lim Limits, m *masker) normResult {
 			text = cssString(t, text, m)
 		case cssparse.TokenURL:
 			text = cssURL(t, text, m)
+		case cssparse.TokenBadString, cssparse.TokenBadURL:
+			// Invalid tokens swallow what follows them differently once
+			// re-spaced; a fixed placeholder keeps the output stable.
+			if t.Kind == cssparse.TokenBadString {
+				text = `"__FF_BAD_STRING__"`
+			} else {
+				text = "url(__FF_BAD_URL__)"
+			}
+		}
+		if t.Kind != cssparse.TokenDelim && t.Kind != cssparse.TokenString && strings.HasSuffix(text, `\`) &&
+			(len(text)-len(strings.TrimRight(text, `\`)))%2 == 1 {
+			// An escape cut by EOF ("\" + EOF is a valid escape of U+FFFD,
+			// §4.3.8) stops being one once a newline follows; drop it.
+			text = text[:len(text)-1]
+			if text == "" {
+				pending = true
+				continue
+			}
 		}
 		if pending && !lineStart && !tight && !noSpaceAfter {
 			b.WriteByte(' ')
+		}
+		if endsInHexEscape(text) {
+			// CSS Syntax §4.3.7: a hex escape consumes one following white
+			// space. The source ended right after it (EOF); write that
+			// space now so the space or newline the normalizer adds next
+			// is not absorbed on re-normalization.
+			text += " "
 		}
 		b.WriteString(text)
 		lineStart, pending, noSpaceAfter = false, false, after
@@ -147,6 +184,16 @@ func cssSafe(v string, inURL bool) bool {
 
 func cssString(t *cssparse.Token, text string, m *masker) string {
 	if !cssSafe(t.Value, false) {
+		if t.Flags&cssparse.FlagUnterminated != 0 && len(text) > 0 {
+			// Close a string cut by EOF (CSS Syntax §4.3.5: EOF ends it),
+			// so the newline the normalizer appends cannot extend it. A
+			// final lone backslash is dropped as EOF drops it.
+			body := text
+			if n := len(body) - len(strings.TrimRight(body, `\`)); n%2 == 1 {
+				body = body[:len(body)-1]
+			}
+			return body + text[:1]
+		}
 		return text
 	}
 	v := t.Value
@@ -161,4 +208,21 @@ func cssURL(t *cssparse.Token, text string, m *masker) string {
 		return text
 	}
 	return "url(" + maskURL(t.Value, m) + ")"
+}
+
+// endsInHexEscape reports text ending in "\" + 1..6 hex digits, the
+// backslash itself not escaped.
+func endsInHexEscape(text string) bool {
+	i := len(text)
+	for i > 0 && len(text)-i < 6 && isHexString(text[i-1:i]) {
+		i--
+	}
+	if i == len(text) || i == 0 || text[i-1] != '\\' {
+		return false
+	}
+	n := 0
+	for j := i - 1; j >= 0 && text[j] == '\\'; j-- {
+		n++
+	}
+	return n%2 == 1
 }

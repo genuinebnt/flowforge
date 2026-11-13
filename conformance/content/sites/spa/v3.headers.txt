@@ -1,0 +1,9 @@
+Date: Sat, 22 Nov 2026 10:00:00 GMT
+Content-Type: text/html; charset=utf-8
+X-Request-Id: 1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b
+Content-Security-Policy: script-src 'nonce-Zz1Yy2Xx3Ww4Vv5U' 'self' 'unsafe-inline'; default-src 'self'; object-src 'none'
+Server: nginx
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+Set-Cookie: session=9e8d7c6b5a4f3e2d; Path=/; Secure; SameSite=Lax; Expires=Sun, 22 Nov 2026 11:00:00 GMT
+ETag: "0a9b8c"

@@ -1,0 +1,10 @@
+Date: Sat, 15 Nov 2026 10:00:00 GMT
+Content-Type: text/html; charset=utf-8
+X-Request-Id: 9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+Content-Security-Policy: script-src 'nonce-Qw9e8r7t6y5u4i3o' 'self'; default-src 'self'; object-src 'none'
+Server: nginx
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Set-Cookie: session=0b1c2d3e4f5a6b7c; Path=/; HttpOnly; Secure; SameSite=Lax; Expires=Sun, 15 Nov 2026 11:00:00 GMT
+ETag: "d4e5f6"

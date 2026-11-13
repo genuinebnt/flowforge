@@ -2,6 +2,7 @@ package content
 
 import (
 	"bytes"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,11 +25,17 @@ func (x *extraction) css() {
 		if !ok {
 			continue
 		}
-		if r.Context == cssparse.URLContextImport {
-			fs = append(fs, newFeature(FeatCSSImport, LineageKey(abs), abs))
-		} else if r.Context != cssparse.URLContextNamespace {
-			fs = append(fs, newFeature(FeatCSSAsset, LineageKey(abs), abs, Attr{"context", r.Context.String()}))
+		var f Feature
+		switch r.Context {
+		case cssparse.URLContextImport:
+			f = newFeature(FeatCSSImport, LineageKey(abs), "")
+		case cssparse.URLContextNamespace:
+			continue
+		default:
+			f = newFeature(FeatCSSAsset, LineageKey(abs), "", Attr{"context", r.Context.String()})
 		}
+		f.Ref = abs
+		fs = append(fs, f)
 	}
 	x.report(ExCSSURLs, Grade(res.Grade.String()), "", fs)
 }
@@ -161,6 +168,9 @@ func openAPIEndpoints(v diff.Value, docURL string) []Feature {
 		return nil
 	}
 	base := docURL
+	if u, err := url.Parse(docURL); err == nil {
+		base = u.Scheme + "://" + u.Host
+	}
 	if servers, ok := v.Get("servers"); ok && servers.Kind == diff.KindArray {
 		for _, s := range servers.Items {
 			if u := jsonString(s, "url"); u != "" {

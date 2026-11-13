@@ -1,0 +1,298 @@
+{
+  "module": "content",
+  "date": "2026-11-13",
+  "commit": "6cf17fb",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkContentNormalize/html",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 126046826,
+        "MB/s": 10.53,
+        "allocs/op": 688671,
+        "ns/op": 99739598
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentNormalize/js",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 63775842,
+        "MB/s": 17.84,
+        "allocs/op": 81849,
+        "ns/op": 62463684
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentNormalize/css",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 32962133,
+        "MB/s": 39.84,
+        "allocs/op": 109780,
+        "ns/op": 26325257
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentNormalize/json",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 572974298,
+        "MB/s": 4.47,
+        "allocs/op": 1327345,
+        "ns/op": 234405519
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentNormalize/xml",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 228842248,
+        "MB/s": 10.35,
+        "allocs/op": 401750,
+        "ns/op": 101349256
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentNormalize/text",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 10939434,
+        "MB/s": 92.81,
+        "allocs/op": 90962,
+        "ns/op": 11298557
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentExtract/html",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 53175066,
+        "MB/s": 11.73,
+        "allocs/op": 403882,
+        "ns/op": 89491128
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentExtract/js",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 112426338,
+        "MB/s": 8.85,
+        "allocs/op": 498886,
+        "ns/op": 125923789
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentExtract/css",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 118044869,
+        "MB/s": 11.61,
+        "allocs/op": 101364,
+        "ns/op": 90336983
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentExtract/json",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 63033949,
+        "MB/s": 10.43,
+        "allocs/op": 843012,
+        "ns/op": 100555943
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentExtract/xml",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 29466088,
+        "MB/s": 16.43,
+        "allocs/op": 116679,
+        "ns/op": 63837488
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentExtract/text",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 11625032,
+        "MB/s": 38.22,
+        "allocs/op": 18,
+        "ns/op": 27436761
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentPipeline",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 960269674,
+        "MB/s": 1.65,
+        "allocs/op": 2915574,
+        "ns/op": 1347426267
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/lineage/simhash",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 2132026,
+        "allocs/op": 74608,
+        "ns/op": 11468563
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/lineage/minhash",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 2127776,
+        "allocs/op": 74607,
+        "ns/op": 32700389
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/lineage/jaccard",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 2722666,
+        "allocs/op": 74604,
+        "ns/op": 5400986
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/splitter/auto",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 46777877,
+        "MB/s": 35.26,
+        "allocs/op": 210183,
+        "ns/op": 63162608
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/splitter/webpack",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 46711056,
+        "MB/s": 45.15,
+        "allocs/op": 210156,
+        "ns/op": 49321888
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/splitter/esbuild",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 78143224,
+        "MB/s": 30.59,
+        "allocs/op": 266208,
+        "ns/op": 72809630
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/splitter/toplevel",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 78076429,
+        "MB/s": 32.72,
+        "allocs/op": 266183,
+        "ns/op": 68049455
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/volatility/ratio",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 889336,
+        "allocs/op": 61,
+        "ns/op": 2869772
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/volatility/streak",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 881144,
+        "allocs/op": 61,
+        "ns/op": 2477447
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/diff/size",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 6197928,
+        "MB/s": 40.61,
+        "allocs/op": 40613,
+        "ns/op": 8410813
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/diff/myers",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 41288472,
+        "MB/s": 6.54,
+        "allocs/op": 40652,
+        "ns/op": 52243847
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/diff/histogram",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 6198050,
+        "MB/s": 43.52,
+        "allocs/op": 40614,
+        "ns/op": 7847168
+      }
+    },
+    {
+      "bench_id": "BenchmarkContentAlgo/diff/patience",
+      "package": "github.com/genuinebnt/flowforge/content",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 6748568,
+        "MB/s": 36.36,
+        "allocs/op": 40637,
+        "ns/op": 9393879
+      }
+    }
+  ]
+}
