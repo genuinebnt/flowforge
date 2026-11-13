@@ -1,0 +1,237 @@
+{
+  "module": "htmlparse",
+  "date": "2026-11-13",
+  "commit": "94acf61",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkHTMLTokenize/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 22928,
+        "MB/s": 69.98,
+        "allocs/op": 764,
+        "ns/op": 147538
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLTokenize/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136944,
+        "MB/s": 49.05,
+        "allocs/op": 75732,
+        "ns/op": 21402837
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLTokenize/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 21328208,
+        "MB/s": 93.83,
+        "allocs/op": 755439,
+        "ns/op": 111755546
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLParse/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 177408,
+        "MB/s": 35.59,
+        "allocs/op": 879,
+        "ns/op": 290045
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLParse/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 17163848,
+        "MB/s": 36.57,
+        "allocs/op": 84653,
+        "ns/op": 28708976
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLParse/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 173078800,
+        "MB/s": 26.5,
+        "allocs/op": 843160,
+        "ns/op": 395659939
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImpl/ours/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 177408,
+        "MB/s": 38.91,
+        "allocs/op": 879,
+        "ns/op": 265345
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImpl/ours/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 17163880,
+        "MB/s": 41.53,
+        "allocs/op": 84653,
+        "ns/op": 25280215
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImpl/ours/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 173160560,
+        "MB/s": 42.36,
+        "allocs/op": 843163,
+        "ns/op": 247556939
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImpl/xnethtml/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 109376,
+        "MB/s": 7.37,
+        "allocs/op": 3244,
+        "ns/op": 1401066
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImpl/xnethtml/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 10411432,
+        "MB/s": 35.77,
+        "allocs/op": 322839,
+        "ns/op": 29343754
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImpl/xnethtml/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 103892616,
+        "MB/s": 28.78,
+        "allocs/op": 3220977,
+        "ns/op": 364401255
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImplTokenize/ours/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 22928,
+        "MB/s": 65.21,
+        "allocs/op": 764,
+        "ns/op": 158324
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImplTokenize/ours/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136688,
+        "MB/s": 87.14,
+        "allocs/op": 75730,
+        "ns/op": 12047391
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImplTokenize/ours/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 21328416,
+        "MB/s": 91.77,
+        "allocs/op": 755440,
+        "ns/op": 114258229
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImplTokenize/xnethtml/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 44848,
+        "MB/s": 51.5,
+        "allocs/op": 2663,
+        "ns/op": 200463
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImplTokenize/xnethtml/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3969728,
+        "MB/s": 65.93,
+        "allocs/op": 265260,
+        "ns/op": 15922809
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLImplTokenize/xnethtml/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 39570224,
+        "MB/s": 53.84,
+        "allocs/op": 2646223,
+        "ns/op": 194770499
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLCharRef/sorted",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 600656,
+        "MB/s": 50.44,
+        "allocs/op": 42,
+        "ns/op": 2409364
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLCharRef/trie",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 600656,
+        "MB/s": 69.34,
+        "allocs/op": 42,
+        "ns/op": 1752809
+      }
+    }
+  ]
+}
