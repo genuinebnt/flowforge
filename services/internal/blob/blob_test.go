@@ -82,7 +82,7 @@ func (f *fakeGCS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var crc [4]byte
 		binary.BigEndian.PutUint32(crc[:], crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli)))
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"bucket": bucket, "name": obj.Name, "size": len(data),
+		_ = json.NewEncoder(w).Encode(map[string]any{"bucket": bucket, "name": obj.Name, "size": itoa(len(data)),
 			"contentType": obj.ContentType, "generation": "1", "crc32c": base64.StdEncoding.EncodeToString(crc[:])})
 	case strings.HasPrefix(r.URL.Path, "/storage/v1/b/"):
 		rest := strings.TrimPrefix(r.URL.Path, "/storage/v1/b/")

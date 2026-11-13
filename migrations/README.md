@@ -19,6 +19,7 @@ and a Go runner (`migrations.Apply`).
 | `0012_graph_vectors.sql` | `graph.embeddings`, `vector_indexes`, `vector_segments` (needs pgvector) | 22.9 |
 | `0013_engine_extras.sql` | `engine.workflow_version_ext`, `run_ext`, `run_requests`, `approval_ext` (engine/pgrepo's SchemaSQL, idempotent) | 9, 10.4 (addition) |
 | `0014_notifier_delivery_target.sql` | `notifier.deliveries.target` (Slack channel override / e-mail recipient of an action) | 15.4 (addition) |
+| `0018_v1_db_roles.sql` | per-service roles and grants, forced RLS on tenant, partition and child tables, `ff_sync_roles()` | 10.7, 17.2 (addition) |
 
 ## Usage
 
@@ -33,6 +34,52 @@ when `pg_available_extensions` lists that extension; otherwise it is
 recorded as `skipped` and applied by a later run once the extension is
 installed. An applied file must never change (checksum check); fix forward
 with a new file.
+
+## Database roles (0018)
+
+`cmd/migrate` runs `migrations.Deploy`: `ApplyReport`, then `SyncRoles`
+(`SELECT public.ff_sync_roles()`), then `RoleProblems`. It fails the job
+when a service role is a superuser, has `BYPASSRLS`, `CREATEROLE` or
+`CREATEDB`, owns a service table, or is still in `cloudsqlsuperuser`.
+`ff_sync_roles()` is idempotent and catalog-driven, so tables added by later
+migrations get the same treatment on the next run (`Apply` also re-runs it
+when a file after 0018 was applied).
+
+| Role | Grants (USAGE + SELECT/INSERT/UPDATE/DELETE, sequences) | Row-level security |
+|------|------------------|-----|
+| `ff_gateway` | `identity` | cross-tenant policy `svc_ff_gateway` on identity tables (login, refresh and API-key lookups precede the tenant) |
+| `ff_engine` | `engine` | cross-tenant policy `svc_ff_engine` (runs are keyed by id; `ListReady`/`ClaimReady`, outbox relay) |
+| `ff_scope` | `scope` | cross-tenant policy `svc_ff_scope` (outbox relay) |
+| `ff_notifier` | `notifier` | cross-tenant policy `svc_ff_notifier` (delivery worker) |
+| `ff_graph` | `graph` | **subject to RLS**: graphstore/pg sets `app.tenant_id` per transaction; only `graph.change_events` (relay) has `svc_ff_graph` |
+| `ff_similarity` | `graph.embeddings`, `vector_indexes`, `vector_segments` (when 0012 applied) | subject to RLS |
+| `ff_maintenance` | every service schema | `svc_ff_maintenance` on every RLS table (retention, partitions, archival); NOLOGIN, the migrator is made a member |
+
+Every service role also gets the shared `bus` schema when it exists (the
+local Postgres bus). PUBLIC gets nothing in the service schemas, no CREATE
+on `public`, and no access to `public.schema_migrations` or the `ff_`
+functions. Roles that do not exist are created `NOLOGIN` (local and test
+clusters); on Cloud SQL, Terraform creates them as login users (`ff_<name>`
+for each entry of `db_users`) and `ff_sync_roles()` removes them from
+`cloudsqlsuperuser`. The names match `infra/envs/*/main.tf` `db_users`;
+`ff_migrator` is the migrations job itself and owns the tables.
+
+Every table with a `tenant_id` column in a service schema, each partition
+of `scope.scope_decisions` (including the ones
+`scope.ensure_decision_partition` adds later; it is now `SECURITY DEFINER`)
+and the child tables listed in 0018 (`engine.run_events`, `effects`,
+`timers`, `snapshots`, `run_ext`, `run_requests`, `approval_ext`,
+`workflow_versions`, `workflow_version_ext`, `scope.scope_versions`,
+`notifier.deliveries`) have `ENABLE` + `FORCE ROW LEVEL SECURITY`. Child
+tables use `parent_visible`: a row is visible when its parent row is. The
+cross-tenant exemptions are role-scoped permissive policies rather than the
+`BYPASSRLS` attribute; see `OPEN_QUESTIONS.md` 12.
+
+Locally (`flowforge dev`, tests) everything runs as the `postgres`
+superuser, which RLS never restricts; `TestRegress_G_OPS_02_*` in
+`eventstore/pgstore`, `engine/pgrepo` and `graphstore/pg` run their suites
+as `ff_engine` and `ff_graph` through the `role` startup parameter
+(`options=-c role=ff_engine`).
 
 ## Tests
 
@@ -50,5 +97,8 @@ partition helper and the RLS policies (with a temporary non-owner role).
 ## Limitations
 
 * Retention jobs (10.7) and the monthly partition job are not part of the
-  migrations; the helper function exists, the scheduler does not.
+  migrations; they connect as (or `SET ROLE` to) `ff_maintenance`.
+* The engine, scope, notifier and identity stores do not set
+  `app.tenant_id`, so their roles hold a cross-tenant policy on their own
+  schema; RLS restricts them only outside it (where grants already deny).
 * See `OPEN_QUESTIONS.md` for the spec ambiguities and the choices made.

@@ -130,10 +130,17 @@ manual approval in the `prod` environment.
   engine, notifier) and on similarity (gateway). `sa-similarity`,
   `sa-egress-proxy`, `sa-migrate` and `sa-scheduler` are not in 17.2 and
   get only what they use.
-- **Database grants**: Terraform creates the database and the users; the
-  migrations job creates the five schemas and extensions, grants each role
-  USAGE + DML on its own schema only and removes it from
-  `cloudsqlsuperuser`. Built-in passwords are used, not IAM DB auth.
+- **Database grants**: Terraform creates the database and the users
+  (`ff_<name>` for each `db_users` entry). The migrations job
+  (`cmd/migrate` → `migrations.Deploy`, migration `0018_v1_db_roles.sql`)
+  creates the schemas and extensions, grants each service role USAGE + DML
+  on its own schema only (revoking it everywhere else and revoking PUBLIC),
+  forces row-level security with role-scoped cross-tenant policies, removes
+  the service roles from `cloudsqlsuperuser`, and fails if any of them is
+  still over-privileged. `ff_migrator` owns the tables and is made a member
+  of the NOLOGIN `ff_maintenance` role used by retention jobs. See
+  `migrations/README.md` "Database roles". Built-in passwords are used, not
+  IAM DB auth.
 - **Cloud Scheduler** jobs come from `var.schedules`; user-defined workflow
   schedules created at runtime would need the engine to manage Scheduler
   jobs, which 17.2 does not grant.

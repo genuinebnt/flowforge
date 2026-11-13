@@ -13,6 +13,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/core"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
+	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/oam"
 	"github.com/genuinebnt/flowforge/scope"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
@@ -37,6 +38,11 @@ type Options struct {
 	Resolver scope.Resolver
 	Clock    core.Clock
 	Logger   *slog.Logger
+	// Raw, when set, receives each observation as the tool reported it
+	// before it is sent (G-OPS-14); its URI becomes the observation's
+	// raw_ref (spec 10.5 graph.observations.raw_ref). Bucket lifecycle
+	// rules expire these objects (spec 10.7, observations 90 days).
+	Raw graphstore.BlobStore
 }
 
 // Server implements flowforge.v1.ToolRunnerService.
@@ -57,6 +63,13 @@ func NewServer(o Options) *Server {
 	s := &Server{o: o, tools: map[string]Adapter{}}
 	for _, a := range o.Adapters {
 		s.tools[a.Spec().Name] = a
+	}
+	return s
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "none"
 	}
 	return s
 }
@@ -87,6 +100,8 @@ type streamEmitter struct {
 	log    *slog.Logger
 	ctx    context.Context
 	tool   oam.Tool
+	raw    graphstore.BlobStore
+	prefix string // raw/<tenant>/<program>/<run>/
 }
 
 func (e *streamEmitter) send(r *pb.ExecuteResponse) error {
@@ -107,6 +122,20 @@ func (e *streamEmitter) Observation(o oam.Observation) error {
 	}
 	if err := o.Validate(); err != nil {
 		return Errorf("invalid_observation", false, err.Error())
+	}
+	if e.raw != nil && o.RawRef == "" && o.ObservationID != "" {
+		// The id is deterministic per (run, path, tool input), so a retried
+		// effect overwrites the same object instead of leaking a new one.
+		data, err := json.Marshal(o)
+		if err == nil {
+			if uri, perr := e.raw.Put(e.ctx, e.prefix+o.ObservationID+".json", data); perr == nil {
+				o.RawRef = uri
+			} else {
+				// Raw output is evidence, not the result: losing it must not
+				// fail the effect, so it is logged and the ref stays empty.
+				e.log.WarnContext(e.ctx, "toolrunner.raw_write_failed", "observation_id", o.ObservationID, "error", perr.Error())
+			}
+		}
 	}
 	p, err := convert.ObservationProto(o)
 	if err != nil {
@@ -178,7 +207,8 @@ func (s *Server) Execute(req *pb.ExecuteRequest, stream grpc.ServerStreamingServ
 		return s.o.Scope.CheckTarget(ctx, scopesvc.Target{Tenant: id.Tenant, Program: program, Target: target, Kind: kind,
 			Class: class, Run: run, Path: req.GetEffectPath(), Resolve: class > core.ClassPassive})
 	}
-	em := &streamEmitter{stream: stream, log: s.o.Logger, ctx: ctx, tool: oam.Tool{Name: spec.Name, Version: spec.Version}}
+	em := &streamEmitter{stream: stream, log: s.o.Logger, ctx: ctx, tool: oam.Tool{Name: spec.Name, Version: spec.Version}, raw: s.o.Raw,
+		prefix: "raw/" + id.TenantPublicID() + "/" + orNone(req.GetProgramId()) + "/" + orNone(req.GetRunId()) + "/"}
 	start := time.Now()
 	type result struct {
 		out json.RawMessage
