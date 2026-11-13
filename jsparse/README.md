@@ -126,7 +126,7 @@ early and limit.
 | JS-INV-05 | `TestJSInv05_LexicalGoals` | Every `/`-initial token is a RegularExpressionLiteral exactly where the grammar admits one (hand-written ambiguous contexts and the generator's recorded answers); regex tokens are lexed under a RegExp goal. |
 | JS-INV-06 | `TestJSInv06_ArenaIntegrity` | Child ids are in range and not self; list ranges are inside `Children`; holes only in array elements; no node has two parents; child spans lie within parent spans; in successful parses every node is reachable from the root. |
 | JS-INV-07 | `TestJSInv07_TolerantAgrees` | On valid input tolerant mode gives the strict tree and no diagnostics. |
-| JS-INV-08 | `TestJSInv07_TolerantAgrees`, `TestJSInv02_Totality` | On invalid input the first tolerant diagnostic equals the strict-mode error. |
+| JS-INV-08 | `TestJSInv08_FirstDiagnosticMatchesStrict` | On invalid input the first tolerant diagnostic equals the strict-mode error. |
 | JS-INV-09 | `TestJSInv09_CanonicalJSON` | The canonical JSON is valid JSON with strictly sorted object keys and is identical across parses. |
 | JS-INV-10 | `TestJSInv10_LexerTiling`, `FuzzJSLexer` | The lexer alone, under any goal sequence, terminates and tiles the input with tokens and trivia. |
 

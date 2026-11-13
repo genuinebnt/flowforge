@@ -298,3 +298,13 @@ tests = { prefix = "SOCKSInv", required = ["01", "02", "03", "04", "05", "06"] }
 conformance = ["socks5"]
 fuzz = ["FuzzSOCKS5"]
 bench = []
+
+[module.jsparse]
+layer = 1
+spec = ["V2_DESIGN 4.2", "ECMA-262 15th ed."]
+dir = "jsparse"
+depends = ["core"]
+tests = { prefix = "JSInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"] }
+conformance = ["third_party/test262-parser-tests/pass", "third_party/test262-parser-tests/fail", "third_party/test262-parser-tests/early", "jsparse"]
+fuzz = ["FuzzJSLexer", "FuzzJSParse", "FuzzJSPrintReparse"]
+bench = ["BenchmarkJSAlgo", "BenchmarkJSParse"]

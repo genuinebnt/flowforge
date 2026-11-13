@@ -403,6 +403,12 @@ func TestJSInv07_TolerantAgrees(t *testing.T) {
 			t.Fatalf("case %d: tolerant differs (err %v, diags %v)", i, err, b.Diagnostics)
 		}
 	}
+}
+
+// TestJSInv08_FirstDiagnosticMatchesStrict: on invalid input (every
+// test262 fail and early file) the first diagnostic of a tolerant parse is
+// the error a strict parse reports.
+func TestJSInv08_FirstDiagnosticMatchesStrict(t *testing.T) {
 	for _, sub := range []string{"fail", "early"} {
 		for _, f := range readSuiteDir(t, sub) {
 			if err := checkTolerant(f.src, sourceTypeOf(f.name)); err != nil {
