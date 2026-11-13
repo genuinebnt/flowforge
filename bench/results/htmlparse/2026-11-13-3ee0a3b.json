@@ -1,0 +1,314 @@
+{
+  "module": "htmlparse",
+  "date": "2026-11-13",
+  "commit": "3ee0a3b",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkHTMLTokenize/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 22944,
+        "MB/s": 72.93,
+        "allocs/op": 765,
+        "ns/op": 141557
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLTokenize/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136800,
+        "MB/s": 101.59,
+        "allocs/op": 75731,
+        "ns/op": 10332948
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLTokenize/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 21328256,
+        "MB/s": 88.11,
+        "allocs/op": 755438,
+        "ns/op": 119009866
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLParse/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 177408,
+        "MB/s": 39.41,
+        "allocs/op": 879,
+        "ns/op": 261995
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLParse/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 17163912,
+        "MB/s": 34.05,
+        "allocs/op": 84653,
+        "ns/op": 30830312
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLParse/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 173160400,
+        "MB/s": 46.21,
+        "allocs/op": 843163,
+        "ns/op": 226929830
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/trie/entities",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 600656,
+        "MB/s": 95.8,
+        "allocs/op": 42,
+        "ns/op": 1268701
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/trie/urls",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1439728,
+        "MB/s": 167.53,
+        "allocs/op": 29049,
+        "ns/op": 6259819
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/trie/page-1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136688,
+        "MB/s": 106.67,
+        "allocs/op": 75730,
+        "ns/op": 9841361
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/sorted/entities",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 600656,
+        "MB/s": 67.39,
+        "allocs/op": 42,
+        "ns/op": 1803419
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/sorted/urls",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1439728,
+        "MB/s": 138.27,
+        "allocs/op": 29049,
+        "ns/op": 7584033
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/sorted/page-1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136688,
+        "MB/s": 100.1,
+        "allocs/op": 75730,
+        "ns/op": 10487333
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/map/entities",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 600656,
+        "MB/s": 129.71,
+        "allocs/op": 42,
+        "ns/op": 937003
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/map/urls",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1439728,
+        "MB/s": 120.71,
+        "allocs/op": 29049,
+        "ns/op": 8687471
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/charref/map/page-1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136688,
+        "MB/s": 110.37,
+        "allocs/op": 75730,
+        "ns/op": 9511678
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/parse/ours/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 177408,
+        "MB/s": 44.43,
+        "allocs/op": 879,
+        "ns/op": 232366
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/parse/xnethtml/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 109376,
+        "MB/s": 33.33,
+        "allocs/op": 3244,
+        "ns/op": 309736
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/tokenize/ours/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 22928,
+        "MB/s": 81.04,
+        "allocs/op": 764,
+        "ns/op": 127396
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/tokenize/xnethtml/10KB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 44848,
+        "MB/s": 55.02,
+        "allocs/op": 2663,
+        "ns/op": 187650
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/parse/ours/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 17163928,
+        "MB/s": 46.49,
+        "allocs/op": 84653,
+        "ns/op": 22582388
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/parse/xnethtml/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 10411432,
+        "MB/s": 39.13,
+        "allocs/op": 322839,
+        "ns/op": 26830074
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/tokenize/ours/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2136688,
+        "MB/s": 109.4,
+        "allocs/op": 75730,
+        "ns/op": 9595894
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/tokenize/xnethtml/1MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3969728,
+        "MB/s": 66.69,
+        "allocs/op": 265260,
+        "ns/op": 15740867
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/parse/ours/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 173078352,
+        "MB/s": 44.78,
+        "allocs/op": 843159,
+        "ns/op": 234182820
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/parse/xnethtml/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 103892488,
+        "MB/s": 41.48,
+        "allocs/op": 3220976,
+        "ns/op": 252817675
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/tokenize/ours/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 21328192,
+        "MB/s": 87.09,
+        "allocs/op": 755438,
+        "ns/op": 120405708
+      }
+    },
+    {
+      "bench_id": "BenchmarkHTMLAlgo/tokenize/xnethtml/10MB",
+      "package": "github.com/genuinebnt/flowforge/htmlparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 39570000,
+        "MB/s": 66.24,
+        "allocs/op": 2646221,
+        "ns/op": 158308322
+      }
+    }
+  ]
+}

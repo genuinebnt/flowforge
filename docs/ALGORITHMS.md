@@ -121,16 +121,57 @@ but are not yet all selectable in non-test code or behind an
   events/s at 16 runs and batch size 100.
 * **Default:** Postgres in services, MemStore in tests and `flowforge dev`.
 
-### Content-defined chunking (`chunkstore`, v2), **retrofit**
-* **Candidates:** FastCDC with normalized chunking (implemented). Planned:
-  fixed-size chunking, Rabin fingerprint CDC, and whole-blob storage.
-* **Measured:** FastCDC chunks at 1.4–1.9 GB/s. 50 versions of a 2.1 MB
-  bundle are stored in 1.55 % of their raw size (dedupe 27.6×,
-  compression 2.68×).
-* **Default:** FastCDC. Its gear hash is cheap and normalized chunking
-  tightens the chunk-size spread. The alternatives are tracked in
-  G-ALG-06 to show *why* content-defined chunking beats fixed-size chunks
-  on shifted content.
+### Content-defined chunking (`chunkstore`, v2)
+* **Candidates** (`chunkstore.Config.Chunking`, `ChunkerConfig.Algo`,
+  `ParseChunkAlgo`: `fastcdc`, `rabin`, `fixed`, `whole`; interface
+  `chunkstore.Cutter`, `NewCutter`): FastCDC 2016 with normalized chunking
+  (gear hash, 2/8/64 KiB); Rabin fingerprint CDC (LBFS: degree-53
+  irreducible polynomial over a 48-byte rolling window, cut on all-one low
+  bits, same 2/8/64 KiB bounds); fixed-size 8 KiB chunks; whole blob (one
+  chunk per blob, split every 16 MiB). Version-2 manifests ("FFMF",
+  `chunkstore/FORMAT.md` §1, §5) record the algorithm byte and sizes, so a
+  store mixing chunkers serves every blob and re-cuts each exactly
+  (CHUNK-INV-24/25). Benchmark:
+  `go test -run '^$' -bench ChunkAlgo -benchtime 1x -benchmem ./chunkstore`
+  (`BenchmarkChunkAlgo/<candidate>/<workload>`).
+* **Measured** 2026-11-13, 4-vCPU Xeon (Go 1.26), `-benchtime 1x -count 3`,
+  load average 6-7 from other builds (throughput is relative; the dedupe
+  and storage ratios are deterministic). Workloads: the content
+  conformance SPA fixture's 12 files; 20 versions of 1 MiB of text with 5
+  in-place overwrites per version (`edit`), 5 insertions (`insert`), or
+  1-64 bytes prepended (`shift`); 20 deploys of the generated 1 MiB
+  webpack-like bundle (`jsbundle`). dedupe = logical bytes per new unique
+  raw byte; stored = backend bytes (packs, indexes, ref) per logical byte;
+  kept = share of chunks of 1 MiB of random data surviving a 1-64 byte
+  insertion in its first 4 KiB.
+  | Candidate | cut throughput | spa | edit | insert | shift | jsbundle | kept | mean chunk |
+  |---|---|---|---|---|---|---|---|---|
+  | fastcdc | 1.94-2.02 GB/s | 1.0× / 32.1 % | 10.3× / 3.75 % | 10.3× / 3.77 % | 16.8× / 2.45 % | 13.2× / 2.78 % | 99.1 % | 9.8 KB |
+  | rabin | 0.52-0.53 GB/s | 1.0× / 30.4 % | 7.4× / 4.92 % | 7.7× / 4.74 % | 18.9× / 2.20 % | 12.8× / 2.82 % | 99.0 % | 10.3 KB |
+  | fixed | (no hashing) | 1.0× / 33.0 % | 11.6× / 3.49 % | 1.18× / 30.7 % | 1.0× / 36.0 % | 1.56× / 21.7 % | 0 % | 8.2 KB |
+  | whole | (no hashing) | 1.0× / 27.9 % | 1.0× / 31.3 % | 1.0× / 31.4 % | 1.0× / 31.2 % | 1.0× / 23.9 % | 0 % | 1 MB |
+
+  Storing a 20-version history takes 33-45 ms with FastCDC, 62-106 ms with
+  Rabin, and 110-250 ms with fixed-size or whole-blob chunks, whose time
+  goes to compressing the bytes they fail to dedupe.
+* **Default:** FastCDC. It is the content-defined chunker that keeps
+  chunks across insertions and shifts (99 % kept, like Rabin) at about 4×
+  Rabin's cutting speed, and its normalized chunking tightens the
+  chunk-size spread, which is why it dedupes in-place edits and
+  insertions better than Rabin (10.3× against 7.4-7.7×: Rabin's
+  geometric sizes put more bytes in the long chunks an edit invalidates).
+  Fixed-size chunks lose everything after the first insertion or shift
+  (1.0-1.6×), which is the reason for content-defined chunking. The SPA
+  fixture cannot separate the candidates: its files are 0.5-22 KB and
+  share no content across versions, so nothing dedupes and the whole
+  blob compresses best.
+* **When to pick others:** `rabin` where a port or another system must
+  share chunk boundaries with an LBFS/restic-style chunker, or on
+  prepend-heavy histories (it led on `shift` here, 18.9× against 16.8×);
+  `fixed` for content edited only in place (disk images, fixed-record
+  files: 11.6× on `edit`, the best of the four) and as the baseline;
+  `whole` for small, independent blobs (the SPA case: 27.9 %), where
+  per-chunk overhead and per-chunk zstd only cost.
 
 ### Compression level (`chunkstore`, v2)
 * **Candidates:** zstd level 3 on write; level 19 on GC recompression; raw
@@ -284,16 +325,131 @@ candidate. See `content/README.md` for throughput per content kind.
   on a page's history (a program that requires daily evidence of every
   page), or to compare against.
 
-## v2 decisions (being measured)
+### Named character references and the parser (`htmlparse`)
+* **Candidates** (`htmlparse.TokenizeOptions.CharRefLookup` /
+  `Options.CharRefLookup`, `CharRefStrategy`; `CharRefStrategies()`):
+  `CharRefTrie` (default: a generated compact prefix trie, a binary search
+  over each node's sorted edges), `CharRefSortedSearch` (two binary
+  searches over a shrinking range of the 2231 sorted names per byte),
+  `CharRefMap` (read the alphanumeric run, then probe a hash map of the
+  names from the longest candidate prefix down). All three return the
+  longest name that prefixes the input; HTML-INV-11 checks each against
+  brute force and the html5lib tokenizer and tree suites run under each.
+  The parser itself is compared with `golang.org/x/net/html` (scripting
+  off), which is a comparison and test oracle only (`TestHTMLDiffOracle`;
+  imported from tests), never a selectable implementation. Benchmark:
+  `go test -run '^$' -bench HTMLAlgo -benchmem ./htmlparse`
+  (`BenchmarkHTMLAlgo/charref/<candidate>/<input>`,
+  `BenchmarkHTMLAlgo/{parse,tokenize}/{ours,xnethtml}/<size>`).
+* **Measured** 2026-11-13, 4-vCPU Xeon (Go 1.26), tokenizer MB/s,
+  `-benchtime 20x -count 3`, under load. `entities`: every name of the
+  table plus near misses; `urls`: 1 MB of links whose query strings put
+  long parameter names after `&`; `page-1MB`: the generated page.
+  | Strategy | entities | urls | page-1MB |
+  |---|---|---|---|
+  | trie | 90-93 | 147-159 | 89-100 |
+  | sorted | 54-62 | 113-130 | 90-95 |
+  | map | 130-132 | 112-116 | 90-105 |
 
-* **htmlparse** against `x/net/html`, and the lookup strategy for named
-  character references.
-* **jsparse:** keyword recognition, character classification, and the
-  expression-parsing strategy.
-* **Event bus adapters** (`feat_v1`): in-memory, Postgres and Pub/Sub
-  (pstest), compared on latency and throughput.
-* **chunkstore** alternatives (fixed-size chunking, Rabin, whole-blob),
-  tracked as G-ALG-06.
+  Against x/net/html (`-benchtime 2x`): parse 38/33 MB/s (10 KB),
+  44/40 (1 MB), 44/44 (10 MB), with 3.7-3.8× fewer allocations and 1.6-1.7×
+  the bytes (wide arena nodes); tokenize 86/54, 104/63, 107/66 MB/s.
+* **Default:** the trie. Its cost per `&` is bounded by the bytes that
+  match a name prefix, so the `&` of a query string (the commonest `&` on
+  real pages) is rejected after a byte or two: 1.3× the map on `urls`,
+  where the map hashes every prefix length of each parameter name.
+  Real pages tie.
+* **When to pick others:** `map` for entity-dense text (generated
+  documentation, escaped code listings: 1.4× the trie), at the cost of a
+  2231-entry map built at start-up; `sorted` where table size matters (no
+  table beyond the names; a port with tight memory) or as the reference.
+
+### Lexer and expression parsing (`jsparse`)
+* **Candidates** (`jsparse.Options.Algorithms`, `jsparse.Algorithms`):
+  keyword recognition `Keywords`: `KeywordSwitch` (default, a
+  length-guarded string switch), `KeywordMap` (hash map),
+  `KeywordPerfectHash` (first two and last two bytes and the length packed
+  into a uint64, multiplied, top 7 bits: one probe of a 128-slot table,
+  one string comparison); ASCII identifier classification `ASCIIClass`:
+  `ASCIITable` (default, 128-entry class table), `ASCIIBranches` (range
+  comparisons); non-ASCII classification `IdentClass`:
+  `IdentUnicodeTables` (default, Go's range tables), `IdentBMPBitmap`
+  (2 × 8 KiB BMP bitmaps); binary expressions `Binary`: `BinaryClimbing`
+  (default, precedence climbing over a table), `BinaryCascade` (one
+  function per precedence level). Pratt parsing is not a separate
+  candidate: for binary operators it is precedence climbing (the same
+  loop over binding powers); the cascade is the real alternative.
+  `TestJSAlgoEquivalent` checks identical trees and diagnostics, and the
+  test262 parser suite (pass, explicit, fail, early) runs under every
+  candidate with the same allowed deviations. Benchmark:
+  `go test -run '^$' -bench JSAlgo -benchtime 10x -count 5 ./jsparse`
+  (`BenchmarkJSAlgo/<decision>/<candidate>/<input>`; `keyword-lex` and
+  `asciiclass-lex` replay the parser's token stream through the lexer
+  alone).
+* **Measured** 2026-11-13, 4-vCPU Xeon (Go 1.26), MB/s, median (range) of
+  five runs for the lexer-only rows and three for the parse rows, load
+  average 6-7 from other builds:
+  | Decision | Candidate | Input | MB/s |
+  |---|---|---|---|
+  | keyword (lexer only) | switch | bundle 1 MB | 69.2 (66.9-71.3) |
+  | | perfect hash | | 67.5 (66.2-69.2) |
+  | | map | | 65.5 (63.5-66.9) |
+  | ASCII class (lexer only) | table | bundle 1 MB | 65.2 (62.0-67.8) |
+  | | branches | | 68.6 (63.9-69.1) |
+  | non-ASCII class (parse) | unicode tables | non-ASCII 1 MB | 39.9 (36.4-40.4) |
+  | | BMP bitmap | | 46.9 (37.9-48.0) |
+  | binary expressions (parse) | climbing | bundle 1 MB | 21.9 (21.6-25.0) |
+  | | cascade | | 20.0 (19.3-21.6) |
+
+  Full parses of the 1 MB bundle drift between 19 and 26 MB/s for the same
+  candidate across runs on this machine, so only the lexer-only rows
+  resolve differences of a few percent.
+* **Default and why:** the keyword switch: the three are within their
+  spread (a lookup is a few percent of lexing), and the switch needs no
+  table or initialization and maps 1:1 to a Rust `match` on `&str`. The
+  ASCII table: branches measured up to 5 % faster in the lexer-only runs,
+  inside the spread of the runs; the table is one load per byte with no
+  data-dependent branch, and stays until a quiet machine shows a
+  difference. Unicode tables: the bitmap wins only on input made almost
+  entirely of non-ASCII identifiers, and the tables cover the whole code
+  space without a 16 KiB table built on first use (the Rust
+  `unicode-id-start` approach). Precedence climbing: faster than the
+  cascade (twelve calls per operand) and what V2_DESIGN §4.2 specifies.
+* **When to pick others:** `KeywordPerfectHash` where a switch compiles
+  to a linear scan (a port without string-switch optimization), the map
+  as the obvious reference; `ASCIIBranches` where a table load is costly;
+  `IdentBMPBitmap` for scripts in non-Latin alphabets; `BinaryCascade` as
+  the readable reference that mirrors the grammar's productions.
+
+### Event bus adapters (`services/internal/bus`)
+* **Candidates** (`bus.Bus`; `busconfig.Open`, `FF_BUS`: `mem`,
+  `postgres`, `pubsub`): `bus.Mem` (in process), `bus.PgBus` (tables plus
+  LISTEN/NOTIFY, migration 0016), `pubsubbus.Bus` (Google Pub/Sub; the
+  `pstest` fake in the benchmark). `bustest.Run` checks every adapter
+  against the same contract (at least once, redelivery, dead-lettering,
+  ordering per key, inbox idempotence). Benchmark:
+  `go test -run '^$' -bench BusAlgo -benchtime 2s ./services/internal/bus/`
+  (`BenchmarkBusAlgo/<adapter>/<latency|throughput>`; `postgres` needs
+  `FF_TEST_PG_DSN`). Latency is one publish then waiting for its delivery;
+  throughput publishes batches of 100 on 10 ordering keys.
+* **Measured** 2026-11-13, 4-vCPU Xeon (Go 1.26), Postgres 16 on the same
+  host:
+  | Adapter | latency (round trip) | throughput |
+  |---|---|---|
+  | mem | 2.3-2.5 µs | 92,000-94,000 msgs/s (bounded by the benchmark's 50 µs poll) |
+  | postgres, fsync on | 1.2 ms | ~1,500 msgs/s |
+  | postgres, fsync off | 0.53 ms | ~3,200 msgs/s |
+  | pubsub-pstest | 99 ms | ~90 msgs/s |
+* **Default:** by profile, not by speed: `mem` for one process
+  (`flowforge dev`, tests: no I/O, but nothing survives a restart and no
+  other process sees the messages); `postgres` when a database is
+  configured and no Pub/Sub project is (durable, ordered, no extra
+  service; one transaction per publish and per ack dominates); `pubsub`
+  on GCP. `pstest` runs its delivery loop on a ~100 ms cycle, so its row
+  measures the client library, not the Pub/Sub service.
+* **When to pick others:** Pub/Sub beyond a few thousand messages per
+  second or across regions; Postgres for local multi-process runs and
+  small single-VM deployments. Details: `services/internal/bus/README.md`.
 
 ### Base64 decoding (`codec`)
 * **Candidates** (`codec.Base64Options.Algo`, `codec.ParseBase64Algo`:

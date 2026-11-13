@@ -1,0 +1,439 @@
+{
+  "module": "chunkstore",
+  "date": "2026-11-13",
+  "commit": "3ee0a3b",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkChunk",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 2.015,
+        "MB/s": 2014.52,
+        "allocs/op": 0,
+        "ns/op": 33312607
+      }
+    },
+    {
+      "bench_id": "BenchmarkPut/1MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4945776,
+        "MB/s": 99.65,
+        "allocs/op": 294,
+        "ns/op": 10522737
+      }
+    },
+    {
+      "bench_id": "BenchmarkPut/100MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 355049392,
+        "MB/s": 106.24,
+        "allocs/op": 11652,
+        "ns/op": 986948239
+      }
+    },
+    {
+      "bench_id": "BenchmarkGet/1MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1961944,
+        "MB/s": 294.21,
+        "allocs/op": 902,
+        "ns/op": 3564093
+      }
+    },
+    {
+      "bench_id": "BenchmarkGet/100MB",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 155281800,
+        "MB/s": 304.31,
+        "allocs/op": 78527,
+        "ns/op": 344570303
+      }
+    },
+    {
+      "bench_id": "BenchmarkAcceptance50Versions",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 691095608,
+        "MB/s": 259.04,
+        "allocs/op": 161434,
+        "compression_x": 2.681,
+        "dedupe_x": 27.55,
+        "ns/op": 405751979,
+        "stored_%": 1.553
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/throughput",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 2.006,
+        "MB/s": 2005.7,
+        "allocs/op": 0,
+        "ns/op": 33459072
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/spa",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 4212,
+        "B/op": 5001816,
+        "allocs/op": 277,
+        "dedupe_x": 1,
+        "ns/op": 1620675,
+        "stored_%": 32.1
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/edit",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 9800,
+        "B/op": 14585464,
+        "allocs/op": 872,
+        "dedupe_x": 10.3,
+        "ns/op": 40069488,
+        "stored_%": 3.752
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/insert",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 9810,
+        "B/op": 14662024,
+        "allocs/op": 878,
+        "dedupe_x": 10.29,
+        "ns/op": 40122281,
+        "stored_%": 3.765
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/shift",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 9803,
+        "B/op": 11896056,
+        "allocs/op": 793,
+        "dedupe_x": 16.79,
+        "ns/op": 33683180,
+        "stored_%": 2.451
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/jsbundle",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 9551,
+        "B/op": 12239000,
+        "allocs/op": 840,
+        "dedupe_x": 13.19,
+        "ns/op": 33521315,
+        "stored_%": 2.784
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fastcdc/shift-kept",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 644160,
+        "allocs/op": 680,
+        "kept_%": 99.06,
+        "ns/op": 46826624
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/throughput",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 0.5397,
+        "MB/s": 539.75,
+        "allocs/op": 0,
+        "ns/op": 124334257
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/spa",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 4774,
+        "B/op": 4991304,
+        "allocs/op": 271,
+        "dedupe_x": 1,
+        "ns/op": 1374486,
+        "stored_%": 30.38
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/edit",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 10280,
+        "B/op": 16996776,
+        "allocs/op": 881,
+        "dedupe_x": 7.397,
+        "ns/op": 77128310,
+        "stored_%": 4.918
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/insert",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 10296,
+        "B/op": 16877864,
+        "allocs/op": 882,
+        "dedupe_x": 7.736,
+        "ns/op": 73884102,
+        "stored_%": 4.735
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/shift",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 10283,
+        "B/op": 11427368,
+        "allocs/op": 809,
+        "dedupe_x": 18.9,
+        "ns/op": 62350289,
+        "stored_%": 2.202
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/jsbundle",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 9220,
+        "B/op": 12589000,
+        "allocs/op": 884,
+        "dedupe_x": 12.84,
+        "ns/op": 71249743,
+        "stored_%": 2.823
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/rabin/shift-kept",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 511104,
+        "allocs/op": 652,
+        "kept_%": 99.02,
+        "ns/op": 106458098
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/throughput",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 4932,
+        "MB/s": 4931936.8,
+        "allocs/op": 0,
+        "ns/op": 13607
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/spa",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 3978,
+        "B/op": 5006696,
+        "allocs/op": 281,
+        "dedupe_x": 1,
+        "ns/op": 1406189,
+        "stored_%": 32.96
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/edit",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 8192,
+        "B/op": 13764328,
+        "allocs/op": 924,
+        "dedupe_x": 11.58,
+        "ns/op": 29705604,
+        "stored_%": 3.493
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/insert",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 8144,
+        "B/op": 68374840,
+        "allocs/op": 2942,
+        "dedupe_x": 1.179,
+        "ns/op": 195160487,
+        "stored_%": 30.74
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/shift",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 8134,
+        "B/op": 81561288,
+        "allocs/op": 3339,
+        "dedupe_x": 1,
+        "ns/op": 213389098,
+        "stored_%": 36.03
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/jsbundle",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 8150,
+        "B/op": 48460248,
+        "allocs/op": 2408,
+        "dedupe_x": 1.556,
+        "ns/op": 103251584,
+        "stored_%": 21.74
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/fixed/shift-kept",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 875200,
+        "allocs/op": 740,
+        "kept_%": 0,
+        "ns/op": 35209866
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/throughput",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "GB/s": 108415,
+        "MB/s": 108414966.07,
+        "allocs/op": 0,
+        "ns/op": 619
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/spa",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 5967,
+        "B/op": 4987016,
+        "allocs/op": 258,
+        "dedupe_x": 1,
+        "ns/op": 1347529,
+        "stored_%": 27.9
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/edit",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 1048576,
+        "B/op": 155677672,
+        "allocs/op": 404,
+        "dedupe_x": 1,
+        "ns/op": 198078531,
+        "stored_%": 31.34
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/insert",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 1050204,
+        "B/op": 155710440,
+        "allocs/op": 404,
+        "dedupe_x": 1,
+        "ns/op": 187005197,
+        "stored_%": 31.36
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/shift",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 1048878,
+        "B/op": 155644904,
+        "allocs/op": 404,
+        "dedupe_x": 1,
+        "ns/op": 184878544,
+        "stored_%": 31.22
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/jsbundle",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/chunk": 1053434,
+        "B/op": 145067496,
+        "allocs/op": 403,
+        "dedupe_x": 1,
+        "ns/op": 163804378,
+        "stored_%": 23.89
+      }
+    },
+    {
+      "bench_id": "BenchmarkChunkAlgo/whole/shift-kept",
+      "package": "github.com/genuinebnt/flowforge/chunkstore",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 13760,
+        "allocs/op": 120,
+        "kept_%": 0,
+        "ns/op": 34564344
+      }
+    }
+  ]
+}

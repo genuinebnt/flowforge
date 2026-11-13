@@ -183,38 +183,28 @@ acorn rejects the larger generated bundles (regex heuristics).
 
 ## Design choices measured
 
-Selectable through `Options.Algorithms`; `TestJSAlgoEquivalent` checks that
-every candidate gives identical trees and diagnostics on the pass corpus,
-generated programs and the fail/early suites. Benchmark:
-`go test -run='^$' -bench JSAlgo -benchtime=10x -count=3 ./jsparse`
-(MB/s, median of three, same machine and date):
+Selectable through `Options.Algorithms`: keyword recognition
+(`KeywordSwitch` default, `KeywordMap`, `KeywordPerfectHash`), ASCII
+identifier classification (`ASCIITable` default, `ASCIIBranches`),
+non-ASCII classification (`IdentUnicodeTables` default, `IdentBMPBitmap`)
+and binary expressions (`BinaryClimbing` default, `BinaryCascade`; Pratt
+parsing of binary operators is the same algorithm as precedence climbing,
+so it is not a separate candidate). `TestJSAlgoEquivalent` checks that every
+candidate gives identical trees and diagnostics on the pass corpus,
+generated programs and the fail/early suites; `TestJSConformanceTest262`
+runs the whole test262 parser suite under every candidate;
+`TestJSKeywordPerfectHash` checks the perfect hash is collision-free and
+agrees with the switch. Benchmark:
+`go test -run='^$' -bench JSAlgo -benchtime=10x -count=5 ./jsparse`
+(`BenchmarkJSAlgo/<decision>/<candidate>/<input>`; the `keyword-lex` and
+`asciiclass-lex` rows lex the parser's token stream alone).
 
-| Decision | Candidate | Input | MB/s | Default |
-|---|---|---|---|---|
-| keyword recognition | `KeywordSwitch` (length-guarded string switch) | bundle 1 MB | 19.3 | ✓ |
-| | `KeywordMap` (hash map) | bundle 1 MB | 19.9 | |
-| identifier classification (non-ASCII) | `IdentUnicodeTables` (Go range tables) | non-ASCII 1 MB | 34.9 | ✓ |
-| | `IdentBMPBitmap` (2 × 8 KiB BMP bitmaps) | non-ASCII 1 MB | 37.8 | |
-| binary expressions | `BinaryClimbing` (precedence climbing) | bundle 1 MB | 21.2 | ✓ |
-| | `BinaryCascade` (one function per level) | bundle 1 MB | 19.5 | |
-
-* **Keywords:** the two are within noise of each other on real bundles
-  (keyword lookup is a few percent of lexing). The switch stays the
-  default: no hashing, no map initialization, and it maps 1:1 to a Rust
-  `match` on `&str`.
-* **Identifier classification:** the bitmap is about 8 % faster only on
-  input made almost entirely of non-ASCII identifiers; ASCII never reaches
-  either path. The tables stay the default because they need no 16 KiB
-  table built on first use, cover the whole code space without a
-  fallback, and match what the Rust `unicode-id-start` crate does. Pick
-  the bitmap for scripts in non-Latin alphabets.
-* **Binary expressions:** precedence climbing is about 8 % faster than
-  the per-level cascade (which makes twelve calls per operand) and is
-  what V2_DESIGN §4.2 specifies. The cascade mirrors the grammar's
-  productions one to one and is the clearer reference for reading the
-  specification.
-
-(Entry text for `docs/ALGORITHMS.md`: this section.)
+Measurements, defaults and when to pick each candidate:
+[docs/ALGORITHMS.md, "Lexer and expression parsing"](../docs/ALGORITHMS.md).
+In short, the keyword candidates and the ASCII classifiers are within a
+few percent of each other (inside the run-to-run spread); the BMP bitmap
+helps only on mostly non-ASCII identifiers; precedence climbing beats the
+cascade.
 
 ## Tests
 

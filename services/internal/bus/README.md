@@ -80,6 +80,9 @@ same way, from Postgres or from its in-memory identity store.
 
 ## Comparative benchmark: `BenchmarkBusAlgo/<adapter>/<shape>`
 
+The decision entry (candidates, defaults, when to pick each) is
+[docs/ALGORITHMS.md, "Event bus adapters"](../../../docs/ALGORITHMS.md).
+
 ```sh
 eval "$(scripts/devpg.sh start)"
 go test -run '^$' -bench BusAlgo -benchtime 2s ./services/internal/bus/
@@ -93,7 +96,7 @@ Postgres 16 on the same host, `fsync` on):
 | Adapter | latency (round trip) | throughput |
 |---|---|---|
 | mem | 2.5 µs | ~94,000 msgs/s (bounded by the benchmark's 50 µs poll) |
-| postgres | 1.2 ms | ~1,500 msgs/s |
+| postgres | 1.2 ms | ~1,500 msgs/s (0.53 ms and ~3,200 msgs/s with `fsync=off`, re-measured the same day) |
 | pubsub-pstest | 99 ms | ~89 msgs/s |
 
 Reading the numbers:

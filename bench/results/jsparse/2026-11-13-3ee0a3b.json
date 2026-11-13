@@ -1,0 +1,237 @@
+{
+  "module": "jsparse",
+  "date": "2026-11-13",
+  "commit": "3ee0a3b",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkJSLex/100KB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 120448,
+        "MB/s": 30.53,
+        "allocs/op": 1542,
+        "ns/op": 3382464
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSLex/1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1189088,
+        "MB/s": 72.45,
+        "allocs/op": 14685,
+        "ns/op": 14477560
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSLex/10MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 11819312,
+        "MB/s": 72.75,
+        "allocs/op": 147337,
+        "ns/op": 144148647
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSParse/100KB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 5737256,
+        "MB/s": 22.31,
+        "allocs/op": 4858,
+        "ns/op": 4629215
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSParse/1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58387952,
+        "MB/s": 22.24,
+        "allocs/op": 47978,
+        "ns/op": 47159877
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSParse/10MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 583246288,
+        "MB/s": 24.02,
+        "allocs/op": 477138,
+        "ns/op": 436558954
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/keyword/switch/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58388048,
+        "MB/s": 20.68,
+        "allocs/op": 47979,
+        "ns/op": 50711755
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/keyword/map/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58387952,
+        "MB/s": 22.1,
+        "allocs/op": 47978,
+        "ns/op": 47469299
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/keyword/perfect-hash/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58387952,
+        "MB/s": 25.06,
+        "allocs/op": 47978,
+        "ns/op": 41855830
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/keyword-lex/switch/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1189088,
+        "MB/s": 53.1,
+        "allocs/op": 14685,
+        "ns/op": 19753359
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/keyword-lex/map/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1189088,
+        "MB/s": 66.37,
+        "allocs/op": 14685,
+        "ns/op": 15802203
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/keyword-lex/perfect-hash/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1189088,
+        "MB/s": 68.12,
+        "allocs/op": 14685,
+        "ns/op": 15395948
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/idclass/unicode-tables/nonascii-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 23779064,
+        "MB/s": 36.33,
+        "allocs/op": 112866,
+        "ns/op": 28864517
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/idclass/bmp-bitmap/nonascii-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 23795448,
+        "MB/s": 43.44,
+        "allocs/op": 112867,
+        "ns/op": 24137390
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/asciiclass/table/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58388080,
+        "MB/s": 26.11,
+        "allocs/op": 47979,
+        "ns/op": 40167047
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/asciiclass/branches/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58387952,
+        "MB/s": 24.58,
+        "allocs/op": 47978,
+        "ns/op": 42678823
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/asciiclass-lex/table/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1189088,
+        "MB/s": 72.02,
+        "allocs/op": 14685,
+        "ns/op": 14562997
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/asciiclass-lex/branches/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1189088,
+        "MB/s": 53.12,
+        "allocs/op": 14685,
+        "ns/op": 19745408
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/binary/climbing/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58388064,
+        "MB/s": 26.01,
+        "allocs/op": 47979,
+        "ns/op": 40325331
+      }
+    },
+    {
+      "bench_id": "BenchmarkJSAlgo/binary/cascade/bundle-1MB",
+      "package": "github.com/genuinebnt/flowforge/jsparse",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 58387984,
+        "MB/s": 20.28,
+        "allocs/op": 47978,
+        "ns/op": 51723459
+      }
+    }
+  ]
+}

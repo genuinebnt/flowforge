@@ -142,5 +142,6 @@ Reference numbers (4-vCPU Xeon, Go 1.26, one run):
 | `BenchmarkPut/1MB`, `/100MB` (fresh text, no dedupe) | ~100 MB/s (zstd-bound: the single pinned encoder does ~190 MB/s on this input) |
 | `BenchmarkGet/1MB`, `/100MB` (full verification) | 260–310 MB/s |
 | `BenchmarkAcceptance50Versions` (50 × 2.1 MB JS-like bundle, small edits, a rename every 10th version) | stored/raw **1.55 %** (target < 15 %), dedupe 27.6×, compression 2.68× |
+| `BenchmarkChunkAlgo/<fastcdc\|rabin\|fixed\|whole>/<workload>` (chunker comparison: cut throughput, dedupe and storage on the SPA fixture and edit/insert/shift/bundle histories, shift resistance) | FastCDC 1.9–2.0 GB/s, Rabin 0.5 GB/s; insert histories dedupe 10.3× (FastCDC), 7.7× (Rabin), 1.2× (fixed), 1.0× (whole); full table in [docs/ALGORITHMS.md](../docs/ALGORITHMS.md) |
 
 Known limitations are in OPEN_QUESTIONS.md.

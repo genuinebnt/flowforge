@@ -163,23 +163,28 @@ inputs x/net never matches the expectation where we do not. Typical run:
 
 ## Performance comparison
 
-`go test -bench 'HTMLImpl|HTMLCharRef' ./htmlparse/` (generated well-formed
-documents, seed 42; one run with `-benchtime=3x` on a shared 4-core
-machine, so treat absolute numbers as indicative):
+`go test -run '^$' -bench HTMLAlgo -benchmem ./htmlparse/`
+(`BenchmarkHTMLAlgo/charref/<trie|sorted|map>/<entities|urls|page-1MB>`,
+`BenchmarkHTMLAlgo/{parse,tokenize}/{ours,xnethtml}/<size>`; generated
+well-formed documents, seed 42). Measurements, the default and when to
+pick each strategy: [docs/ALGORITHMS.md, "Named character references and
+the parser"](../docs/ALGORITHMS.md). 2026-11-13, shared 4-core machine,
+`-benchtime 2x`:
 
 | Benchmark | ours MB/s | x/net/html MB/s | ours B/op | x/net B/op | ours allocs/op | x/net allocs/op |
 |---|---|---|---|---|---|---|
-| Parse 10 KB | 49 | 37 | 177 K | 109 K | 879 | 3 244 |
-| Parse 1 MB | 38 | 33 | 17.2 M | 10.4 M | 84 653 | 322 839 |
-| Parse 10 MB | 43 | 28 | 173 M | 104 M | 843 159 | 3 220 975 |
-| Tokenize 10 KB | 89 | 58 | 23 K | 45 K | 764 | 2 663 |
-| Tokenize 1 MB | 52 | 39 | 2.1 M | 4.0 M | 75 730 | 265 260 |
-| Tokenize 10 MB | 80 | 41 | 21.3 M | 39.6 M | 755 439 | 2 646 222 |
+| Parse 10 KB | 38 | 33 | 177 K | 109 K | 879 | 3 244 |
+| Parse 1 MB | 44 | 40 | 17.2 M | 10.4 M | 84 653 | 322 839 |
+| Parse 10 MB | 44 | 44 | 173 M | 104 M | 843 161 | 3 220 975 |
+| Tokenize 10 KB | 86 | 54 | 23 K | 45 K | 764 | 2 663 |
+| Tokenize 1 MB | 104 | 63 | 2.1 M | 4.0 M | 75 730 | 265 260 |
+| Tokenize 10 MB | 107 | 66 | 21.3 M | 39.6 M | 755 438 | 2 646 220 |
 
-| Named reference lookup (entity-dense input, tokenizer only) | MB/s |
-|---|---|
-| `BenchmarkHTMLCharRef/trie` (default) | 100 |
-| `BenchmarkHTMLCharRef/sorted` | 67 |
+| Named reference lookup (tokenizer MB/s) | entities | urls | page-1MB |
+|---|---|---|---|
+| `CharRefTrie` (default) | 90-93 | 147-159 | 89-100 |
+| `CharRefSortedSearch` | 54-62 | 113-130 | 90-95 |
+| `CharRefMap` | 130-132 | 112-116 | 90-105 |
 
 What drives the differences:
 
@@ -188,22 +193,24 @@ What drives the differences:
   run, interns tag names to atoms and common attribute names to constants,
   and allocates one string per value; x/net materializes an `html.Token`
   per token (attribute slice, unescaped copies), about 3.5× the
-  allocations. This makes our tokenizer 1.4–2× faster.
+  allocations. This makes our tokenizer 1.6× faster.
 * **Arena vs pointer tree.** Our tree is one `[]Node` (pre-sized from the
   count of `<` bytes) instead of one heap object per node: 4× fewer
   allocations and less GC work, but each `Node` is a wide value struct
   (doctype fields, five links, span), so bytes allocated are ~1.7× x/net's.
   Shrinking `Node` (int32 spans, doctype ids out of line) is the obvious
   next step if memory matters more than API simplicity.
-* **Character reference lookup.** Both strategies find the longest match
-  in O(name length · log fan-out). The trie (`CharRefTrie`, ~100 KB of
-  generated tables) does one binary search over a node's edges per byte;
-  the sorted search (`CharRefSortedSearch`, no extra tables) does two
-  binary searches over a shrinking range of the 2231 names per byte. The
-  trie won as the default because it is ~1.5× faster on entity-dense text
-  for a table cost that is irrelevant at layer 1; the sorted search stays
-  selectable (and both are checked against brute force by HTML-INV-11) for
-  ports that want the smallest tables.
+* **Character reference lookup.** The trie (`CharRefTrie`, ~100 KB of
+  generated tables) does one binary search over a node's edges per byte
+  and stops at the first byte no name continues with; the sorted search
+  (`CharRefSortedSearch`, no extra tables) does two binary searches over a
+  shrinking range of the 2231 names per byte; the map (`CharRefMap`)
+  reads the alphanumeric run and probes every prefix length from the
+  longest down. The map wins on entity-dense text, the trie on the
+  `&param=` of query strings, where the map pays for every prefix of the
+  parameter name; the trie stays the default. All three are checked
+  against brute force by HTML-INV-11, and the html5lib suites run under
+  each.
 
 ## Running
 

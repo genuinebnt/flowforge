@@ -118,29 +118,30 @@ func BenchmarkJSAlgo(b *testing.B) {
 	b.Run("keyword/switch/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{}) })
 	b.Run("keyword/map/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{Keywords: KeywordMap}) })
 	b.Run("keyword/perfect-hash/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{Keywords: KeywordPerfectHash}) })
-	// The lexer alone isolates the keyword lookup, which is a few percent
-	// of a full parse: every IdentifierName is looked up once.
+	// The lexer alone (the parser's token goals replayed) isolates the
+	// keyword lookup and ASCII classification, a few percent of a full
+	// parse: every IdentifierName is classified and looked up once.
 	goals := goalSequence(b, ascii)
-	for _, kw := range []struct {
-		name string
-		k    KeywordLookup
-	}{{"switch", KeywordSwitch}, {"map", KeywordMap}, {"perfect-hash", KeywordPerfectHash}} {
-		b.Run("keyword-lex/"+kw.name+"/bundle-1MB", func(b *testing.B) {
-			b.SetBytes(int64(len(ascii)))
-			b.ReportAllocs()
-			for b.Loop() {
-				l := NewLexer(ascii, false)
-				l.alt = Algorithms{Keywords: kw.k}
-				for _, g := range goals {
-					l.Next(g)
-				}
+	lex := func(b *testing.B, alg Algorithms) {
+		b.SetBytes(int64(len(ascii)))
+		b.ReportAllocs()
+		for b.Loop() {
+			l := NewLexer(ascii, false)
+			l.alt = alg
+			for _, g := range goals {
+				l.Next(g)
 			}
-		})
+		}
 	}
+	b.Run("keyword-lex/switch/bundle-1MB", func(b *testing.B) { lex(b, Algorithms{}) })
+	b.Run("keyword-lex/map/bundle-1MB", func(b *testing.B) { lex(b, Algorithms{Keywords: KeywordMap}) })
+	b.Run("keyword-lex/perfect-hash/bundle-1MB", func(b *testing.B) { lex(b, Algorithms{Keywords: KeywordPerfectHash}) })
 	b.Run("idclass/unicode-tables/nonascii-1MB", func(b *testing.B) { run(b, uni, Algorithms{}) })
 	b.Run("idclass/bmp-bitmap/nonascii-1MB", func(b *testing.B) { run(b, uni, Algorithms{IdentClass: IdentBMPBitmap}) })
 	b.Run("asciiclass/table/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{}) })
 	b.Run("asciiclass/branches/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{ASCIIClass: ASCIIBranches}) })
+	b.Run("asciiclass-lex/table/bundle-1MB", func(b *testing.B) { lex(b, Algorithms{}) })
+	b.Run("asciiclass-lex/branches/bundle-1MB", func(b *testing.B) { lex(b, Algorithms{ASCIIClass: ASCIIBranches}) })
 	b.Run("binary/climbing/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{}) })
 	b.Run("binary/cascade/bundle-1MB", func(b *testing.B) { run(b, ascii, Algorithms{Binary: BinaryCascade}) })
 }
