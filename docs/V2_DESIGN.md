@@ -142,7 +142,11 @@ The 5.5 endpoint validation table is extended with these rows.
   cookie values).
 * `ParameterProperty {name, location: query|body|path|header|cookie,
   type_hint}` on Endpoint.
-* Secrets: `VulnProperty` with `category = "exposed_secret"`, holding only
+* Secrets: detection is by **named, structured rules** (provider key
+  formats, connection strings, JWTs, private-key blocks). Bare entropy
+  scoring is a low-confidence tier only, never a finding on its own.
+  Sentinel rejected generic entropy detection as too noisy. Findings use
+  `VulnProperty` with `category = "exposed_secret"`, holding only
   rule id, redacted preview (first 4 and last 2 characters) and a keyed
   hash (HMAC-SHA256 with a per-tenant key) for deduplication. The secret
   itself never enters the graph or logs. It is stored encrypted in the
@@ -155,14 +159,31 @@ The 5.5 endpoint validation table is extended with these rows.
   `tag_changed` (entity or edge tag created, changed or removed; patch =
   JSON patch of the tag content). `tag_changed` applies to every tag
   type, not only content. A migration extends the check constraint.
-* **Authoritative staleness:** an observation may declare `authority =
-  {source_entity, profile}`. Everything that observation reports via edges
-  from `source_entity` replaces the previous authoritative set for that
-  (source, profile). Edges in the previous set and missing now go stale
-  immediately (`edge_removed`); there is no N-run wait. Entities lose
-  liveness only when no edge or authoritative source still reports them.
-  The default (covering-run) staleness from spec 5.7 is unchanged for
-  other observations.
+* **Authoritative staleness, gated on coverage** (amended after the
+  Sentinel review: an ungated rule would let one truncated, failed,
+  login-redirected or WAF-challenged capture withdraw every edge). An
+  observation may declare `authority = {source_entity, profile, coverage:
+  complete | partial | failed | unsupported, covered_rules}`.
+  * **Only `coverage = complete` withdraws.** Edges from `source_entity`
+    whose rule family is in `covered_rules`, present in the previous
+    authoritative set and missing now, are **withdrawn** immediately
+    (`edge_removed`, state stale, history kept, can return).
+  * A capture is complete only if the capture outcome is complete, there
+    was no parser error, no truncation, no diff fallback, no
+    collection-integrity flag (§12.5), and every extractor reported
+    complete.
+  * Partial, failed or unsupported observations are **positive-only**: they
+    add and refresh, and never withdraw.
+  * An extractor that did not run, or ran partially, never withdraws its
+    own edges.
+  * Entities lose liveness only when no edge or complete authoritative
+    source still reports them.
+  * The covering-run staleness of spec 5.7 is unchanged for every other
+    observation.
+* **Commonness:** a node held by more than 50 distinct sources or hosts (a
+  shared CDN script, a favicon, a common library) is marked `common`, and
+  pivots and leads ignore it. Association is not permission: shared
+  infrastructure never implies ownership.
 * CSR blast-radius labels gain `loads_script`, `loads_style` and `embeds`.
 * `graphstore` gains `AsOf(seq)` neighbour and entity reads, served by
   replaying change events onto the nearest snapshot.
@@ -512,6 +533,132 @@ surface → all parsers are fuzzed. 16. Staleness speed → authoritative
 staleness (§3.4). 17. Tag events → `tag_changed`. 18. Quotas → per-tenant
 limits on captures per day, stored bytes and index bytes, enforced by the
 content service (`QUOTA_EXCEEDED`).
+
+## 12. Amendments from the Sentinel review (normative)
+
+`genuinebnt/sentinel` (the same author's Rust change-intelligence
+platform) already solves several of this brief's open problems. The
+items below are adopted into v2. Where they conflict with earlier
+sections, this section wins. Source references are to
+`/home/user/sentinel` (`docs/`, `sentinel/crates/sentinel-core/src/`).
+
+1. **Gated authority** (§3.4 above), after Sentinel's absence
+   certificates (`docs/adr/2026-11-02-absence-certificates.md`):
+   positive-only by default, and withdrawal only with a complete reading
+   of the same artifact version.
+2. **Cause.** Every `content_changed` and every level-3 change carries
+   `cause = target | parser | normalizer`. Upgrading a parser,
+   normalizer or extractor triggers a **re-derive job**. The job runs
+   before new captures are accepted, re-reads stored snapshots with the
+   new version, and records the resulting changes as
+   `cause = parser/normalizer`. Default feeds and alerts hide
+   non-target causes.
+3. **Baseline.** The first complete capture of a (URL, profile) is
+   `baseline = true`. It produces graph data but no feed items or
+   alerts.
+4. **Scores with reasons.** Changes carry `score` (0–1) and
+   `score_features` (`[{name, weight}]`, stored, so every rank is
+   explainable). This is an additive, clamped, hand-set feature model in
+   the style of Sentinel's `domain/analysis/changes.rs`:
+   * base weights per change kind: exposed secret, source disclosure,
+     new endpoint, removed security header, library version change, …;
+   * word-list boosts (admin, auth, payment, internal, debug);
+   * state-changing methods, `{id}`-style templates, missing SRI on a new
+     third-party script, weakened cookie flags, and CSP loosened;
+   * removals count at −½ of the positive weight, returns at −¼.
+
+   Scores **rank, never send**: no code path from a score to a request.
+   A test asserts that scoring code imports no fetch or egress package
+   and that fetch counts are unchanged by scoring. A learned ranker is
+   v3.
+5. **Noise and collection integrity:**
+   * Soft-404 and template detection: SimHash clustering of bodies across
+     a host's URLs, so a catch-all body answered by three or more
+     distinct URLs proves nothing.
+   * Integrity checks: a login redirect, challenge or CAPTCHA page, an
+     error page on a URL that was previously 2xx, or a mass removal (more
+     than 50 % of a page's features gone at once) flags the capture as
+     **degraded**. A degraded capture gets no diff and no withdrawal, is
+     reported as a collection problem, and updates source health.
+   * Counted diff outcomes include `masked_only` (only masked volatiles
+     changed) and `reordered` (same features, different order), which are
+     not changes.
+   * Learned volatility never masks a level-3 feature path. A small
+     random sample of masked diffs is kept for audit.
+6. **Module-level lineage (level 2.5)**, on top of file-level SimHash:
+   * Split bundles into bundler modules (webpack, rollup/vite and esbuild
+     runtime shapes) and hash each normalized module with local
+     identifiers renamed to positional names. An unchanged module is no
+     change, wherever it moved.
+   * Suppress vendor code by module hash or `node_modules` path, and
+     report a library change as a version change.
+   * Diff original sources when a source map exists.
+7. **Documents inside documents.** Inline scripts, inline styles and
+   event-handler attributes become derived snapshots (`{page}#script-n`,
+   `#style-n`, `#handlers`), normalized and diffed like external files.
+8. **Headers as their own artifact.** Each response's security-relevant
+   headers form a canonical block (sorted; CSP nonces removed; Set-Cookie
+   reduced to name + attributes, values dropped). It is a versioned
+   artifact for every hop, redirects included. A header-only change is a
+   `content_changed` with `class = metadata`.
+9. **Sniff, don't trust mime types.** The normalizer and extractor are
+   chosen by sniffing the bytes, with the mime type as a hint, and
+   mismatches are recorded. A server-side source file served as text
+   (`<?php`, `<%`, a `.env` body) is itself a source-disclosure finding.
+10. **Parser assurance:**
+    * Every snapshot stores a reading grade per extractor (complete,
+      partial, unsupported, failed). "Read fine, found nothing" is never
+      confused with "could not read".
+    * One canary fixture per extractor runs at startup and in CI. If a
+      canary fails, that extractor is disabled for withdrawal purposes.
+    * Explicit amplification bounds, identical in the Go and Rust
+      versions: 8 MiB per response, XML/CSS depth 64, 20,000 facts per
+      parser per document, 200 inner documents per capture.
+    * "Unreadable" is counted and audited, never fatal.
+11. **Redaction before storage and indexing.** Credential-shaped strings
+    (by the secret rules, plus connection-string credentials) are
+    replaced by a typed placeholder with shape and length before a hunk
+    or normalized snapshot is hashed for the index, indexed, embedded or
+    logged. The original bytes stay only in the encrypted findings and in
+    the raw snapshot. Hidden form fields keep only short numeric or
+    boolean values. This complements spec 18.2's no-secrets-in-logs rule.
+12. **Storage:**
+    * **No cross-tenant dedupe**: a chunk store instance is scoped to one
+      tenant, so no tenant can learn another holds identical content.
+    * Versions cited by a reviewed or alerted change are **pinned** and
+      skipped by retention.
+    * An unchanged re-fetch extends `last_seen` on the open version
+      instead of adding a row. The comparison uses a signature over the
+      body hash plus non-volatile headers.
+    * Snapshot validity is stored as `[valid_from, valid_to)` with a
+      partial unique index on the open version, so an as-of lookup is one
+      index probe.
+    * GC may recompress at a higher zstd level and keeps compression only
+      when it saves at least 1/8 (codec byte per record).
+13. **Change classes and newness.** Besides `level` (hash, text,
+    semantic), every change has:
+    * `class`: structural, metadata, semantic_endpoint, observation or
+      catalog. Catalog is a new advisory against an unchanged library,
+      dated by the advisory, not the capture.
+    * `newness`: likely_new (a comparable earlier capture lacked it),
+      pre_existing (it was there before we started watching) or
+      first_seen_only (no comparable negative).
+14. **Search defaults:**
+    * vendored bundles and known library modules are excluded unless asked
+      for;
+    * gzip and base64 blobs found in content are decoded (bounded) before
+      indexing;
+    * "first appeared" queries return the earliest snapshot containing a
+      string, served from the diff history;
+    * hybrid mode ships only if it is at least as good as BM25 on recall@k
+      and MRR over a labelled set of change queries.
+
+**Open decision for the operator.** Sentinel classifies DNS lookups and TLS
+handshakes as active (they touch target-controlled infrastructure).
+Flowforge v1 classifies `dnsresolve` as passive. This brief keeps DNS
+through public resolvers as passive and direct-to-authoritative DNS and
+TLS handshakes as active, as spec 6.4 does. Decide explicitly before v2
+ships.
 
 Not in this brief (remain in `docs/ROADMAP_V2.md`): the A1 sandbox runtime
 (the egress features above are what it will rely on), supply-chain signing
