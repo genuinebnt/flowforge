@@ -141,7 +141,7 @@ func main() {
 	}
 	dump(dir+"/scripts.json", map[string]any{
 		"id":          "diff_scripts_001",
-		"description": "Edit scripts per algorithm over string tokens (each string is one token). 'distance' is the brute-force n+m-2*LCS (Myers and myers-greedy must equal it). Scripts are EditScript.String(): space-separated runs '=k' equal, '-k' delete, '+k' insert, in canonical form (one delete then one insert per change region), so ranges follow by tiling. '<alg>+git-compact' is the same after CompactGit. Pins the reference implementation's alignment choices for the port.",
+		"description": "Edit scripts per algorithm over string tokens (each string is one token). 'distance' is the brute-force n+m-2*LCS (myers-linear, myers and reference must equal it). Scripts are EditScript.String(): space-separated runs '=k' equal, '-k' delete, '+k' insert, in canonical form (one delete then one insert per change region), so ranges follow by tiling. '<alg>+git-compact' is the same after CompactGit. Pins the reference implementation's alignment choices for the port.",
 		"scripts":     sc,
 	})
 
@@ -160,7 +160,8 @@ func main() {
 	}
 	mismatch := 0
 	consider := func(c gitCase, alg diff.Algorithm, ctx int, required bool) {
-		key := fmt.Sprintf("%s/%d", alg, ctx)
+		gitName := map[diff.Algorithm]string{diff.MyersLinearSpace: "myers", diff.Patience: "patience", diff.Histogram: "histogram"}[alg]
+		key := fmt.Sprintf("%s/%d", gitName, ctx)
 		want, ok := c.Git[key]
 		if !ok {
 			return
@@ -213,7 +214,7 @@ func main() {
 	}
 	dump(dir+"/unified_git.json", map[string]any{
 		"id":          "diff_unified_git_001",
-		"description": "Unified hunks produced by git 2.43 'git diff --no-index --no-indent-heuristic --diff-algorithm=<algorithm> -U<context>' (file headers and the section heading after the second '@@' removed). The implementation must reproduce them byte for byte with SplitLines, Diff(Options{Algorithm, GitCompact: true}) and Unified(Context). Histogram cases (constructed and random) always match git; patience cases are those without a Myers fallback range; myers cases are those whose shortest alignment git and Myers agree on (see diff/OPEN_QUESTIONS.md).",
+		"description": "Unified hunks produced by git 2.43 'git diff --no-index --no-indent-heuristic --diff-algorithm=<algorithm> -U<context>' (file headers and the section heading after the second '@@' removed). The implementation must reproduce them byte for byte with SplitLines, Diff(Options{Algorithm, GitCompact: true}) and Unified(Context). Histogram cases (constructed and random) always match git; patience cases are those without a Myers fallback range; myers-linear cases (git's --diff-algorithm=myers) are those whose shortest alignment git and MyersLinearSpace agree on (see diff/OPEN_QUESTIONS.md).",
 		"unified":     uc,
 	})
 

@@ -160,6 +160,7 @@ func renderGo(es []entry) []byte {
 		fmt.Fprintf(&b, "\t{0x%X, 0x%X},\n", e.cps[0], second)
 	}
 	b.WriteString("}\n")
+	renderTrie(&b, es)
 	return b.Bytes()
 }
 
@@ -198,4 +199,80 @@ func jsonString(s string) []byte {
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(s)
 	return bytes.TrimRight(b.Bytes(), "\n")
+}
+
+// trieNode is a node of the generated prefix trie: its children are
+// edges[first : first+count] (sorted by byte), and entity is the index of
+// the name that ends here, or -1.
+type trieNode struct {
+	children map[byte]*trieNode
+	entity   int
+	id       int
+}
+
+// renderTrie emits the compact trie used by the CharRefTrie lookup
+// strategy: nodes are numbered breadth-first, each node's outgoing edges
+// are contiguous and sorted, so a lookup is one binary (or linear) search
+// per input byte.
+func renderTrie(b *bytes.Buffer, es []entry) {
+	root := &trieNode{children: map[byte]*trieNode{}, entity: -1}
+	for i, e := range es {
+		n := root
+		for j := 0; j < len(e.name); j++ {
+			c := e.name[j]
+			next, ok := n.children[c]
+			if !ok {
+				next = &trieNode{children: map[byte]*trieNode{}, entity: -1}
+				n.children[c] = next
+			}
+			n = next
+		}
+		n.entity = i
+	}
+	var order []*trieNode
+	queue := []*trieNode{root}
+	for len(queue) > 0 {
+		n := queue[0]
+		queue = queue[1:]
+		n.id = len(order)
+		order = append(order, n)
+		keys := sortedKeys(n.children)
+		for _, k := range keys {
+			queue = append(queue, n.children[k])
+		}
+	}
+	type edge struct {
+		c     byte
+		child int
+	}
+	var edges []edge
+	firsts := make([]int, len(order))
+	for i, n := range order {
+		firsts[i] = len(edges)
+		for _, k := range sortedKeys(n.children) {
+			edges = append(edges, edge{k, n.children[k].id})
+		}
+	}
+	fmt.Fprintf(b, "\n// entityTrieNodes is the prefix trie over entityNames (node 0 is the\n")
+	fmt.Fprintf(b, "// root): {first edge, edge count, entity index or -1}.\n")
+	fmt.Fprintf(b, "var entityTrieNodes = [%d]entityTrieNode{\n", len(order))
+	for i, n := range order {
+		fmt.Fprintf(b, "\t{%d, %d, %d},\n", firsts[i], len(n.children), n.entity)
+	}
+	b.WriteString("}\n\n")
+	fmt.Fprintf(b, "// entityTrieEdges are the trie edges {byte, child node}, grouped by\n// parent and sorted by byte.\n")
+	fmt.Fprintf(b, "var entityTrieEdges = [%d]entityTrieEdge{\n", len(edges))
+	for _, e := range edges {
+		fmt.Fprintf(b, "\t{%q, %d},\n", e.c, e.child)
+	}
+	b.WriteString("}\n")
+}
+
+func sortedKeys(m map[byte]*trieNode) []byte {
+	keys := make([]byte, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	return keys
 }

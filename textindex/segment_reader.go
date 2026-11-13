@@ -41,7 +41,11 @@ type Segment struct {
 	stored     []storedBlock
 	storedData []byte
 	codec      *codec
+	pc         PostingCodec
 }
+
+// Codec is the posting codec the segment was written with.
+func (sg *Segment) Codec() PostingCodec { return sg.pc }
 
 // OpenSegment validates and opens segment bytes written for schema s. It
 // verifies every CRC32C and every structural rule of FORMAT.md, so a
@@ -79,8 +83,9 @@ func openSegment(data []byte, s Schema, c *codec) (*Segment, error) {
 	if v := binary.LittleEndian.Uint16(data[4:]); v != segVersion {
 		return nil, corruptf("unsupported segment version %d", v)
 	}
-	if f := binary.LittleEndian.Uint16(data[6:]); f != 0 {
-		return nil, corruptf("unknown segment flags %#x", f)
+	pc, ok := codecByID(binary.LittleEndian.Uint16(data[6:]))
+	if !ok {
+		return nil, corruptf("unknown posting codec %d", binary.LittleEndian.Uint16(data[6:]))
 	}
 	if string(data[len(data)-4:]) != segEndMagic {
 		return nil, corruptf("bad segment end magic")
@@ -114,7 +119,7 @@ func openSegment(data []byte, s Schema, c *codec) (*Segment, error) {
 	if next != dirOff {
 		return nil, corruptf("sections do not end at the directory")
 	}
-	sg := &Segment{data: data, fileCRC: fileCRC, schema: s, codec: c}
+	sg := &Segment{data: data, fileCRC: fileCRC, schema: s, codec: c, pc: pc}
 	steps := []func([]byte) error{
 		nil, sg.parseMeta, sg.parseIDs, sg.parseNorms, sg.parseKeywords, sg.parseNumerics,
 		sg.parseTermDict, nil, nil, sg.parseTrigrams, sg.parseStored,
@@ -320,53 +325,85 @@ func (sg *Segment) parseTermDict(b []byte) error {
 // validatePostings decodes one term's postings and positions completely
 // and returns the offsets just past them.
 func (sg *Segment) validatePostings(field, df, po, pp int) (int, int, error) {
+	return validateList(sg.pc, sg.postings, po, df, sg.norms[field], sg.positions, pp, sg.n)
+}
+
+// validateList checks one postings list: skip table in range and
+// consistent with the blocks, deltas positive after the first posting,
+// docs below n, and (when norms is non-nil) tfs in 1..norm with strictly
+// increasing positions below the field length.
+func validateList(pc PostingCodec, data []byte, po, df int, norms []uint32, positions []byte, pp, n int) (int, int, error) {
+	withTF := norms != nil
+	size := triSkipSize
+	if withTF {
+		size = termSkipSize
+	}
 	nskip := (df - 1) / postingsBlock
-	sk := newRd(sg.postings)
+	sk := newRd(data)
 	sk.off = po
-	if !sk.need(nskip * termSkipSize) {
+	if !sk.need(nskip * size) {
 		return 0, 0, corruptf("skip table out of range")
 	}
-	base := po + nskip*termSkipSize
-	off := base
-	pos := pp
+	base := po + nskip*size
+	off, pos := base, pp
 	prev := uint32(0)
-	norms := sg.norms[field]
-	for j := 0; j < df; j++ {
-		if j > 0 && j%postingsBlock == 0 {
-			last, np, npos := sk.u32(), int(sk.u32()), int(sk.u32())
+	var deltas, tfs [postingsBlock]uint32
+	for k := 0; k*postingsBlock < df; k++ {
+		cnt := min(postingsBlock, df-k*postingsBlock)
+		if k > 0 {
+			last, np := sk.u32(), int(sk.u32())
+			npos := pos - pp
+			if withTF {
+				npos = int(sk.u32())
+			}
 			if last != prev || np != off-base || npos != pos-pp {
-				return 0, 0, corruptf("skip entry %d", j/postingsBlock-1)
+				return 0, 0, corruptf("skip entry %d", k-1)
 			}
 		}
-		d, o, ok := uvarint32(sg.postings, off)
-		if !ok || (j > 0 && d == 0) {
-			return 0, 0, corruptf("doc delta")
+		var tf []uint32
+		if withTF {
+			tf = tfs[:cnt]
 		}
-		doc := uint64(prev) + uint64(d)
-		if doc >= uint64(sg.n) {
-			return 0, 0, corruptf("doc %d out of range", doc)
+		if off > len(data) {
+			return 0, 0, corruptf("postings out of range")
 		}
-		tf, o2, ok := uvarint32(sg.postings, o)
-		if !ok || tf == 0 || tf > norms[doc] {
-			return 0, 0, corruptf("term frequency")
+		used, ok := pc.DecodeBlock(data[off:], deltas[:cnt], tf)
+		if !ok {
+			return 0, 0, corruptf("postings block %d does not decode", k)
 		}
-		off = o2
-		prev = uint32(doc)
-		p := uint64(0)
-		for k := uint32(0); k < tf; k++ {
-			v, o3, ok := uvarint32(sg.positions, pos)
-			if !ok || (k > 0 && v == 0) {
-				return 0, 0, corruptf("position")
+		off += used
+		for j := 0; j < cnt; j++ {
+			d := deltas[j]
+			if (k > 0 || j > 0) && d == 0 {
+				return 0, 0, corruptf("doc delta")
 			}
-			if k == 0 {
-				p = uint64(v)
-			} else {
-				p += uint64(v)
+			doc := uint64(prev) + uint64(d)
+			if doc >= uint64(n) {
+				return 0, 0, corruptf("doc %d out of range", doc)
 			}
-			if p >= uint64(norms[doc]) {
-				return 0, 0, corruptf("position beyond field length")
+			prev = uint32(doc)
+			if !withTF {
+				continue
 			}
-			pos = o3
+			if tf[j] == 0 || tf[j] > norms[doc] {
+				return 0, 0, corruptf("term frequency")
+			}
+			p := uint64(0)
+			for q := uint32(0); q < tf[j]; q++ {
+				v, o3, ok := uvarint32(positions, pos)
+				if !ok || (q > 0 && v == 0) {
+					return 0, 0, corruptf("position")
+				}
+				if q == 0 {
+					p = uint64(v)
+				} else {
+					p += uint64(v)
+				}
+				if p >= uint64(norms[doc]) {
+					return 0, 0, corruptf("position beyond field length")
+				}
+				pos = o3
+			}
 		}
 	}
 	return off, pos, nil
@@ -392,30 +429,11 @@ func (sg *Segment) parseTrigrams(b []byte) error {
 			return corruptf("trigram entry %d", i)
 		}
 		prevTri = tri
-		nskip := (df - 1) / postingsBlock
-		sk := newRd(sg.triData)
-		sk.off = o
-		if !sk.need(nskip * triSkipSize) {
-			return corruptf("trigram skip table")
+		end, _, err := validateList(sg.pc, sg.triData, o, df, nil, nil, 0, sg.n)
+		if err != nil {
+			return err
 		}
-		base := o + nskip*triSkipSize
-		p := base
-		prev := uint32(0)
-		for j := 0; j < df; j++ {
-			if j > 0 && j%postingsBlock == 0 {
-				last, np := sk.u32(), int(sk.u32())
-				if last != prev || np != p-base {
-					return corruptf("trigram skip entry")
-				}
-			}
-			d, o2, ok := uvarint32(sg.triData, p)
-			if !ok || (j > 0 && d == 0) || uint64(prev)+uint64(d) >= uint64(sg.n) {
-				return corruptf("trigram postings")
-			}
-			prev += d
-			p = o2
-		}
-		off = p
+		off = end
 	}
 	if off != len(sg.triData) {
 		return corruptf("trigram trailing data")
@@ -544,7 +562,7 @@ func (sg *Segment) termIter(field int, term string, scratch []byte) *postIter {
 		return nil
 	}
 	it := &postIter{}
-	it.reset(sg.postings, po, df, true, sg.positions, pp)
+	it.reset(sg.pc, sg.postings, po, df, true, sg.positions, pp)
 	return it
 }
 
@@ -568,7 +586,7 @@ func (sg *Segment) trigramIter(t uint32) *postIter {
 		return nil
 	}
 	it := &postIter{}
-	it.reset(sg.triData, int(binary.LittleEndian.Uint32(e[8:])), int(binary.LittleEndian.Uint32(e[4:])), false, nil, 0)
+	it.reset(sg.pc, sg.triData, int(binary.LittleEndian.Uint32(e[8:])), int(binary.LittleEndian.Uint32(e[4:])), false, nil, 0)
 	return it
 }
 

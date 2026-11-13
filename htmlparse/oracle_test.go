@@ -35,13 +35,10 @@ func oracleParseFragment(input []byte, ctx ContextElement) (string, bool) {
 	case MathMLNamespace:
 		ns = "math"
 	}
-	c := &html.Node{Type: html.ElementNode, Data: ctx.Name, Namespace: ns}
-	if ns == "" {
-		c.DataAtom = atom.Lookup([]byte(ctx.Name))
-	}
+	c := &html.Node{Type: html.ElementNode, Data: ctx.Name, Namespace: ns, DataAtom: atom.Lookup([]byte(ctx.Name))}
 	nodes, err := html.ParseFragmentWithOptions(bytes.NewReader(input), c, html.ParseOptionEnableScripting(false))
 	if err != nil {
-		return "", false
+		return "error: " + err.Error(), false
 	}
 	var b strings.Builder
 	for _, n := range nodes {

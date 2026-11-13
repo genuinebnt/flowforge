@@ -2,6 +2,7 @@ package diff
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 )
 
@@ -22,10 +23,12 @@ type Level uint8
 
 // Levels, from finest to coarsest.
 const (
-	// LevelTokens: Myers over word tokens, within every bound.
+	// LevelTokens: Bounds.TokenAlgorithm (default MyersLinearSpace) over
+	// word tokens, within every bound.
 	LevelTokens Level = iota + 1
-	// LevelLines: histogram over lines, after the token level was refused
-	// (input too large or edit distance over the cap).
+	// LevelLines: Bounds.LineAlgorithm (default Histogram) over lines,
+	// after the token level was refused (input too large or edit distance
+	// over the cap).
 	LevelLines
 	// LevelHash: only the SHA-256 of each side, after the line level was
 	// refused (input too large).
@@ -80,6 +83,11 @@ type Bounds struct {
 	MaxEditDistance   int
 	MaxInputBytes     int
 	MaxLineInputBytes int
+	// TokenAlgorithm runs the token level (zero: MyersLinearSpace) and
+	// LineAlgorithm the line level (zero: Histogram). Any Algorithm may be
+	// plugged in; both honour MaxEditDistance as Options does.
+	TokenAlgorithm Algorithm
+	LineAlgorithm  Algorithm
 }
 
 func (b Bounds) withDefaults() (Bounds, error) {
@@ -95,6 +103,17 @@ func (b Bounds) withDefaults() (Bounds, error) {
 	if b.MaxLineInputBytes == 0 {
 		b.MaxLineInputBytes = DefaultMaxLineInputBytes
 	}
+	if b.TokenAlgorithm == 0 {
+		b.TokenAlgorithm = MyersLinearSpace
+	}
+	if b.LineAlgorithm == 0 {
+		b.LineAlgorithm = Histogram
+	}
+	for _, a := range []Algorithm{b.TokenAlgorithm, b.LineAlgorithm} {
+		if _, err := ParseAlgorithm(a.String()); err != nil {
+			return b, err
+		}
+	}
 	return b, nil
 }
 
@@ -102,9 +121,9 @@ func (b Bounds) withDefaults() (Bounds, error) {
 type BoundedResult struct {
 	Level    Level
 	Fallback Fallback
-	// Capped reports that the line-level histogram hit MaxEditDistance in a
-	// Myers fallback range (that range is replaced as a whole). The script
-	// is still Apply-correct.
+	// Capped reports that the line-level algorithm hit MaxEditDistance
+	// (for histogram: in a Myers fallback range, replaced as a whole). The
+	// script is still Apply-correct.
 	Capped bool
 	// OldHash and NewHash are the SHA-256 of the inputs; Same reports that
 	// they are byte-identical.
@@ -119,10 +138,12 @@ type BoundedResult struct {
 }
 
 // BoundedDiff diffs two normalized texts within the bounds of V2_DESIGN
-// §5: token-level Myers capped at MaxEditDistance when both sides are at
-// most MaxInputBytes; otherwise (or past the cap) histogram over lines when
-// both sides are at most MaxLineInputBytes; otherwise hash only. The
-// result records the level used and why.
+// §5: the token algorithm (Myers) capped at MaxEditDistance when both sides
+// are at most MaxInputBytes; otherwise (or past the cap) the line algorithm
+// (histogram) when both sides are at most MaxLineInputBytes; otherwise
+// hash only. An algorithm refusing its input (ErrInputTooLarge, e.g.
+// Reference) counts as an input-size fallback. The result records the
+// level used and why.
 func BoundedDiff(oldText, newText []byte, b Bounds) (BoundedResult, error) {
 	b, err := b.withDefaults()
 	if err != nil {
@@ -135,25 +156,31 @@ func BoundedDiff(oldText, newText []byte, b Bounds) (BoundedResult, error) {
 	if size <= b.MaxInputBytes {
 		in := NewInterner()
 		a, bb := in.InternAll(SplitWords(string(oldText))), in.InternAll(SplitWords(string(newText)))
-		res, err := Diff(a, bb, Options{Algorithm: MyersLinearSpace, MaxEditDistance: b.MaxEditDistance})
-		if err != nil {
+		res, err := Diff(a, bb, Options{Algorithm: b.TokenAlgorithm, MaxEditDistance: b.MaxEditDistance})
+		switch {
+		case errors.Is(err, ErrInputTooLarge):
+		case err != nil:
 			return BoundedResult{}, err
-		}
-		if !res.Capped {
+		case !res.Capped:
 			r.Level, r.Fallback, r.Units, r.Old, r.New, r.Script = LevelTokens, FallbackNone, in, a, bb, res.Script
 			return r, nil
+		default:
+			r.Fallback = FallbackEditDistance
 		}
-		r.Fallback = FallbackEditDistance
 	}
 	if size <= b.MaxLineInputBytes {
 		in := NewInterner()
 		a, bb := in.InternAll(SplitLines(oldText)), in.InternAll(SplitLines(newText))
-		res, err := Diff(a, bb, Options{Algorithm: Histogram, MaxEditDistance: b.MaxEditDistance})
-		if err != nil {
+		res, err := Diff(a, bb, Options{Algorithm: b.LineAlgorithm, MaxEditDistance: b.MaxEditDistance})
+		switch {
+		case errors.Is(err, ErrInputTooLarge):
+			r.Fallback = FallbackInputSize
+		case err != nil:
 			return BoundedResult{}, err
+		default:
+			r.Level, r.Capped, r.Units, r.Old, r.New, r.Script = LevelLines, res.Capped, in, a, bb, res.Script
+			return r, nil
 		}
-		r.Level, r.Capped, r.Units, r.Old, r.New, r.Script = LevelLines, res.Capped, in, a, bb, res.Script
-		return r, nil
 	}
 	r.Level = LevelHash
 	return r, nil

@@ -49,7 +49,8 @@ func (p *parser) parseFunction(start int32, isAsync, decl, defaultExport bool) N
 		if decl {
 			p.declare(t.Value, p.functionBindKind(isAsync, isGen), t.Span())
 		}
-		p.nd(id).A = p.ident(t.Value, t.Span())
+		name := p.ident(t.Value, t.Span())
+		p.nd(id).A = name
 		p.next()
 	} else if decl && !defaultExport {
 		p.unexpected()

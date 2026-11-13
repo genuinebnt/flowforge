@@ -433,12 +433,6 @@ func (p *parser) parseFor() NodeID {
 					p.syntaxError(CodeForInOfHead, "for-in/of declarations may not have initializers")
 				}
 			}
-			if isOf && declKind == OpVar {
-				// var bindings of for-of are not exempt from the catch rule (B.3.5).
-				for _, b := range p.boundNamesOf(nil, init) {
-					p.declare(b.name, bindVarForOf, b.span)
-				}
-			}
 			return p.parseForInOf(start, init, isOf, isAwait)
 		}
 		for _, d := range decls {
@@ -528,7 +522,7 @@ func (p *parser) parseBreakContinue() NodeID {
 	label := NoNode
 	if p.at(TIdentifier) && !p.newlineBefore() && isIdentifierToken(&p.tok) {
 		t := p.tok
-		p.checkIdentifierReference(&t)
+		p.checkLabelIdentifier(&t)
 		label = p.ident(t.Value, t.Span())
 		p.next()
 		l := p.findLabel(t.Value)
@@ -697,7 +691,7 @@ func (p *parser) parseTry() NodeID {
 func (p *parser) parseLabelled() NodeID {
 	start := p.start()
 	t := p.tok
-	p.checkIdentifierReference(&t)
+	p.checkLabelIdentifier(&t)
 	if p.findLabel(t.Value) != nil {
 		p.early(CodeDuplicateLabel, t.Span(), "label '"+t.Value+"' has already been declared")
 	}

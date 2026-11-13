@@ -33,7 +33,7 @@ separately and talks to these over gRPC.
 | `scope` | ScopeService | programs, scope versions, kill switches, decision log | publishes scope.events |
 | `engine` | EngineService (+ `POST /internal/schedules/{id}:fire`) | workflows, runs, events, approvals | publishes run.events, approval.events; consumes scope.events |
 | `toolrunner` | ToolRunnerService | tool adapters | none |
-| `egressproxy` | HTTP CONNECT / forward proxy | nothing (reads the decision log) | none |
+| `egressproxy` | HTTP CONNECT / forward proxy, SOCKS5, DNS forwarder | tickets (in memory); records `intel_source` decisions | none |
 | `graph` | GraphService, GraphAnalytics | entities, edges, tags, change events | publishes graph.changes |
 | `similarity` | Similarity | vector indexes | consumes graph.changes |
 | `notifier` | NotifierService | rules, channels, alert events, deliveries | consumes graph.changes, run.events, approval.events, auth.events |
@@ -45,6 +45,23 @@ separately and talks to these over gRPC.
 | `internal/wire` | - | builds each service from an `Env` (shared by cmd and devstack) | |
 | `internal/servicetest` | - | test helpers (fresh Postgres DB, counting resolver, webhook receiver) | |
 
+## Tools (tool runner)
+
+| Tool | DSL signature | Class | Reaches |
+|------|---------------|-------|---------|
+| `dnsresolve` | `(Fqdn) -> List<IpAddress>` | passive | proxy DNS forwarder (A, AAAA, CNAME chain, MX, NS, TXT) |
+| `httpprobe` | `(InScope<Host>) -> Option<Service>` | active | proxy HTTP / CONNECT |
+| `portscan` (alias `tcpconnect`) | `(InScope<Host>, List<Int>) -> List<Int>` | active | proxy CONNECT or SOCKS5 |
+| `tlscert` | `(InScope<Host>, Int) -> Option<TlsCertificate>` | passive (D3) | proxy CONNECT, handshake only |
+| `ctlog` | `(Fqdn) -> List<Fqdn>` | passive | crt.sh (intel source) |
+| `rdap` | `(Host) -> List<Organization>` | passive | IANA bootstrap + registry RDAP (intel sources) |
+| `asn` | `(IpAddress) -> Option<Asn>` | passive | RDAP + Team Cymru DNS (intel sources) |
+| `mock` | `(String) -> String` | none | nothing |
+
+Details, emitted assets and fixtures: `services/toolrunner/README.md`;
+egress rules (port policy, tickets, DNS policy, per-target limits, intel
+allowlist): `services/egressproxy/README.md`.
+
 ## Running
 
 ```sh
@@ -55,7 +72,9 @@ eval "$(scripts/devpg.sh start)"
 go run ./cmd/flowforge dev -db "$FF_TEST_PG_DSN" # Postgres (migrations are applied first)
 ```
 
-`flowforge dev` prints every address. Each gRPC service also serves
+`flowforge dev` prints every address, including the egress proxy's SOCKS5
+listener (`egress-socks5`) and DNS forwarder (`egress-dns`, UDP and TCP on
+one port). Each gRPC service also serves
 `GET /healthz`, `/readyz` and `/metrics` (Prometheus text) on the same
 port (h2c, Cloud Run's HTTP/2 mode); the egress proxy serves them on its
 port for non-proxy requests. The internal services trust the gateway's
@@ -155,7 +174,10 @@ the graph, a signed webhook alert to a local receiver, and proof that the
 out-of-scope `evil.test` was never resolved or contacted. It runs on memory
 and, with `FF_TEST_PG_DSN`, on Postgres. `services/egressproxy/proxy_test.go`
 is the M7 mock-target test (allowed request, redirect to an out-of-scope
-host, DNS rebinding, userinfo and decimal-IP tricks).
+host, DNS rebinding, userinfo and decimal-IP tricks); `v2_test.go` covers
+TCP ports, SOCKS5, the DNS forwarder, per-target rate limits and intel
+sources. Tool adapters run against recorded fixtures in
+`conformance/tools/`.
 
 ## What is simplified or left undone
 
@@ -181,9 +203,14 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
   (`sm://`) references are not resolvable yet (`env://` and `file://` are).
 * **Egress proxy** reads the scope decision log directly (in process, or
   the scope schema in Postgres); HTTPS is tunnelled, so redirects inside
-  TLS are re-checked by the tool runner's client only.
-* **Tool runner**: tools run in-process (no sandbox); `dnsresolve` uses the
-  runner's resolver rather than a resolver behind the proxy; the proto
+  TLS are re-checked by the tool runner's client only. Standalone
+  (`cmd/egress-proxy`) it runs without the SOCKS5 and DNS listeners, the
+  intel allowlist and the wide port policy (only the dev stack wires them).
+  Tickets and per-target limiter state are per replica.
+* **Tool runner**: tools run in-process (no sandbox); `dnsresolve` falls
+  back to the runner's resolver when the proxy has no DNS forwarder;
+  `tlscert` needs a pinned passive decision, which the scope service does
+  not issue yet (its tunnels are refused, fail closed); the proto
   ToolSpec carries no retry policy, so every tool gets
   `convert.DefaultToolRetry`; httpprobe returns the prelude `Service`
   record (URL, status, title and products go to the graph).

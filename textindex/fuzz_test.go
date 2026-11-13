@@ -62,12 +62,14 @@ func reseal(b []byte) []byte {
 func FuzzSegmentOpen(f *testing.F) {
 	r := core.NewSplitMix64(9)
 	s := testSchema()
-	for _, n := range []int{0, 1, 3, 8} {
-		b, err := EncodeSegment(s, randomDocs(r, n))
-		if err != nil {
-			f.Fatal(err)
+	for _, pc := range Codecs() {
+		for _, n := range []int{0, 1, 3, 8} {
+			b, err := EncodeSegment(s, randomDocs(r, n), pc)
+			if err != nil {
+				f.Fatal(err)
+			}
+			f.Add(b)
 		}
-		f.Add(b)
 	}
 	c, err := newCodec()
 	if err != nil {
@@ -92,7 +94,7 @@ func FuzzSegmentOpen(f *testing.F) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if _, err := execute([]*segView{v}, p, len(s.Text), 0, 10, 100); err != nil {
+				if _, err := execute([]*segView{v}, p, execParams{nt: len(s.Text), k: 10, regexLimit: 100, scorer: BM25Scorer{}, isect: SkipIntersector{}, regex: TrigramPrefilter{}}); err != nil {
 					var qe *QueryError
 					if !errors.As(err, &qe) {
 						t.Fatalf("%q on accepted segment: %v", q, err)

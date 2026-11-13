@@ -397,7 +397,7 @@ func rdapOrgs(es []RDAPEntity) []rdapOrg {
 // LabelRegistrationRecord joins an FQDN to its DomainRecord and an
 // AutonomousSystem to its AutnumRecord. OAM calls both "registration", but
 // oam's endpoint table (spec 5.5) admits "registration" only for Netblock →
-// IPNetRecord, so these use this Flowforge label (OPEN_QUESTIONS).
+// IPNetRecord, so these use this Flowforge label (README, open questions).
 const LabelRegistrationRecord = "registration_record"
 
 // rangeCIDRs returns the prefixes exactly covering [start, end] (at most
@@ -664,6 +664,8 @@ func (r *RDAP) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, out 
 
 // orgsOutput is the prelude List<Organization>, sorted by unique_id.
 func orgsOutput(orgs map[string]oam.Organization) (json.RawMessage, error) {
+	// PORT: map iteration order is random; ids are sorted so the output is
+	// deterministic.
 	ids := make([]string, 0, len(orgs))
 	for id := range orgs {
 		ids = append(ids, id)

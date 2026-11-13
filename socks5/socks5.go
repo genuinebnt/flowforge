@@ -1,21 +1,3 @@
-// Package socks5 is the SOCKS protocol version 5 codec (RFC 1928) with
-// username/password authentication (RFC 1929): every message of the
-// handshake as a parser over bytes and a canonical encoder, plus server and
-// client handshakes over an io.ReadWriter. The egress proxy serves it and
-// the tool runner speaks it (V2_DESIGN §9).
-//
-// Each Parse function takes the bytes received so far and returns the
-// message and the number of octets it used, or an *Error. An *Error with
-// CodeShort carries Need, the total length known to be required, so a
-// reader can fetch exactly that many octets and never reads past the
-// message into tunnelled data. Parsing is total and strict: the reserved
-// octet must be zero, versions must match and lengths must be non-zero
-// where the RFCs require it. Encoding is canonical: Append(Parse(b)) is
-// b[:n].
-//
-// Only CONNECT is served. BIND and UDP ASSOCIATE parse, but ServerHandshake
-// always refuses them with reply 7 (command not supported); unknown
-// commands also get 7 and unknown address types 8 (RFC 1928 §6).
 package socks5
 
 import (
@@ -226,7 +208,7 @@ type Reply struct {
 	Addr Addr
 }
 
-// ParseGreeting parses VER NMETHODS METHODS.
+// ParseGreeting parses VER NMETHODS METHODS (RFC 1928 §3).
 func ParseGreeting(b []byte) (Greeting, int, error) {
 	if len(b) < 2 {
 		return Greeting{}, 0, short(2)
@@ -263,7 +245,7 @@ func AppendGreeting(dst []byte, g Greeting) ([]byte, error) {
 	return dst, nil
 }
 
-// ParseMethodSelection parses VER METHOD.
+// ParseMethodSelection parses VER METHOD (RFC 1928 §3).
 func ParseMethodSelection(b []byte) (MethodSelection, int, error) {
 	if len(b) < 2 {
 		return MethodSelection{}, 0, short(2)
@@ -321,7 +303,7 @@ func AppendUserPass(dst []byte, u UserPass) ([]byte, error) {
 	return append(dst, u.Password...), nil
 }
 
-// ParseAuthReply parses VER STATUS.
+// ParseAuthReply parses VER STATUS (RFC 1929 §2; 0 is success).
 func ParseAuthReply(b []byte) (AuthReply, int, error) {
 	if len(b) < 2 {
 		return AuthReply{}, 0, short(2)
@@ -335,7 +317,8 @@ func ParseAuthReply(b []byte) (AuthReply, int, error) {
 // AppendAuthReply encodes r.
 func AppendAuthReply(dst []byte, r AuthReply) []byte { return append(dst, AuthVersion, r.Status) }
 
-// parseAddr parses ATYP ADDR PORT at b[off:].
+// parseAddr parses ATYP ADDR PORT at b[off:] (RFC 1928 §5; the domain is
+// length-prefixed, the port big-endian).
 func parseAddr(b []byte, off int) (Addr, int, error) {
 	if len(b) < off+1 {
 		return Addr{}, 0, short(off + 1)
@@ -406,7 +389,7 @@ func appendAddr(dst []byte, a Addr) ([]byte, error) {
 	return binary.BigEndian.AppendUint16(dst, a.Port), nil
 }
 
-// ParseRequest parses VER CMD RSV ATYP DST.ADDR DST.PORT. Commands 1-3
+// ParseRequest parses VER CMD RSV ATYP DST.ADDR DST.PORT (RFC 1928 §4). Commands 1-3
 // parse (the server refuses 2 and 3); others fail with CodeBadCommand.
 func ParseRequest(b []byte) (Request, int, error) {
 	if len(b) < 3 {
@@ -437,7 +420,7 @@ func AppendRequest(dst []byte, r Request) ([]byte, error) {
 	return appendAddr(append(dst, Version, byte(r.Command), 0), r.Addr)
 }
 
-// ParseReply parses VER REP RSV ATYP BND.ADDR BND.PORT.
+// ParseReply parses VER REP RSV ATYP BND.ADDR BND.PORT (RFC 1928 §6).
 func ParseReply(b []byte) (Reply, int, error) {
 	if len(b) < 3 {
 		return Reply{}, 0, short(3)

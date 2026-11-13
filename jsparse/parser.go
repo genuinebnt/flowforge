@@ -161,6 +161,19 @@ func (p *parser) peek() *Token {
 	return &p.peekTok
 }
 
+// peek2 returns the token after the peeked one without consuming
+// anything (used only for `async x =>`).
+func (p *parser) peek2() Token {
+	p.peek()
+	if p.halted {
+		return p.tok
+	}
+	st := p.lex.save()
+	t := p.lex.Next(GoalDiv)
+	p.lex.restore(st)
+	return t
+}
+
 // regoal re-lexes the current token under goal. It is only called on a
 // token that begins with `/` (RegExp goals) or `}` (TemplateTail goals),
 // the only code points where the goals differ.

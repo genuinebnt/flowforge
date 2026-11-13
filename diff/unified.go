@@ -143,6 +143,8 @@ func ParseUnified(text []byte) (Patch, error) {
 		switch state {
 		case stPreamble:
 			switch {
+			case line+"\n" == noNewline:
+				return p, bad(i, "no-newline marker before any hunk")
 			case strings.HasPrefix(line, "--- "):
 				p.OldName = line[4:]
 				state = stOldName

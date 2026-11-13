@@ -1,0 +1,274 @@
+{
+  "description": "Hand-labelled ranking set for comparing Scorers (README 'Choosing an algorithm'). Short focused hunks compete with long noisy ones (a vendor bundle repeating 'token', 'user' and 'api', a changelog mentioning many keywords once, repetitive minified code). relevant lists the documents a reviewer would want first (labels fixed before measuring); metrics are MRR and precision at 1.",
+  "docs": [
+    {
+      "id": 1,
+      "text": {
+        "text": "+ const token = getAuthToken(user); headers.Authorization = 'Bearer ' + token;"
+      }
+    },
+    {
+      "id": 2,
+      "text": {
+        "text": "+ !function(){var a=b.token||c.token;d.token=e.token;f.token=g.token;h.token=i.token;j.token=k.token;l.user=m.user;n.api=o.api;p.api=q.api;r.user=s.user;t.token=u.token;v.auth=w.auth;x.users=y.users;z.orders=aa.orders;ab.login=ac.login;ad.route=ae.route;af.admin=ag.admin}();"
+      }
+    },
+    {
+      "id": 3,
+      "text": {
+        "text": "+ fetch('/api/v2/users/' + userId)"
+      }
+    },
+    {
+      "id": 4,
+      "text": {
+        "text": "- fetch('/api/v1/users/' + userId)"
+      }
+    },
+    {
+      "id": 5,
+      "text": {
+        "text": "+ router.post('/api/v2/login', loginHandler)"
+      }
+    },
+    {
+      "id": 6,
+      "text": {
+        "text": "+ Content-Security-Policy: default-src 'self'; script-src 'self' cdn.example.com"
+      }
+    },
+    {
+      "id": 7,
+      "text": {
+        "text": "+ Strict-Transport-Security: max-age=31536000; includeSubDomains"
+      }
+    },
+    {
+      "id": 8,
+      "text": {
+        "text": "+ const AWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'"
+      }
+    },
+    {
+      "id": 9,
+      "text": {
+        "text": "+ ## Changelog: bumped the build, rotated the deploy key, fixed a typo in the secret scanning docs, aws region moved, security headers reviewed, script loader rewritten, users page restyled, admin docs, orders export, login copy, graphql schema notes, email templates, form validation, account settings, lodash removed from the docs site"
+      }
+    },
+    {
+      "id": 10,
+      "text": {
+        "text": "+ graphql(`query GetUser($id: ID!) { user(id: $id) { email } }`)"
+      }
+    },
+    {
+      "id": 11,
+      "text": {
+        "text": "+ <form action='/account/delete' method='POST'>"
+      }
+    },
+    {
+      "id": 12,
+      "text": {
+        "text": "+ window.__APOLLO_STATE__ = {\"ROOT_QUERY\": {\"user\": null}}"
+      }
+    },
+    {
+      "id": 13,
+      "text": {
+        "text": "+ import { debounce } from 'lodash'; // lodash 4.17.21"
+      }
+    },
+    {
+      "id": 14,
+      "text": {
+        "text": "+ router.get('/admin/users', requireAdmin)"
+      }
+    },
+    {
+      "id": 15,
+      "text": {
+        "text": "+ console.log('debug user token', token)"
+      }
+    },
+    {
+      "id": 16,
+      "text": {
+        "text": "+ xhr.open('GET', '/api/v2/orders?userId=' + id)"
+      }
+    },
+    {
+      "id": 17,
+      "text": {
+        "text": "+ /* generated */ export const routes = [['/api/v2/users','users'],['/api/v2/users/me','users'],['/api/v2/users/search','users'],['/api/v2/users/export','users'],['/api/v2/users/import','users'],['/api/v2/users/bulk','users'],['/api/v2/users/roles','users'],['/api/v2/users/groups','users']];"
+      }
+    },
+    {
+      "id": 18,
+      "text": {
+        "text": "+ const secret = process.env.SESSION_SECRET"
+      }
+    },
+    {
+      "id": 19,
+      "text": {
+        "text": "+ <input type='hidden' name='csrf_token' value='{{ csrfToken }}'>"
+      }
+    },
+    {
+      "id": 20,
+      "text": {
+        "text": "+ token = token || cachedToken; if (!token) token = await newToken(); setToken(token); saveToken(token); emit('token', token);"
+      }
+    },
+    {
+      "id": 21,
+      "text": {
+        "text": "+ fetch('/api/v2/payments', {body: JSON.stringify(payment)})"
+      }
+    },
+    {
+      "id": 22,
+      "text": {
+        "text": "+ log('retry'); log('retry'); log('retry'); log('retry'); log('retry'); log('retry'); log('upload')"
+      }
+    },
+    {
+      "id": 23,
+      "text": {
+        "text": "+ uploadWithRetry(file, {retry: 3})"
+      }
+    },
+    {
+      "id": 24,
+      "text": {
+        "text": "+ const cookie = document.cookie; send(cookie); cookie.split(';').map(c => cookie.trim())"
+      }
+    },
+    {
+      "id": 25,
+      "text": {
+        "text": "+ Set-Cookie: session=abc; HttpOnly; Secure; SameSite=Strict"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "query": "auth token",
+      "relevant": [
+        1
+      ]
+    },
+    {
+      "query": "user token",
+      "relevant": [
+        15,
+        1
+      ]
+    },
+    {
+      "query": "users api v2",
+      "relevant": [
+        3
+      ]
+    },
+    {
+      "query": "login",
+      "relevant": [
+        5
+      ]
+    },
+    {
+      "query": "script src",
+      "relevant": [
+        6
+      ]
+    },
+    {
+      "query": "strict transport security",
+      "relevant": [
+        7
+      ]
+    },
+    {
+      "query": "aws secret key",
+      "relevant": [
+        8
+      ]
+    },
+    {
+      "query": "session secret",
+      "relevant": [
+        18
+      ]
+    },
+    {
+      "query": "graphql user email",
+      "relevant": [
+        10
+      ]
+    },
+    {
+      "query": "account delete",
+      "relevant": [
+        11
+      ]
+    },
+    {
+      "query": "lodash",
+      "relevant": [
+        13
+      ]
+    },
+    {
+      "query": "admin users",
+      "relevant": [
+        14
+      ]
+    },
+    {
+      "query": "orders",
+      "relevant": [
+        16
+      ]
+    },
+    {
+      "query": "users",
+      "relevant": [
+        3,
+        4,
+        14
+      ]
+    },
+    {
+      "query": "csrf token",
+      "relevant": [
+        19
+      ]
+    },
+    {
+      "query": "api v2 payments",
+      "relevant": [
+        21
+      ]
+    },
+    {
+      "query": "upload retry",
+      "relevant": [
+        23
+      ]
+    },
+    {
+      "query": "session cookie",
+      "relevant": [
+        25
+      ]
+    },
+    {
+      "query": "secure cookie",
+      "relevant": [
+        25
+      ]
+    }
+  ]
+}

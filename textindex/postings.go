@@ -19,12 +19,14 @@ type docIter interface {
 	cost() int
 }
 
-// postIter decodes one postings list (term or trigram) with block skips
-// (FORMAT.md "Postings"). Decoding is bounds-checked: on malformed data
-// the iterator ends (open-time validation makes that unreachable).
+// postIter decodes one postings list (term or trigram) block by block
+// with the segment's PostingCodec, using the skip entries to jump over
+// blocks (FORMAT.md "Postings"). Decoding is bounds-checked: on malformed
+// data the iterator ends (open-time validation makes that unreachable).
 type postIter struct {
+	pc       PostingCodec
 	data     []byte
-	base     int // offset of the first posting (after the skip table)
+	base     int // offset of block 0 (after the skip table)
 	skipOff  int // offset of the skip table
 	nskip    int
 	skipSize int
@@ -33,10 +35,15 @@ type postIter struct {
 	posData  []byte
 	posBase  int
 
-	i       int
-	off     int
+	i       int // global index of the current posting (-1 before start)
+	blk     int // current block (-1 none)
+	bstart  int // global index of the block's first posting
+	bn      int // postings in the block
+	nextOff int // byte offset of the next block
+	docs    [postingsBlock]uint32
+	tfs     [postingsBlock]uint32
+
 	doc     uint32
-	prevDoc uint32
 	tf      uint32
 	posOff  int
 	pending int
@@ -44,16 +51,17 @@ type postIter struct {
 	posBuf  []uint32
 }
 
-func (it *postIter) reset(data []byte, off, df int, withTF bool, posData []byte, posOff int) {
+func (it *postIter) reset(pc PostingCodec, data []byte, off, df int, withTF bool, posData []byte, posOff int) {
 	nskip := (df - 1) / postingsBlock
 	size := triSkipSize
 	if withTF {
 		size = termSkipSize
 	}
+	buf := it.posBuf[:0]
 	*it = postIter{
-		data: data, skipOff: off, base: off + nskip*size, nskip: nskip, skipSize: size,
+		pc: pc, data: data, skipOff: off, base: off + nskip*size, nskip: nskip, skipSize: size,
 		df: df, withTF: withTF, posData: posData, posBase: posOff,
-		i: -1, off: off + nskip*size, posOff: posOff, posRead: true, posBuf: it.posBuf[:0],
+		i: -1, blk: -1, nextOff: off + nskip*size, posOff: posOff, posRead: true, posBuf: buf,
 	}
 }
 
@@ -65,6 +73,41 @@ func (it *postIter) end() uint32 {
 	return noMore
 }
 
+// load decodes block k starting at byte off, whose first delta is
+// relative to prev.
+func (it *postIter) load(k, off int, prev uint32) bool {
+	n := min(postingsBlock, it.df-k*postingsBlock)
+	if n <= 0 || off < 0 || off > len(it.data) {
+		return false
+	}
+	var tfs []uint32
+	if it.withTF {
+		tfs = it.tfs[:n]
+	}
+	used, ok := it.pc.DecodeBlock(it.data[off:], it.docs[:n], tfs)
+	if !ok {
+		return false
+	}
+	d := uint64(prev)
+	for j := 0; j < n; j++ {
+		if (k > 0 || j > 0) && it.docs[j] == 0 {
+			return false
+		}
+		d += uint64(it.docs[j])
+		if d >= noMore {
+			return false
+		}
+		it.docs[j] = uint32(d)
+		if !it.withTF {
+			it.tfs[j] = 1
+		} else if it.tfs[j] == 0 {
+			return false
+		}
+	}
+	it.blk, it.bstart, it.bn, it.nextOff = k, k*postingsBlock, n, off+used
+	return true
+}
+
 func (it *postIter) nextDoc() uint32 {
 	if it.i >= 0 && !it.posRead {
 		it.pending += int(it.tf)
@@ -73,25 +116,18 @@ func (it *postIter) nextDoc() uint32 {
 	if it.i >= it.df {
 		return it.end()
 	}
-	d, off, ok := uvarint32(it.data, it.off)
-	if !ok {
-		return it.end()
-	}
-	doc := uint64(it.prevDoc) + uint64(d)
-	if doc >= noMore || (it.i > 0 && d == 0) {
-		return it.end()
-	}
-	it.off = off
-	it.doc, it.prevDoc = uint32(doc), uint32(doc)
-	if it.withTF {
-		tf, off, ok := uvarint32(it.data, it.off)
-		if !ok || tf == 0 {
+	if it.blk < 0 || it.i >= it.bstart+it.bn {
+		prev := uint32(0)
+		if it.blk >= 0 {
+			prev = it.docs[it.bn-1]
+		}
+		if !it.load(it.blk+1, it.nextOff, prev) {
 			return it.end()
 		}
-		it.tf, it.off, it.posRead = tf, off, false
-	} else {
-		it.tf = 1
 	}
+	j := it.i - it.bstart
+	it.doc, it.tf = it.docs[j], it.tfs[j]
+	it.posRead = !it.withTF
 	return it.doc
 }
 
@@ -110,16 +146,18 @@ func (it *postIter) skipEntry(k int) (last uint32, nextPost, nextPos int, ok boo
 }
 
 func (it *postIter) advance(target uint32) uint32 {
-	if it.i >= 0 && (it.doc >= target) {
+	if it.i >= 0 && it.doc >= target {
 		return it.doc
 	}
-	if cur := max(it.i, 0) / postingsBlock; cur < it.nskip {
-		// Within the current block? Then a linear scan is cheapest.
-		if last, _, _, ok := it.skipEntry(cur); !ok || last >= target {
-			goto scan
-		}
-		// smallest block k > cur whose last doc >= target (nskip = last block)
-		lo, hi := cur+1, it.nskip
+	if it.i >= it.df {
+		return noMore
+	}
+	// Inside the decoded block: step (no decoding needed).
+	inBlock := it.blk >= 0 && it.docs[it.bn-1] >= target
+	if !inBlock && it.blk < it.nskip {
+		// First block k > blk whose last doc >= target (the last block,
+		// index nskip, has no skip entry and bounds the search).
+		lo, hi := it.blk+1, it.nskip
 		for lo < hi {
 			mid := int(uint(lo+hi) >> 1)
 			last, _, _, ok := it.skipEntry(mid)
@@ -132,20 +170,17 @@ func (it *postIter) advance(target uint32) uint32 {
 				lo = mid + 1
 			}
 		}
-		if lo > cur {
+		if lo > it.blk+1 {
 			last, np, npos, ok := it.skipEntry(lo - 1)
-			if !ok {
+			if !ok || !it.load(lo, it.base+np, last) {
 				return it.end()
 			}
-			it.i = lo*postingsBlock - 1
-			it.off = it.base + np
-			it.prevDoc = last
+			it.i = it.bstart - 1
 			it.posOff = it.posBase + npos
 			it.pending = 0
 			it.posRead = true
 		}
 	}
-scan:
 	for it.nextDoc() < target {
 	}
 	return it.doc

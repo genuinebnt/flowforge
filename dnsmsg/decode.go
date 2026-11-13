@@ -47,8 +47,10 @@ type decoder struct {
 
 func (d *decoder) diag(c Code, off int) { d.diags = append(d.diags, Diagnostic{Code: c, Offset: off}) }
 
-// Decode parses one DNS message. It never panics and runs in time linear
-// in len(b). In Lenient mode the diagnostics list what was recovered from.
+// Decode parses one DNS message (RFC 1035 §4.1). It never panics; work is
+// linear in len(b) because each name is bounded by MaxNameLen octets and
+// MaxPointerHops pointers. In Lenient mode the diagnostics list what was
+// recovered from.
 func Decode(b []byte, mode Mode) (Message, []Diagnostic, error) {
 	d := &decoder{msg: b, mode: mode}
 	var (
@@ -70,7 +72,9 @@ func Decode(b []byte, mode Mode) (Message, []Diagnostic, error) {
 			pos = HeaderLen
 			sec = sectionQuestion
 		case sectionQuestion:
-			// Pre-size by what the input can hold, never by the claimed count.
+			// Pre-size by what the input can hold (a question is at least 5
+			// octets), never by the claimed count: a 12-octet message may
+			// claim 65535 entries.
 			m.Questions = make([]Question, 0, min(counts[0], (len(b)-pos)/5))
 			for range counts[0] {
 				q, next, err := d.question(pos)
@@ -100,10 +104,7 @@ func Decode(b []byte, mode Mode) (Message, []Diagnostic, error) {
 			default:
 				m.Additional = rrs
 			}
-			sec++
-			if sec == sectionAdditional+1 {
-				sec = sectionDone
-			}
+			sec++ // after the additional section this is sectionDone
 		}
 	}
 	if pos != len(b) {
@@ -115,6 +116,7 @@ func Decode(b []byte, mode Mode) (Message, []Diagnostic, error) {
 	return m, d.diags, nil
 }
 
+// decodeHeader reads the fixed header (RFC 1035 §4.1.1).
 func decodeHeader(b []byte) Header {
 	f := binary.BigEndian.Uint16(b[2:])
 	return Header{
@@ -141,6 +143,7 @@ func DecodeHeader(b []byte) (Header, bool) {
 	return decodeHeader(b), true
 }
 
+// question reads one question entry (RFC 1035 §4.1.2).
 func (d *decoder) question(pos int) (Question, int, error) {
 	name, pos, err := readName(d.msg, pos, len(d.msg))
 	if err != nil {
@@ -152,6 +155,7 @@ func (d *decoder) question(pos int) (Question, int, error) {
 	return Question{Name: name, Type: Type(binary.BigEndian.Uint16(d.msg[pos:])), Class: Class(binary.BigEndian.Uint16(d.msg[pos+2:]))}, pos + 4, nil
 }
 
+// rr reads one resource record (RFC 1035 §4.1.3).
 func (d *decoder) rr(pos int, sec section) (RR, int, error) {
 	start := pos
 	name, pos, err := readName(d.msg, pos, len(d.msg))
@@ -170,6 +174,8 @@ func (d *decoder) rr(pos int, sec section) (RR, int, error) {
 		return RR{}, 0, fail(CodeShortMessage, len(d.msg))
 	}
 	if rr.Type == TypeOPT {
+		// RFC 6891 §6.1.1: at most one OPT, in the additional section,
+		// owned by the root.
 		d.opts++
 		if sec != sectionAdditional || name != "." || d.opts > 1 {
 			if d.mode == Strict {
@@ -184,6 +190,9 @@ func (d *decoder) rr(pos int, sec section) (RR, int, error) {
 			return RR{}, 0, err
 		}
 		d.diag(CodeOf(err), pos)
+		// The raw octets may hold compression pointers that are only
+		// meaningful at this offset; re-encoding copies them verbatim
+		// (RFC 3597 §4 forbids decompressing unknown data).
 		data = RData{Kind: KindRaw, Raw: append([]byte(nil), d.msg[pos:end]...)}
 	}
 	rr.Data = data

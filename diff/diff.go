@@ -3,31 +3,53 @@ package diff
 import "fmt"
 
 // Algorithm selects a diff algorithm. Every algorithm returns a canonical
-// EditScript over the same token ids.
+// EditScript over the same token ids, so they are interchangeable behind
+// Diff (and BoundedDiff's fallback chain); README "Choosing an algorithm"
+// compares them.
 type Algorithm uint8
 
-// Algorithms. The zero value means Myers.
+// Algorithms. The zero value means DefaultAlgorithm.
 const (
-	// Myers is linear-space Myers (middle-snake divide and conquer): a
-	// shortest edit script in O((N+M)D) time and O(N+M) memory.
-	Myers Algorithm = iota + 1
+	// MyersLinearSpace is Myers with the linear-space refinement
+	// (middle-snake divide and conquer): a shortest edit script in
+	// O((N+M)D) time and O(N+M) memory. The default.
+	MyersLinearSpace Algorithm = iota + 1
 	// Myers is the basic greedy forward Myers algorithm with a full
-	// backtrack trace: shortest, O((N+M)D) time, O(D^2) memory. It is the
-	// reference for Myers; prefer Myers for large inputs.
+	// backtrack trace: shortest, O((N+M)D) time but O(D^2) memory.
 	Myers
-	// Patience is git's patience diff (unique-line anchors).
+	// Patience is git's patience diff (unique-line anchors). Not minimal.
 	Patience
-	// Histogram is git's histogram diff (low-occurrence anchors).
+	// Histogram is git's histogram diff (low-occurrence anchors). Not
+	// minimal.
 	Histogram
+	// Reference is the textbook O(NM) dynamic-programming LCS with a
+	// backtrack: shortest, O(NM) time and memory. Inputs whose N*M exceeds
+	// MaxReferenceCells fail with ErrInputTooLarge. For small inputs and as
+	// an oracle.
+	Reference
 )
 
-var algorithmNames = [...]string{MyersLinearSpace: "myers", Myers: "myers-greedy", Patience: "patience", Histogram: "histogram"}
+// DefaultAlgorithm is used when Options.Algorithm is zero.
+const DefaultAlgorithm = MyersLinearSpace
+
+// MaxReferenceCells bounds N*M for Reference (64 MiB of int32 cells).
+const MaxReferenceCells = 1 << 24
+
+var algorithmNames = [...]string{
+	MyersLinearSpace: "myers-linear",
+	Myers:            "myers",
+	Patience:         "patience",
+	Histogram:        "histogram",
+	Reference:        "reference",
+}
 
 // Algorithms lists every algorithm, in a fixed order.
-func Algorithms() []Algorithm { return []Algorithm{MyersLinearSpace, Myers, Patience, Histogram} }
+func Algorithms() []Algorithm {
+	return []Algorithm{MyersLinearSpace, Myers, Patience, Histogram, Reference}
+}
 
-// String returns the algorithm's stable name ("myers", "myers-greedy",
-// "patience", "histogram").
+// String returns the algorithm's stable name ("myers-linear", "myers",
+// "patience", "histogram", "reference"), as used in configuration.
 func (a Algorithm) String() string {
 	if int(a) < len(algorithmNames) && algorithmNames[a] != "" {
 		return algorithmNames[a]
@@ -47,13 +69,14 @@ func ParseAlgorithm(s string) (Algorithm, error) {
 
 // Options configures Diff.
 type Options struct {
-	// Algorithm is the algorithm; zero means Myers.
+	// Algorithm is the algorithm; zero means DefaultAlgorithm.
 	Algorithm Algorithm
-	// MaxEditDistance caps the Myers search: when the shortest script needs
-	// more than this many inserted plus deleted tokens, Myers stops and the
-	// result is Capped (the common prefix and suffix kept, the middle
-	// replaced). For Patience and Histogram it caps their Myers fallback
-	// ranges the same way. Zero means unlimited; negative is invalid.
+	// MaxEditDistance caps the search: when the shortest script needs more
+	// than this many inserted plus deleted tokens, MyersLinearSpace, Myers
+	// and Reference stop and the result is Capped (the common prefix and
+	// suffix kept, the middle replaced). For Patience and Histogram it caps
+	// their Myers fallback ranges the same way. Zero means unlimited;
+	// negative is invalid.
 	MaxEditDistance int
 	// GitCompact applies CompactGit (git's change compaction without the
 	// indent heuristic) to the result, as git does after every algorithm.
@@ -105,6 +128,17 @@ func diffRaw(a, b []uint32, opts Options) (Result, error) {
 	case Myers:
 		var bld builder
 		if !myersGreedy(&bld, a, b, 0, len(a), 0, len(b), limit) {
+			bld = builder{}
+			fallback(&bld, a, b, 0, len(a), 0, len(b))
+			return Result{Script: bld.finish(a, b), Capped: true}, nil
+		}
+		return Result{Script: bld.finish(a, b)}, nil
+	case Reference:
+		if len(a) > 0 && len(b) > MaxReferenceCells/len(a) {
+			return Result{}, fmt.Errorf("%w: reference diff of %d x %d tokens exceeds %d cells", ErrInputTooLarge, len(a), len(b), MaxReferenceCells)
+		}
+		var bld builder
+		if !referenceDiff(&bld, a, b, limit) {
 			bld = builder{}
 			fallback(&bld, a, b, 0, len(a), 0, len(b))
 			return Result{Script: bld.finish(a, b), Capped: true}, nil

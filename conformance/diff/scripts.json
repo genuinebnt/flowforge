@@ -1,5 +1,5 @@
 {
- "description": "Edit scripts per algorithm over string tokens (each string is one token). 'distance' is the brute-force n+m-2*LCS (Myers and myers-greedy must equal it). Scripts are EditScript.String(): space-separated runs '=k' equal, '-k' delete, '+k' insert, in canonical form (one delete then one insert per change region), so ranges follow by tiling. '<alg>+git-compact' is the same after CompactGit. Pins the reference implementation's alignment choices for the port.",
+ "description": "Edit scripts per algorithm over string tokens (each string is one token). 'distance' is the brute-force n+m-2*LCS (myers-linear, myers and reference must equal it). Scripts are EditScript.String(): space-separated runs '=k' equal, '-k' delete, '+k' insert, in canonical form (one delete then one insert per change region), so ranges follow by tiling. '<alg>+git-compact' is the same after CompactGit. Pins the reference implementation's alignment choices for the port.",
  "id": "diff_scripts_001",
  "scripts": [
   {
@@ -25,12 +25,14 @@
    "expect": {
     "histogram": "-2 =1 -2 =2 +3",
     "histogram+git-compact": "-2 =1 -2 =2 +3",
-    "myers": "-1 +1 =1 -1 =2 -1 =1 +1",
-    "myers+git-compact": "-1 +1 =1 -1 =2 -1 =1 +1",
-    "myers-greedy": "-2 =1 +1 =2 -1 =1 +1",
-    "myers-greedy+git-compact": "-2 =1 +1 =2 -1 =1 +1",
+    "myers": "-2 =1 +1 =2 -1 =1 +1",
+    "myers+git-compact": "-2 =1 +1 =2 -1 =1 +1",
+    "myers-linear": "-1 +1 =1 -1 =2 -1 =1 +1",
+    "myers-linear+git-compact": "-1 +1 =1 -1 =2 -1 =1 +1",
     "patience": "-1 +1 =1 -1 =2 -1 =1 +1",
-    "patience+git-compact": "-1 +1 =1 -1 =2 -1 =1 +1"
+    "patience+git-compact": "-1 +1 =1 -1 =2 -1 =1 +1",
+    "reference": "-2 =1 -1 =1 +1 =2 +1",
+    "reference+git-compact": "-2 =1 -1 =1 +1 =2 +1"
    }
   },
   {
@@ -43,10 +45,12 @@
     "histogram+git-compact": "",
     "myers": "",
     "myers+git-compact": "",
-    "myers-greedy": "",
-    "myers-greedy+git-compact": "",
+    "myers-linear": "",
+    "myers-linear+git-compact": "",
     "patience": "",
-    "patience+git-compact": ""
+    "patience+git-compact": "",
+    "reference": "",
+    "reference+git-compact": ""
    }
   },
   {
@@ -63,10 +67,12 @@
     "histogram+git-compact": "+3",
     "myers": "+3",
     "myers+git-compact": "+3",
-    "myers-greedy": "+3",
-    "myers-greedy+git-compact": "+3",
+    "myers-linear": "+3",
+    "myers-linear+git-compact": "+3",
     "patience": "+3",
-    "patience+git-compact": "+3"
+    "patience+git-compact": "+3",
+    "reference": "+3",
+    "reference+git-compact": "+3"
    }
   },
   {
@@ -83,10 +89,12 @@
     "histogram+git-compact": "-3",
     "myers": "-3",
     "myers+git-compact": "-3",
-    "myers-greedy": "-3",
-    "myers-greedy+git-compact": "-3",
+    "myers-linear": "-3",
+    "myers-linear+git-compact": "-3",
     "patience": "-3",
-    "patience+git-compact": "-3"
+    "patience+git-compact": "-3",
+    "reference": "-3",
+    "reference+git-compact": "-3"
    }
   },
   {
@@ -113,10 +121,12 @@
     "histogram+git-compact": "=6",
     "myers": "=6",
     "myers+git-compact": "=6",
-    "myers-greedy": "=6",
-    "myers-greedy+git-compact": "=6",
+    "myers-linear": "=6",
+    "myers-linear+git-compact": "=6",
     "patience": "=6",
-    "patience+git-compact": "=6"
+    "patience+git-compact": "=6",
+    "reference": "=6",
+    "reference+git-compact": "=6"
    }
   },
   {
@@ -137,10 +147,12 @@
     "histogram+git-compact": "-3 +3",
     "myers": "-3 +3",
     "myers+git-compact": "-3 +3",
-    "myers-greedy": "-3 +3",
-    "myers-greedy+git-compact": "-3 +3",
+    "myers-linear": "-3 +3",
+    "myers-linear+git-compact": "-3 +3",
     "patience": "-3 +3",
-    "patience+git-compact": "-3 +3"
+    "patience+git-compact": "-3 +3",
+    "reference": "-3 +3",
+    "reference+git-compact": "-3 +3"
    }
   },
   {
@@ -162,10 +174,12 @@
     "histogram+git-compact": "=2 +1 =1",
     "myers": "=2 +1 =1",
     "myers+git-compact": "=2 +1 =1",
-    "myers-greedy": "=2 +1 =1",
-    "myers-greedy+git-compact": "=2 +1 =1",
+    "myers-linear": "=2 +1 =1",
+    "myers-linear+git-compact": "=2 +1 =1",
     "patience": "=2 +1 =1",
-    "patience+git-compact": "=2 +1 =1"
+    "patience+git-compact": "=2 +1 =1",
+    "reference": "=2 +1 =1",
+    "reference+git-compact": "=2 +1 =1"
    }
   },
   {
@@ -186,10 +200,12 @@
     "histogram+git-compact": "=2 -2",
     "myers": "=2 -2",
     "myers+git-compact": "=2 -2",
-    "myers-greedy": "=2 -2",
-    "myers-greedy+git-compact": "=2 -2",
+    "myers-linear": "=2 -2",
+    "myers-linear+git-compact": "=2 -2",
     "patience": "=2 -2",
-    "patience+git-compact": "=2 -2"
+    "patience+git-compact": "=2 -2",
+    "reference": "=2 -2",
+    "reference+git-compact": "=2 -2"
    }
   },
   {
@@ -214,12 +230,14 @@
    "expect": {
     "histogram": "-1 =4 -3",
     "histogram+git-compact": "-1 =4 -3",
-    "myers": "-3 =4 -1",
-    "myers+git-compact": "-3 =4 -1",
-    "myers-greedy": "-1 =4 -3",
-    "myers-greedy+git-compact": "-1 =4 -3",
+    "myers": "-1 =4 -3",
+    "myers+git-compact": "-1 =4 -3",
+    "myers-linear": "-3 =4 -1",
+    "myers-linear+git-compact": "-3 =4 -1",
     "patience": "-3 =4 -1",
-    "patience+git-compact": "-3 =4 -1"
+    "patience+git-compact": "-3 =4 -1",
+    "reference": "-1 =4 -3",
+    "reference+git-compact": "-1 =4 -3"
    }
   },
   {
@@ -247,10 +265,12 @@
     "histogram+git-compact": "=3 -1 =3",
     "myers": "=3 -1 =3",
     "myers+git-compact": "=3 -1 =3",
-    "myers-greedy": "=3 -1 =3",
-    "myers-greedy+git-compact": "=3 -1 =3",
+    "myers-linear": "=3 -1 =3",
+    "myers-linear+git-compact": "=3 -1 =3",
     "patience": "=3 -1 =3",
-    "patience+git-compact": "=3 -1 =3"
+    "patience+git-compact": "=3 -1 =3",
+    "reference": "=3 -1 =3",
+    "reference+git-compact": "=3 -1 =3"
    }
   },
   {
@@ -283,10 +303,12 @@
     "histogram+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
     "myers": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
     "myers+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
-    "myers-greedy": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
-    "myers-greedy+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "myers-linear": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "myers-linear+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
     "patience": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
-    "patience+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1"
+    "patience+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "reference": "=2 -1 +1 =1 -1 +1 =3 -1 +1",
+    "reference+git-compact": "=2 -1 +1 =1 -1 +1 =3 -1 +1"
    }
   },
   {
@@ -320,12 +342,14 @@
    "expect": {
     "histogram": "=4 -1 +1 =4 +3",
     "histogram+git-compact": "=4 -1 +1 =4 +3",
-    "myers": "=4 -1 +1 =3 +3 =1",
+    "myers": "=4 -1 +1 =4 +3",
     "myers+git-compact": "=4 -1 +1 =4 +3",
-    "myers-greedy": "=4 -1 +1 =4 +3",
-    "myers-greedy+git-compact": "=4 -1 +1 =4 +3",
+    "myers-linear": "=4 -1 +1 =3 +3 =1",
+    "myers-linear+git-compact": "=4 -1 +1 =4 +3",
     "patience": "=4 -1 +1 =4 +3",
-    "patience+git-compact": "=4 -1 +1 =4 +3"
+    "patience+git-compact": "=4 -1 +1 =4 +3",
+    "reference": "=4 -1 +1 =4 +3",
+    "reference+git-compact": "=4 -1 +1 =4 +3"
    }
   },
   {
@@ -356,10 +380,12 @@
     "histogram+git-compact": "+3 =4 -3 =1",
     "myers": "+3 =4 -3 =1",
     "myers+git-compact": "+3 =4 -3 =1",
-    "myers-greedy": "+3 =4 -3 =1",
-    "myers-greedy+git-compact": "+3 =4 -3 =1",
+    "myers-linear": "+3 =4 -3 =1",
+    "myers-linear+git-compact": "+3 =4 -3 =1",
     "patience": "+3 =4 -3 =1",
-    "patience+git-compact": "+3 =4 -3 =1"
+    "patience+git-compact": "+3 =4 -3 =1",
+    "reference": "+3 =4 -3 =1",
+    "reference+git-compact": "+3 =4 -3 =1"
    }
   },
   {
@@ -374,10 +400,12 @@
     "histogram+git-compact": "+1",
     "myers": "+1",
     "myers+git-compact": "+1",
-    "myers-greedy": "+1",
-    "myers-greedy+git-compact": "+1",
+    "myers-linear": "+1",
+    "myers-linear+git-compact": "+1",
     "patience": "+1",
-    "patience+git-compact": "+1"
+    "patience+git-compact": "+1",
+    "reference": "+1",
+    "reference+git-compact": "+1"
    }
   },
   {
@@ -412,12 +440,14 @@
    "expect": {
     "histogram": "=1 -1 +1 =3 -1 =5 -1",
     "histogram+git-compact": "=1 -1 +1 =3 -1 =5 -1",
-    "myers": "=1 -1 +1 =3 -1 =4 -1 =1",
+    "myers": "=1 -1 +1 =3 -1 =5 -1",
     "myers+git-compact": "=1 -1 +1 =3 -1 =5 -1",
-    "myers-greedy": "=1 -1 +1 =3 -1 =5 -1",
-    "myers-greedy+git-compact": "=1 -1 +1 =3 -1 =5 -1",
+    "myers-linear": "=1 -1 +1 =3 -1 =4 -1 =1",
+    "myers-linear+git-compact": "=1 -1 +1 =3 -1 =5 -1",
     "patience": "=1 -1 +1 =3 -1 =4 -1 =1",
-    "patience+git-compact": "=1 -1 +1 =3 -1 =5 -1"
+    "patience+git-compact": "=1 -1 +1 =3 -1 =5 -1",
+    "reference": "=1 -1 +1 =3 -1 =5 -1",
+    "reference+git-compact": "=1 -1 +1 =3 -1 =5 -1"
    }
   },
   {
@@ -432,10 +462,12 @@
     "histogram+git-compact": "+1",
     "myers": "+1",
     "myers+git-compact": "+1",
-    "myers-greedy": "+1",
-    "myers-greedy+git-compact": "+1",
+    "myers-linear": "+1",
+    "myers-linear+git-compact": "+1",
     "patience": "+1",
-    "patience+git-compact": "+1"
+    "patience+git-compact": "+1",
+    "reference": "+1",
+    "reference+git-compact": "+1"
    }
   },
   {
@@ -472,10 +504,12 @@
     "histogram+git-compact": "=7 -1 +1 =3",
     "myers": "=7 -1 +1 =3",
     "myers+git-compact": "=7 -1 +1 =3",
-    "myers-greedy": "=7 -1 +1 =3",
-    "myers-greedy+git-compact": "=7 -1 +1 =3",
+    "myers-linear": "=7 -1 +1 =3",
+    "myers-linear+git-compact": "=7 -1 +1 =3",
     "patience": "=7 -1 +1 =3",
-    "patience+git-compact": "=7 -1 +1 =3"
+    "patience+git-compact": "=7 -1 +1 =3",
+    "reference": "=7 -1 +1 =3",
+    "reference+git-compact": "=7 -1 +1 =3"
    }
   },
   {
@@ -506,10 +540,12 @@
     "histogram+git-compact": "=6 -1 +1 =1",
     "myers": "=6 -1 +1 =1",
     "myers+git-compact": "=6 -1 +1 =1",
-    "myers-greedy": "=6 -1 +1 =1",
-    "myers-greedy+git-compact": "=6 -1 +1 =1",
+    "myers-linear": "=6 -1 +1 =1",
+    "myers-linear+git-compact": "=6 -1 +1 =1",
     "patience": "=6 -1 +1 =1",
-    "patience+git-compact": "=6 -1 +1 =1"
+    "patience+git-compact": "=6 -1 +1 =1",
+    "reference": "=6 -1 +1 =1",
+    "reference+git-compact": "=6 -1 +1 =1"
    }
   },
   {
@@ -563,12 +599,14 @@
    "expect": {
     "histogram": "=4 +1 =7 +1 =1 -1 =7",
     "histogram+git-compact": "=4 +1 =7 +1 =3 -1 =5",
-    "myers": "=4 +1 =7 +1 =1 -1 =7",
+    "myers": "=4 +1 =7 +1 =3 -1 =5",
     "myers+git-compact": "=4 +1 =7 +1 =3 -1 =5",
-    "myers-greedy": "=4 +1 =7 +1 =3 -1 =5",
-    "myers-greedy+git-compact": "=4 +1 =7 +1 =3 -1 =5",
+    "myers-linear": "=4 +1 =7 +1 =1 -1 =7",
+    "myers-linear+git-compact": "=4 +1 =7 +1 =3 -1 =5",
     "patience": "=4 +1 =7 +1 =1 -1 =7",
-    "patience+git-compact": "=4 +1 =7 +1 =3 -1 =5"
+    "patience+git-compact": "=4 +1 =7 +1 =3 -1 =5",
+    "reference": "=4 +1 =7 +1 =3 -1 =5",
+    "reference+git-compact": "=4 +1 =7 +1 =3 -1 =5"
    }
   },
   {
@@ -611,10 +649,12 @@
     "histogram+git-compact": "=3 -1 +1 =1 +2 =8",
     "myers": "=3 -1 +1 =1 +2 =8",
     "myers+git-compact": "=3 -1 +1 =1 +2 =8",
-    "myers-greedy": "=3 -1 +1 =1 +2 =8",
-    "myers-greedy+git-compact": "=3 -1 +1 =1 +2 =8",
+    "myers-linear": "=3 -1 +1 =1 +2 =8",
+    "myers-linear+git-compact": "=3 -1 +1 =1 +2 =8",
     "patience": "=3 -1 +1 =1 +2 =8",
-    "patience+git-compact": "=3 -1 +1 =1 +2 =8"
+    "patience+git-compact": "=3 -1 +1 =1 +2 =8",
+    "reference": "=3 -1 +1 =1 +2 =8",
+    "reference+git-compact": "=3 -1 +1 =1 +2 =8"
    }
   },
   {
@@ -640,12 +680,14 @@
    "expect": {
     "histogram": "-1 +1 =5 -1",
     "histogram+git-compact": "-1 +1 =5 -1",
-    "myers": "-1 +1 =5 -1",
+    "myers": "-1 =2 +1 =3 -1",
     "myers+git-compact": "-1 +1 =5 -1",
-    "myers-greedy": "-1 =2 +1 =3 -1",
-    "myers-greedy+git-compact": "-1 +1 =5 -1",
+    "myers-linear": "-1 +1 =5 -1",
+    "myers-linear+git-compact": "-1 +1 =5 -1",
     "patience": "-1 +1 =5 -1",
-    "patience+git-compact": "-1 +1 =5 -1"
+    "patience+git-compact": "-1 +1 =5 -1",
+    "reference": "-1 =2 +1 =3 -1",
+    "reference+git-compact": "-1 +1 =5 -1"
    }
   },
   {
@@ -705,10 +747,12 @@
     "histogram+git-compact": "=14 -1 =7 -1 +1",
     "myers": "=14 -1 =7 -1 +1",
     "myers+git-compact": "=14 -1 =7 -1 +1",
-    "myers-greedy": "=14 -1 =7 -1 +1",
-    "myers-greedy+git-compact": "=14 -1 =7 -1 +1",
+    "myers-linear": "=14 -1 =7 -1 +1",
+    "myers-linear+git-compact": "=14 -1 =7 -1 +1",
     "patience": "=14 -1 =7 -1 +1",
-    "patience+git-compact": "=14 -1 =7 -1 +1"
+    "patience+git-compact": "=14 -1 =7 -1 +1",
+    "reference": "=14 -1 =7 -1 +1",
+    "reference+git-compact": "=14 -1 =7 -1 +1"
    }
   },
   {
@@ -758,10 +802,12 @@
     "histogram+git-compact": "=8 +1 =2 -1 +1 =6",
     "myers": "=8 +1 =2 -1 +1 =6",
     "myers+git-compact": "=8 +1 =2 -1 +1 =6",
-    "myers-greedy": "=8 +1 =2 -1 +1 =6",
-    "myers-greedy+git-compact": "=8 +1 =2 -1 +1 =6",
+    "myers-linear": "=8 +1 =2 -1 +1 =6",
+    "myers-linear+git-compact": "=8 +1 =2 -1 +1 =6",
     "patience": "=8 +1 =2 -1 +1 =6",
-    "patience+git-compact": "=8 +1 =2 -1 +1 =6"
+    "patience+git-compact": "=8 +1 =2 -1 +1 =6",
+    "reference": "=8 +1 =2 -1 +1 =6",
+    "reference+git-compact": "=8 +1 =2 -1 +1 =6"
    }
   },
   {
@@ -802,12 +848,14 @@
    "expect": {
     "histogram": "=3 -1 =10 +1",
     "histogram+git-compact": "=3 -1 =10 +1",
-    "myers": "=3 -1 =9 +1 =1",
+    "myers": "=3 -1 =10 +1",
     "myers+git-compact": "=3 -1 =10 +1",
-    "myers-greedy": "=3 -1 =10 +1",
-    "myers-greedy+git-compact": "=3 -1 =10 +1",
+    "myers-linear": "=3 -1 =9 +1 =1",
+    "myers-linear+git-compact": "=3 -1 =10 +1",
     "patience": "=3 -1 =10 +1",
-    "patience+git-compact": "=3 -1 =10 +1"
+    "patience+git-compact": "=3 -1 =10 +1",
+    "reference": "=3 -1 =10 +1",
+    "reference+git-compact": "=3 -1 =10 +1"
    }
   },
   {
@@ -841,10 +889,12 @@
     "histogram+git-compact": "=3 -1 =6",
     "myers": "=3 -1 =6",
     "myers+git-compact": "=3 -1 =6",
-    "myers-greedy": "=3 -1 =6",
-    "myers-greedy+git-compact": "=3 -1 =6",
+    "myers-linear": "=3 -1 =6",
+    "myers-linear+git-compact": "=3 -1 =6",
     "patience": "=3 -1 =6",
-    "patience+git-compact": "=3 -1 =6"
+    "patience+git-compact": "=3 -1 =6",
+    "reference": "=3 -1 =6",
+    "reference+git-compact": "=3 -1 =6"
    }
   },
   {
@@ -896,12 +946,14 @@
    "expect": {
     "histogram": "=1 -1 +1 =8 -1 =9",
     "histogram+git-compact": "=1 -1 +1 =8 -1 =9",
-    "myers": "=1 -1 +1 =8 -1 =9",
+    "myers": "=1 +1 =1 -1 =7 -1 =9",
     "myers+git-compact": "=1 -1 +1 =8 -1 =9",
-    "myers-greedy": "=1 +1 =1 -1 =7 -1 =9",
-    "myers-greedy+git-compact": "=1 -1 +1 =8 -1 =9",
+    "myers-linear": "=1 -1 +1 =8 -1 =9",
+    "myers-linear+git-compact": "=1 -1 +1 =8 -1 =9",
     "patience": "=1 -1 +1 =8 -1 =9",
-    "patience+git-compact": "=1 -1 +1 =8 -1 =9"
+    "patience+git-compact": "=1 -1 +1 =8 -1 =9",
+    "reference": "=1 -1 +1 =8 -1 =9",
+    "reference+git-compact": "=1 -1 +1 =8 -1 =9"
    }
   },
   {
@@ -951,10 +1003,12 @@
     "histogram+git-compact": "=4 -1 =13",
     "myers": "=4 -1 =13",
     "myers+git-compact": "=4 -1 =13",
-    "myers-greedy": "=4 -1 =13",
-    "myers-greedy+git-compact": "=4 -1 =13",
+    "myers-linear": "=4 -1 =13",
+    "myers-linear+git-compact": "=4 -1 =13",
     "patience": "=4 -1 =13",
-    "patience+git-compact": "=4 -1 =13"
+    "patience+git-compact": "=4 -1 =13",
+    "reference": "=4 -1 =13",
+    "reference+git-compact": "=4 -1 =13"
    }
   },
   {
@@ -990,10 +1044,12 @@
     "histogram+git-compact": "=1 +1 =9",
     "myers": "=1 +1 =9",
     "myers+git-compact": "=1 +1 =9",
-    "myers-greedy": "=1 +1 =9",
-    "myers-greedy+git-compact": "=1 +1 =9",
+    "myers-linear": "=1 +1 =9",
+    "myers-linear+git-compact": "=1 +1 =9",
     "patience": "=1 +1 =9",
-    "patience+git-compact": "=1 +1 =9"
+    "patience+git-compact": "=1 +1 =9",
+    "reference": "=1 +1 =9",
+    "reference+git-compact": "=1 +1 =9"
    }
   },
   {
@@ -1053,10 +1109,12 @@
     "histogram+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
     "myers": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
     "myers+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
-    "myers-greedy": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
-    "myers-greedy+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "myers-linear": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "myers-linear+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
     "patience": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
-    "patience+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1"
+    "patience+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "reference": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1",
+    "reference+git-compact": "=3 -1 +1 =1 -1 =11 +1 =4 +1 =1"
    }
   },
   {
@@ -1077,10 +1135,12 @@
     "histogram+git-compact": "=1 -1 =1 +1",
     "myers": "=1 -1 =1 +1",
     "myers+git-compact": "=1 -1 =1 +1",
-    "myers-greedy": "=1 -1 =1 +1",
-    "myers-greedy+git-compact": "=1 -1 =1 +1",
+    "myers-linear": "=1 -1 =1 +1",
+    "myers-linear+git-compact": "=1 -1 =1 +1",
     "patience": "-1 =2 +1",
-    "patience+git-compact": "=1 -1 =1 +1"
+    "patience+git-compact": "=1 -1 =1 +1",
+    "reference": "=1 -1 =1 +1",
+    "reference+git-compact": "=1 -1 =1 +1"
    }
   },
   {
@@ -1104,12 +1164,14 @@
    "expect": {
     "histogram": "-1 +1 =3 -3",
     "histogram+git-compact": "-1 +1 =3 -3",
-    "myers": "-1 +1 =2 -3 =1",
+    "myers": "+1 =1 -1 =2 -3",
     "myers+git-compact": "-1 +1 =3 -3",
-    "myers-greedy": "+1 =1 -1 =2 -3",
-    "myers-greedy+git-compact": "-1 +1 =3 -3",
+    "myers-linear": "-1 +1 =2 -3 =1",
+    "myers-linear+git-compact": "-1 +1 =3 -3",
     "patience": "-5 =1 +2 =1",
-    "patience+git-compact": "-5 =1 +2 =1"
+    "patience+git-compact": "-5 =1 +2 =1",
+    "reference": "-1 +1 =3 -3",
+    "reference+git-compact": "-1 +1 =3 -3"
    }
   },
   {
@@ -1136,10 +1198,12 @@
     "histogram+git-compact": "=2 -1 =1 -1 +4",
     "myers": "=2 +1 =2 -1 +2",
     "myers+git-compact": "=2 +1 =2 -1 +2",
-    "myers-greedy": "=2 +1 =2 -1 +2",
-    "myers-greedy+git-compact": "=2 +1 =2 -1 +2",
+    "myers-linear": "=2 +1 =2 -1 +2",
+    "myers-linear+git-compact": "=2 +1 =2 -1 +2",
     "patience": "=2 +1 =2 -1 +2",
-    "patience+git-compact": "=2 +1 =2 -1 +2"
+    "patience+git-compact": "=2 +1 =2 -1 +2",
+    "reference": "=2 +1 =2 -1 +2",
+    "reference+git-compact": "=2 +1 =2 -1 +2"
    }
   },
   {
@@ -1169,10 +1233,12 @@
     "histogram+git-compact": "=7 -1",
     "myers": "=7 -1",
     "myers+git-compact": "=7 -1",
-    "myers-greedy": "=7 -1",
-    "myers-greedy+git-compact": "=7 -1",
+    "myers-linear": "=7 -1",
+    "myers-linear+git-compact": "=7 -1",
     "patience": "=7 -1",
-    "patience+git-compact": "=7 -1"
+    "patience+git-compact": "=7 -1",
+    "reference": "=7 -1",
+    "reference+git-compact": "=7 -1"
    }
   },
   {
@@ -1209,12 +1275,14 @@
    "expect": {
     "histogram": "=1 -1 +1 =1 -2 +1 =7 -1",
     "histogram+git-compact": "=1 -1 +1 =1 -2 +1 =7 -1",
-    "myers": "=1 -2 =1 -1 +2 =7 -1",
+    "myers": "=1 -2 =1 +2 =1 -1 =6 -1",
     "myers+git-compact": "=1 -2 =1 -1 +2 =7 -1",
-    "myers-greedy": "=1 -2 =1 +2 =1 -1 =6 -1",
-    "myers-greedy+git-compact": "=1 -2 =1 -1 +2 =7 -1",
+    "myers-linear": "=1 -2 =1 -1 +2 =7 -1",
+    "myers-linear+git-compact": "=1 -2 =1 -1 +2 =7 -1",
     "patience": "=1 -1 +1 =1 -2 +1 =7 -1",
-    "patience+git-compact": "=1 -1 +1 =1 -2 +1 =7 -1"
+    "patience+git-compact": "=1 -1 +1 =1 -2 +1 =7 -1",
+    "reference": "=1 -2 =1 -1 +2 =7 -1",
+    "reference+git-compact": "=1 -2 =1 -1 +2 =7 -1"
    }
   },
   {
@@ -1239,10 +1307,12 @@
     "histogram+git-compact": "+1 =2 +1 =2",
     "myers": "+1 =2 +1 =2",
     "myers+git-compact": "+1 =2 +1 =2",
-    "myers-greedy": "+1 =2 +1 =2",
-    "myers-greedy+git-compact": "+1 =2 +1 =2",
+    "myers-linear": "+1 =2 +1 =2",
+    "myers-linear+git-compact": "+1 =2 +1 =2",
     "patience": "+1 =2 +1 =2",
-    "patience+git-compact": "+1 =2 +1 =2"
+    "patience+git-compact": "+1 =2 +1 =2",
+    "reference": "+1 =2 +1 =2",
+    "reference+git-compact": "+1 =2 +1 =2"
    }
   },
   {
@@ -1279,10 +1349,12 @@
     "histogram+git-compact": "=5 -1 +1 =1 -1 =3 +1",
     "myers": "=5 -1 +1 =1 -1 =3 +1",
     "myers+git-compact": "=5 -1 +1 =1 -1 =3 +1",
-    "myers-greedy": "=5 -1 +1 =1 -1 =3 +1",
-    "myers-greedy+git-compact": "=5 -1 +1 =1 -1 =3 +1",
+    "myers-linear": "=5 -1 +1 =1 -1 =3 +1",
+    "myers-linear+git-compact": "=5 -1 +1 =1 -1 =3 +1",
     "patience": "=5 -1 +1 =1 -1 =3 +1",
-    "patience+git-compact": "=5 -1 +1 =1 -1 =3 +1"
+    "patience+git-compact": "=5 -1 +1 =1 -1 =3 +1",
+    "reference": "=5 -1 +1 =1 -1 =3 +1",
+    "reference+git-compact": "=5 -1 +1 =1 -1 =3 +1"
    }
   },
   {
@@ -1340,12 +1412,14 @@
    "expect": {
     "histogram": "=1 +1 =2 -2 =4 -1 +1 =4 -1 +1 =8",
     "histogram+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
-    "myers": "=1 -1 +1 =2 -1 =2 +1 =2 -1 =4 -1 +1 =8",
+    "myers": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
     "myers+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
-    "myers-greedy": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
-    "myers-greedy+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "myers-linear": "=1 -1 +1 =2 -1 =2 +1 =2 -1 =4 -1 +1 =8",
+    "myers-linear+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
     "patience": "=1 -1 +1 =2 -1 =2 +1 =2 -1 =4 -1 +1 =8",
-    "patience+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8"
+    "patience+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8",
+    "reference": "=1 -1 +1 =2 -1 =4 -1 +1 =4 -1 +1 =8",
+    "reference+git-compact": "=1 +1 =3 -2 =3 -1 +1 =4 -1 +1 =8"
    }
   },
   {
@@ -1403,10 +1477,12 @@
     "histogram+git-compact": "=15 -1 =6",
     "myers": "=15 -1 =6",
     "myers+git-compact": "=15 -1 =6",
-    "myers-greedy": "=15 -1 =6",
-    "myers-greedy+git-compact": "=15 -1 =6",
+    "myers-linear": "=15 -1 =6",
+    "myers-linear+git-compact": "=15 -1 =6",
     "patience": "=15 -1 =6",
-    "patience+git-compact": "=15 -1 =6"
+    "patience+git-compact": "=15 -1 =6",
+    "reference": "=15 -1 =6",
+    "reference+git-compact": "=15 -1 =6"
    }
   },
   {
@@ -1421,10 +1497,12 @@
     "histogram+git-compact": "+1",
     "myers": "+1",
     "myers+git-compact": "+1",
-    "myers-greedy": "+1",
-    "myers-greedy+git-compact": "+1",
+    "myers-linear": "+1",
+    "myers-linear+git-compact": "+1",
     "patience": "+1",
-    "patience+git-compact": "+1"
+    "patience+git-compact": "+1",
+    "reference": "+1",
+    "reference+git-compact": "+1"
    }
   },
   {
@@ -1446,12 +1524,14 @@
    "expect": {
     "histogram": "-2 =2 +1 =1",
     "histogram+git-compact": "=1 -2 =1 +1 =1",
-    "myers": "=1 -1 =1 -1 +1 =1",
+    "myers": "=1 -1 =1 +1 =1 -1",
     "myers+git-compact": "=1 -2 =1 +1 =1",
-    "myers-greedy": "=1 -1 =1 +1 =1 -1",
-    "myers-greedy+git-compact": "=1 -2 =1 +1 =1",
+    "myers-linear": "=1 -1 =1 -1 +1 =1",
+    "myers-linear+git-compact": "=1 -2 =1 +1 =1",
     "patience": "=1 -1 =1 -1 +1 =1",
-    "patience+git-compact": "=1 -2 =1 +1 =1"
+    "patience+git-compact": "=1 -2 =1 +1 =1",
+    "reference": "=1 -1 =1 -1 +1 =1",
+    "reference+git-compact": "=1 -2 =1 +1 =1"
    }
   },
   {
@@ -1467,10 +1547,12 @@
     "histogram+git-compact": "-2",
     "myers": "-2",
     "myers+git-compact": "-2",
-    "myers-greedy": "-2",
-    "myers-greedy+git-compact": "-2",
+    "myers-linear": "-2",
+    "myers-linear+git-compact": "-2",
     "patience": "-2",
-    "patience+git-compact": "-2"
+    "patience+git-compact": "-2",
+    "reference": "-2",
+    "reference+git-compact": "-2"
    }
   },
   {
@@ -1524,10 +1606,12 @@
     "histogram+git-compact": "=5 +1 =1 +1 =9 -1 =3",
     "myers": "=5 +1 =1 +1 =9 -1 =3",
     "myers+git-compact": "=5 +1 =1 +1 =9 -1 =3",
-    "myers-greedy": "=5 +1 =1 +1 =9 -1 =3",
-    "myers-greedy+git-compact": "=5 +1 =1 +1 =9 -1 =3",
+    "myers-linear": "=5 +1 =1 +1 =9 -1 =3",
+    "myers-linear+git-compact": "=5 +1 =1 +1 =9 -1 =3",
     "patience": "=5 +1 =1 +1 =9 -1 =3",
-    "patience+git-compact": "=5 +1 =1 +1 =9 -1 =3"
+    "patience+git-compact": "=5 +1 =1 +1 =9 -1 =3",
+    "reference": "=5 +1 =1 +1 =9 -1 =3",
+    "reference+git-compact": "=5 +1 =1 +1 =9 -1 =3"
    }
   },
   {
@@ -1559,10 +1643,12 @@
     "histogram+git-compact": "=8 -1",
     "myers": "=8 -1",
     "myers+git-compact": "=8 -1",
-    "myers-greedy": "=8 -1",
-    "myers-greedy+git-compact": "=8 -1",
+    "myers-linear": "=8 -1",
+    "myers-linear+git-compact": "=8 -1",
     "patience": "=8 -1",
-    "patience+git-compact": "=8 -1"
+    "patience+git-compact": "=8 -1",
+    "reference": "=8 -1",
+    "reference+git-compact": "=8 -1"
    }
   }
  ]

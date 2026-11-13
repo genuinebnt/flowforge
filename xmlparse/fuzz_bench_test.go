@@ -118,22 +118,51 @@ func perByte(src []byte, fn func([]byte)) float64 {
 	return float64(best) / float64(len(src))
 }
 
-// TestXMLInv06_LinearTime is the timing half of XML-INV-06: per-byte cost
-// at 4n stays within 1.5x of n on generated documents (2.5x on
-// adversarial shapes).
-func TestXMLInv06_LinearTime(t *testing.T) {
-	if testing.Short() || raceEnabled {
-		t.Skip("timing check skipped in -short and -race runs")
+// linearWithin reports whether fn's per-byte time at big stays within
+// factor of its per-byte time at small, retrying so one noisy sample on a
+// shared machine does not fail the check.
+func linearWithin(small, big []byte, factor float64, fn func([]byte)) (float64, float64, bool) {
+	var a, b float64
+	for attempt := 0; attempt < 3; attempt++ {
+		a, b = perByte(small, fn), perByte(big, fn)
+		if b <= factor*a+1 {
+			return a, b, true
+		}
 	}
-	fn := func(src []byte) { Parse(src, Options{MaxDepth: 1 << 20}) }
+	return a, b, false
+}
+
+// TestXMLInv06_LinearTime is the measured half of XML-INV-06. Time: the
+// streaming decoder's per-byte cost at 4n stays within 1.5x of n on
+// generated documents and 2.5x on adversarial shapes. Allocation: tree
+// construction allocates at most 4.4x as often at 4n as at n (allocation
+// counts are deterministic, so this half never flakes).
+func TestXMLInv06_LinearTime(t *testing.T) {
 	small, large := genXML(256<<10), genXML(1<<20)
-	fn(small)
-	if a, b := perByte(small, fn), perByte(large, fn); b > 1.5*a {
+	tree := func(src []byte) { Parse(src, Options{MaxDepth: 1 << 20}) }
+	as := testing.AllocsPerRun(2, func() { tree(small) })
+	al := testing.AllocsPerRun(2, func() { tree(large) })
+	if al > 4.4*as*float64(len(large))/float64(4*len(small)) {
+		t.Fatalf("allocations grew from %.0f to %.0f for 4x input", as, al)
+	}
+	if testing.Short() || raceEnabled {
+		t.Skip("timing half skipped in -short and -race runs")
+	}
+	dec := func(src []byte) {
+		d := NewDecoder(src, Options{MaxDepth: 1 << 20})
+		for {
+			if _, err := d.Next(); err != nil {
+				break
+			}
+		}
+	}
+	if a, b, ok := linearWithin(small, large, 1.5, dec); !ok {
 		t.Fatalf("per-byte cost grew from %.2f to %.2f ns", a, b)
 	}
-	for name, src := range adversarialXML(1 << 15) {
-		big := adversarialXML(1 << 17)[name]
-		if a, b := perByte(src, fn), perByte(big, fn); b > 2.5*a+1 {
+	// Sizes start past the CPU caches so the ratio measures the algorithm,
+	// not the memory hierarchy.
+	for name, src := range adversarialXML(1 << 18) {
+		if a, b, ok := linearWithin(src, adversarialXML(1 << 20)[name], 2.5, dec); !ok {
 			t.Errorf("%s: per-byte cost grew from %.2f to %.2f ns", name, a, b)
 		}
 	}

@@ -1,0 +1,12 @@
+{
+  "description": "Entry and size limits (defaults 20,000 entries and 8 MiB, never above the protocol's 50,000 / 50 MiB). A limit hit grades the read partial and keeps the entries read before it.",
+  "cases": [
+    {"name": "entry limit", "repeat_urls": 3, "options": {"max_entries": 2}, "kind": "urlset", "grade": "partial", "diags": ["limit_exceeded"], "entry_count": 2},
+    {"name": "entry limit not reached", "repeat_urls": 2, "options": {"max_entries": 2}, "kind": "urlset", "grade": "complete", "diags": [], "entry_count": 2},
+    {"name": "default limit is 20000", "repeat_urls": 20001, "kind": "urlset", "grade": "partial", "diags": ["limit_exceeded"], "entry_count": 20000},
+    {"name": "option clamps to protocol 50000", "repeat_urls": 50001, "options": {"max_entries": 1000000, "max_bytes": 52428800}, "kind": "urlset", "grade": "partial", "diags": ["limit_exceeded"], "entry_count": 50000},
+    {"name": "byte limit", "repeat_urls": 100, "options": {"max_bytes": 1000}, "kind": "urlset", "grade": "partial", "diags": ["input_too_large"], "entry_count": 22},
+    {"name": "gzip bomb stops at the byte limit", "repeat_urls": 5000, "gzip": true, "pad": 2000000, "options": {"max_bytes": 65536}, "kind": "urlset", "grade": "partial", "diags": ["input_too_large"], "compressed": true, "entry_count": 1513},
+    {"name": "text sitemap entry limit", "text": true, "repeat_urls": 5, "options": {"max_entries": 3}, "kind": "text", "grade": "partial", "diags": ["limit_exceeded"], "entry_count": 3}
+  ]
+}

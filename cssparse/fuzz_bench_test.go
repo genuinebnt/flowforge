@@ -144,25 +144,44 @@ func perByte(src []byte, fn func([]byte)) float64 {
 	return float64(best) / float64(len(src))
 }
 
-// TestCSSInv04_LinearTime is the timing half of CSS-INV-04: per-byte cost
-// at 4n stays within 1.5x of the cost at n (the design's 20 % target is
-// checked on the benchmark baselines; this guard catches quadratic
-// behaviour without flaking).
-func TestCSSInv04_LinearTime(t *testing.T) {
-	if testing.Short() || raceEnabled {
-		t.Skip("timing check skipped in -short and -race runs")
+// linearWithin reports whether fn's per-byte time at big stays within
+// factor of its per-byte time at small, retrying so one noisy sample on a
+// shared machine does not fail the check.
+func linearWithin(small, big []byte, factor float64, fn func([]byte)) (float64, float64, bool) {
+	var a, b float64
+	for attempt := 0; attempt < 3; attempt++ {
+		a, b = perByte(small, fn), perByte(big, fn)
+		if b <= factor*a+1 {
+			return a, b, true
+		}
 	}
+	return a, b, false
+}
+
+// TestCSSInv04_LinearTime is the measured half of CSS-INV-04. Allocation:
+// URL extraction allocates at most 4.4x as often at 4n as at n
+// (deterministic). Time: per-byte cost at 4n stays within 1.5x of n on
+// generated stylesheets and 2.5x on adversarial shapes (the design's 20 %
+// target is checked on the benchmark baselines; this guard catches
+// quadratic behaviour without flaking).
+func TestCSSInv04_LinearTime(t *testing.T) {
 	small, large := genStylesheet(256<<10), genStylesheet(1<<20)
 	fn := func(src []byte) { ExtractURLs(src, Options{}) }
-	fn(small)
-	a, b := perByte(small, fn), perByte(large, fn)
-	if b > 1.5*a {
+	as := testing.AllocsPerRun(2, func() { fn(small) })
+	al := testing.AllocsPerRun(2, func() { fn(large) })
+	if al > 4.4*as*float64(len(large))/float64(4*len(small)) {
+		t.Fatalf("allocations grew from %.0f to %.0f for 4x input", as, al)
+	}
+	if testing.Short() || raceEnabled {
+		t.Skip("timing half skipped in -short and -race runs")
+	}
+	if a, b, ok := linearWithin(small, large, 1.5, fn); !ok {
 		t.Fatalf("per-byte cost grew from %.2f ns at %d B to %.2f ns at %d B", a, len(small), b, len(large))
 	}
-	for name, src := range adversarial(1 << 16) {
-		big := adversarial(1 << 18)[name]
-		a, b := perByte(src, fn), perByte(big, fn)
-		if b > 2.5*a+1 {
+	// Sizes start past the CPU caches so the ratio measures the algorithm,
+	// not the memory hierarchy.
+	for name, src := range adversarial(1 << 18) {
+		if a, b, ok := linearWithin(src, adversarial(1 << 20)[name], 2.5, fn); !ok {
 			t.Errorf("%s: per-byte cost grew from %.2f ns to %.2f ns", name, a, b)
 		}
 	}

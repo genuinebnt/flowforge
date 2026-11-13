@@ -304,12 +304,12 @@ type segExec struct {
 	cache    storedCache
 	fieldBuf [][]byte
 	scratch  []byte
-	timeF    int
+	x        execParams
 	err      error
 }
 
-func newSegExec(v *segView, p *plan, st *stats, timeF int) *segExec {
-	return &segExec{v: v, p: p, st: st, ns: make([]nodeState, len(p.nodes)), timeF: timeF}
+func newSegExec(v *segView, p *plan, st *stats, x execParams) *segExec {
+	return &segExec{v: v, p: p, st: st, ns: make([]nodeState, len(p.nodes)), x: x}
 }
 
 // state lazily initializes the eval cursors of node id.
@@ -325,19 +325,19 @@ func (e *segExec) state(id int32) *nodeState {
 	case planTerm:
 		for _, f := range n.fields {
 			s.curs = append(s.curs, sg.termIter(f, n.terms[0], e.scratch))
-			s.idf = append(s.idf, BM25IDF(e.st.n, e.st.df[dfKey(f, n.terms[0])]))
+			s.idf = append(s.idf, e.x.scorer.IDF(e.st.n, e.st.df[dfKey(f, n.terms[0])]))
 		}
 	case planPhrase:
 		for _, f := range n.fields {
 			idf := 0.0
 			for _, t := range n.terms {
 				s.curs = append(s.curs, sg.termIter(f, t, e.scratch))
-				idf += BM25IDF(e.st.n, e.st.df[dfKey(f, t)])
+				idf += e.x.scorer.IDF(e.st.n, e.st.df[dfKey(f, t)])
 			}
 			s.idf = append(s.idf, idf)
 		}
 	case planRegex:
-		if n.bounded() {
+		if n.bounded() && e.x.regex.useTrigrams() {
 			s.tri = e.trigramIter(n.tq)
 		}
 	case planKeyword:
@@ -369,7 +369,7 @@ func (e *segExec) trigramIter(q *TrigramQuery) docIter {
 		for _, s := range q.Sub {
 			its = append(its, e.trigramIter(s))
 		}
-		return newAndIter(its)
+		return e.x.isect.intersect(its)
 	}
 	var its []docIter
 	for _, t := range q.Trigrams {
@@ -417,14 +417,14 @@ func (e *segExec) candidates(id int32) (docIter, bool) {
 				}
 				its = append(its, it)
 			}
-			per = append(per, newAndIter(its))
+			per = append(per, e.x.isect.intersect(its))
 		}
 		if len(per) == 0 {
 			return emptyIter(), false
 		}
 		return newOrIter(per), false
 	case planRegex:
-		if !n.bounded() {
+		if !n.bounded() || !e.x.regex.useTrigrams() {
 			return nil, true
 		}
 		return e.trigramIter(n.tq), false
@@ -443,7 +443,7 @@ func (e *segExec) candidates(id int32) (docIter, bool) {
 		if len(its) == 0 {
 			return nil, true
 		}
-		return newAndIter(its), false
+		return e.x.isect.intersect(its), false
 	case planOr:
 		var its []docIter
 		for _, k := range n.kids {
@@ -474,7 +474,7 @@ func (e *segExec) eval(id int32, doc uint32) (bool, float64) {
 				continue
 			}
 			m = true
-			score += BM25(s.idf[i], int(c.tf), int(sg.norms[f][doc]), e.st.avgdl[f])
+			score += e.x.scorer.Score(s.idf[i], int(c.tf), int(sg.norms[f][doc]), e.st.avgdl[f])
 		}
 		return m, score
 	case planPhrase:
@@ -498,7 +498,7 @@ func (e *segExec) eval(id int32, doc uint32) (bool, float64) {
 				continue
 			}
 			m = true
-			score += BM25(s.idf[i], pf, int(sg.norms[f][doc]), e.st.avgdl[f])
+			score += e.x.scorer.Score(s.idf[i], pf, int(sg.norms[f][doc]), e.st.avgdl[f])
 		}
 		return m, score
 	case planRegex:
@@ -574,19 +574,19 @@ outer:
 	return n
 }
 
-// execute runs plan p over views and returns the top k.
-func execute(views []*segView, p *plan, nt, timeF, k, regexLimit int) (Result, error) {
-	if k <= 0 {
-		k = 10
+// execute runs plan p over views and returns the top x.k.
+func execute(views []*segView, p *plan, x execParams) (Result, error) {
+	if x.k <= 0 {
+		x.k = 10
 	}
-	if err := checkUnbounded(views, p, regexLimit); err != nil {
+	if err := checkUnbounded(views, p, x.regexLimit); err != nil {
 		return Result{}, err
 	}
-	st := collectStats(views, p, nt)
-	top := &topK{k: k}
+	st := collectStats(views, p, x.nt)
+	top := &topK{k: x.k}
 	total := 0
 	for _, v := range views {
-		e := newSegExec(v, p, st, timeF)
+		e := newSegExec(v, p, st, x)
 		it, all := e.candidates(p.root)
 		if all {
 			it = &allIter{n: uint32(v.seg.n)}
@@ -604,8 +604,8 @@ func execute(views []*segView, p *plan, nt, timeF, k, regexLimit int) (Result, e
 			}
 			total++
 			h := Hit{ID: v.seg.ids[d], Score: score}
-			if timeF >= 0 && v.seg.numHas[timeF].get(d) {
-				h.At, h.HasAt = v.seg.numVals[timeF][d], true
+			if x.timeF >= 0 && v.seg.numHas[x.timeF].get(d) {
+				h.At, h.HasAt = v.seg.numVals[x.timeF][d], true
 			}
 			top.push(h)
 		}

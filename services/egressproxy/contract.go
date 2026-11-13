@@ -59,8 +59,8 @@ func FormatPorts(ports []int) string {
 }
 
 // ParsePorts parses HeaderPorts: comma-separated ports 1..65535, at most
-// 1000. An empty header declares nothing (nil); a malformed one is an
-// error, which the proxy treats as a refusal.
+// 1000, returned sorted and deduplicated. An empty header declares nothing
+// (nil, true); a malformed one reports false, which the proxy refuses.
 func ParsePorts(h string) ([]int, bool) {
 	h = strings.TrimSpace(h)
 	if h == "" {
@@ -174,7 +174,7 @@ func (s IntelSource) port(p int) bool {
 func DefaultIntelSources() []IntelSource {
 	hosts := []string{"crt.sh", "data.iana.org", "rdap.iana.org", "rdap.org", "rdap.arin.net", "rdap.db.ripe.net",
 		"rdap.apnic.net", "rdap.lacnic.net", "rdap.afrinic.net", "rdap.verisign.com", "rdap.publicinterestregistry.org",
-		"rdap.identitydigital.services", "rdap.nic.google", "pubapi.registry.google", "rdap.centralnic.com"}
+		"rdap.identitydigital.services", "pubapi.registry.google", "rdap.centralnic.com"}
 	out := make([]IntelSource, 0, len(hosts)+2)
 	for _, h := range hosts {
 		out = append(out, IntelSource{Host: h, Ports: []int{443}})

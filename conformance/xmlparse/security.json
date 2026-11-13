@@ -11,7 +11,7 @@
     {"name": "utf-8 prefix then wrong", "input": "<?xml version=\"1.0\" encoding=\"utf-7\"?><a/>", "error": "unsupported_encoding", "offset": 34, "grade": "unsupported"},
     {"name": "utf-8 lower case accepted", "input": "<?xml version=\"1.0\" encoding=\"utf-8\"?><a/>", "canonical": "<a></a>", "grade": "complete"},
     {"name": "utf-16 declared in utf-8 input", "input": "<?xml version=\"1.0\" encoding=\"UTF-16\"?><a/>", "error": "unsupported_encoding", "offset": 34, "grade": "unsupported"},
-    {"name": "utf-16 without BOM", "input_hex": "3c003f0078006d006c00", "error": "unsupported_encoding", "offset": 0, "grade": "unsupported"},
+    {"name": "utf-16 without BOM", "input_hex": "3c003f0078006d006c00", "error": "unsupported_encoding", "offset": 1, "grade": "unsupported"},
     {"name": "utf-16 unpaired surrogate", "input_hex": "fffe3c00610000d83e00", "error": "invalid_utf8", "grade": "failed"}
   ]
 }

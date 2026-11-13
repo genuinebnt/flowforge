@@ -3,7 +3,7 @@
 Similarity search for Flowforge (spec section 22): exact and approximate
 nearest-neighbour search over entity embeddings, one index per
 (tenant, program, model), plus embedding-free near-duplicate detection.
-Layer 2; imports only the standard library and `core`.
+Layer 2; imports only the standard library, `core` and `sketch`.
 
 ## Spec coverage
 
@@ -15,7 +15,7 @@ Layer 2; imports only the standard library and `core`.
 | 22.5 | "FFDA" segment file, beam search, product quantisation | `segment.go`, `pq.go`, `kmeans.go` |
 | 22.6 | Hybrid search by reciprocal rank fusion | `rrf.go` |
 | 22.7 | Post-filters with over-fetch and retry, exact fallback | `segmented.go` |
-| 22.8 | SimHash + multi-index hashing, MinHash + LSH | `simhash.go`, `minhash.go` |
+| 22.8 | SimHash + multi-index hashing, MinHash + LSH | `simhash.go`, `minhash.go` (wrappers over [`sketch`](../sketch/README.md)) |
 | 22.9, 24.4 | `Index` port (VectorIndex), `SearchParams`, `Hit`, `IndexInfo` | `index.go` |
 | 25.3-25.8 | vec_001..008, properties, fuzz, b_vec_01..05 | `*_test.go` |
 

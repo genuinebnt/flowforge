@@ -50,6 +50,7 @@
     {"file": "e3fbcf63d7e43ead.js", "reason": "for (var x = 1 in o) is allowed in sloppy mode by Annex B.3.5 (ES2017+)"}
   ],
   "early": [
+    {"file": "0f5f47108da5c34e.js", "reason": "var in a for-of head may redeclare a simple catch parameter since ES2020 (B.3.4; test262 annexB/language/statements/try/catch-redeclared-for-of-var.js)"},
     {"file": "12a74c60f52a60de.js", "reason": "duplicate sloppy-mode function declarations in a block are allowed (B.3.2.4, ES2017+)"},
     {"file": "1aff49273f3e3a98.js", "reason": "duplicate sloppy-mode function declarations in a block are allowed (B.3.2.4, ES2017+)"},
     {"file": "be7329119eaa3d47.js", "reason": "duplicate sloppy-mode function declarations in a block are allowed (B.3.2.4, ES2017+)"},

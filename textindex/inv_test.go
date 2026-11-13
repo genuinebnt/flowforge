@@ -384,7 +384,8 @@ func TestTIdxInv06_SegmentRoundTrip(t *testing.T) {
 	s := testSchema()
 	for c := 0; c < iters(20, 10); c++ {
 		docs := randomDocs(r, core.IntN(r, 300))
-		data, err := EncodeSegment(s, docs)
+		pc := Codecs()[c%len(Codecs())]
+		data, err := EncodeSegment(s, docs, pc)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -459,13 +460,16 @@ func flipAll(t *testing.T, what string, data []byte, open func([]byte) error) {
 func TestTIdxInv07_CorruptionDetected(t *testing.T) {
 	r := testkit.Rng(t)
 	s := testSchema()
-	data, err := EncodeSegment(s, randomDocs(r, 3))
-	if err != nil {
-		t.Fatal(err)
-	}
 	c, _ := newCodec()
 	defer c.close()
-	flipAll(t, "segment", data, func(b []byte) error { _, err := openSegment(b, s, c); return err })
+	docs := randomDocs(r, 3)
+	for _, pc := range Codecs() {
+		data, err := EncodeSegment(s, docs, pc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		flipAll(t, "segment/"+pc.Name(), data, func(b []byte) error { _, err := openSegment(b, s, c); return err })
+	}
 
 	dir := NewMemDirectory()
 	ix := mustOpen(t, Config{Dir: dir})
@@ -517,13 +521,13 @@ func TestTIdxInv08_SegmentDeterminism(t *testing.T) {
 	s := testSchema()
 	for c := 0; c < iters(50, 5); c++ {
 		docs := randomDocs(r, 1+core.IntN(r, 200))
-		a, err := EncodeSegment(s, docs)
+		a, err := EncodeSegment(s, docs, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		sh := slices.Clone(docs)
 		core.Shuffle(r, len(sh), func(i, j int) { sh[i], sh[j] = sh[j], sh[i] })
-		b, _ := EncodeSegment(s, sh)
+		b, _ := EncodeSegment(s, sh, nil)
 		if !slices.Equal(a, b) {
 			t.Fatal("segment bytes depend on input order")
 		}
@@ -541,7 +545,7 @@ func TestTIdxInv08_SegmentDeterminism(t *testing.T) {
 		if err := ix.ForceMerge(1); err != nil {
 			t.Fatal(err)
 		}
-		direct, _ := EncodeSegment(s, gens)
+		direct, _ := EncodeSegment(s, gens, nil)
 		if got := ix.views()[0].seg.data; !slices.Equal(got, direct) {
 			t.Fatal("merged segment differs from the directly encoded one")
 		}
@@ -830,7 +834,7 @@ func TestTIdxInv15_SkipsAgreeWithScan(t *testing.T) {
 		}
 		docs = append(docs, IndexedDoc{Doc: Document{ID: uint64(i), Text: []FieldValue{{"text", text}}}})
 	}
-	data, err := EncodeSegment(s, docs)
+	data, err := EncodeSegment(s, docs, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

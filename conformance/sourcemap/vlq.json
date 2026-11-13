@@ -1,0 +1,161 @@
+{
+ "description": "Base64 VLQ (ECMA-426): minimal encodings of boundary values, computed by an independent reference implementation. Every value fits a signed 32-bit integer.",
+ "values": [
+  {
+   "value": 0,
+   "encoded": "A"
+  },
+  {
+   "value": 1,
+   "encoded": "C"
+  },
+  {
+   "value": -1,
+   "encoded": "D"
+  },
+  {
+   "value": 2,
+   "encoded": "E"
+  },
+  {
+   "value": -2,
+   "encoded": "F"
+  },
+  {
+   "value": 15,
+   "encoded": "e"
+  },
+  {
+   "value": -15,
+   "encoded": "f"
+  },
+  {
+   "value": 16,
+   "encoded": "gB"
+  },
+  {
+   "value": -16,
+   "encoded": "hB"
+  },
+  {
+   "value": 31,
+   "encoded": "+B"
+  },
+  {
+   "value": 32,
+   "encoded": "gC"
+  },
+  {
+   "value": -32,
+   "encoded": "hC"
+  },
+  {
+   "value": 511,
+   "encoded": "+f"
+  },
+  {
+   "value": 512,
+   "encoded": "ggB"
+  },
+  {
+   "value": 1023,
+   "encoded": "+/B"
+  },
+  {
+   "value": 1024,
+   "encoded": "ggC"
+  },
+  {
+   "value": -1024,
+   "encoded": "hgC"
+  },
+  {
+   "value": 32767,
+   "encoded": "+//B"
+  },
+  {
+   "value": 65536,
+   "encoded": "gggE"
+  },
+  {
+   "value": -65536,
+   "encoded": "hggE"
+  },
+  {
+   "value": 1048575,
+   "encoded": "+///B"
+  },
+  {
+   "value": 1048576,
+   "encoded": "ggggC"
+  },
+  {
+   "value": 33554431,
+   "encoded": "+////B"
+  },
+  {
+   "value": 33554432,
+   "encoded": "gggggC"
+  },
+  {
+   "value": 1073741823,
+   "encoded": "+/////B"
+  },
+  {
+   "value": 1073741824,
+   "encoded": "ggggggC"
+  },
+  {
+   "value": 2147483647,
+   "encoded": "+/////D"
+  },
+  {
+   "value": -2147483647,
+   "encoded": "//////D"
+  },
+  {
+   "value": -2147483648,
+   "encoded": "hgggggE"
+  }
+ ],
+ "decode_errors": [
+  {
+   "input": "g",
+   "error": "vlq_truncated"
+  },
+  {
+   "input": "gggggggA",
+   "error": "vlq_overflow"
+  },
+  {
+   "input": "ggggggE",
+   "error": "vlq_overflow"
+  },
+  {
+   "input": "jgggggE",
+   "error": "vlq_overflow"
+  },
+  {
+   "input": "!",
+   "error": "invalid_vlq_char"
+  },
+  {
+   "input": "=",
+   "error": "invalid_vlq_char"
+  }
+ ],
+ "noncanonical": [
+  {
+   "input": "B",
+   "value": 0
+  },
+  {
+   "input": "gA",
+   "value": 0
+  },
+  {
+   "input": "iA",
+   "value": 1
+  }
+ ]
+}

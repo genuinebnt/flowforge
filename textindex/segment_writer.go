@@ -82,10 +82,15 @@ type IndexedDoc struct {
 }
 
 // EncodeSegment builds an FFTX segment from docs (any order; ids must be
-// distinct). The bytes depend only on the schema and the normalized
-// documents with their generations.
-func EncodeSegment(s Schema, docs []IndexedDoc) ([]byte, error) {
+// distinct) with the posting codec pc (nil = VarintCodec). The bytes
+// depend only on the schema, the codec and the normalized documents with
+// their generations.
+func EncodeSegment(s Schema, docs []IndexedDoc, pc PostingCodec) ([]byte, error) {
 	if err := s.Validate(); err != nil {
+		return nil, err
+	}
+	pc, err := checkCodec(pc)
+	if err != nil {
 		return nil, err
 	}
 	c, err := newCodec()
@@ -102,7 +107,7 @@ func EncodeSegment(s Schema, docs []IndexedDoc) ([]byte, error) {
 		f.gen = d.Gen
 		fs[i] = f
 	}
-	return encodeSegment(s, fs, c)
+	return encodeSegment(s, fs, c, pc)
 }
 
 type termBuf struct {
@@ -114,7 +119,7 @@ type termBuf struct {
 }
 
 // encodeSegment writes docs (normalized). It sorts docs by id in place.
-func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
+func encodeSegment(s Schema, docs []docFields, c *codec, pc PostingCodec) ([]byte, error) {
 	slices.SortFunc(docs, func(a, b docFields) int {
 		switch {
 		case a.id < b.id:
@@ -294,35 +299,41 @@ func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
 	var postings, positions, blocks []byte
 	var blockOffs []uint32
 	prevKey := ""
-	var tmp []byte
-	var skips []byte
+	var tmp, skips []byte
+	var deltas []uint32
 	for i, t := range terms {
 		postOff, posOff := len(postings), len(positions)
-		// postings data with block boundaries
+		// postings blocks of 128, with a skip entry before every block but
+		// the first
 		tmp, skips = tmp[:0], skips[:0]
-		prev := uint32(0)
 		pi := 0
-		for j, doc := range t.docs {
-			if j > 0 && j%postingsBlock == 0 {
+		for b := 0; b < len(t.docs); b += postingsBlock {
+			end := min(b+postingsBlock, len(t.docs))
+			prev := uint32(0)
+			if b > 0 {
+				prev = t.docs[b-1]
 				skips = le32(skips, prev)
 				skips = le32(skips, uint32(len(tmp)))
 				skips = le32(skips, uint32(len(positions)-posOff))
 			}
-			tmp = appendUvarint(tmp, uint64(doc-prev))
-			prev = doc
-			tf := int(t.tfs[j])
-			tmp = appendUvarint(tmp, uint64(tf))
-			lastPos := uint32(0)
-			for k := 0; k < tf; k++ {
-				p := t.pos[pi+k]
-				if k == 0 {
-					positions = appendUvarint(positions, uint64(p))
-				} else {
-					positions = appendUvarint(positions, uint64(p-lastPos))
+			deltas = deltas[:0]
+			for j := b; j < end; j++ {
+				deltas = append(deltas, t.docs[j]-prev)
+				prev = t.docs[j]
+				tf := int(t.tfs[j])
+				lastPos := uint32(0)
+				for k := 0; k < tf; k++ {
+					p := t.pos[pi+k]
+					if k == 0 {
+						positions = appendUvarint(positions, uint64(p))
+					} else {
+						positions = appendUvarint(positions, uint64(p-lastPos))
+					}
+					lastPos = p
 				}
-				lastPos = p
+				pi += tf
 			}
-			pi += tf
+			tmp = pc.AppendBlock(tmp, deltas, t.tfs[b:end])
 		}
 		postings = append(postings, skips...)
 		postings = append(postings, tmp...)
@@ -371,14 +382,20 @@ func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
 		tri = le32(tri, uint32(len(dl)))
 		tri = le32(tri, uint32(len(triData)))
 		tmp, skips = tmp[:0], skips[:0]
-		prev := uint32(0)
-		for j, doc := range dl {
-			if j > 0 && j%postingsBlock == 0 {
+		for b := 0; b < len(dl); b += postingsBlock {
+			end := min(b+postingsBlock, len(dl))
+			prev := uint32(0)
+			if b > 0 {
+				prev = dl[b-1]
 				skips = le32(skips, prev)
 				skips = le32(skips, uint32(len(tmp)))
 			}
-			tmp = appendUvarint(tmp, uint64(doc-prev))
-			prev = doc
+			deltas = deltas[:0]
+			for _, doc := range dl[b:end] {
+				deltas = append(deltas, doc-prev)
+				prev = doc
+			}
+			tmp = pc.AppendBlock(tmp, deltas, nil)
 		}
 		triData = append(triData, skips...)
 		triData = append(triData, tmp...)
@@ -449,7 +466,7 @@ func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
 	out := make([]byte, 0, size)
 	out = append(out, segMagic...)
 	out = le16(out, segVersion)
-	out = le16(out, 0)
+	out = le16(out, pc.ID())
 	type ext struct{ off, n int }
 	var exts [numSections + 1]ext
 	for id := 1; id <= numSections; id++ {

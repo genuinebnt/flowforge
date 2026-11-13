@@ -35,8 +35,8 @@ type CTEntry struct {
 // MaxCTBody bounds a crt.sh search response.
 const MaxCTBody = 32 << 20
 
-// ParseCTLogJSON decodes a crt.sh search response (a JSON array; crt.sh
-// answers an empty result as [] or, historically, as an empty body).
+// ParseCTLogJSON decodes a crt.sh search response (a JSON array). An empty
+// or whitespace-only body is accepted as no result.
 func ParseCTLogJSON(b []byte) ([]CTEntry, error) {
 	if len(strings.TrimSpace(string(b))) == 0 {
 		return nil, nil

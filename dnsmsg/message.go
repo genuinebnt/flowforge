@@ -115,13 +115,15 @@ type RData struct {
 	Priority   uint16
 	Weight     uint16
 	Port       uint16
-	Strings    []string // TXT character-strings, raw octets
-	SOA        SOA
-	CAAFlags   uint8
-	CAATag     string
-	CAAValue   string
-	Options    []Option
-	Raw        []byte
+	// Strings are the TXT character-strings (RFC 1035 §3.3.14).
+	// PORT: Go strings are arbitrary octets here, not UTF-8; use Vec<u8>.
+	Strings  []string
+	SOA      SOA
+	CAAFlags uint8
+	CAATag   string // RFC 8659 §4.1: letters and digits (checked on decode; the 15-octet limit is not)
+	CAAValue string // raw octets (PORT: Vec<u8>)
+	Options  []Option
+	Raw      []byte
 }
 
 // SOA is start-of-authority data (RFC 1035 §3.3.13).

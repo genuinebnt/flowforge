@@ -107,14 +107,14 @@ func TestDiffInv14_LinearSpaceMemory(t *testing.T) {
 // flagged Capped and still Apply-correct (common prefix and suffix kept,
 // distance >= the true one); a cap at or above the true distance changes
 // nothing; patience and histogram stay Apply-correct under any cap; and
-// BoundedDiff reports the level and reason it used, with a script that
-// applies at that level.
+// BoundedDiff, with any pluggable token and line algorithm, reports the
+// level and reason it used, with a script that applies at that level.
 func TestDiffInv15_CapsAndFallbacks(t *testing.T) {
 	r := testkit.Rng(t)
 	for range testkit.Cases() {
 		a, b := randPair(r, 40)
 		want := lcsDistance(a, b)
-		for _, alg := range []Algorithm{MyersLinearSpace, Myers} {
+		for _, alg := range []Algorithm{MyersLinearSpace, Myers, Reference} {
 			unc := mustDiff(t, a, b, Options{Algorithm: alg})
 			if want > 1 {
 				c := mustDiff(t, a, b, Options{Algorithm: alg, MaxEditDistance: want - 1})
@@ -163,6 +163,10 @@ func TestDiffInv15_CapsAndFallbacks(t *testing.T) {
 			cases = append(cases, tc{Bounds{MaxEditDistance: dw - 1}, LevelLines, FallbackEditDistance})
 		}
 		for _, c := range cases {
+			// Any minimal algorithm may run the token level and any
+			// algorithm the line level.
+			c.b.TokenAlgorithm = []Algorithm{0, MyersLinearSpace, Myers, Reference}[core.IntN(r, 4)]
+			c.b.LineAlgorithm = []Algorithm{0, MyersLinearSpace, Myers, Patience, Histogram, Reference}[core.IntN(r, 6)]
 			if size == 1 && c.level == LevelLines && c.fallback == FallbackInputSize {
 				continue
 			}

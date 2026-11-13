@@ -46,6 +46,7 @@ func (t *tickets) put(s *session, now time.Time) (string, bool) {
 		t.m = map[string]*session{}
 	}
 	if len(t.m) >= maxTickets {
+		// PORT: map iteration order does not matter: every expired entry goes.
 		for k, v := range t.m {
 			if !now.Before(v.expires) {
 				delete(t.m, k)
@@ -110,7 +111,8 @@ func (p *Proxy) serveTicket(w http.ResponseWriter, r *http.Request) {
 		SOCKS5: p.SOCKSAddr, DNS: p.DNSAddr})
 }
 
-// fromTicket rebuilds the request identity of a ticket.
+// request rebuilds the caller identity a ticket was issued to; the decision
+// itself is reloaded and re-checked on every use.
 func (s *session) request() *request {
 	return &request{id: s.id, decision: s.decision, runID: s.runID, path: s.path, ports: s.ports}
 }

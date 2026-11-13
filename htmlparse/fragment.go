@@ -29,7 +29,7 @@ func ParseFragment(input []byte, context ContextElement, opts Options) (*Documen
 	if ns == NoNamespace {
 		ns = HTMLNamespace
 	}
-	doc := &Document{Mode: context.Mode}
+	doc := &Document{Mode: context.Mode, Nodes: make([]Node, 0, nodeCapacityHint(input))}
 	docID := doc.NewNode(DocumentNode)
 	doc.Root = docID
 	tz := NewTokenizer(input, opts.tokenizeOptions())

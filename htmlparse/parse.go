@@ -33,13 +33,13 @@ func Parse(input []byte, opts Options) (*Document, []ParseError) {
 	return doc, errs
 }
 
-func parseDocument(input []byte, opts Options) (*Document, []ParseError, string) {
-	doc := &Document{}
+func parseDocument(input []byte, opts Options) (*Document, []ParseError, *treeBuilder) {
+	doc := &Document{Nodes: make([]Node, 0, nodeCapacityHint(input))}
 	doc.Root = doc.NewNode(DocumentNode)
 	tz := NewTokenizer(input, opts.tokenizeOptions())
 	b := newTreeBuilder(doc, tz, opts)
 	b.run()
-	return doc, collectErrors(tz, b), b.metaCharset
+	return doc, collectErrors(tz, b), b
 }
 
 // collectErrors merges tokenizer and tree-construction errors by offset
@@ -99,7 +99,8 @@ func (b *treeBuilder) noteMetaCharset(tok *Token) {
 // refer to the decoded UTF-8 text, not to raw.
 func ParseRaw(raw []byte, transportCharset string, opts Options) (*Document, Encoding, []ParseError) {
 	text, enc, conf := Decode(raw, transportCharset)
-	doc, errs, meta := parseDocument(text, opts)
+	doc, errs, b := parseDocument(text, opts)
+	meta := b.metaCharset
 	if conf != ConfidenceTentative || meta == "" || enc == EncodingUTF16LE || enc == EncodingUTF16BE {
 		return doc, enc, errs
 	}

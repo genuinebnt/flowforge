@@ -7,25 +7,27 @@ import (
 	"github.com/genuinebnt/flowforge/core"
 )
 
-// lcsDistance is the brute-force reference: n + m - 2*LCS(a, b) by the
-// textbook O(nm) dynamic program.
+// lcsDistance is the minimal distance n + m - 2*LCS(a, b) from the
+// package's Reference algorithm (the O(NM) dynamic program), itself checked
+// against exhaustive recursion by DIFF-INV-20.
 func lcsDistance(a, b []uint32) int {
-	prev := make([]int, len(b)+1)
-	cur := make([]int, len(b)+1)
-	for i := 1; i <= len(a); i++ {
-		for j := 1; j <= len(b); j++ {
-			switch {
-			case a[i-1] == b[j-1]:
-				cur[j] = prev[j-1] + 1
-			case prev[j] >= cur[j-1]:
-				cur[j] = prev[j]
-			default:
-				cur[j] = cur[j-1]
-			}
-		}
-		prev, cur = cur, prev
+	r, err := Diff(a, b, Options{Algorithm: Reference})
+	if err != nil {
+		panic(err) // test inputs are far below MaxReferenceCells
 	}
-	return len(a) + len(b) - 2*prev[len(b)]
+	return r.Script.Distance()
+}
+
+// exhaustiveLCS is the independent oracle for Reference: plain recursion
+// over the LCS definition (exponential; tiny inputs only).
+func exhaustiveLCS(a, b []uint32) int {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	if a[0] == b[0] {
+		return 1 + exhaustiveLCS(a[1:], b[1:])
+	}
+	return max(exhaustiveLCS(a[1:], b), exhaustiveLCS(a, b[1:]))
 }
 
 // randSeq draws n tokens from an alphabet of size alpha.

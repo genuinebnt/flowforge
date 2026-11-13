@@ -205,10 +205,6 @@ func NewDecoder(src []byte, opts Options) *Decoder {
 		src = u
 	case len(src) >= 3 && src[0] == 0xEF && src[1] == 0xBB && src[2] == 0xBF:
 		d.docStart = 3
-	case len(src) >= 2 && ((src[0] == 0 && src[1] == '<') || (src[0] == '<' && src[1] == 0)):
-		d.src, d.n = src, len(src)
-		d.fail(ErrUnsupportedEncoding, 0) // UTF-16 without a BOM
-		return d
 	}
 	d.src, d.n, d.pos = src, len(src), d.docStart
 	return d
@@ -408,6 +404,11 @@ func (d *Decoder) char(i int) (rune, int) {
 	if b0 < 0x80 {
 		if asciiChar[b0] {
 			return rune(b0), 1
+		}
+		if b0 == 0 && !d.utf16 && (i == d.docStart || (i == d.docStart+1 && d.src[d.docStart] == '<')) {
+			// "\x00<" or "<\x00": UTF-16 without a byte order mark.
+			d.fail(ErrUnsupportedEncoding, i)
+			return 0, -1
 		}
 		d.fail(ErrInvalidChar, i)
 		return 0, -1

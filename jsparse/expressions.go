@@ -616,6 +616,10 @@ func (p *parser) parseSubscripts(expr NodeID, start int32, noCalls bool) NodeID 
 		case TDot:
 			p.flushCover(start)
 			p.next()
+			if p.at(TPrivateName) && p.nd(expr).Kind == KSuper {
+				p.syntaxError(CodePrivateName, "private names cannot be accessed through super")
+				return expr
+			}
 			prop := p.parseMemberName()
 			expr = p.member(start, expr, prop, false, false)
 		case TQuestionDot:
@@ -857,7 +861,7 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 	case isKwTok(pk, KwFunction) && !pkNewline:
 		p.next()
 		return p.parseFunction(start, true, false, false)
-	case pk.Kind == TIdentifier && !pkNewline && isIdentifierToken(pk):
+	case pk.Kind == TIdentifier && !pkNewline && isIdentifierToken(pk) && p.peek2().Kind == TArrow:
 		// async BindingIdentifier => ConciseBody
 		p.next()
 		tok := p.tok

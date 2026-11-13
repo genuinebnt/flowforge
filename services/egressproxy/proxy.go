@@ -106,7 +106,8 @@ type Proxy struct {
 	SOCKSAddr, DNSAddr string
 	// Upstream answers forwarded DNS queries (nil: every query SERVFAIL).
 	Upstream Upstream
-	// MaxUDPResponse caps UDP DNS answers (default 1232, RFC 9715);
+	// MaxUDPResponse caps UDP DNS answers (default 1232 octets, the DNS
+	// Flag Day 2020 size that avoids IP fragmentation);
 	// MaxTCPResponse caps TCP answers (default 16 KiB).
 	MaxUDPResponse, MaxTCPResponse int
 

@@ -455,3 +455,50 @@ func TestSketchErrors(t *testing.T) {
 		t.Fatal("short signature accepted by BandKeys")
 	}
 }
+
+// SKETCH-INV-11: the pluggable similarity methods estimate the same
+// quantity: exact equals JaccardSorted of the shingle sets, MinHash is
+// within 5 standard errors of it, and SimHash's Hamming distance is within
+// 5 binomial standard deviations of Charikar's prediction for that
+// Jaccard; every method gives 1 for identical inputs.
+func TestSketchInv11_SimilarityMethodsAgree(t *testing.T) {
+	r := testkit.Rng(t)
+	for range max(testkit.Cases()/5, 40) {
+		a := randomSeq(r, 200+core.IntN(r, 200), 50_000)
+		b := mutate(r, a, []float64{0.01, 0.03, 0.08}[core.IntN(r, 3)])
+		exact, err := EstimateSimilarity(a, b, SimilarityOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := JaccardSorted(WShingling(a, 3), WShingling(b, 3)); exact != want {
+			t.Fatalf("exact %v != JaccardSorted %v", exact, want)
+		}
+		mh, _ := EstimateSimilarity(a, b, SimilarityOptions{Method: MethodMinHash})
+		if tol := 5*math.Sqrt(exact*(1-exact)/128) + 1.0/128; math.Abs(mh-exact) > tol {
+			t.Fatalf("minhash %v vs exact %v (tolerance %v)", mh, exact, tol)
+		}
+		// SimHash: the Hamming distance behind the estimate is about
+		// Binomial(64, θ/π) with cos θ = 2J/(1+J) for equal-size sets, so
+		// the bound is stated in bits (5 standard deviations plus one).
+		sh, _ := EstimateSimilarity(a, b, SimilarityOptions{Method: MethodSimHash})
+		p := math.Acos(2*exact/(1+exact)) / math.Pi
+		h := float64(Hamming(SimHashTokens(a, 3), SimHashTokens(b, 3)))
+		if math.Abs(h-64*p) > 5*math.Sqrt(64*p*(1-p))+1 {
+			t.Fatalf("simhash distance %v bits, expected %.1f for Jaccard %v (estimate %v)", h, 64*p, exact, sh)
+		}
+		if c := math.Cos(math.Pi * h / 64); math.Abs(sh-max(c, 0)/(2-max(c, 0))) > 1e-12 {
+			t.Fatalf("simhash estimate %v does not follow from %v bits", sh, h)
+		}
+		for _, m := range Methods() {
+			if s, _ := EstimateSimilarity(a, a, SimilarityOptions{Method: m}); s != 1 {
+				t.Fatalf("%s(a, a) = %v", m, s)
+			}
+			if back, err := ParseMethod(m.String()); err != nil || back != m {
+				t.Fatalf("ParseMethod(%s) = %v, %v", m, back, err)
+			}
+		}
+	}
+	if _, err := EstimateSimilarity(nil, nil, SimilarityOptions{Method: 9}); err == nil {
+		t.Fatal("unknown method accepted")
+	}
+}

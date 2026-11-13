@@ -18,7 +18,7 @@ func TestDiffInv06_Hunks(t *testing.T) {
 	r := testkit.Rng(t)
 	for range testkit.Cases() {
 		a, b := randPair(r, 60)
-		alg := Algorithms()[core.IntN(r, 4)]
+		alg := Algorithms()[core.IntN(r, len(Algorithms()))]
 		s := mustDiff(t, a, b, Options{Algorithm: alg}).Script
 		ctx := core.IntN(r, 5)
 		hs := Hunks(s, ctx)
@@ -102,7 +102,7 @@ func TestDiffInv07_UnifiedRoundTrip(t *testing.T) {
 				}
 			}
 		}
-		alg := Algorithms()[core.IntN(r, 4)]
+		alg := Algorithms()[core.IntN(r, len(Algorithms()))]
 		res, _, err := DiffStrings(oldL, newL, Options{Algorithm: alg})
 		if err != nil {
 			t.Fatal(err)

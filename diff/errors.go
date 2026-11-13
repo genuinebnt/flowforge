@@ -36,3 +36,7 @@ var (
 	// ErrMalformedTree reports bracket-notation text that does not parse.
 	ErrMalformedTree = errors.New("diff: malformed tree")
 )
+
+// ErrInputTooLarge reports an input beyond an algorithm's documented size
+// limit (Reference: MaxReferenceCells).
+var ErrInputTooLarge = errors.New("diff: input too large for algorithm")

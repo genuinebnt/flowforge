@@ -120,3 +120,22 @@ func TestDiffInv05_Compose(t *testing.T) {
 		t.Fatal("Compose accepted mismatched scripts")
 	}
 }
+
+// DIFF-INV-20: the Reference algorithm is minimal: its distance equals an
+// exhaustive recursion over the LCS definition on tiny inputs, and inputs
+// beyond MaxReferenceCells are refused rather than allocated.
+func TestDiffInv20_ReferenceExhaustive(t *testing.T) {
+	r := testkit.Rng(t)
+	for range testkit.Cases() {
+		a, b := randPair(r, 9)
+		want := len(a) + len(b) - 2*exhaustiveLCS(a, b)
+		res := mustDiff(t, a, b, Options{Algorithm: Reference})
+		if res.Script.Distance() != want || !equalU32(mustApply(t, a, res.Script), b) {
+			t.Fatalf("Reference distance %d, exhaustive %d (a=%v b=%v)", res.Script.Distance(), want, a, b)
+		}
+	}
+	big := make([]uint32, 1<<13)
+	if _, err := Diff(big, append(big, big...), Options{Algorithm: Reference}); err == nil {
+		t.Fatal("Reference accepted an input beyond MaxReferenceCells")
+	}
+}

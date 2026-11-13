@@ -222,6 +222,8 @@ func appendNameWire(dst []byte, s string) ([]byte, error) {
 				st = textLabel
 			}
 		}
+		// Stop early on huge input; the exact 255-octet check is below
+		// (a label is only measured when it closes).
 		if len(dst)-start > MaxNameLen+MaxLabelLen+1 {
 			return dst, fail(CodeNameTooLong, -1)
 		}

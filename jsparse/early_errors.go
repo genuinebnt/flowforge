@@ -69,16 +69,8 @@ func (p *parser) argumentsForbidden() bool {
 // inStaticBlock reports whether the innermost non-arrow context is a
 // class static block.
 func (p *parser) inStaticBlock() bool {
-	for i := len(p.fns) - 1; i >= 0; i-- {
-		c := &p.fns[i]
-		if c.staticBlock {
-			return true
-		}
-		if !c.arrow {
-			return false
-		}
-	}
-	return false
+	// Arrow functions are function boundaries for this rule (15.7.1).
+	return p.cur().staticBlock
 }
 
 // ---- scopes ----
@@ -163,7 +155,6 @@ type bindKind uint8
 const (
 	bindNone        bindKind = iota // no declaration (expression names)
 	bindVar                         // var, parameters
-	bindVarForOf                    // var in a for-of head (B.3.5 exception does not apply)
 	bindLexical                     // let, const, class, strict or generator/async block functions
 	bindFunction                    // sloppy-mode plain function declaration
 	bindSimpleCatch                 // catch (e)
@@ -194,10 +185,12 @@ func (p *parser) declare(name string, kind bindKind, span Span) {
 			redeclared = s.lex.has(name) || s.vars.has(name)
 		}
 		s.funcs.add(name)
-	case bindVar, bindVarForOf:
+	case bindVar:
 		for i := len(p.scopes) - 1; i >= 0; i-- {
 			sc := &p.scopes[i]
-			catchOK := sc.flags&scopeSimpleCatch != 0 && sc.catchParam == name && kind == bindVar
+			// B.3.4: var may redeclare a simple catch parameter (since
+			// ES2020 also in for-of heads).
+			catchOK := sc.flags&scopeSimpleCatch != 0 && sc.catchParam == name
 			if (sc.lex.has(name) && !catchOK) || (!p.functionsAsVar(sc) && sc.funcs.has(name)) {
 				redeclared = true
 				break
@@ -402,9 +395,15 @@ func (p *parser) dropCover(span Span) {
 // ---- identifier checks ----
 
 // checkIdentifierReference applies the early errors of 13.1.1 to an
-// identifier used as an IdentifierReference or LabelIdentifier.
+// identifier used as an IdentifierReference.
 func (p *parser) checkIdentifierReference(t *Token) {
 	p.checkReserved(t, false)
+}
+
+// checkLabelIdentifier applies them to a LabelIdentifier (which is not an
+// IdentifierReference: `arguments:` is fine in a field initializer).
+func (p *parser) checkLabelIdentifier(t *Token) {
+	p.checkReserved(t, true)
 }
 
 // checkBindingIdentifier applies the BindingIdentifier early errors.

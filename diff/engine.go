@@ -11,6 +11,7 @@ type engine struct {
 	capped bool
 	lin    *linear
 	stack  []work
+	hist   *histIndex // histogram scratch, nil for other algorithms
 }
 
 // work is one pending item: an equal run to emit, or a range to diff.

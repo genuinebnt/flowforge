@@ -45,7 +45,7 @@ func (p *Proxy) ServeSOCKS(ctx context.Context, l net.Listener) error {
 func (p *Proxy) serveSOCKSConn(ctx context.Context, c net.Conn) {
 	_ = c.SetDeadline(time.Now().Add(handshakeTimeout))
 	var sess *session
-	req, up, err := socks5.ServerHandshake(c, func(u socks5.UserPass) bool {
+	req, _, err := socks5.ServerHandshake(c, func(u socks5.UserPass) bool {
 		s := p.tickets.get(u.Password, p.Now())
 		if s == nil || s.decision != u.Username {
 			return false
@@ -66,7 +66,6 @@ func (p *Proxy) serveSOCKSConn(ctx context.Context, c net.Conn) {
 			rq = sess.request()
 			rq.via = "socks5"
 		}
-		_ = up
 		p.logRefusal(ctx, rq, req.Addr.String(), refuse(reason, err.Error()))
 		c.Close()
 		return

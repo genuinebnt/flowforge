@@ -19,7 +19,7 @@ function canon(n) {
   if (n === null || typeof n !== "object") return n;
   const o = {};
   for (const k of Object.keys(n).sort()) {
-    if (k === "start" || k === "end" || k === "raw" || k === "loc") continue;
+    if (k === "start" || k === "end" || k === "loc" || (k === "raw" && n.type === "Literal")) continue;
     let v = n[k];
     if (k === "value" && n.type === "Literal" && (n.regex || n.bigint !== undefined)) v = null;
     if (typeof v === "number" && !isFinite(v)) v = null;

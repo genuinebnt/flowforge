@@ -29,7 +29,8 @@ func (p *parser) parseClass(start int32, decl, defaultExport bool) NodeID {
 			if decl {
 				p.declare(t.Value, bindLexical, t.Span())
 			}
-			p.nd(id).A = p.ident(t.Value, t.Span())
+			name := p.ident(t.Value, t.Span())
+			p.nd(id).A = name
 			p.next()
 		}
 	} else if decl && !defaultExport {
@@ -109,7 +110,7 @@ func (p *parser) parseClassElement(derived bool, hasCtor *bool) NodeID {
 		p.next()
 	}
 	if !isAsync && !isGen && (p.isKw(KwGet) || p.isKw(KwSet)) {
-		if pk := p.peek(); !isClassModifierEnd(pk) {
+		if pk := p.peek(); !isClassModifierEnd(pk) && pk.Kind != TStar {
 			kind = OpGet
 			if p.isKw(KwSet) {
 				kind = OpSet

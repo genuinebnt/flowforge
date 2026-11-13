@@ -18,13 +18,17 @@ type histRecord struct {
 	cnt int
 }
 
+// histIndex is the per-range histogram. Its arrays are allocated once per
+// diff and reused by every range: records are looked up by dense token id
+// through tokRec, valid only while tokStamp equals the current epoch, so
+// starting a range costs O(1) instead of clearing a table.
 type histIndex struct {
-	recs    []histRecord
-	byToken map[uint32]int
-	lineRec []int // per a index - lo1: record index
-	next    []int // per a index - lo1: next occurrence (absolute), -1 none
-	cnt     int   // best (lowest) occurrence count so far
-	common  bool
+	recs     []histRecord
+	tokRec   []int32  // dense token -> record index (when stamped)
+	tokStamp []uint32 // dense token -> epoch that wrote tokRec
+	epoch    uint32
+	lineRec  []int32 // a index -> record index (absolute positions)
+	next     []int32 // a index -> next occurrence (absolute), -1 none
 }
 
 type region struct{ begin1, end1, begin2, end2 int } // inclusive ends
@@ -57,49 +61,51 @@ func (e *engine) histogram(lo1, hi1, lo2, hi2 int) {
 	}
 }
 
-// findLCS is find_lcs: scanA, then try_lcs from every b position.
+// findLCS is git's find_lcs: scanA, then try_lcs from every b position.
 func (e *engine) findLCS(lo1, hi1, lo2, hi2 int) (lcs region, found, fallBack bool) {
-	a, b := e.a, e.b
-	x := histIndex{
-		byToken: make(map[uint32]int, hi1-lo1),
-		lineRec: make([]int, hi1-lo1),
-		next:    make([]int, hi1-lo1),
-	}
+	a, b, x := e.a, e.b, e.hist
+	x.epoch++
+	x.recs = x.recs[:0]
 	// scanA: from the last line to the first, so each record's ptr ends at
 	// the first occurrence and next[] chains occurrences in ascending order.
 	for ptr := hi1 - 1; ptr >= lo1; ptr-- {
-		if r, ok := x.byToken[a[ptr]]; ok {
-			x.next[ptr-lo1] = x.recs[r].ptr
+		tok := a[ptr]
+		if x.tokStamp[tok] == x.epoch {
+			r := x.tokRec[tok]
+			x.next[ptr] = int32(x.recs[r].ptr)
 			x.recs[r].ptr = ptr
 			x.recs[r].cnt++
-			x.lineRec[ptr-lo1] = r
+			x.lineRec[ptr] = r
 			continue
 		}
-		x.byToken[a[ptr]] = len(x.recs)
-		x.lineRec[ptr-lo1] = len(x.recs)
-		x.next[ptr-lo1] = -1
+		x.tokStamp[tok], x.tokRec[tok] = x.epoch, int32(len(x.recs))
+		x.lineRec[ptr] = int32(len(x.recs))
+		x.next[ptr] = -1
 		x.recs = append(x.recs, histRecord{ptr: ptr, cnt: 1})
 	}
-	x.cnt = histMaxChain + 1
-	cntAt := func(i int) int { return x.recs[x.lineRec[i-lo1]].cnt }
+	// index.cnt starts at max_chain_length+1: records seen more often than
+	// the best region's rarest line are skipped.
+	best := histMaxChain + 1
+	common := false
+	cntAt := func(i int) int { return x.recs[x.lineRec[i]].cnt }
 	for bPtr := lo2; bPtr < hi2; {
 		bNext := bPtr + 1
-		r, ok := x.byToken[b[bPtr]]
-		if !ok {
+		tok := b[bPtr]
+		if x.tokStamp[tok] != x.epoch {
 			bPtr = bNext
 			continue
 		}
-		rec := x.recs[r]
-		if rec.cnt > x.cnt {
-			x.common = true
+		rec := x.recs[x.tokRec[tok]]
+		common = true
+		if rec.cnt > best {
 			bPtr = bNext
 			continue
 		}
-		x.common = true
 		as := rec.ptr
 		for {
-			np := x.next[as-lo1]
+			np := int(x.next[as])
 			bs, ae, be, rc := bPtr, as, bPtr, rec.cnt
+			// Grow the match around (as, bPtr), tracking the rarest line.
 			for lo1 < as && lo2 < bs && a[as-1] == b[bs-1] {
 				as--
 				bs--
@@ -117,16 +123,18 @@ func (e *engine) findLCS(lo1, hi1, lo2, hi2 int) (lcs region, found, fallBack bo
 			if bNext <= be {
 				bNext = be + 1
 			}
-			if lcs.end1-lcs.begin1 < ae-as || rc < x.cnt {
+			// git keeps a longer region, or one whose rarest line is rarer.
+			if lcs.end1-lcs.begin1 < ae-as || rc < best {
 				lcs = region{begin1: as, end1: ae, begin2: bs, end2: be}
-				x.cnt = rc
+				best = rc
 				found = true
 			}
 			if np < 0 {
 				break
 			}
+			// Skip occurrences inside the region just found.
 			for np >= 0 && np <= ae {
-				np = x.next[np-lo1]
+				np = int(x.next[np])
 			}
 			if np < 0 {
 				break
@@ -135,15 +143,45 @@ func (e *engine) findLCS(lo1, hi1, lo2, hi2 int) (lcs region, found, fallBack bo
 		}
 		bPtr = bNext
 	}
-	if x.common && x.cnt > histMaxChain {
+	// Common lines exist but every one is too frequent to anchor on.
+	if common && best > histMaxChain {
 		return lcs, found, true
 	}
 	return lcs, found, false
 }
 
+// histogramDiff remaps tokens to dense ids (so the per-range index can use
+// arrays) and runs histogram over the whole input.
 func histogramDiff(a, b []uint32, limit int) (EditScript, bool) {
-	e := newEngine(a, b, limit)
+	da, db, k := denseTokens(a, b)
+	e := newEngine(da, db, limit)
+	e.hist = &histIndex{
+		tokRec:   make([]int32, k),
+		tokStamp: make([]uint32, k),
+		lineRec:  make([]int32, len(a)),
+		next:     make([]int32, len(a)),
+	}
 	e.stack = append(e.stack, work{lo1: 0, hi1: len(a), lo2: 0, hi2: len(b)})
 	e.drain(e.histogram)
 	return e.bld.finish(a, b), e.capped
+}
+
+// denseTokens renumbers the tokens of a and b as 0..k-1 in first-seen
+// order; equality is preserved exactly.
+func denseTokens(a, b []uint32) (da, db []uint32, k int) {
+	ids := make(map[uint32]uint32, len(a))
+	conv := func(s []uint32) []uint32 {
+		out := make([]uint32, len(s))
+		for i, t := range s {
+			id, ok := ids[t]
+			if !ok {
+				id = uint32(len(ids))
+				ids[t] = id
+			}
+			out[i] = id
+		}
+		return out
+	}
+	da, db = conv(a), conv(b)
+	return da, db, len(ids)
 }

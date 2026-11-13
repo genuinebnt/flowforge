@@ -30,6 +30,67 @@ type Config struct {
 	// DisableAutoMerge stops Refresh from running the merge policy; call
 	// Merge or ForceMerge explicitly.
 	DisableAutoMerge bool
+
+	// Engine selects the implementation NewSearcher returns.
+	Engine Engine
+	// Codec encodes postings of new segments (nil: VarintCodec). Segments
+	// record their codec, so indexes may mix codecs.
+	Codec PostingCodec
+	// Intersector intersects doc lists (nil: SkipIntersector).
+	Intersector Intersector
+	// Scorer ranks matches (nil: BM25Scorer).
+	Scorer Scorer
+	// Regex chooses regex candidate generation (nil: TrigramPrefilter).
+	Regex RegexStrategy
+}
+
+// Engine selects a Searcher implementation.
+type Engine uint8
+
+const (
+	// EngineSegmented is Index: segments, postings, trigram index.
+	EngineSegmented Engine = iota
+	// EngineScan is ScanIndex: brute-force evaluation over an in-memory
+	// document map, for tiny corpora and as the test oracle.
+	EngineScan
+)
+
+// Searcher is the API shared by Index and ScanIndex.
+type Searcher interface {
+	Add(Document) error
+	Update(Document) error
+	Delete(id uint64) error
+	Refresh() error
+	Search(q string, opts SearchOptions) (Result, error)
+	SearchQuery(q *Query, opts SearchOptions) (Result, error)
+	Get(id uint64) (Document, bool, error)
+	Close() error
+}
+
+// NewSearcher opens the engine cfg.Engine selects.
+func NewSearcher(cfg Config) (Searcher, error) {
+	if cfg.Engine == EngineScan {
+		return NewScanIndex(cfg)
+	}
+	return Open(cfg)
+}
+
+// resolveTimeField applies the Config.TimeField rules.
+func resolveTimeField(s Schema, name string) (string, int, error) {
+	switch name {
+	case "-":
+		return "", -1, nil
+	case "":
+		if t, i := s.lookup("at"); t == fieldNumeric {
+			return "at", i, nil
+		}
+		return "", -1, nil
+	}
+	t, i := s.lookup(name)
+	if t != fieldNumeric {
+		return "", -1, fmt.Errorf("%w: time field %q is not a numeric field", ErrInvalidConfig, name)
+	}
+	return name, i, nil
 }
 
 // Index is a segmented inverted + trigram index. Writes (Add, Update,
@@ -53,6 +114,8 @@ type Index struct {
 	commitGen uint64
 	snap      atomic.Pointer[[]*segView]
 	closed    atomic.Bool
+	pc        PostingCodec
+	x         execParams
 }
 
 type pendingDoc struct {
@@ -84,19 +147,15 @@ func Open(cfg Config) (*Index, error) {
 	}
 	ix := &Index{cfg: cfg, schema: cfg.Schema, dir: cfg.Dir, timeF: -1,
 		pending: map[uint64]pendingDoc{}, live: map[uint64]bool{}}
-	switch cfg.TimeField {
-	case "-":
-	case "":
-		if t, i := cfg.Schema.lookup("at"); t == fieldNumeric {
-			ix.timeName, ix.timeF = "at", i
-		}
-	default:
-		t, i := cfg.Schema.lookup(cfg.TimeField)
-		if t != fieldNumeric {
-			return nil, fmt.Errorf("%w: time field %q is not a numeric field", ErrInvalidConfig, cfg.TimeField)
-		}
-		ix.timeName, ix.timeF = cfg.TimeField, i
+	var err error
+	if ix.timeName, ix.timeF, err = resolveTimeField(cfg.Schema, cfg.TimeField); err != nil {
+		return nil, err
 	}
+	if ix.pc, err = checkCodec(cfg.Codec); err != nil {
+		return nil, err
+	}
+	ix.x.scorer, ix.x.isect, ix.x.regex = defaultsFor(cfg)
+	ix.x.nt, ix.x.timeF, ix.x.regexLimit = len(cfg.Schema.Text), ix.timeF, cfg.MaxRegexCandidates
 	c, err := newCodec()
 	if err != nil {
 		return nil, err
@@ -362,7 +421,7 @@ func (ix *Index) refreshLocked() error {
 }
 
 func (ix *Index) writeSegment(docs []docFields, num uint64) (*segView, error) {
-	data, err := encodeSegment(ix.schema, docs, ix.codec)
+	data, err := encodeSegment(ix.schema, docs, ix.codec, ix.pc)
 	if err != nil {
 		return nil, err
 	}
@@ -533,7 +592,9 @@ func (ix *Index) SearchQuery(q *Query, opts SearchOptions) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return execute(ix.views(), p, len(ix.schema.Text), ix.timeF, opts.K, ix.cfg.MaxRegexCandidates)
+	x := ix.x
+	x.k = opts.K
+	return execute(ix.views(), p, x)
 }
 
 // Get returns the stored document id from the last refreshed snapshot.

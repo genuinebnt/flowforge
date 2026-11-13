@@ -1,6 +1,9 @@
 package htmlparse
 
-import "slices"
+import (
+	"bytes"
+	"slices"
+)
 
 // insertionMode is a tree construction insertion mode (HTML §13.2.4.1).
 // The current standard has no "in select" / "in select in table" modes:
@@ -76,6 +79,7 @@ type treeBuilder struct {
 	doc *Document
 	tz  *Tokenizer
 	tok *Token // the token being processed
+	seg Token  // scratch token for character-token segments
 
 	mode          insertionMode
 	origMode      insertionMode
@@ -108,6 +112,16 @@ type treeBuilder struct {
 	metaCharset string // encoding declared by the first <meta charset> in head
 
 	sawSelectedContent bool // an HTML selectedcontent element was created
+	maxStack           int  // deepest stack of open elements seen (HTML-INV-06)
+}
+
+// nodeCapacityHint estimates the arena size for input: about one element
+// per '<' plus one text node for every other tag. Sizing Nodes up front
+// avoids repeatedly copying the (large) Node structs while the slice
+// grows; a wrong guess only costs one extra growth.
+func nodeCapacityHint(input []byte) int {
+	lt := bytes.Count(input, []byte{'<'})
+	return lt + lt/2 + 16
 }
 
 func newTreeBuilder(doc *Document, tz *Tokenizer, opts Options) *treeBuilder {
@@ -298,13 +312,15 @@ func (b *treeBuilder) processCharacters(tok *Token) {
 		for j < len(data) && charClass(data[j]) == cls {
 			j++
 		}
-		seg := *tok
-		seg.Data = data[i:j]
-		b.tok = &seg
-		if b.useForeignRules(&seg) {
-			b.foreignCharacters(&seg)
+		// b.seg is reused for every segment: a local copy would escape to
+		// the heap through b.tok.
+		b.seg = *tok
+		b.seg.Data = data[i:j]
+		b.tok = &b.seg
+		if b.useForeignRules(&b.seg) {
+			b.foreignCharacters(&b.seg)
 		} else {
-			b.dispatch(&seg)
+			b.dispatch(&b.seg)
 		}
 		i = j
 	}
@@ -337,7 +353,10 @@ func (b *treeBuilder) adjustedCurrent() stackEntry {
 	return b.current()
 }
 
-func (b *treeBuilder) push(e stackEntry) { b.stack = append(b.stack, e) }
+func (b *treeBuilder) push(e stackEntry) {
+	b.stack = append(b.stack, e)
+	b.maxStack = max(b.maxStack, len(b.stack))
+}
 
 // pop pops the current node. The root html element is never popped (it
 // is removed only when parsing ends), which keeps the stack non-empty
