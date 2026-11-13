@@ -104,7 +104,7 @@ assumptions it was written against.
 |---|---|---|
 | G-CORE-02 | OAM fields tagged "verify" are unresolved (spec 20.3) | v2 (RDAP/CT adapters provide real data) |
 | G-CORE-03 | An observation naming an existing `ent_` id before that entity is ingested fails, which breaks the 23.5 any-order convergence | **closed on feat_v1** (pending observations buffer (oam, Mem, pg); conformance pending_refs.json) |
-| G-CORE-04 | GCS BlobStore is a port only | v2 (with chunkstore; GCS adapter + fs adapter) |
+| G-CORE-04 | GCS BlobStore is a port only | **closed on feat_v2** (chunkstore/gcsstore + GCS BlobStore on a shared in-process fake; TestGCSStoreBackendContract) |
 | G-CORE-05 | Postgres ingest runs at about 470 obs/s | v3 (C4) |
 | G-LANG-01 | `#[timeout]`/`#[retry]` do not reach effects inside called fns | v3 |
 | G-LANG-02 | The VM is slower than the tree-walker on list building (b_vm_01 acceptance unmet) | v3 (C1) |
@@ -142,8 +142,8 @@ assumptions it was written against.
 | G-OPS-09 | tool-runner runs as a Cloud Run service, not Jobs or GKE with gVisor | v3 (decide with A1) |
 | G-OPS-10 | Workflow schedules created at runtime cannot create Cloud Scheduler jobs | **closed on feat_v1** (in-process scheduler + tick; /v1/schedules; TestRegress_GOPS10_*) |
 | G-OPS-14 | `FF_ARTIFACT_BUCKET` is set but unused: raw tool output and archives never reach object storage | **closed on feat_v1** (services/internal/blob mem/dir/gcs; TestRegress_GOPS14_*) |
-| G-OPS-15 | The v2 egress proxy (SOCKS5, DNS over UDP) cannot run on Cloud Run | v2 (lab VM / prod MIG in Terraform) |
-| G-OPS-16 | The v2 content service, content schema user and chunk-pack bucket lifecycle are not in Terraform | v2 |
+| G-OPS-15 | The v2 egress proxy (SOCKS5, DNS over UDP) cannot run on Cloud Run | **closed on feat_v2** (infra/modules/egress-vm in dev/prod; lab VM serves SOCKS5 and DNS) |
+| G-OPS-16 | The v2 content service, content schema user and chunk-pack bucket lifecycle are not in Terraform | **closed on feat_v2** (Terraform ff-content, ff_content user, KEK secret, bucket, topic; terraform test) |
 | G-OPS-19 | No low-cost `lab` GCP environment; current envs assume paid services (LB, Armor, NAT, Cloud SQL HA, Memorystore) | **closed on feat_v1** (infra/envs/lab) |
 | G-OPS-20 | No cost guardrails beyond budget alerts: no pause or destroy commands, no budget-triggered shutdown | **closed on feat_v1** (make gcp-lab-*, budget shutdown, cost policy, infra/COSTS.md) |
 | G-OPS-21 | No local multi-process topology: everything local is one `flowforge dev` process; no compose profile running each service with the Postgres bus | **closed on feat_v1** (deploy/compose.local.yml, make local-up; TestRegress_GOPS21_MultiProcessTopology) |
@@ -216,7 +216,7 @@ assumptions it was written against.
 | ID | Gap | Target |
 |---|---|---|
 | G-SVC-13 | Cloud Run service-to-service calls had no TLS and no Google ID token | **closed on feat_v1** (platform.Dial TLS + ID token; TestRegress_G_SVC_13_CloudRunDial) |
-| G-SVC-14 | The egress proxy on Cloud Run (dev/prod) may not support CONNECT through Cloud Run's front end | v2 (move the proxy to a VM or MIG in dev/prod, as lab already does; G-OPS-15) |
+| G-SVC-14 | The egress proxy on Cloud Run (dev/prod) may not support CONNECT through Cloud Run's front end | **closed on feat_v2** (egress proxy moved off Cloud Run to a VM (G-OPS-15)) |
 | G-SVC-15 | Notifier replicas cache alert state independently, so two replicas can each fire once per window | v3 |
 | G-SVC-16 | `raw_ref` stores the tool's observation rather than raw protocol bytes | v2 (chunkstore raw capture) |
 | G-SEC-01 | RLS gives real isolation only for graph and similarity; engine, scope, notifier and gateway stores do not set the tenant per transaction, so they use schema-wide role policies | v3 (per-transaction tenant in every store) |
@@ -225,8 +225,8 @@ assumptions it was written against.
 
 | ID | Gap | Target |
 |---|---|---|
-| G-CST-01 | No Terraform for the content service: Cloud Run service, `ff_content` DB user, `FF_CONTENT_KEK` secret, Pub/Sub topic and subscriptions | v2 |
-| G-CST-02 | The content chunk store has no GCS backend; it uses a local directory (`FF_CONTENT_DIR`) or memory, so Cloud Run instances lose it | v2 (with G-CORE-04) |
+| G-CST-01 | No Terraform for the content service: Cloud Run service, `ff_content` DB user, `FF_CONTENT_KEK` secret, Pub/Sub topic and subscriptions | **closed on feat_v2** (same as G-OPS-16) |
+| G-CST-02 | The content chunk store has no GCS backend; it uses a local directory (`FF_CONTENT_DIR`) or memory, so Cloud Run instances lose it | **closed on feat_v2** (FF_CONTENT_BUCKET selects GCS; TestRegress_G_CST_02_*) |
 | G-CST-03 | chunkstore allows one writer per tenant namespace, so the content service must run one replica per tenant set | v3 (writer leases or per-tenant ownership via placement) |
 | G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | v2 |
 | G-CST-05 | The §10 "less than 25 % of raw" target: on the tiny SPA fixture all records take 59.8 %, because each version carries about 300 bytes of fixed records | **closed** (the §10 lab, with realistic page sizes, stores raw snapshots at 6.8 % and all records including diffs at 18.4 %; TestLabAcceptance_*) |
