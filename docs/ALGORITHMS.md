@@ -138,16 +138,71 @@ but are not yet all selectable in non-test code or behind an
 * **Default:** level 3 on the write path. Put throughput is limited by
   zstd at about 190 MB/s.
 
+## v2 decisions
+
+### Text diff algorithm (`diff`)
+* **Candidates** (`Options.Algorithm`): `MyersLinearSpace` (default),
+  `Myers` (greedy, O(ND) memory), `Patience`, `Histogram` (git's default),
+  and `Reference` (dynamic-programming LCS, quadratic, for tiny inputs and
+  as a test oracle). Benchmark: `BenchmarkDiffAlgo`.
+* **Measured,** 1M tokens with 1 % edits:
+  | Algorithm | Time | Memory |
+  |---|---|---|
+  | MyersLinearSpace | 2.3 s | 37 MB |
+  | Patience | 144 ms | 163 MB |
+  | Histogram | 163 ms | 46 MB |
+
+  MyersLinearSpace allocates about 19 B per token. The default edit cap
+  (10,000) turns a 200k-token diff with 10 % edits from 6.0 s into 162 ms by
+  falling back.
+* **Default:** MyersLinearSpace. It is the only candidate that guarantees a
+  *minimal* edit script, which matters for invariants and for small,
+  exact diffs, and its memory is linear.
+* **Recommendation for the content pipeline:** use **Histogram** for large
+  normalized snapshots. It is about 14× faster here with modest memory,
+  matches git's output byte for byte, and tends to produce more readable
+  hunks around moved blocks. Myers stays the default of the library
+  itself. Patience is fastest but uses 4× the memory.
+* **git compatibility:** with `GitCompact`, Histogram reproduces git 2.43
+  everywhere; Patience does too, except where it falls back to Myers;
+  Myers matches only where git picks the same alignment (git's tie-breaking
+  is not reproduced). Recorded in `conformance/diff/unified_git.json`
+  (320 cases).
+
+### Near-duplicate sketches (`sketch`)
+* **Candidates:** exact Jaccard, MinHash with LSH banding, SimHash
+  (64-bit, weighted variant). Benchmark: `BenchmarkSketchAlgo`.
+* **Measured:** comparing stored sketches takes about 35 ns for MinHash and
+  under 1 ns for SimHash. Exact Jaccard costs time proportional to the set
+  size.
+* **Default:** SimHash for chunk lineage (cheap and fixed-size); MinHash
+  when a Jaccard estimate with a known error bound is needed; exact for
+  small sets and as the reference.
+* **Known limit:** the SimHash multi-index lookup is exact only up to
+  Hamming distance 3, and bundle lineage needs 6 (`sketch/OPEN_QUESTIONS.md`).
+
+### Text search (`textindex`)
+* **Engines:** the segmented `Index` (default) and `ScanIndex`
+  (brute force, identical semantics; for tiny corpora and as the oracle).
+  Benchmark: `BenchmarkTIdxAlgo/<decision>/<candidate>`.
+* **Measured** (100k synthetic diff hunks, on a loaded machine):
+  | Decision | Candidates and results | Default |
+  |---|---|---|
+  | Posting codec | plain 4.8, delta+varint 1.35, group-varint 1.65 bytes/posting | delta+varint (smallest; decode speed close to group-varint here) |
+  | List intersection | skip pointers about 14× faster than galloping at a 1:1,000 size ratio | skip pointers |
+  | Ranking | BM25 and TF-IDF tie at MRR 0.947 on the labelled set | BM25 (length normalization; a larger labelled set may separate them) |
+  | Regex | trigram prefilter about 4× faster than a full scan | trigram prefilter |
+* **Throughput:** 11–13k docs/s indexing, 770 B per doc, and an index 2.2×
+  the raw text (trigrams dominate). p50 query times: term 1.4–1.7 ms,
+  phrase 6–11 ms, filtered 2.4–3 ms, regex 110–150 ms.
+
 ## v2 decisions (being measured)
 
-Filled in as the v2 packages land:
-
-* **diff:** Myers, linear-space Myers, patience, histogram, and the DP
-  reference.
-* **textindex:** posting codecs, intersection algorithms, BM25 against
-  TF-IDF, and trigram-prefiltered regex against a full scan.
-* **htmlparse** against `x/net/html`, and the strategy for looking up
-  named character references.
+* **htmlparse** against `x/net/html`, and the lookup strategy for named
+  character references.
 * **jsparse:** keyword recognition, character classification, and the
   expression-parsing strategy.
-* **sketch:** SimHash and MinHash against exact Jaccard similarity.
+* **Event bus adapters** (`feat_v1`): in-memory, Postgres and Pub/Sub
+  (pstest), compared on latency and throughput.
+* **chunkstore** alternatives (fixed-size chunking, Rabin, whole-blob),
+  tracked as G-ALG-06.
