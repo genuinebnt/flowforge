@@ -126,7 +126,7 @@ type RData struct {
 
 // SOA is start-of-authority data (RFC 1035 §3.3.13).
 type SOA struct {
-	MName, RName                             string
+	MName, RName                            string
 	Serial, Refresh, Retry, Expire, Minimum uint32
 }
 

@@ -92,6 +92,18 @@ type Store struct {
 	open        *PackWriter
 	openEntries []IndexEntry
 	ingest      Metrics
+	// inflight holds the chunk ids each running Put has referenced; GC
+	// marks them. recent holds manifests whose Put completed since the
+	// last successful GC began; the next GC marks them too.
+	inflight map[*putState]struct{}
+	recent   map[ManifestID]struct{}
+}
+
+// putState is a running Put's set of referenced chunk ids. Only the Put's
+// goroutine writes it, while holding s.mu (read or write); GC reads it
+// under the write lock.
+type putState struct {
+	ids map[ChunkID]struct{}
 }
 
 // Open loads the store kept in namespace ns of b: the ref and every
@@ -124,7 +136,8 @@ func Open(ctx context.Context, b Backend, ns string, cfg Config) (*Store, error)
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{b: b, cfg: cfg, ns: nsv, cdc: cdc, codec: c, locs: map[ChunkID]loc{}}
+	s := &Store{b: b, cfg: cfg, ns: nsv, cdc: cdc, codec: c, locs: map[ChunkID]loc{},
+		inflight: map[*putState]struct{}{}, recent: map[ManifestID]struct{}{}}
 	if err := s.load(ctx); err != nil {
 		c.close()
 		return nil, err
@@ -215,8 +228,26 @@ func (s *Store) now() int64 {
 // and returns its id. Unless Config.DeferFlush is set, everything is
 // durable when Put returns. On error nothing references the chunks
 // already added; GC reclaims them.
+//
+// GC grace: the chunks of a running Put are never collected, and a
+// manifest survives the first GC that starts after its Put returned even
+// if that GC does not name it. Every later GC must name it (live or
+// pinned) to keep it.
 func (s *Store) Put(ctx context.Context, r io.Reader) (ManifestID, Stats, error) {
 	var st Stats
+	ps := &putState{ids: map[ChunkID]struct{}{}}
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return ManifestID{}, st, ErrClosed
+	}
+	s.inflight[ps] = struct{}{}
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.inflight, ps)
+		s.mu.Unlock()
+	}()
 	ch := s.cdc.NewChunker(r)
 	var m Manifest
 	for {
@@ -237,7 +268,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader) (ManifestID, Stats, error)
 		m.Chunks = append(m.Chunks, id)
 		m.TotalLen += uint64(len(c))
 		st.Raw += uint64(len(c))
-		added, stored, err := s.add(ctx, id, c)
+		added, stored, err := s.add(ctx, ps, id, c)
 		if err != nil {
 			return ManifestID{}, st, err
 		}
@@ -251,7 +282,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader) (ManifestID, Stats, error)
 	}
 	mb := m.Encode()
 	mid := ManifestID(SumChunk(mb))
-	added, stored, err := s.add(ctx, ChunkID(mid), mb)
+	added, stored, err := s.add(ctx, ps, ChunkID(mid), mb)
 	if err != nil {
 		return ManifestID{}, st, err
 	}
@@ -262,6 +293,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader) (ManifestID, Stats, error)
 		}
 	}
 	s.mu.Lock()
+	s.recent[mid] = struct{}{}
 	s.ingest.Puts++
 	s.ingest.LogicalBytes += st.Raw
 	s.ingest.NewChunks += uint64(st.NewChunks)
@@ -274,10 +306,13 @@ func (s *Store) Put(ctx context.Context, r io.Reader) (ManifestID, Stats, error)
 
 // add stores one chunk unless present; it reports whether it was added
 // and the record bytes it took.
-func (s *Store) add(ctx context.Context, id ChunkID, data []byte) (bool, uint64, error) {
+func (s *Store) add(ctx context.Context, ps *putState, id ChunkID, data []byte) (bool, uint64, error) {
 	s.mu.RLock()
 	_, present := s.locs[id]
 	closed := s.closed
+	if present && !closed {
+		ps.ids[id] = struct{}{}
+	}
 	s.mu.RUnlock()
 	if closed {
 		return false, 0, ErrClosed
@@ -291,6 +326,7 @@ func (s *Store) add(ctx context.Context, id ChunkID, data []byte) (bool, uint64,
 	if s.closed {
 		return false, 0, ErrClosed
 	}
+	ps.ids[id] = struct{}{}
 	if _, present := s.locs[id]; present {
 		return false, 0, nil
 	}
@@ -619,3 +655,6 @@ func (s *Store) Metrics() Metrics {
 	}
 	return m
 }
+
+// Namespace returns the tenant namespace the store is scoped to.
+func (s *Store) Namespace() string { return string(s.ns) }

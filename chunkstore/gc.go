@@ -31,6 +31,7 @@ type GCOptions struct {
 type GCReport struct {
 	LiveManifests   int // distinct manifests marked (live and pinned)
 	PinnedManifests int
+	GraceManifests  int // manifests kept by GC grace (Put returned since the last GC began)
 	MarkedChunks    int // chunks reachable from the live manifests, manifests included
 	PacksKept       int
 	PacksRewritten  int // packs whose live chunks were copied into new packs
@@ -59,7 +60,8 @@ type GCReport struct {
 //     under the namespace's packs/ not named by the ref (leftovers of
 //     earlier crashes).
 //
-// A crash before step 5 leaves the old ref, so every old pack is still
+// Besides live and pinned, GC keeps the GC-grace set described at
+// Store.Put. A crash before step 5 leaves the old ref, so every old pack is still
 // there; a crash after it leaves only orphans. GC holds the store's
 // write lock throughout.
 func (s *Store) GC(ctx context.Context, live, pinned []ManifestID, opts GCOptions) (GCReport, error) {
@@ -113,6 +115,38 @@ func (s *Store) GC(ctx context.Context, live, pinned []ManifestID, opts GCOption
 				return rep, errf(CodeChunkMissing, c.String(), "referenced by live manifest %s", mid)
 			}
 			marked[c] = struct{}{}
+		}
+	}
+	// Grace: manifests put since the last GC began, and the chunks of
+	// running Puts (see Store.Put).
+	grace := make([]ManifestID, 0, len(s.recent))
+	for mid := range s.recent {
+		if _, done := marked[ChunkID(mid)]; !done {
+			grace = append(grace, mid)
+		}
+	}
+	slices.SortFunc(grace, func(a, b ManifestID) int { return bytes.Compare(a[:], b[:]) })
+	for _, mid := range grace {
+		if _, ok := s.locs[ChunkID(mid)]; !ok {
+			continue // lost to an earlier failure; nothing to keep
+		}
+		rep.GraceManifests++
+		mb, err := s.readChunkLocked(ctx, ChunkID(mid), CodeManifestNotFound)
+		if err != nil {
+			return rep, err
+		}
+		m, err := decodeManifestChunk(mid, mb)
+		if err != nil {
+			return rep, err
+		}
+		marked[ChunkID(mid)] = struct{}{}
+		for _, c := range m.Chunks {
+			marked[c] = struct{}{}
+		}
+	}
+	for ps := range s.inflight {
+		for id := range ps.ids {
+			marked[id] = struct{}{}
 		}
 	}
 	rep.MarkedChunks = len(marked)
@@ -276,6 +310,7 @@ func (s *Store) GC(ctx context.Context, live, pinned []ManifestID, opts GCOption
 			rep.OrphansDeleted++
 		}
 	}
+	s.recent = map[ManifestID]struct{}{}
 	return rep, nil
 }
 

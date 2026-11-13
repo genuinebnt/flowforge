@@ -53,9 +53,12 @@ func (h DNSHeader) validate() error {
 
 func (h DNSHeader) discriminator() string { return "rr" + strconv.Itoa(h.RRType) }
 
-// SimpleRelation is a generic link carrying only a label.
+// SimpleRelation is a generic link carrying a label. Status (ff, V2
+// §3.2) is the HTTP status of a redirects_to hop (300-399) and is allowed
+// on no other label.
 type SimpleRelation struct {
-	Label string `json:"label"`
+	Label  string `json:"label"`
+	Status int    `json:"status,omitempty"`
 }
 
 // PortRelation binds a host or URL to a service port.
@@ -137,8 +140,18 @@ func (r SRVDNSRelation) Discriminator() string { return r.Header.discriminator()
 // Normalize implements Relation.
 func (r SimpleRelation) Normalize() (Relation, error) {
 	var err error
-	r.Label, err = normalizeLabel(r.Label)
-	return r, err
+	if r.Label, err = normalizeLabel(r.Label); err != nil {
+		return nil, err
+	}
+	if r.Status != 0 {
+		if r.Label != LabelRedirectsTo {
+			return nil, fmt.Errorf("%w: status is only defined for %s, not %q", ErrInvalidRelation, LabelRedirectsTo, r.Label)
+		}
+		if r.Status < 300 || r.Status > 399 {
+			return nil, fmt.Errorf("%w: redirect status %d outside 300..399", ErrInvalidRelation, r.Status)
+		}
+	}
+	return r, nil
 }
 
 // Normalize implements Relation.

@@ -19,7 +19,9 @@ type encoder struct {
 	added []string
 }
 
-func newEncoder() *encoder { return &encoder{buf: make([]byte, HeaderLen, 512), comp: map[string]int{}} }
+func newEncoder() *encoder {
+	return &encoder{buf: make([]byte, HeaderLen, 512), comp: map[string]int{}}
+}
 
 type mark struct{ n, added int }
 
