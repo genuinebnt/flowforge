@@ -12,8 +12,10 @@ const (
 	RefMagic      = "FFRF"
 	RefVersion    = 1
 	RefHeaderSize = 20 // magic[4] version u16 flags u16 generation u64 count u32
-	// RefObject is the backend name of the ref file.
+	// RefObject is the name of the ref file inside a namespace.
 	RefObject = "ref"
+	// NamespacePrefix starts every object name: "t/<namespace>/...".
+	NamespacePrefix = "t/"
 	// MaxRefPacks bounds the pack count of a ref.
 	MaxRefPacks = 1 << 24
 )
@@ -79,6 +81,32 @@ func DecodeRef(data []byte) (*Ref, error) {
 	return r, nil
 }
 
-// Object names of a pack and its index.
-func packObject(id PackID) string  { return "packs/" + id.String() + ".pack" }
-func indexObject(id PackID) string { return "packs/" + id.String() + ".idx" }
+// namespace is a validated tenant namespace; it builds object names.
+type namespace string
+
+// ValidNamespace reports whether ns is 1 to 64 bytes of [a-z0-9_-].
+func ValidNamespace(ns string) bool {
+	if ns == "" || len(ns) > 64 {
+		return false
+	}
+	for i := 0; i < len(ns); i++ {
+		c := ns[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func newNamespace(ns string) (namespace, error) {
+	if !ValidNamespace(ns) {
+		return "", errf(CodeInvalidConfig, ns, "namespace must be 1-64 bytes of [a-z0-9_-]")
+	}
+	return namespace(ns), nil
+}
+
+func (n namespace) root() string           { return NamespacePrefix + string(n) + "/" }
+func (n namespace) ref() string            { return n.root() + RefObject }
+func (n namespace) packs() string          { return n.root() + "packs/" }
+func (n namespace) pack(id PackID) string  { return n.packs() + id.String() + ".pack" }
+func (n namespace) index(id PackID) string { return n.packs() + id.String() + ".idx" }
