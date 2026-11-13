@@ -534,6 +534,11 @@ staleness (§3.4). 17. Tag events → `tag_changed`. 18. Quotas → per-tenant
 limits on captures per day, stored bytes and index bytes, enforced by the
 content service (`QUOTA_EXCEEDED`).
 
+## Migration numbering
+
+Migrations 0015–0029 are reserved for v1 fixes made on `feat_v1` and
+merged forward. v2 migrations start at 0030.
+
 ## 12. Amendments from the Sentinel review (normative)
 
 `genuinebnt/sentinel` (the same author's Rust change-intelligence
