@@ -132,8 +132,12 @@ the JSON shape of spec 7.7, the inferred effect names and class, and for
 hashes, an entry signature, workflow and per-site annotations in ANNOTS).
 Source errors are diagnostics; the Go error is only for compiler
 failures. The policy check (E0402/E0403) is the compiler's job; the engine
-re-verifies every module, rejects agent effects (`E0490`), and checks the
-class against the program again at submit.
+re-verifies every module, rejects agent effects (`E0490`), checks the
+class and the pinned tools against the program's current scope document
+again at submit (max_class, `activity.prohibited`), and refuses a
+prohibited tool before every tool effect against the run's pinned scope
+version (`scope_denied`, reason `class_exceeds_program`; scope
+OPEN_QUESTIONS 18).
 
 ## Spec coverage
 

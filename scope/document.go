@@ -35,10 +35,16 @@ type Activity struct {
 	// MaxClass is the highest activity class any run may perform. The zero
 	// value (core.ClassNone) permits nothing.
 	MaxClass core.ActivityClass `json:"max_class"`
-	// Prohibited lists technique names the program forbids outright (spec
-	// 4.1). Check ignores it. It is stored, returned by the APIs and copied
-	// into engine.ProgramPolicy, but no v1 component enforces it: technique
-	// names have no mapping to tools or effects yet.
+	// Prohibited lists activities the program forbids outright (spec 4.1
+	// "prohibited"). An entry names a tool or an effect ("intrusive",
+	// "financial_write"); core.ProhibitedActivity defines the match and
+	// Policy.Prohibits applies it. The compiler's policy check rejects a
+	// workflow that calls a prohibited tool (E0402), the engine refuses it
+	// at submission (SCOPE_DENIED) and, authoritatively, before every
+	// tool effect against the run's pinned version (scope_denied,
+	// class_exceeds_program); see OPEN_QUESTIONS.md 18. Check, which
+	// decides targets and is not told the tool, ignores it. Technique
+	// names that no tool carries ("dos") match nothing.
 	Prohibited []string `json:"prohibited,omitempty"`
 	// Rate is the program-level ceiling enforced by the limiter.
 	Rate Rate `json:"rate,omitzero"`

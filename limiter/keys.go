@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+
+	"github.com/genuinebnt/flowforge/core/netnorm"
 )
 
 // Key builders for the hierarchy of spec 14.3. Every component is escaped
@@ -37,8 +39,14 @@ func HostKey(programID, target string) string {
 // ToolKey returns rl:tool:<tenant_id>:<tool>, the ToolSpec rate.
 func ToolKey(tenantID, tool string) string { return join("rl:tool", tenantID, tool) }
 
-// AuthIPKey returns rl:auth:ip:<ip>:<endpoint> for auth throttles (13.1).
-func AuthIPKey(ip, endpoint string) string { return join("rl:auth:ip", ip, endpoint) }
+// AuthIPKey returns rl:auth:ip:<ip>:<endpoint> for auth throttles (13.1),
+// with ip in netnorm.ClientIPText form, so every spelling of one address
+// (IPv4-mapped IPv6, upper case or uncompressed IPv6, brackets) is one
+// key. auth.IPThrottleKey builds the same bytes for every input; the
+// login throttle uses it, signup and password reset use this.
+func AuthIPKey(ip, endpoint string) string {
+	return join("rl:auth:ip", netnorm.ClientIPText(ip), endpoint)
+}
 
 // AuthAccountKey returns rl:auth:acct:<sha256 email>, where the hash is the
 // lowercase hex SHA-256 of the trimmed, lowercased email address. Hashing

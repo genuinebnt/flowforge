@@ -195,3 +195,27 @@ func TestRegress_G_LIM_02_FailoverLimiter(t *testing.T) {
 		t.Error("WorkOf must treat only passive and read as passive work")
 	}
 }
+
+// TestRegress_G_CORE_09_CompilerAdapterProhibited: the service's compiler
+// adapter passed only max_class to the compiler, dropping
+// activity.prohibited, so registration accepted a workflow calling a
+// prohibited tool.
+func TestRegress_G_CORE_09_CompilerAdapterProhibited(t *testing.T) {
+	src := `
+workflow probe(h: Fqdn) -> Option<IpAddress> { resolve(h) }
+`
+	tools := []engine.ToolSpec{{Name: "resolve", Version: "1", InputType: "Fqdn", OutputType: "Option<IpAddress>", EffectClass: "passive"}}
+	for _, tc := range []struct {
+		prohibited []string
+		ok         bool
+	}{{[]string{"resolve"}, false}, {[]string{"passive"}, false}, {[]string{"dos"}, true}, {nil, true}} {
+		res, err := enginesvc.Compiler{}.Compile(context.Background(), engine.CompileRequest{Name: "probe", Source: src, Tools: tools,
+			Policy: &engine.ProgramPolicy{MaxClass: core.ClassActive, Prohibited: tc.prohibited}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.OK != tc.ok || (!tc.ok && (len(res.Diagnostics) == 0 || res.Diagnostics[0].Code != "E0402")) {
+			t.Fatalf("prohibited %q: ok=%v %+v, want ok=%v", tc.prohibited, res.OK, res.Diagnostics, tc.ok)
+		}
+	}
+}

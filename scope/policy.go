@@ -172,6 +172,13 @@ func (p *Policy) ProgramID() string { return p.doc.ProgramID }
 // MaxClass returns the program's highest permitted activity class.
 func (p *Policy) MaxClass() core.ActivityClass { return p.doc.Activity.MaxClass }
 
+// Prohibits reports the first activity.prohibited entry that names one of
+// activities (a tool's name and its effect names) and true, or "" and
+// false; see core.ProhibitedActivity for the match.
+func (p *Policy) Prohibits(activities ...string) (string, bool) {
+	return core.ProhibitedActivity(p.doc.Activity.Prohibited, activities...)
+}
+
 // ASNs returns the autonomous system numbers named by asn rules, in
 // document order. They seed passive discovery only and never grant
 // permission (spec 4.1).

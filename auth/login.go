@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/core/netnorm"
 )
 
 // UserStatus is identity.users.status.
@@ -155,13 +156,40 @@ func NewLoginService(cfg LoginConfig) (*LoginService, error) {
 // mapping to get the same account keys.
 func NormalizeEmail(email string) string { return strings.ToLower(strings.TrimSpace(email)) }
 
-// IPThrottleKey is the limiter key rl:auth:ip:<ip>:<endpoint> (spec 14.3).
-// Unlike limiter.AuthIPKey (which auth may not import, both being layer
-// 1) it does not escape ':' in the components, so for an IPv6 client the
-// login key and the signup key built by limiter.AuthIPKey spell the
-// address differently. Each key is self-consistent; a port must reproduce
-// both spellings exactly if it shares the limiter store.
-func IPThrottleKey(ip, endpoint string) string { return "rl:auth:ip:" + ip + ":" + endpoint }
+// IPThrottleKey is the limiter key rl:auth:ip:<ip>:<endpoint> (spec 13.1,
+// 14.3). It is byte-for-byte limiter.AuthIPKey, which auth may not import
+// (both are layer 1), so the login throttle of a client and its signup
+// and password-reset throttles share one spelling of the address: ip in
+// netnorm.ClientIPText form (::ffff:1.2.3.4 is 1.2.3.4, IPv6 in RFC 5952
+// form) and every component escaped as limiter's keys are ('%' as "%25",
+// ':' as "%3A"), so an IPv6 address cannot run into the endpoint.
+// TestRegress_G_LIM_11_IPKeysAgree compares the two.
+func IPThrottleKey(ip, endpoint string) string {
+	return "rl:auth:ip:" + escapeKeyPart(netnorm.ClientIPText(ip)) + ":" + escapeKeyPart(endpoint)
+}
+
+// escapeKeyPart escapes one limiter key component exactly as limiter's
+// key builders do.
+//
+// PORT: the escaping is part of the shared Redis key names
+// (docs/PORTING_RUST.md 6); bytes other than '%' and ':' are copied as is.
+func escapeKeyPart(p string) string {
+	if !strings.ContainsAny(p, "%:") {
+		return p
+	}
+	var b strings.Builder
+	for i := 0; i < len(p); i++ {
+		switch p[i] {
+		case '%':
+			b.WriteString("%25")
+		case ':':
+			b.WriteString("%3A")
+		default:
+			b.WriteByte(p[i])
+		}
+	}
+	return b.String()
+}
 
 // AccountThrottleKey is the limiter key rl:auth:acct:<sha256 email> (spec
 // 14.3); the email is normalized and only its lowercase hex SHA-256

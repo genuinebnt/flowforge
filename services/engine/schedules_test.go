@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
@@ -167,5 +168,65 @@ func runSchedules(t *testing.T, dsn string) {
 	got2, _ := store.Get(context.Background(), servicetest.TenantA, sch.ID)
 	if got2.LastRunID == got.LastRunID || !got2.NextFireAt.After(clock.Now()) {
 		t.Fatalf("after downtime: %+v", got2)
+	}
+}
+
+func TestRegress_G_ENG_11_ScheduleTieOrder_Memory(t *testing.T) { runScheduleTieOrder(t, "") }
+func TestRegress_G_ENG_11_ScheduleTieOrder_Postgres(t *testing.T) {
+	runScheduleTieOrder(t, servicetest.FreshDB(t))
+}
+
+// runScheduleTieOrder: FireDue ordered due schedules by next_fire_at only,
+// so schedules due at the same instant fired in map order (memory) or in
+// whatever order Postgres returned, and under a limit the two stores could
+// fire different ones. Ties are now broken by schedule id in both.
+func runScheduleTieOrder(t *testing.T, dsn string) {
+	at := time.Date(2026, 11, 12, 14, 0, 0, 0, time.UTC)
+	ids := []string{ // insertion order; id order is 3, 1, 5, 0, 4, 2 (byte order of the UUIDs)
+		"0190a1b2-0000-7000-8000-0000000000d0",
+		"0190a1b2-0000-7000-8000-0000000000b0",
+		"0190a1b2-0000-7000-8000-0000000000f0",
+		"0190a1b2-0000-7000-8000-0000000000a0",
+		"0190a1b2-0000-7000-8000-0000000000e0",
+		"0190a1b2-0000-7000-8000-0000000000c0",
+	}
+	early := "0190a1b2-0000-7000-8000-0000000000ff" // largest id, but due a minute earlier
+	want := []string{early, ids[3], ids[1], ids[5], ids[0], ids[4], ids[2]}
+	rounds := 20 // memory: map iteration differs per run
+	if dsn != "" {
+		rounds = 1
+	}
+	for round := range rounds {
+		var store enginesvc.ScheduleStore = enginesvc.NewMemSchedules()
+		if dsn != "" {
+			st, _, _ := servicetest.Stack(t, devstack.Options{DBDSN: dsn})
+			store = enginesvc.PgSchedules{DB: st.DB}
+		}
+		add := func(id string, next time.Time) {
+			sc := enginesvc.Schedule{ID: core.MustParseUUID(id), Tenant: servicetest.TenantA, Name: "s" + id[len(id)-2:],
+				Cron: "* * * * *", WorkflowName: "echo", Input: json.RawMessage(`{}`), Enabled: true, NextFireAt: next,
+				CreatedBy: servicetest.UserA, CreatedAt: at}
+			if err := store.Create(context.Background(), sc); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, id := range ids {
+			add(id, at)
+		}
+		add(early, at.Add(-time.Minute))
+		var got []string
+		fire := func(_ context.Context, sc enginesvc.Schedule) enginesvc.FireResult {
+			got = append(got, sc.ID.String())
+			return enginesvc.FireResult{FiredAt: sc.NextFireAt, NextFireAt: at.Add(time.Hour)}
+		}
+		// Two passes under a limit: the first must pick the same three.
+		for _, limit := range []int{3, 10} {
+			if _, err := store.FireDue(context.Background(), at, limit, fire); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("round %d: fired %v, want %v", round, got, want)
+		}
 	}
 }

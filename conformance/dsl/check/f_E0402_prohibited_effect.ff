@@ -1,0 +1,12 @@
+// policy: {"max_class": "intrusive", "known": true, "prohibited": ["intrusive"]}
+tool resolve(name: Fqdn) -> Option<IpAddress> ! passive
+tool httpx(host: InScope<Host>) -> Option<HttpService> ! active
+tool nmap(host: InScope<Host>) -> List<Service> ! intrusive
+type HttpService = { url: Url, status: Int, title: Option<String>, tech: List<Product> }
+workflow w(n: Fqdn) {
+  require approval(role = "sec", reason = "scan");
+  let ip = resolve(n);
+  let h = scope.check(Host::Name(n))?;
+  let web = httpx(h);
+  let s = nmap(h);
+}

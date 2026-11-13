@@ -125,3 +125,27 @@ func TestRegress_KindStringNegative(t *testing.T) {
 		t.Fatalf("Kind(99).String() = %q, want kind(99)", got)
 	}
 }
+
+// TestRegress_G_CORE_09_ProhibitedActivity pins the activity.prohibited
+// match every enforcement point shares (scope OPEN_QUESTIONS 18).
+func TestRegress_G_CORE_09_ProhibitedActivity(t *testing.T) {
+	for _, tc := range []struct {
+		prohibited []string
+		activities []string
+		want       string
+		ok         bool
+	}{
+		{[]string{"dos", "nmap"}, []string{"nmap", "intrusive"}, "nmap", true},
+		{[]string{" Intrusive\t"}, []string{"nmap", "intrusive"}, " Intrusive\t", true},
+		{[]string{"dos"}, []string{"nmap", "intrusive"}, "", false},
+		{[]string{"", "  "}, []string{"", " "}, "", false},
+		{nil, []string{"nmap"}, "", false},
+		{[]string{"Kmap"}, []string{"kmap"}, "", false},  // Kelvin sign: no Unicode folding
+		{[]string{"nmap "}, []string{"nmap"}, "", false}, // NBSP is not trimmed
+	} {
+		got, ok := core.ProhibitedActivity(tc.prohibited, tc.activities...)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("ProhibitedActivity(%q, %q) = %q, %v; want %q, %v", tc.prohibited, tc.activities, got, ok, tc.want, tc.ok)
+		}
+	}
+}

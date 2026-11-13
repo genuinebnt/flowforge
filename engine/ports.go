@@ -19,9 +19,10 @@ type ProgramPolicy struct {
 	ProgramID    core.UUID
 	ScopeVersion int32
 	MaxClass     core.ActivityClass
-	// Prohibited is the program's activity.prohibited list, passed along
-	// for completeness; the v1 compiler adapters ignore it (only MaxClass
-	// is checked), so nothing enforces it yet.
+	// Prohibited is the program's activity.prohibited list (spec 4.1). The
+	// compiler rejects a workflow that may call a tool it names (E0402);
+	// the engine enforces it again at submission and before every tool
+	// effect (core.ProhibitedActivity).
 	Prohibited []string
 }
 

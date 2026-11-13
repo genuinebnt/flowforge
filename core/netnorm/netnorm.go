@@ -147,6 +147,34 @@ func IP(s string) (netip.Addr, error) {
 	return a.Unmap(), nil
 }
 
+// ClientIPText returns the canonical text of a client address for keys
+// that identify a client, such as the rl:auth:ip throttle keys (spec 13.1,
+// 14.3), so that every textual form of one address names one key:
+// surrounding white space and one pair of brackets are removed, the
+// address is parsed, IPv4-mapped IPv6 is mapped to IPv4 (::ffff:1.2.3.4
+// is 1.2.3.4) and IPv6 is printed in RFC 5952 form (lowercase, longest
+// zero run compressed: 2001:DB8:0:0::1 is 2001:db8::1). A zone is kept,
+// since fe80::1%eth0 and fe80::1%eth1 are different hosts. Text that does
+// not parse is returned unchanged (the gateway passes "unknown" for a
+// client without an address), so distinct inputs still give distinct
+// keys.
+//
+// PORT: netip.Addr.String is RFC 5952 for IPv6 (Rust's Ipv6Addr Display
+// matches) and appends "%zone"; Unmap is Ipv6Addr::to_ipv4_mapped, not
+// to_ipv4. Unlike IP, leading zeros, short forms and zones are not
+// errors here: an unparsable input passes through as given.
+func ClientIPText(s string) string {
+	t := strings.TrimSpace(s)
+	if len(t) >= 2 && t[0] == '[' && t[len(t)-1] == ']' {
+		t = t[1 : len(t)-1]
+	}
+	a, err := netip.ParseAddr(t)
+	if err != nil {
+		return s
+	}
+	return a.Unmap().String()
+}
+
 // CIDR parses a prefix in a/n form, zeroes host bits and maps IPv4-mapped
 // IPv6 prefixes (::ffff:a.b.c.d/n, n >= 96) to the IPv4 prefix /(n-96).
 // A mapped prefix shorter than /96 covers non-mapped addresses too and is
