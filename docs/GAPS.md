@@ -209,7 +209,7 @@ assumptions it was written against.
 | G-ALG-06 | chunkstore: fixed-size, Rabin CDC and whole-blob candidates with dedupe, speed and shift-resistance comparisons | **closed on feat_v2** (fastcdc/rabin/fixed/whole via Config.Chunking.Algo; manifest v2 records the chunker; BenchmarkChunkAlgo, CHUNK-INV-24/25) |
 | G-ALG-07 | v2 packages (diff, textindex, htmlparse, jsparse, sketch): pluggable candidates, benchmarks and ALGORITHMS.md entries | **closed on feat_v2** (diff, textindex, sketch, htmlparse, jsparse and bus adapters measured; BenchmarkHTMLAlgo, BenchmarkJSAlgo, BenchmarkBusAlgo) |
 | G-CMT-01 | Comment pass on every v1 package: correct, useful, spec-referencing comments, `PORT:` notes, no restating, no stale text | v1 (then merged forward) |
-| G-CMT-02 | Comment pass on every v2 package | v2 |
+| G-CMT-02 | Comment pass on every v2 package | **closed on feat_v2** (first pass over all v2 packages, then line by line: htmlparse, jsparse, textindex, content, contentstore, services/content, the lab and v2 files in shared packages; 12 bugs found and fixed with TestRegress_ tests) |
 
 ### Found during the v1 fixes
 
@@ -256,7 +256,7 @@ assumptions it was written against.
 Counted from the tables above (one table row may name several ids):
 
 * **closed on `feat_v1`:** 37 rows (merged forward into `feat_v2`).
-* **closed on `feat_v2`:** 25 rows.
-* **open, v1:** 1 (G-CMT-01). **open, v2:** 1 (G-CMT-02). **open, spec errata:** 0.
+* **closed on `feat_v2`:** 26 rows.
+* **open, v1:** 1 (G-CMT-01). **open, v2:** 0. **open, spec errata:** 0.
 * **v3:** 37 rows. **v4:** 3 rows.
 * **accepted or operator steps:** 11 rows (to confirm before v4).
