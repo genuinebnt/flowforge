@@ -690,7 +690,15 @@ func (p *parser) parseImportExpr() NodeID {
 
 // parseSubscripts parses member accesses, calls, tagged templates and
 // optional chains after expr. noCalls stops at arguments (new callee).
+//
+// The loop is iterative, but every subscript nests the tree one level
+// deeper (a.b.c is Member(Member(a, b), c)), so each one counts against
+// MaxDepth like a binary operator does: the JSON writer and the printer
+// recurse over the tree, and an unbounded chain ("x" + ".a" × 4 million,
+// 8 MB) used to overflow the goroutine stack there (a fatal error, not a
+// recoverable panic).
 func (p *parser) parseSubscripts(expr NodeID, start int32, noCalls bool) NodeID {
+	defer func(depth int) { p.depth = depth }(p.depth)
 	chain := false
 	for !p.halted {
 		switch p.tok.Kind {
@@ -757,6 +765,9 @@ func (p *parser) parseSubscripts(expr NodeID, start int32, noCalls bool) NodeID 
 			expr = p.call(start, expr, args, false)
 		default:
 			goto out
+		}
+		if !p.enter() {
+			break
 		}
 	}
 out:

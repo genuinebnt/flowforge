@@ -39,8 +39,13 @@ func dumpIndent(b *strings.Builder, depth int) {
 	}
 }
 
-// dumpNode is iterative over siblings and recursive over depth; the
-// depth is bounded by Options.MaxDepth plus one.
+// dumpNode is iterative over siblings and recursive over depth. The
+// recursion depth is the tree depth: about MaxDepth for parser output,
+// plus one level per template whose contents are nested, and unbounded
+// for trees built with the mutation helpers.
+//
+// PORT: Go stacks grow on demand; a Rust port should make this iterative
+// (as serializer.children is) rather than rely on a fixed thread stack.
 func dumpNode(b *strings.Builder, doc *Document, id NodeID, depth int) {
 	n := &doc.Nodes[id]
 	dumpIndent(b, depth)
@@ -88,6 +93,8 @@ func dumpNode(b *strings.Builder, doc *Document, id NodeID, depth int) {
 				order[i] = i
 			}
 			// html5lib sorts attributes by displayed name (byte order).
+			// Display names are unique per element, so stability does not
+			// matter; any sort gives the same output.
 			sort.SliceStable(order, func(x, y int) bool { return names[order[x]] < names[order[y]] })
 			for _, i := range order {
 				dumpIndent(b, depth+1)
@@ -112,6 +119,8 @@ func dumpNode(b *strings.Builder, doc *Document, id NodeID, depth int) {
 	}
 }
 
+// dumpAttrName is the html5lib display name: "xlink href", "xml lang",
+// "xmlns xlink", or the bare local name.
 func dumpAttrName(a Attr) string {
 	switch a.Namespace {
 	case XLinkNamespace:

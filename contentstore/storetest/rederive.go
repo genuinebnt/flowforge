@@ -70,9 +70,26 @@ func withPipeline(t *testing.T, s *contentstore.Store, p contentstore.Pipeline) 
 	return n
 }
 
+// aboutPage is a page whose first version loads a script and whose
+// second does not: UpgradedPipeline changes the first's normalized text
+// (html@2 upper-cases script start tags) and leaves the second's derived
+// records as they were, so the diff between them must be recomputed when
+// its new side is re-derived although that side's records do not change.
+func aboutPage(v string, at time.Time) content.Capture {
+	body := "<!doctype html><html><head><title>About</title></head><body><h1>About us</h1>\n" +
+		"<p>We sell things.</p>\n<script src=\"/static/js/about.js\"></script>\n</body></html>\n"
+	if v == "v2" {
+		body = "<!doctype html><html><head><title>About</title></head><body><h1>About us</h1>\n" +
+			"<p>We sell many things.</p>\n</body></html>\n"
+	}
+	return content.Capture{URL: "https://shop.example/about", Profile: content.DefaultProfile(), Status: 200,
+		Headers: []content.Header{{Name: "Content-Type", Value: "text/html; charset=utf-8"}}, Body: []byte(body),
+		FetchedAt: at, Outcome: content.OutcomeComplete}
+}
+
 // spaCaptures are the SPA fixture's captures in deploy order (as
 // contentstore's own tests ingest them): pages, bundles, a renamed vite
-// chunk (lineage) and an unrelated one.
+// chunk (lineage) and an unrelated one, then two versions of aboutPage.
 func spaCaptures(t *testing.T) []contentstore.IngestRequest {
 	day := func(d int) time.Time { return t0.AddDate(0, 0, d) }
 	js := func(name string, d int) contentstore.IngestRequest {
@@ -88,6 +105,7 @@ func spaCaptures(t *testing.T) []contentstore.IngestRequest {
 		pg("v1", 0), js("main.3f9a1c2b.js", 0), js("index-a1b2c3d4.js", 0),
 		pg("v2", 7), js("main.77e0d41a.js", 7),
 		pg("v3", 14), js("main.5b6c7d8e.js", 14), js("app-e5f6a7b8.js", 14), js("other-0f0f0f0f.js", 14),
+		{Program: programP, Capture: aboutPage("v1", day(15))}, {Program: programP, Capture: aboutPage("v2", day(16))},
 	}
 }
 

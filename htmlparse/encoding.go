@@ -11,7 +11,9 @@ import (
 
 // Input decoding: HTML §13.2.3 "The input byte stream" — BOM sniffing,
 // the transport-layer charset, the prescan of the first 1024 bytes for a
-// <meta> charset declaration (§13.2.3.2), the XML-declaration fallback,
+// <meta> charset declaration and the encoding sniffing algorithm
+// (§13.2.3.2 "Determining the character encoding"), the XML-declaration
+// fallback ("get an XML encoding"),
 // confidence, and decoding to UTF-8 through golang.org/x/text (WHATWG
 // Encoding labels; the Rust port uses encoding_rs, which has the same
 // label table and canonical names).
@@ -30,7 +32,10 @@ const (
 	EncodingXUserDefined Encoding = "x-user-defined"
 )
 
-// Confidence is the encoding confidence (§13.2.3.1).
+// Confidence is the encoding confidence (§13.2.3): certain when the BOM or
+// the transport layer chose the encoding, tentative after sniffing (a
+// <meta> may then change it, see ParseRaw); irrelevant is the spec's value
+// for input that is not a byte stream (Sniff never returns it).
 type Confidence uint8
 
 // Confidence values.
@@ -56,7 +61,7 @@ func (c Confidence) String() string {
 const PrescanLimit = 1024
 
 // canonicalNames maps x/text's lower-case canonical names to the WHATWG
-// canonical names.
+// canonical names (lookup only; never iterated).
 var canonicalNames = map[string]Encoding{
 	"utf-8": "UTF-8", "ibm866": "IBM866", "iso-8859-2": "ISO-8859-2", "iso-8859-3": "ISO-8859-3",
 	"iso-8859-4": "ISO-8859-4", "iso-8859-5": "ISO-8859-5", "iso-8859-6": "ISO-8859-6",
@@ -92,6 +97,8 @@ func LookupEncoding(label string) (Encoding, bool) {
 	return e, ok
 }
 
+// trimASCIISpace strips leading and trailing ASCII whitespace (CR
+// included).
 func trimASCIISpace(s string) string {
 	for len(s) > 0 && isHTMLSpaceB(s[0]) {
 		s = s[1:]
@@ -102,8 +109,9 @@ func trimASCIISpace(s string) string {
 	return s
 }
 
-// SniffBOM is "BOM sniff": it returns the encoding a byte order mark
-// selects and the BOM's length, or ("", 0).
+// SniffBOM is "BOM sniff" (Encoding §6): it returns the encoding a byte
+// order mark selects and the BOM's length, or ("", 0). UTF-8's three-byte
+// BOM is tested first.
 func SniffBOM(raw []byte) (Encoding, int) {
 	switch {
 	case len(raw) >= 3 && raw[0] == 0xEF && raw[1] == 0xBB && raw[2] == 0xBF:
@@ -119,7 +127,8 @@ func SniffBOM(raw []byte) (Encoding, int) {
 // transportEncoding resolves the transport-layer charset. It accepts a
 // bare label ("utf-8") or a Content-Type value ("text/html;
 // charset=utf-8"), whose charset parameter is extracted with the meta
-// algorithm.
+// algorithm (an approximation of MIME parameter parsing that agrees on
+// ordinary values).
 func transportEncoding(charset string) (Encoding, bool) {
 	if e, ok := LookupEncoding(charset); ok {
 		return e, true
@@ -160,7 +169,9 @@ func Decode(raw []byte, transportCharset string) ([]byte, Encoding, Confidence) 
 
 // DecodeAs is the Encoding standard's "decode": a BOM overrides enc and
 // is removed; the rest is decoded to UTF-8 with errors replaced by
-// U+FFFD. Unknown encodings decode as UTF-8.
+// U+FFFD. Unknown encodings decode as UTF-8. UTF-16 decodes with
+// IgnoreBOM: a BOM was already stripped above, and a further U+FEFF is
+// content.
 func DecodeAs(raw []byte, enc Encoding) []byte {
 	if e, n := SniffBOM(raw); e != "" {
 		enc, raw = e, raw[n:]
@@ -180,6 +191,7 @@ func DecodeAs(raw []byte, enc Encoding) []byte {
 	return decodeWith(e, raw)
 }
 
+// decodeWith decodes raw with an x/text decoder.
 func decodeWith(e encoding.Encoding, raw []byte) []byte {
 	out, err := e.NewDecoder().Bytes(raw)
 	if err != nil {
@@ -196,7 +208,10 @@ func decodeWith(e encoding.Encoding, raw []byte) []byte {
 //
 // PORT: encoding_rs's UTF-8 decoder applies the same maximal-subpart
 // rule; the other encodings come from x/text here and encoding_rs there,
-// both built from the WHATWG index tables.
+// both built from the WHATWG index tables. utf8.Valid rejects encoded
+// surrogates (ED A0..BF), so they take the slow path and become three
+// U+FFFD, as in encoding_rs; utf8.DecodeRune's (RuneError, 1) marks
+// every ill-formed sequence and maximalSubpart supplies its width.
 func decodeUTF8(raw []byte) []byte {
 	if utf8.Valid(raw) {
 		return raw
@@ -235,8 +250,10 @@ func Prescan(raw []byte) (Encoding, bool) {
 	return xmlEncoding(b)
 }
 
-// prescan returns done=false when it ran out of bytes (the caller then
-// tries the XML declaration).
+// prescan is the loop of "prescan a byte stream". It returns done=false
+// when it ran out of bytes without finding an encoding (the caller then
+// tries the XML declaration); in practice done is true only together
+// with ok, because every other exit is running out of bytes.
 func prescan(b []byte) (Encoding, bool, bool) {
 	if len(b) >= 6 {
 		if bytes.HasPrefix(b, []byte{0x3C, 0x00, 0x3F, 0x00, 0x78, 0x00}) {
@@ -247,10 +264,13 @@ func prescan(b []byte) (Encoding, bool, bool) {
 		}
 	}
 	pos := 0
+	// Each case leaves pos on the last byte it consumed; the pos++ at the
+	// bottom is the spec's "next byte".
 	for pos < len(b) {
 		switch {
 		case bytes.HasPrefix(b[pos:], []byte("<!--")):
-			// Advance to the '>' of the first "-->" after the '<'.
+			// Advance to the '>' of the first "-->" after the '<' (the
+			// dashes of "<!--" count, so "<!-->" ends at once).
 			i := bytes.Index(b[pos+2:], []byte("-->"))
 			if i < 0 {
 				return "", false, false
@@ -267,9 +287,11 @@ func prescan(b []byte) (Encoding, bool, bool) {
 				return e, true, true
 			}
 			pos = next
-		case len(b)-pos >= 3 && b[pos] == '<' && (isASCIIAlnumB(b[pos+1]) && isASCIIAlpha(rune(b[pos+1])) ||
+		case len(b)-pos >= 3 && b[pos] == '<' && (isASCIIAlpha(rune(b[pos+1])) ||
 			(b[pos+1] == '/' && isASCIIAlpha(rune(b[pos+2])))):
 			// A start or end tag: skip its name, then its attributes.
+			// (With fewer than 3 bytes left nothing could be found
+			// anyway: the attribute scan would run out.)
 			for pos < len(b) && !isHTMLSpaceB(b[pos]) && b[pos] != '>' {
 				pos++
 			}
@@ -298,6 +320,11 @@ func prescan(b []byte) (Encoding, bool, bool) {
 // prescanMeta runs the <meta> branch of the prescan with pos at the
 // space or slash after "<meta". It returns the encoding (ok), the
 // position to continue from, and done=false if it ran out of bytes.
+// Repeated attribute names are ignored after the first; a content
+// attribute's charset counts only if http-equiv="content-type" is also
+// present (need pragma), a charset attribute always (and wins over an
+// earlier content), and a charset that names no encoding is a failure
+// for this meta.
 func prescanMeta(b []byte, pos int) (Encoding, bool, int, bool) {
 	var attrList []string
 	gotPragma := false
@@ -437,7 +464,10 @@ value:
 }
 
 // extractCharsetFromContent is the "algorithm for extracting a character
-// encoding from a meta element" applied to s.
+// encoding from a meta element" applied to s: find "charset"
+// (case-insensitive), skip whitespace, require '=', then take a quoted
+// value (which must be closed) or an unquoted one up to whitespace or
+// ';'. A "charset" not followed by '=' restarts the search after it.
 func extractCharsetFromContent(s string) (Encoding, bool) {
 	pos := 0
 	for {
@@ -494,7 +524,8 @@ func indexFold(s, needle string) int {
 	return -1
 }
 
-// xmlEncoding is "get an XML encoding".
+// xmlEncoding is "get an XML encoding": the input must start with "<?xml",
+// and the encoding pseudo-attribute is looked for before the first '>'.
 func xmlEncoding(b []byte) (Encoding, bool) {
 	if !bytes.HasPrefix(b, []byte("<?xml")) {
 		return "", false

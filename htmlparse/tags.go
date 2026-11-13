@@ -318,6 +318,9 @@ var tagNames = [numTags]string{
 }
 
 // lookupTag interns name. switch on string(b) does not allocate.
+//
+// PORT: match on the &[u8] (or a perfect hash); lookupTag and
+// lookupTagString must stay identical.
 func lookupTag(b []byte) tagID {
 	switch string(b) {
 	case "a":

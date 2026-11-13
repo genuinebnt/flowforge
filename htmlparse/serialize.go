@@ -38,7 +38,8 @@ func RenderWith(doc *Document, id NodeID, opts RenderOptions) []byte {
 }
 
 // RenderNode serializes node id itself (outerHTML for elements, the
-// serialization of a single child otherwise).
+// serialization of a single child otherwise; a Text node is escaped or
+// raw according to its parent).
 func RenderNode(doc *Document, id NodeID, opts RenderOptions) []byte {
 	if doc.Node(id) == nil {
 		return nil
@@ -49,6 +50,8 @@ func RenderNode(doc *Document, id NodeID, opts RenderOptions) []byte {
 	return s.out
 }
 
+// serializer accumulates output; the traversal is iterative (children)
+// so arbitrarily deep trees serialize without recursion.
 type serializer struct {
 	doc  *Document
 	opts RenderOptions
@@ -91,6 +94,7 @@ func (s *serializer) children(id NodeID) {
 	}
 }
 
+// node serializes one node and, for an element, its subtree.
 func (s *serializer) node(id, parent NodeID) {
 	n := &s.doc.Nodes[id]
 	if n.Kind != ElementNode {
@@ -111,6 +115,9 @@ func (s *serializer) node(id, parent NodeID) {
 	s.out = append(s.out, '>')
 }
 
+// startTag writes "<name" and the attributes with their serialized names
+// (xml:, xmlns, xmlns:, xlink: prefixes from the namespace) and escaped
+// values, in stored order, then ">".
 func (s *serializer) startTag(n *Node) {
 	s.out = append(s.out, '<')
 	s.out = append(s.out, n.Name...)
@@ -134,6 +141,9 @@ func (s *serializer) startTag(n *Node) {
 	s.out = append(s.out, '>')
 }
 
+// leaf writes a non-element node. Comments and processing instructions
+// are written verbatim (the standard does not escape them, so "-->" in
+// comment data does not round-trip), and a DOCTYPE keeps only its name.
 func (s *serializer) leaf(id, parent NodeID) {
 	n := &s.doc.Nodes[id]
 	switch n.Kind {
@@ -161,7 +171,8 @@ func (s *serializer) leaf(id, parent NodeID) {
 }
 
 // rawTextParent reports whether text children of parent are written
-// literally.
+// literally: HTML style, script, xmp, iframe, noembed, noframes and
+// plaintext, and noscript when scripting is enabled.
 func (s *serializer) rawTextParent(parent NodeID) bool {
 	p := s.doc.Node(parent)
 	if p == nil || p.Kind != ElementNode || p.Namespace != HTMLNamespace {
@@ -176,8 +187,9 @@ func (s *serializer) rawTextParent(parent NodeID) bool {
 	return false
 }
 
-// serializesAsVoid: the void elements plus basefont, bgsound, frame,
-// keygen and param.
+// serializesAsVoid: the HTML void elements plus basefont, bgsound, frame,
+// keygen and param. Such elements get no end tag and their children (only
+// the mutation helpers can add any) are not written.
 func serializesAsVoid(n *Node) bool {
 	if n.Namespace != HTMLNamespace {
 		return false
@@ -190,8 +202,10 @@ func serializesAsVoid(n *Node) bool {
 	return false
 }
 
-// escapeString is "escaping a string": & U+00A0 < > always, and " in
-// attribute mode.
+// escapeString is "escaping a string" (§13.3): & U+00A0 < > always
+// (the 2025 standard also escapes < and > in attribute values), and " in
+// attribute mode. It scans bytes: U+00A0 is the UTF-8 pair C2 A0, and no
+// other escaped character can be part of a multi-byte sequence.
 func escapeString(dst []byte, s string, attr bool) []byte {
 	last := 0
 	for i := 0; i < len(s); i++ {

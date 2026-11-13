@@ -214,6 +214,10 @@ func (l *Lexer) dispatch(goal Goal) lexState {
 		}
 		return statePunctuator
 	case '-':
+		// B.1.1: `-->` is a comment only at the start of a line (after a
+		// LineTerminator, or a MultiLineComment containing one, with only
+		// white space and comments in between: l.newline covers both) or
+		// at the start of the input (InputElementHashbangOrRegExp).
 		if !l.module && (l.newline || !l.sawToken) && l.peekByte(1) == '-' && l.peekByte(2) == '>' {
 			return stateHTMLCloseComment
 		}
@@ -261,6 +265,8 @@ func (l *Lexer) dispatch(goal Goal) lexState {
 	return stateInvalid
 }
 
+// punctStart marks the ASCII bytes that can begin a Punctuator (the
+// cases of scanPunctuator).
 var punctStart = func() (t [128]bool) {
 	for _, c := range "{}()[];,<>=!+-*/%&|^~?:." {
 		t[c] = true
@@ -299,7 +305,9 @@ func (l *Lexer) skipToLineEnd() {
 
 // scanIdentifierName recognises IdentifierName starting at start
 // (12.7). Escapes are decoded into Value and flagged; the code point an
-// escape denotes must itself be ID_Start / ID_Continue.
+// escape denotes must itself be ID_Start / ID_Continue (12.7.1.1). Kw is
+// looked up on the decoded value, so the parser must test FlagEscaped
+// wherever a keyword has to be written literally (isKw, isKwTok).
 func (l *Lexer) scanIdentifierName(start int) Token {
 	i := start
 	src := l.src
@@ -385,6 +393,8 @@ func (l *Lexer) scanUnicodeEscapeBody() (rune, bool) {
 		digits := 0
 		for l.pos < len(src) && isHexDigit(src[l.pos]) {
 			v = v*16 + rune(hexVal(src[l.pos]))
+			// Saturate just above the range so a long digit run cannot
+			// overflow int32 and wrap back into it (\u{100000000041}).
 			if v > 0x10FFFF {
 				v = 0x110000
 			}

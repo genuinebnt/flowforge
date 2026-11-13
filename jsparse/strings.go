@@ -6,7 +6,7 @@ type escapeResult uint8
 const (
 	escOK           escapeResult = iota
 	escContinuation              // LineContinuation: contributes nothing
-	escLegacy                    // LegacyOctalEscapeSequence or NonOctalDecimalEscapeSequence (B.1.2)
+	escLegacy                    // LegacyOctalEscapeSequence or NonOctalDecimalEscapeSequence (12.9.4; a strict-mode error, 12.9.4.1)
 	escInvalid                   // malformed \x / \u (or NotEscapeSequence in a template)
 )
 
@@ -67,8 +67,13 @@ func (l *Lexer) scanEscape(buf []byte, tmpl bool) ([]byte, escapeResult) {
 			}
 			return buf, escInvalid
 		}
-		// Combine an escaped surrogate pair into one code point.
-		if r >= 0xD800 && r <= 0xDBFF && l.pos+6 <= len(src) && src[l.pos] == '\\' && src[l.pos+1] == 'u' && src[l.pos+2] != '{' {
+		// Combine an escaped surrogate pair into one code point. The SV of
+		// a string is a sequence of UTF-16 code units, so "\uD83D\uDE00",
+		// "\uD83D\u{DE00}" and "\u{D83D}\u{DE00}" are the same string and
+		// must get the same Value (one four-byte UTF-8 sequence), or the
+		// canonical JSON of equal programs would differ. Only a lone
+		// surrogate stays a three-byte WTF-8 sequence.
+		if r >= 0xD800 && r <= 0xDBFF && l.pos+6 <= len(src) && src[l.pos] == '\\' && src[l.pos+1] == 'u' {
 			save2 := l.pos
 			l.pos += 2
 			if lo, ok := l.scanUnicodeEscapeBody(); ok && lo >= 0xDC00 && lo <= 0xDFFF {
@@ -88,7 +93,9 @@ func (l *Lexer) scanEscape(buf []byte, tmpl bool) ([]byte, escapeResult) {
 			l.pos++
 			return buf, escInvalid
 		}
-		// LegacyOctalEscapeSequence: up to three digits for 0-3, two for 4-7.
+		// LegacyOctalEscapeSequence: up to three digits for 0-3, two for
+		// 4-7 (so the value stays below 256). "\08" lands here too: 0
+		// followed by a decimal digit is legacy, not the NUL escape.
 		v := int(c - '0')
 		l.pos++
 		max := 2
@@ -107,7 +114,9 @@ func (l *Lexer) scanEscape(buf []byte, tmpl bool) ([]byte, escapeResult) {
 		}
 		return append(buf, c), escLegacy
 	}
-	// Line separators as continuations, otherwise a NonEscapeCharacter.
+	// LS and PS form a LineContinuation; anything else is a
+	// NonEscapeCharacter standing for itself (bytes copied as they are, so
+	// invalid UTF-8 survives unchanged).
 	r, n := decodeRune(src, l.pos)
 	l.pos += n
 	if r == cpLS || r == cpPS {
@@ -117,7 +126,9 @@ func (l *Lexer) scanEscape(buf []byte, tmpl bool) ([]byte, escapeResult) {
 }
 
 // scanStringLiteral recognises StringLiteral at start (12.9.4). LS and PS
-// may appear unescaped (ES2019); CR and LF may not.
+// may appear unescaped (ES2019); CR and LF may not. Escape problems are
+// recorded on the token (the first one wins) and scanning goes on to the
+// closing quote, so only an unterminated string loses its end.
 func (l *Lexer) scanStringLiteral(start int) Token {
 	src := l.src
 	quote := src[start]

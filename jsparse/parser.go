@@ -22,7 +22,16 @@ type Options struct {
 	Algorithms Algorithms
 }
 
-// DefaultMaxDepth is the nesting limit used when Options.MaxDepth is 0.
+// DefaultMaxDepth is the nesting limit used when Options.MaxDepth is 0
+// (spec Part II 26.4, a pinned constant of the port). Each statement,
+// expression level, binary operator of a chain and member/call subscript
+// counts one. Real code, generated and minified bundles included, nests
+// far less deeply, so the limit only stops adversarial input, while it bounds the
+// recursion of the parser, the JSON writer and the printer: measured with
+// Go on amd64, the deepest constructs at this depth (parenthesized object
+// literals) need about 16 MiB of goroutine stack, nested parentheses
+// about 8 MiB. A Rust port should run the parser on a thread with a
+// comparable stack, not the default 2 MiB of a spawned thread.
 const DefaultMaxDepth = 4000
 
 // Parse parses src (UTF-8) as an ECMAScript 2024 Script or Module.
@@ -107,6 +116,7 @@ func newParser(src string, opts Options) *parser {
 	p.lastAwaitIdent = -1
 	// Minified code averages about 3.3 bytes per node; formatted code has
 	// more. Sizing for dense input avoids most regrowth of the arena.
+	// Strings[0] is "" so that StrID 0 means "no string".
 	est := len(src)/4 + 16
 	p.nodes = make([]Node, 0, est)
 	p.children = make([]NodeID, 0, est/4)
@@ -116,6 +126,9 @@ func newParser(src string, opts Options) *parser {
 	return p
 }
 
+// program assembles the result. With Options.Tokens the syntactic tokens
+// and the trivia, recorded separately, are merged by start offset (no two
+// share a start, so the stable sort only makes the order explicit).
 func (p *parser) program() *Program {
 	prog := &Program{
 		Nodes:       p.nodes,
@@ -175,7 +188,9 @@ func (p *parser) peek() *Token {
 }
 
 // peek2 returns the token after the peeked one without consuming
-// anything (used only for `async x =>`).
+// anything (used only for `async x =>`, which needs two tokens of
+// lookahead after async). The lexer state is saved and restored, so the
+// token is lexed again when reached.
 func (p *parser) peek2() Token {
 	p.peek()
 	if p.halted {
@@ -189,7 +204,9 @@ func (p *parser) peek2() Token {
 
 // regoal re-lexes the current token under goal. It is only called on a
 // token that begins with `/` (RegExp goals) or `}` (TemplateTail goals),
-// the only code points where the goals differ.
+// the only code points where the goals differ. The one-token lookahead is
+// dropped: it was lexed after the old token's end, which may now lie
+// inside the new one.
 func (p *parser) regoal(goal Goal) {
 	if p.halted {
 		return
@@ -200,6 +217,10 @@ func (p *parser) regoal(goal Goal) {
 	p.checkLexError()
 }
 
+// regoalRegExp re-lexes a `/` or `/=` at the start of a PrimaryExpression.
+// Inside a template substitution the spec's goal there is
+// InputElementRegExpOrTemplateTail; it lexes `/` exactly as
+// InputElementRegExp does, so the choice only labels Token.Goal.
 func (p *parser) regoalRegExp() {
 	g := GoalRegExp
 	if p.tmplDepth > 0 {
@@ -208,14 +229,16 @@ func (p *parser) regoalRegExp() {
 	p.regoal(g)
 }
 
-func (p *parser) regoalTemplateTail() {
-	g := GoalTemplateTail
-	p.regoal(g)
-}
+// regoalTemplateTail re-lexes the `}` that closes a template substitution
+// as TemplateMiddle or TemplateTail (InputElementTemplateTail: a regular
+// expression cannot follow an expression).
+func (p *parser) regoalTemplateTail() { p.regoal(GoalTemplateTail) }
 
 // checkLexError reports a lexical error attached to the current token.
-// Error tokens (TInvalid) halt the parser; other tokens with an error
-// (a malformed escape, a misplaced separator) are still usable.
+// Error tokens (TInvalid) and unterminated literals halt the parser;
+// other tokens with an error (a malformed escape, a misplaced separator)
+// are still usable, so tolerant mode records the error and goes on. While
+// resync skips tokens their errors are recorded without halting again.
 func (p *parser) checkLexError() {
 	t := &p.tok
 	if t.Err == CodeNone {
@@ -286,6 +309,9 @@ func (p *parser) unexpected() {
 	}
 }
 
+// tokText is the current token's source text for messages, cut at 32
+// bytes (possibly inside a multi-byte character; messages are not part
+// of the contract).
 func (p *parser) tokText() string {
 	t := &p.tok
 	if t.End-t.Start > 32 {
@@ -394,7 +420,8 @@ func (p *parser) listOf(ids ...NodeID) NodeList {
 
 func (p *parser) ids(l NodeList) []NodeID { return p.children[l.Start : l.Start+l.Len] }
 
-// str interns s into the string table.
+// str appends s to the string table and returns its id ("" is always id
+// 0). Strings are not deduplicated: the table holds one entry per use.
 func (p *parser) str(s string) StrID {
 	if s == "" {
 		return 0
@@ -415,7 +442,9 @@ func (p *parser) ident(name string, span Span) NodeID {
 	return id
 }
 
-// enter / leave bound the nesting depth.
+// enter / leave bound the nesting depth (MaxDepth). enter always
+// increments, so every enter, successful or not, needs its leave; on
+// failure it reports too-deep and halts.
 func (p *parser) enter() bool {
 	p.depth++
 	if p.depth > p.maxDepth {
@@ -429,6 +458,8 @@ func (p *parser) leave() { p.depth-- }
 
 // ---- program ----
 
+// parseProgram parses Script or Module (16.1, 16.2) into node 0. A module
+// is strict and has [+Await] at the top level (top-level await).
 func (p *parser) parseProgram() {
 	root := p.newNode(KProgram, 0)
 	p.pushFn(fnCtx{top: true, async: p.module, strict: p.module})

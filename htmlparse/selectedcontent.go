@@ -15,6 +15,8 @@ package htmlparse
 // This is a DOM side effect, not part of the §13.2 parsing algorithm; it
 // runs only when the input contained a selectedcontent element.
 
+// mirrorSelectedContent applies the end state described above to every
+// select in the arena (template contents included).
 func (b *treeBuilder) mirrorSelectedContent() {
 	d := b.doc
 	n := len(d.Nodes) // nodes cloned below are not revisited
@@ -47,12 +49,16 @@ func (b *treeBuilder) mirrorSelectedContent() {
 	}
 }
 
+// isHTML reports an HTML element with local name name.
 func (d *Document) isHTML(id NodeID, name string) bool {
 	n := &d.Nodes[id]
 	return n.Kind == ElementNode && n.Namespace == HTMLNamespace && n.Name == name
 }
 
-// optionsOf is the select element's "list of options".
+// optionsOf is the select element's "list of options" (2025 rules): option
+// descendants in tree order, not looking inside nested select, hr,
+// option or datalist elements, nor inside an optgroup that is itself
+// inside an optgroup of this select.
 func (d *Document) optionsOf(sel NodeID) []NodeID {
 	var out []NodeID
 	node := d.Nodes[sel].FirstChild
@@ -89,6 +95,8 @@ func (d *Document) nextInSubtree(node, root NodeID, skipChildren bool) NodeID {
 	return None
 }
 
+// optionDisabled is the option's "disabled" state: its own disabled
+// attribute or that of a parent optgroup.
 func (d *Document) optionDisabled(opt NodeID) bool {
 	if _, ok := d.Attr(opt, "disabled"); ok {
 		return true
@@ -100,6 +108,10 @@ func (d *Document) optionDisabled(opt NodeID) bool {
 	return false
 }
 
+// selectedOption is the option whose children are mirrored: the last
+// option with a selected attribute, else (display size 1) the first
+// enabled option, else None. A size above 1 means a list box with no
+// default selection.
 func (d *Document) selectedOption(sel NodeID) NodeID {
 	opts := d.optionsOf(sel)
 	last := None
@@ -125,7 +137,10 @@ func (d *Document) selectedOption(sel NodeID) NodeID {
 }
 
 // parseNonNegativeInt is the HTML "rules for parsing non-negative
-// integers" (leading whitespace, optional '+', digits).
+// integers" (leading whitespace, optional '+', digits). A leading '-' is
+// rejected (the spec would accept "-0"; it only matters for size="-0",
+// which means display size 1 either way). The value saturates near 2^30
+// so long digit runs cannot overflow.
 func parseNonNegativeInt(s string) (int, bool) {
 	i := 0
 	for i < len(s) && isHTMLSpaceB(s[i]) {
@@ -177,7 +192,10 @@ func (d *Document) selectedContentsOf(sel NodeID) []NodeID {
 }
 
 // cloneForSelectedContent deep-clones n, dropping the element types
-// "clone an option into a selectedcontent" removes.
+// "clone an option into a selectedcontent" removes. It recurses over the
+// option's subtree depth.
+//
+// PORT: recursive like dumpNode; make it iterative in Rust.
 func (d *Document) cloneForSelectedContent(n NodeID) NodeID {
 	src := d.Nodes[n]
 	if src.Kind == ElementNode {

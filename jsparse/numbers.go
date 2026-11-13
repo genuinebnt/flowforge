@@ -14,7 +14,7 @@ const (
 	numStart           numState = iota // first character
 	numLeadingZero                     // after an initial 0
 	numDecimalInteger                  // DecimalIntegerLiteral digits
-	numLegacyOctalLike                 // LegacyOctalIntegerLiteral / NonOctalDecimalIntegerLiteral (B.1.1)
+	numLegacyOctalLike                 // LegacyOctalIntegerLiteral / NonOctalDecimalIntegerLiteral (12.9.3; strict-mode errors, 12.9.3.1)
 	numFraction                        // after the decimal point
 	numExponent                        // after e / E: optional sign
 	numExponentDigits                  // DecimalDigits of ExponentPart
@@ -24,7 +24,10 @@ const (
 )
 
 // scanNumericLiteral recognises NumericLiteral at start. The value is
-// stored in Num (BigInt literals keep their digits in Value instead).
+// stored in Num (BigInt literals keep their text, without separators and
+// the n suffix, in Value instead). Errors are recorded on the token (the
+// first one wins) and scanning continues, so the token always covers the
+// whole malformed literal.
 func (l *Lexer) scanNumericLiteral(start int) Token {
 	src := l.src
 	t := Token{Kind: TNumeric, Start: int32(start)}
@@ -73,6 +76,7 @@ func (l *Lexer) scanNumericLiteral(start int) Token {
 			case isDecimalDigit(c):
 				st = numLegacyOctalLike
 			case c == '_':
+				// "0_1": a separator may not follow a leading 0.
 				setErr(CodeNumericSeparator, l.pos)
 				l.pos++
 				st = numDecimalInteger
@@ -91,6 +95,10 @@ func (l *Lexer) scanNumericLiteral(start int) Token {
 			}
 
 		case numLegacyOctalLike:
+			// 0 followed by digits: legacy octal if all are 0-7, else a
+			// NonOctalDecimalIntegerLiteral (08, 09.5), which, unlike
+			// legacy octal, may take a fraction and an exponent.
+			// Separators are not allowed in either.
 			allOctal := true
 			for l.pos < len(src) && (isDecimalDigit(src[l.pos]) || src[l.pos] == '_') {
 				if src[l.pos] == '_' {
@@ -210,7 +218,8 @@ func (l *Lexer) scanNumericLiteral(start int) Token {
 	}
 	digits := src[digitStart:l.pos]
 	if t.Kind == TBigInt {
-		digits = digits[:len(digits)-1]
+		// BigIntLiteral :: NonDecimalIntegerLiteral n | DecimalIntegerLiteral n,
+		// so no fraction, exponent or leading 0 (other than "0n" itself).
 		if isFloat || legacy || nonOctal {
 			setErr(CodeInvalidNumber, int(t.End)-1)
 		}
@@ -295,7 +304,14 @@ func parseDecimal(s string) float64 {
 	return v
 }
 
-// parseIntBase converts digits in base 2, 8 or 16 to the nearest double.
+// parseIntBase converts digits in base 2, 8 or 16 to the nearest double
+// (round half to even). Up to 64 bits accumulate exactly in a uint64,
+// whose conversion to float64 Go rounds to nearest even; longer inputs go
+// through big.Int / big.Float, which round the same way.
+//
+// PORT: Rust's `u64 as f64` also rounds to nearest even; for longer
+// digit strings use a bignum (or u128 plus manual rounding), not a
+// wrapping or saturating accumulator.
 func parseIntBase(s string, base int) float64 {
 	var u uint64
 	bits := uint(4)

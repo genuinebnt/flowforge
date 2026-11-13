@@ -11,6 +11,11 @@ package jsparse
 // A Lexer keeps its source as a string copy of the input bytes; token
 // values are substrings of it (or freshly built strings when escapes had
 // to be decoded).
+//
+// PORT: the copy makes the source immutable, so Go substrings can share
+// it without copying and stay valid however the caller reuses its byte
+// slice. In Rust, borrow &str / &[u8] slices from an owned source with the
+// Program's lifetime, and allocate only for decoded values.
 type Lexer struct {
 	src    string
 	pos    int
@@ -60,8 +65,8 @@ func (l *Lexer) Comments() []Comment { return l.comments }
 // Pos returns the offset of the next unread byte.
 func (l *Lexer) Pos() int { return l.pos }
 
-// lexerState is the resumable part of the lexer: enough to re-lex from an
-// earlier token under a different goal.
+// lexerState is the resumable part of the lexer, used by peek2 to look
+// two tokens ahead and come back.
 type lexerState struct {
 	pos       int
 	newline   bool
@@ -70,10 +75,13 @@ type lexerState struct {
 	nComments int
 }
 
+// save captures the lexer state.
 func (l *Lexer) save() lexerState {
 	return lexerState{pos: l.pos, newline: l.newline, sawToken: l.sawToken, nTrivia: len(l.trivia), nComments: len(l.comments)}
 }
 
+// restore returns to a saved state, dropping trivia and comments
+// recorded since.
 func (l *Lexer) restore(s lexerState) {
 	l.pos = s.pos
 	l.newline = s.newline
@@ -84,7 +92,9 @@ func (l *Lexer) restore(s lexerState) {
 
 // rewindTo moves the lexer back to the start of tok so that the token can
 // be lexed again under another goal. Trivia before tok are kept; the
-// newline flag is restored from the token.
+// newline flag is restored from the token. sawToken is not restored: it
+// only gates a `-->` HTML close comment at the start of the input, and
+// the re-lexed tokens start with `/` or `}`.
 func (l *Lexer) rewindTo(tok *Token) {
 	l.pos = int(tok.Start)
 	l.newline = tok.Flags&FlagNewlineBefore != 0
@@ -96,6 +106,8 @@ func (l *Lexer) rewindTo(tok *Token) {
 	}
 }
 
+// addTrivia records the trivia element [start, l.pos): comments always
+// (Program.Comments), every trivia token only when recording is on.
 func (l *Lexer) addTrivia(kind TokenKind, start int) {
 	if kind >= TLineComment {
 		l.comments = append(l.comments, Comment{Kind: kind, Span: Span{int32(start), int32(l.pos)}})
@@ -114,10 +126,14 @@ func (l *Lexer) peekByte(off int) byte {
 }
 
 // decodeRune decodes the code point at i. Invalid UTF-8 yields
-// (U+FFFD, 1), so malformed input advances one byte at a time.
+// (U+FFFD, 1), so malformed input advances one byte at a time (not one
+// maximal subpart at a time as htmlparse's decoder does); the bytes
+// themselves are kept in token values.
+//
 // PORT: a Rust &str is valid UTF-8 by construction; the port either
 // validates first (and rejects or replaces) or lexes &[u8] with this
-// same decoder to keep byte offsets identical.
+// same decoder to keep byte offsets identical. Note that the decoder
+// accepts three-byte surrogate encodings, which Rust's from_utf8 rejects.
 func decodeRune(s string, i int) (rune, int) {
 	c := s[i]
 	if c < 0x80 {
@@ -126,9 +142,9 @@ func decodeRune(s string, i int) (rune, int) {
 	return decodeRuneSlow(s, i)
 }
 
+// decodeRuneSlow decodes a non-ASCII code point: RFC 3629, except that
+// three-byte surrogate encodings are accepted (see below).
 func decodeRuneSlow(s string, i int) (rune, int) {
-	// RFC 3629 decoding, except that three-byte surrogate encodings are
-	// accepted (see below).
 	c := s[i]
 	n := len(s) - i
 	switch {
@@ -139,8 +155,10 @@ func decodeRuneSlow(s string, i int) (rune, int) {
 		if r < 0x800 {
 			return 0xFFFD, 1
 		}
-		// Surrogate code points (WTF-8, produced by our own escapes) decode
-		// as themselves; they never satisfy identifier or space predicates.
+		// Surrogate code points (WTF-8: lone surrogates in cooked values
+		// are stored this way, and input bytes may contain them) decode
+		// as themselves, so appendJSONString and quoteJS can turn them into
+		// \u escapes; they never satisfy identifier or space predicates.
 		return r, 3
 	case c&0xF8 == 0xF0 && n >= 4 && isCont(s[i+1]) && isCont(s[i+2]) && isCont(s[i+3]):
 		r := rune(c&0x07)<<18 | rune(s[i+1]&0x3F)<<12 | rune(s[i+2]&0x3F)<<6 | rune(s[i+3]&0x3F)
@@ -156,8 +174,11 @@ func isCont(b byte) bool { return b&0xC0 == 0x80 }
 
 // appendWTF8 appends r in UTF-8, encoding lone surrogates (which string
 // escapes can produce) as three-byte WTF-8 sequences so that no code unit
-// is lost. PORT: Rust String cannot hold these; store cooked values as
-// Vec<u16> or WTF-8 bytes and convert at the JSON boundary.
+// is lost. A surrogate pair must already be combined into one code point
+// (scanEscape does), so equal strings have equal bytes.
+//
+// PORT: Rust String cannot hold these; store cooked values as Vec<u16> or
+// WTF-8 bytes and convert at the JSON boundary.
 func appendWTF8(b []byte, r rune) []byte {
 	switch {
 	case r < 0x80:

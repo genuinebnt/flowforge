@@ -275,11 +275,14 @@ func TestHTMLInv02_ParsingIsTotal(t *testing.T) {
 }
 
 // roundTripSafe reports whether doc is in the class of trees that
-// serialize-then-reparse must reproduce (HTML-INV-03): no element whose
-// content model the serializer cannot express (raw text, plaintext,
-// tables and their foster parenting, forms, select, template, foreign
-// content, implied-end-tag and formatting-scope elements), no comment
-// containing "--", and no depth-limit truncation.
+// serialize-then-reparse must reproduce (HTML-INV-03): only the listed
+// HTML elements (none whose content model the serializer cannot express:
+// raw text, plaintext, tables and their foster parenting, forms, select,
+// template, foreign content, implied-end-tag and formatting-scope
+// elements), no comment the reparse would read differently ("--", a
+// trailing "-", a leading ">" or "->"), no processing instruction, no
+// DOCTYPE identifiers, no CR in data or attribute values, and no limit
+// error.
 func roundTripSafe(d *Document, errs []ParseError) bool {
 	for _, e := range errs {
 		if e.Code == ErrNestingDepthLimit || e.Code == ErrAttributeLimit || e.Code == ErrInputSizeLimit {
@@ -360,8 +363,9 @@ func TestHTMLInv03_SerializeReparseFixpoint(t *testing.T) {
 }
 
 // TestHTMLInv04_LinearTimeAndAllocation: parsing 4n bytes costs at most
-// 20%% more per byte than n bytes, in allocations (count and bytes) and,
-// outside -race and -short, in time (with a looser bound for timer noise).
+// 20% more per byte than n bytes in allocations (count and bytes) and,
+// outside -race and -short, at most 50% more per byte in time (the
+// looser bound absorbs timer and scheduler noise).
 func TestHTMLInv04_LinearTimeAndAllocation(t *testing.T) {
 	r := core.NewSplitMix64(7)
 	// Inputs are built by repeating a unit so composition is identical at

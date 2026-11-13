@@ -35,8 +35,10 @@ raw bytes ──Decode──▶ UTF-8 ──Tokenizer──▶ tokens ──tree
   (reported once per character, before the tokenizer error for it).
 * **Tokenizer** (`tokenizer.go`, `tokenizer_states_text.go`,
   `tokenizer_states_tag.go`, `tokenizer_states_markup.go`, `charref.go`):
-  an explicit `state` enum with one constant per spec state (84: the 79
-  classic states of §13.2.5 plus the five processing-instruction states),
+  an explicit `state` enum with one constant per spec state (84: 79 of the
+  80 classic states of §13.2.5 — the decimal character reference start
+  state is folded into the numeric character reference state, with
+  identical behaviour — plus the five processing-instruction states),
   `stateFooBar` = spec "foo bar state", handler `fooBarState`; `stateNames`
   holds the spec names. `step` dispatches on the state; handlers that stay
   in their state loop, and the text states have byte fast paths

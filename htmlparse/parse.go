@@ -23,6 +23,7 @@ type Options struct {
 	CharRefLookup CharRefStrategy
 }
 
+// tokenizeOptions is the tokenizer's share of o.
 func (o Options) tokenizeOptions() TokenizeOptions {
 	return TokenizeOptions{MaxAttributes: o.MaxAttributes, MaxInputSize: o.MaxInputSize, CharRefLookup: o.CharRefLookup}
 }
@@ -36,6 +37,8 @@ func Parse(input []byte, opts Options) (*Document, []ParseError) {
 	return doc, errs
 }
 
+// parseDocument is Parse, also returning the tree builder (ParseRaw reads
+// its meta charset; tests read its deepest stack).
 func parseDocument(input []byte, opts Options) (*Document, []ParseError, *treeBuilder) {
 	doc := &Document{Nodes: make([]Node, 0, nodeCapacityHint(input))}
 	doc.Root = doc.NewNode(DocumentNode)
@@ -45,9 +48,11 @@ func parseDocument(input []byte, opts Options) (*Document, []ParseError, *treeBu
 	return doc, collectErrors(tz, b), b
 }
 
-// collectErrors merges tokenizer and tree-construction errors by offset
-// (stable, so errors at the same offset keep their emission order) and
-// fills in line and column.
+// collectErrors merges the tokenizer's and the tree builder's error lists,
+// each in offset order, into one list by offset, and fills in line and
+// column. On equal offsets tokenizer errors come first, which is their
+// emission order: the tokenizer reports a character's errors before the
+// tree builder sees the token containing it.
 func collectErrors(tz *Tokenizer, b *treeBuilder) []ParseError {
 	errs := make([]ParseError, 0, len(tz.errs)+len(b.errs))
 	i, j := 0, 0
@@ -64,9 +69,12 @@ func collectErrors(tz *Tokenizer, b *treeBuilder) []ParseError {
 	return errs
 }
 
-// noteMetaCharset records the encoding a <meta> in head declares (the
-// "in head" meta rule's "change the encoding"); ParseRaw acts on it when
-// the confidence was tentative.
+// noteMetaCharset records the encoding a <meta> declares (the "in head"
+// meta rule's "change the encoding", which also runs for a meta in body);
+// ParseRaw acts on it when the confidence was tentative. Only the first
+// declaration counts: in a browser the first change makes the confidence
+// certain. A charset attribute that names no encoding falls through to
+// the http-equiv/content pair, as the spec's "Otherwise" does.
 func (b *treeBuilder) noteMetaCharset(tok *Token) {
 	if b.metaCharset != "" {
 		return
@@ -99,7 +107,10 @@ func (b *treeBuilder) noteMetaCharset(tok *Token) {
 // re-decodes with that encoding (confidence certain) and parses again —
 // the "change the encoding while parsing" algorithm (§13.2.3.4) done as
 // a second pass. It returns the encoding finally used. Error offsets
-// refer to the decoded UTF-8 text, not to raw.
+// refer to the decoded UTF-8 text, not to raw. The guards are the
+// algorithm's steps: a UTF-16 document ignores the meta, UTF-16 becomes
+// UTF-8 and x-user-defined windows-1252, and the same encoding changes
+// nothing.
 func ParseRaw(raw []byte, transportCharset string, opts Options) (*Document, Encoding, []ParseError) {
 	text, enc, conf := Decode(raw, transportCharset)
 	doc, errs, b := parseDocument(text, opts)

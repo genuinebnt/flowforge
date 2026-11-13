@@ -7,8 +7,11 @@ import (
 
 // scanRegularExpression recognises RegularExpressionLiteral at start
 // (12.9.5): `/` RegularExpressionBody `/` RegularExpressionFlags. Value is
-// the body, Raw the flags. Flag and pattern validity are early errors
-// checked by the parser through validateRegExp.
+// the body, Raw the flags. Only the lexical grammar is applied here: a `/`
+// inside a class ([...]) or after a backslash does not end the body, and
+// a line terminator anywhere (even escaped) is an unterminated literal.
+// Flag and pattern validity are early errors (13.2.7.1) checked by the
+// parser through validateRegExpFlags and validateRegExpPattern.
 func (l *Lexer) scanRegularExpression(start int) Token {
 	src := l.src
 	l.pos = start + 1
@@ -68,8 +71,10 @@ type regexpFlags struct {
 	unicode, unicodeSets bool
 }
 
-// validateRegExpFlags checks RegularExpressionFlags (22.2.1.1 early
-// errors): only d g i m s u v y, none twice, not both u and v.
+// validateRegExpFlags checks RegularExpressionFlags as
+// IsValidRegularExpressionLiteral does (13.2.7.2): only d g i m s u v y,
+// none twice, not both u and v. On failure it returns the index of the
+// offending flag.
 func validateRegExpFlags(flags string) (regexpFlags, int, bool) {
 	var seen [128]bool
 	var f regexpFlags
@@ -109,7 +114,10 @@ type reValidator struct {
 }
 
 // validateRegExpPattern reports whether body is a valid Pattern for flags;
-// on failure it returns the offset of the offending code point.
+// on failure it returns the offset of the offending code point (0 for the
+// whole-pattern backreference checks). NamedCaptureGroups follows Annex
+// B.1.2: it is on with u or v, and otherwise only if the pattern contains
+// a group name (the prescan decides, as the spec's reparse does).
 func validateRegExpPattern(body string, f regexpFlags) (int, bool) {
 	v := &reValidator{src: body, u: f.unicode || f.unicodeSets, v: f.unicodeSets}
 	v.prescan()
@@ -123,8 +131,10 @@ func validateRegExpPattern(body string, f regexpFlags) (int, bool) {
 	if v.err {
 		return v.errAt, false
 	}
-	// Backreferences: \N with N > groups is an error in UnicodeMode (or
-	// whenever named groups exist; Annex B reinterprets it otherwise).
+	// Backreferences: \N with N > groups is an error in UnicodeMode only.
+	// Without u or v, Annex B reads such a \N as a legacy octal or
+	// identity escape instead, named groups or not. \k<name> must name a
+	// group whenever NamedCaptureGroups is on.
 	if v.u && v.maxBackref > v.groups {
 		return 0, false
 	}
@@ -167,7 +177,10 @@ func (v *reValidator) peekAt(off int) byte {
 }
 
 // prescan counts capturing groups and collects group names so that
-// backreferences and NamedCaptureGroups are known before the main pass.
+// backreferences and NamedCaptureGroups are known before the main pass
+// (CountLeftCapturingParensWithin counts groups after the reference too).
+// It is a lexical approximation: names are taken verbatim up to '>', and
+// the main pass validates them.
 func (v *reValidator) prescan() {
 	inClass := false
 	for i := 0; i < len(v.src); i++ {
@@ -264,47 +277,53 @@ func (v *reValidator) isQuantifierStart() bool {
 	case '*', '+', '?':
 		return true
 	case '{':
-		_, _, ok := v.braceQuantifier(false)
+		_, ok := v.braceQuantifier(false)
 		return ok
 	}
 	return false
 }
 
 // braceQuantifier parses {n}, {n,} or {n,m} at v.pos; with consume it
-// advances past it.
-func (v *reValidator) braceQuantifier(consume bool) (int, int, bool) {
+// advances past it. outOfOrder reports {n,m} with n > m (an early error,
+// 22.2.1.1). The bounds are compared as decimal digit strings, not as
+// integers: they may have any number of digits ({20000000001,3000000000}
+// is out of order), so any fixed-width saturation would equate bounds
+// that differ.
+func (v *reValidator) braceQuantifier(consume bool) (outOfOrder, ok bool) {
 	i := v.pos + 1
-	readInt := func() (int, bool) {
+	readInt := func() (string, bool) {
 		start := i
-		n := 0
 		for i < len(v.src) && isDecimalDigit(v.src[i]) {
-			if n < 1<<30 {
-				n = n*10 + int(v.src[i]-'0')
-			}
 			i++
 		}
-		return n, i > start
+		return strings.TrimLeft(v.src[start:i], "0"), i > start
 	}
 	lo, ok := readInt()
 	if !ok {
-		return 0, 0, false
+		return false, false
 	}
-	hi := lo
 	if i < len(v.src) && v.src[i] == ',' {
 		i++
-		if h, ok := readInt(); ok {
-			hi = h
-		} else {
-			hi = -1
+		if hi, ok := readInt(); ok {
+			outOfOrder = decimalLess(hi, lo)
 		}
 	}
 	if i >= len(v.src) || v.src[i] != '}' {
-		return 0, 0, false
+		return false, false
 	}
 	if consume {
 		v.pos = i + 1
 	}
-	return lo, hi, true
+	return outOfOrder, true
+}
+
+// decimalLess compares two digit strings without leading zeros as
+// unbounded non-negative integers.
+func decimalLess(a, b string) bool {
+	if len(a) != len(b) {
+		return len(a) < len(b)
+	}
+	return a < b
 }
 
 // quantifier :: QuantifierPrefix ?? (optional)
@@ -314,15 +333,18 @@ func (v *reValidator) quantifier() {
 		v.pos++
 	case '{':
 		save := v.pos
-		lo, hi, ok := v.braceQuantifier(true)
+		outOfOrder, ok := v.braceQuantifier(true)
 		if !ok {
+			// Annex B: without u or v a '{' that does not start a valid
+			// quantifier is an ExtendedPatternCharacter, parsed by the
+			// next atom.
 			if v.u {
 				v.fail()
 			}
 			v.pos = save
 			return
 		}
-		if hi >= 0 && hi < lo {
+		if outOfOrder {
 			v.pos = save
 			v.fail()
 			return
@@ -386,7 +408,7 @@ func (v *reValidator) atom() {
 		}
 		// Annex B: ExtendedPatternCharacter, unless it is a valid quantifier
 		// with nothing to quantify.
-		if _, _, ok := v.braceQuantifier(false); ok {
+		if _, ok := v.braceQuantifier(false); ok {
 			v.fail()
 			return
 		}
@@ -623,14 +645,28 @@ func (v *reValidator) characterEscape(inClass bool) {
 			v.pos = save
 		}
 	case isDecimalDigit(c):
-		// Only reachable in classes: \1-\9 there are legacy octal / identity.
+		// Only reachable in classes (atomEscape takes \1-\9 as a
+		// DecimalEscape): Annex B reads \1-\7 as a LegacyOctalEscapeSequence
+		// (up to three digits for 1-3, two for 4-7, as in strings) and \8,
+		// \9 as identity escapes. All the digits must be consumed here, or
+		// a range such as [\11-\12] (9 to 10) would be read as
+		// \1, 1-\1, 2 and rejected.
 		if v.u {
 			v.fail()
 			return
 		}
 		v.pos++
+		if c <= '7' {
+			max := 2
+			if c >= '4' {
+				max = 1
+			}
+			for k := 0; k < max && v.peek() >= '0' && v.peek() <= '7'; k++ {
+				v.pos++
+			}
+		}
 	default:
-		r, n := decodeRune(v.src, v.pos)
+		_, n := decodeRune(v.src, v.pos)
 		if v.u {
 			// IdentityEscape[+UnicodeMode] :: SyntaxCharacter | /
 			if strings.IndexByte("^$\\.*+?()[]{}|/", c) < 0 && !(inClass && c == '-') {
@@ -641,7 +677,6 @@ func (v *reValidator) characterEscape(inClass bool) {
 			v.fail()
 			return
 		}
-		_ = r
 		v.pos += n
 	}
 }
@@ -701,8 +736,8 @@ func (v *reValidator) classAtom() rune {
 	return escapeValue(v.src[start:v.pos])
 }
 
-// escapeValue approximates the code point an escape denotes, for range
-// order checks.
+// escapeValue is the code point an escape denotes (s is the escape after
+// the backslash, as characterEscape consumed it), for range order checks.
 func escapeValue(s string) rune {
 	if s == "" {
 		return 0
@@ -941,7 +976,8 @@ func isGeneralCategory(s string) bool {
 }
 
 // isScriptAlias accepts four-letter ISO 15924 codes (Latn, Grek, ...);
-// Go's tables carry long names only, so codes are checked by shape.
+// Go's tables carry long names only, so codes are checked by shape (an
+// unassigned code such as Abcd is accepted too).
 func isScriptAlias(s string) bool {
 	if len(s) != 4 || s[0] < 'A' || s[0] > 'Z' {
 		return false
@@ -983,6 +1019,8 @@ var binaryProperties = setOf("ASCII", "ASCII_Hex_Digit", "AHex", "Alphabetic", "
 var stringProperties = setOf("Basic_Emoji", "Emoji_Keycap_Sequence", "RGI_Emoji_Modifier_Sequence",
 	"RGI_Emoji_Flag_Sequence", "RGI_Emoji_Tag_Sequence", "RGI_Emoji_ZWJ_Sequence", "RGI_Emoji")
 
+// setOf builds a lookup-only set (never iterated, so map order cannot
+// reach an output).
 func setOf(names ...string) map[string]bool {
 	m := make(map[string]bool, len(names))
 	for _, n := range names {

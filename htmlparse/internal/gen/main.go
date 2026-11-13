@@ -30,6 +30,7 @@ import (
 	"unicode/utf8"
 )
 
+// entry is one reference: name and one or two code points.
 type entry struct {
 	name string // without '&', with ';' when the reference has one
 	cps  []rune
@@ -118,6 +119,7 @@ func load(path string) ([]entry, error) {
 	if len(byName) == 0 {
 		return nil, fmt.Errorf("no entities found in %s", path)
 	}
+	// Map order does not reach the output: the names are sorted next.
 	out := make([]entry, 0, len(byName))
 	for k, v := range byName {
 		out = append(out, entry{k, v})
@@ -201,9 +203,10 @@ func jsonString(s string) []byte {
 	return bytes.TrimRight(b.Bytes(), "\n")
 }
 
-// trieNode is a node of the generated prefix trie: its children are
-// edges[first : first+count] (sorted by byte), and entity is the index of
-// the name that ends here, or -1.
+// trieNode is a node of the trie while it is built; renderTrie flattens
+// it into entityTrieNodes/entityTrieEdges, where a node's children become
+// edges[first : first+count] sorted by byte. entity is the index of the
+// name that ends here, or -1.
 type trieNode struct {
 	children map[byte]*trieNode
 	entity   int
@@ -268,6 +271,8 @@ func renderTrie(b *bytes.Buffer, es []entry) {
 	b.WriteString("}\n")
 }
 
+// sortedKeys returns m's keys in byte order, so the numbering does not
+// depend on map iteration.
 func sortedKeys(m map[byte]*trieNode) []byte {
 	keys := make([]byte, 0, len(m))
 	for k := range m {

@@ -45,6 +45,11 @@ func (l *Lexer) scanTemplate(start int, cont bool) Token {
 			var res escapeResult
 			cooked, res = l.scanEscape(cooked, true)
 			if res == escInvalid {
+				// Not a lexical error: a tagged template may contain a
+				// NotEscapeSequence (its cooked value is undefined). ErrAt
+				// keeps the first one for the parser's untagged-template
+				// error; 0 can mean "unset" because an escape never starts
+				// at offset 0 (the backquote or brace comes first).
 				t.Flags |= FlagInvalidEscape
 				if t.ErrAt == 0 {
 					t.ErrAt = int32(escStart)
@@ -75,10 +80,8 @@ func (l *Lexer) scanTemplate(start int, cont bool) Token {
 	}
 	t.End = int32(l.pos)
 	if !terminated {
-		t.Kind = TTemplateTail
-		if !cont {
-			t.Kind = TNoSubstitutionTemplate
-		}
+		// An unterminated part is a tail (head is false); its body runs
+		// to the end of the input.
 		t.Err, t.ErrAt = CodeUnterminatedTemplate, int32(start)
 		bodyEnd = l.pos
 	}

@@ -134,7 +134,17 @@ func (k TokenKind) isAssignOp() bool { return k >= TEq && k <= TQuestionQuestion
 // Goal is the lexical goal symbol (12, "The InputElementDiv goal symbol is
 // used in all syntactic grammar contexts where a RegularExpressionLiteral,
 // a TemplateMiddle, or a TemplateTail is not permitted ..."). The parser
-// selects it; the lexer never guesses.
+// selects it; the lexer never guesses. The goals differ only for input
+// elements that start with `/` (RegularExpressionLiteral under the RegExp
+// goals) or `}` (TemplateMiddle / TemplateTail under the TemplateTail
+// goals). The parser lexes everything under GoalDiv and re-lexes exactly
+// those tokens where the grammar admits the alternative: regoalRegExp at
+// the start of a PrimaryExpression (parsePrimary) and regoalTemplateTail
+// at the `}` that ends a template substitution (parseTemplate, and resync
+// when skipping a damaged template). The spec's fifth goal,
+// InputElementHashbangOrRegExp (the start of a Script or Module), is not
+// a Goal value: the lexer recognises the hashbang by position (offset 0)
+// and the start-of-input HTMLCloseComment by its sawToken flag.
 type Goal uint8
 
 // Lexical goals.
@@ -159,8 +169,11 @@ func (g Goal) String() string {
 	}
 }
 
+// allowsRegExp reports whether `/` starts a RegularExpressionLiteral under g.
 func (g Goal) allowsRegExp() bool { return g == GoalRegExp || g == GoalRegExpOrTemplateTail }
 
+// allowsTemplateTail reports whether `}` starts a TemplateMiddle or
+// TemplateTail under g.
 func (g Goal) allowsTemplateTail() bool {
 	return g == GoalTemplateTail || g == GoalRegExpOrTemplateTail
 }
@@ -200,11 +213,15 @@ type Token struct {
 // Span returns the token's byte range.
 func (t *Token) Span() Span { return Span{t.Start, t.End} }
 
-// Keyword identifies reserved and contextual words (12.7.2).
+// Keyword identifies reserved and contextual words (12.7.2), plus the
+// names with their own early errors (eval, arguments, constructor,
+// __proto__) so that the parser compares a byte rather than a string.
 type Keyword uint8
 
 // Keywords: the ReservedWords of 12.7.2 first, then the words reserved
-// only in strict mode code, then contextual words the parser tests for.
+// only in strict mode code (13.1.1), then contextual words and special
+// names the parser tests for. isReserved and isStrictReserved rely on
+// this order.
 const (
 	KwNone Keyword = iota
 	KwAwait
@@ -269,7 +286,13 @@ const (
 	KwProto // __proto__
 )
 
-// lookupKeyword maps an identifier name to its keyword.
+// lookupKeyword maps an identifier name to its keyword. The length guard
+// covers every word: the shortest have 2 bytes ("do", "if", "in", "as",
+// "of"), the longest 11 ("constructor").
+//
+// PORT: Go compiles the string switch to a length-then-binary search
+// without allocating; in Rust use a match on &str (or the perfect hash of
+// alternatives.go).
 func lookupKeyword(s string) Keyword {
 	if len(s) < 2 || len(s) > 11 {
 		return KwNone

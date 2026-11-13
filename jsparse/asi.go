@@ -7,16 +7,22 @@ package jsparse
 // (parseBreakContinue), return and throw (parseReturn, parseThrow), yield
 // (parseYield), arrow `=>` (parsePrimary, parseParenOrArrow) and `async`
 // (parseAsyncPrimary, parseStatementListItem). The do-while rule of
-// 12.10.1 is in parseDoWhile.
+// 12.10.1 is in parseDoWhile. The two exceptions of 12.10.1 hold by
+// construction: an empty statement needs a real `;` token (parseStatement),
+// and the two semicolons of a for header are consumed with expect, never
+// semicolon (parseForRest).
 
-// canInsertSemicolon reports whether a semicolon may be inserted before
-// the current token: it is `}`, the end of input, or is preceded by a
-// LineTerminator.
+// canInsertSemicolon reports whether the statement may end before the
+// current token: it is `;`, `}` or the end of input, or a LineTerminator
+// precedes it (12.10.1 rules 1 and 2). return uses it to decide whether
+// an argument follows.
 func (p *parser) canInsertSemicolon() bool {
 	return p.at(TSemicolon) || p.at(TRBrace) || p.at(TEOF) || p.newlineBefore()
 }
 
-// semicolon consumes the `;` that ends a statement, or inserts one.
+// semicolon consumes the `;` that ends a statement, or inserts one where
+// 12.10.1 allows it (before `}`, at the end of input, after a line break).
+// After a halt the current token is EOF, so it never adds a second error.
 func (p *parser) semicolon() {
 	if p.eat(TSemicolon) {
 		return
