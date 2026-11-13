@@ -314,6 +314,21 @@ func (m *MemStore) LoadSnapshot(ctx context.Context, run RunID) (Snapshot, bool,
 	return Snapshot{AtSeq: s.AtSeq, ModuleSHA256: bytes.Clone(s.ModuleSHA256), State: bytes.Clone(s.State)}, true, nil
 }
 
+// DeleteSnapshots implements Store.
+func (m *MemStore) DeleteSnapshots(ctx context.Context, run RunID) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, err := m.get(run)
+	if err != nil {
+		return err
+	}
+	r.snapshots = nil
+	return nil
+}
+
 // acquireLocked leases r to owner unconditionally.
 func (m *MemStore) acquireLocked(run RunID, r *memRun, owner WorkerID, ttl time.Duration) Lease {
 	m.gen++

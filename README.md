@@ -70,10 +70,13 @@ architecture rules.
 | Deployment | `infra/` (Terraform for GCP), `deploy/` (Dockerfile, compose), `.github/workflows/` | 17, 18, 25.11 |
 
 Deliberately not implemented: the agent step of spec 16 (see
-[`docs/DECISIONS.md`](docs/DECISIONS.md)). Every package has an
-`OPEN_QUESTIONS.md`. It records each place the spec was ambiguous, the
-behaviour chosen (fail closed for anything touching scope), and what is
-simplified or left undone. The main simplifications:
+[`docs/DECISIONS.md`](docs/DECISIONS.md)). Every library module in
+`modules.toml` except `core` and `core/netnorm` has an `OPEN_QUESTIONS.md`,
+and so does the gateway; the other services, adapters and commands keep
+theirs in their README's limitations. They record each place the spec was
+ambiguous, the behaviour chosen (fail closed for anything touching scope),
+and what is simplified or left undone; `docs/GAPS.md` is the register of
+the open gaps. The main simplifications:
 
 - There is no Pub/Sub adapter. An in-process bus stands in for it.
 - Tools run in-process, without the Cloud Run or gVisor sandbox.

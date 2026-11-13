@@ -177,9 +177,11 @@ type KillSwitchState struct {
 // Scope is the port to the scope service (spec 4, 11.3). Every error is
 // treated as deny (spec 2.4 "no silent success").
 type Scope interface {
-	// CurrentVersion returns the current scope version of a program of
-	// the tenant; ErrNotFound if the program does not exist or has no
-	// scope document.
+	// CurrentVersion returns the scope version of a program of the tenant
+	// that is in effect now: the highest version whose effective_from has
+	// passed (spec 4.1), never a pending future-dated one. Runs are pinned
+	// to it at submission. ErrNotFound if the program does not exist or no
+	// scope document is in effect.
 	CurrentVersion(ctx context.Context, tenant, program core.UUID) (int32, error)
 	// Policy returns the compiled scope document of a version.
 	Policy(ctx context.Context, tenant, program core.UUID, version int32) (*scope.Policy, error)
@@ -339,6 +341,29 @@ type Limiter interface {
 	AcquireAll(reqs []limiter.Request, now time.Duration) (limiter.Result, error)
 }
 
+// WorkLimiter is a Limiter that applies the outage policy of spec 14.4 and
+// 23.8 per kind of work (limiter.Failover over a distributed store): when
+// the store is unavailable, passive work continues on conservative local
+// budgets and active work fails closed. When Deps.Limiter implements it,
+// the engine passes the work kind of each tool call (WorkOf); otherwise it
+// calls AcquireAll and any limiter error waits (fail closed for both).
+type WorkLimiter interface {
+	Limiter
+	AcquireAllWork(reqs []limiter.Request, work limiter.Work, now time.Duration) (limiter.Result, error)
+}
+
+// WorkOf classifies a tool's effect class (spec 7.5) for WorkLimiter:
+// passive and read tools are passive work (they read third-party
+// sources); every other class, including unknown ones, is active, so an
+// outage never lets it run on local budgets.
+func WorkOf(effectClass string) limiter.Work {
+	switch effectClass {
+	case "passive", "read":
+		return limiter.WorkPassive
+	}
+	return limiter.WorkActive
+}
+
 // ---- Publisher ----
 
 // Outbox topics (spec 23.7).
@@ -366,6 +391,16 @@ type Publisher interface {
 }
 
 // ---- Optional ports ----
+
+// Observer receives measurements the engine domain cannot export itself
+// (metrics belong to services, spec 18.1). Calls are synchronous on the
+// worker; implementations must not block.
+type Observer interface {
+	// RunStarted reports a run that just appended run_started, with the
+	// time since its run_submitted event (both event times, so a
+	// replayed or re-claimed run reports the same value).
+	RunStarted(tenant core.UUID, submitToStart time.Duration)
+}
 
 // Embedder computes text embeddings (effect embed, spec 22.9).
 type Embedder interface {

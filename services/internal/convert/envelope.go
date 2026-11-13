@@ -44,6 +44,9 @@ type OutboxJSON struct {
 	ProgramID  string          `json:"program_id,omitempty"`
 	OccurredAt string          `json:"occurred_at"`
 	Payload    json.RawMessage `json:"payload"`
+	// Generic is the payload key identity.outbox rows use (the gateway
+	// writes the envelope's oneof name); it is read when Payload is absent.
+	Generic json.RawMessage `json:"generic,omitempty"`
 }
 
 // EnvelopeFromOutbox builds the proto envelope of an outbox row on topic.
@@ -53,6 +56,9 @@ func EnvelopeFromOutbox(topic string, raw []byte, traceparent string) (*pb.Event
 	var o OutboxJSON
 	if err := json.Unmarshal(raw, &o); err != nil {
 		return nil, err
+	}
+	if len(o.Payload) == 0 {
+		o.Payload = o.Generic
 	}
 	at, _ := core.ParseTime(o.OccurredAt)
 	env := &pb.EventEnvelope{EventId: o.EventID, Type: o.Type, SchemaVersion: int32(max(o.Schema, 1)),

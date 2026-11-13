@@ -113,9 +113,15 @@ go test ./oam/ -run XXX -bench OAM01 -benchtime 3x  # b_oam_01 (10k and 100k obs
 
 * The in-memory `Graph` keeps every applied observation id and change event
   forever; it is a reference model, not a store.
-* An edge or tag that names an existing entity id fails (`ErrUnknownEntity`)
-  if that entity has not been ingested yet, so such observations are
-  order-dependent; local refs are not.
+* An observation whose edge or tag names an entity or edge id (`ent_`/`edg_`)
+  that is not in the graph yet is buffered (`Result.Pending`, `Missing`) and
+  applied by the `Apply` that creates the last missing id
+  (`Result.Released`), so it converges in any order like local refs
+  (G-CORE-03). The buffer is bounded per tenant (`Config.MaxPending`,
+  default 10,000, `ErrPendingLimit`), expires by observed_at
+  (`ExpirePending`), and an observation that is invalid once its references
+  exist (a label rule) is dropped, as it would have been rejected in the
+  other order. `MaxPending < 0` restores the old `ErrUnknownEntity`.
 * Nested objects and arrays in content are merged as whole values.
 * Throughput (~50-70k observations/s, see the benchmark) is dominated by
   JSON round-trips used to split typed assets into content maps.

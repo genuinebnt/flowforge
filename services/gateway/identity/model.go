@@ -144,6 +144,14 @@ type IdemRecord struct {
 	ExpiresAt   time.Time
 }
 
+// RoleGroup is a tenant role group (identity.role_groups and
+// role_group_members, migration 0015): a free-form approval role its
+// members hold in addition to their membership role (spec 9.7).
+type RoleGroup struct {
+	Name    string
+	Members []core.UUID
+}
+
 // Store is the identity repository port. Implementations: MemStore (this
 // package) and pgstore.Store (identity schema in Postgres). Every method
 // returns ErrNotFound or ErrConflict (wrapped) for missing rows and
@@ -175,6 +183,20 @@ type Store interface {
 	ListMembers(ctx context.Context, tenant, after core.UUID, limit int) ([]Member, error)
 	SetMemberRole(ctx context.Context, tenant, user core.UUID, role auth.Role) error
 	CountOwners(ctx context.Context, tenant core.UUID) (int, error)
+
+	// AddRoleGroupMember adds user (a member of tenant, else ErrNotFound)
+	// to role group name, creating the group; adding an existing member is
+	// a no-op (G-LIM-05).
+	AddRoleGroupMember(ctx context.Context, tenant core.UUID, name string, user core.UUID, at time.Time) error
+	// RemoveRoleGroupMember removes user from name, deleting the group with
+	// its last member; it reports whether a row was removed.
+	RemoveRoleGroupMember(ctx context.Context, tenant core.UUID, name string, user core.UUID) (bool, error)
+	// ListRoleGroups lists the tenant's groups by name with members sorted
+	// by user id.
+	ListRoleGroups(ctx context.Context, tenant core.UUID) ([]RoleGroup, error)
+	// UserRoleGroups lists the names of the groups user belongs to in
+	// tenant, sorted.
+	UserRoleGroups(ctx context.Context, tenant, user core.UUID) ([]string, error)
 
 	CreateInvite(ctx context.Context, inv Invite) error
 	GetInviteByHash(ctx context.Context, hash [32]byte) (Invite, error)

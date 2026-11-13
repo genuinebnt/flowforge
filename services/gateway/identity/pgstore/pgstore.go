@@ -266,6 +266,71 @@ func (s *Store) SetMemberRole(ctx context.Context, tenant, user core.UUID, role 
 	return s.exec1(ctx, "membership", `UPDATE identity.memberships SET role = $3 WHERE tenant_id = $1 AND user_id = $2`, tenant, user, string(role))
 }
 
+// AddRoleGroupMember implements identity.Store. The group row is created
+// in the same statement as the member row, so the FK of migration 0015
+// never sees a member without its group.
+func (s *Store) AddRoleGroupMember(ctx context.Context, tenant core.UUID, name string, user core.UUID, at time.Time) error {
+	if _, err := s.GetMembership(ctx, tenant, user); err != nil {
+		return err
+	}
+	_, err := s.q.Exec(ctx, `WITH g AS (INSERT INTO identity.role_groups (tenant_id, name, created_at) VALUES ($1, $2, $4) ON CONFLICT DO NOTHING)
+INSERT INTO identity.role_group_members (tenant_id, name, user_id, created_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, tenant, name, user, at)
+	return mapErr(err)
+}
+
+// RemoveRoleGroupMember implements identity.Store. The group is deleted in
+// the same statement when user was its last member. A concurrent add of
+// another user to the same group then fails its FK check (the delete
+// holds the group row) instead of leaving a member without a group.
+func (s *Store) RemoveRoleGroupMember(ctx context.Context, tenant core.UUID, name string, user core.UUID) (bool, error) {
+	var n int
+	err := s.q.QueryRow(ctx, `WITH d AS (DELETE FROM identity.role_group_members WHERE tenant_id = $1 AND name = $2 AND user_id = $3 RETURNING 1),
+g AS (DELETE FROM identity.role_groups r WHERE r.tenant_id = $1 AND r.name = $2 AND EXISTS (SELECT 1 FROM d)
+      AND NOT EXISTS (SELECT 1 FROM identity.role_group_members m WHERE m.tenant_id = $1 AND m.name = $2 AND m.user_id <> $3))
+SELECT count(*) FROM d`, tenant, name, user).Scan(&n)
+	return n > 0, mapErr(err)
+}
+
+// ListRoleGroups implements identity.Store.
+func (s *Store) ListRoleGroups(ctx context.Context, tenant core.UUID) ([]identity.RoleGroup, error) {
+	rows, err := s.q.Query(ctx, `SELECT name, user_id FROM identity.role_group_members WHERE tenant_id = $1 ORDER BY name, user_id::text`, tenant)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	var out []identity.RoleGroup
+	for rows.Next() {
+		var name string
+		var u core.UUID
+		if err := rows.Scan(&name, &u); err != nil {
+			return nil, mapErr(err)
+		}
+		if len(out) == 0 || out[len(out)-1].Name != name {
+			out = append(out, identity.RoleGroup{Name: name})
+		}
+		out[len(out)-1].Members = append(out[len(out)-1].Members, u)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// UserRoleGroups implements identity.Store.
+func (s *Store) UserRoleGroups(ctx context.Context, tenant, user core.UUID) ([]string, error) {
+	rows, err := s.q.Query(ctx, `SELECT name FROM identity.role_group_members WHERE tenant_id = $1 AND user_id = $2 ORDER BY name`, tenant, user)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, n)
+	}
+	return out, mapErr(rows.Err())
+}
+
 // CountOwners implements identity.Store. Inside a transaction the owner
 // rows are locked so two concurrent demotions cannot both pass.
 func (s *Store) CountOwners(ctx context.Context, tenant core.UUID) (int, error) {

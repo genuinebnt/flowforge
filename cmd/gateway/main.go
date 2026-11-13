@@ -14,7 +14,13 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	// FF_LOG_LEVEL as for the internal services (default info); debug
+	// includes the dev e-mail sender's messages (verification links).
+	level := slog.LevelInfo
+	if v := os.Getenv("FF_LOG_LEVEL"); v != "" {
+		_ = level.UnmarshalText([]byte(v))
+	}
+	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	cfg, err := gatewayd.LoadConfig(os.Getenv)
 	if err != nil {
 		log.Error("gateway: configuration", "err", err)

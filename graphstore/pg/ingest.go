@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"time"
@@ -57,20 +58,60 @@ const insertObservation = `INSERT INTO graph.observations
 	VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	ON CONFLICT (id) DO NOTHING`
 
+// Pending references (G-CORE-03). An observation that names ent_/edg_ ids
+// its tenant and program do not have yet is stored in
+// graph.pending_observations (its graph.observations dedup row is removed
+// again) instead of failing. A writer that creates entities or edges marks
+// the pending rows naming them ready, in its own transaction while it
+// holds the record locks; after its commit it re-ingests the ready rows of
+// the program, each in one transaction that deletes the row, so a crash
+// re-processes it later rather than losing it. Locks: the pending row
+// before the record locks in every writer (a re-sent observation deletes
+// its own row first), and the ready marking skips rows locked by someone
+// already re-ingesting them, so the two orders never deadlock. Ready rows
+// left by a crash are picked up by the next release in that program.
+const (
+	deletePendingResent = `DELETE FROM graph.pending_observations WHERE tenant_id = $1::uuid AND observation_id = $2::uuid`
+	deletePendingReady  = `DELETE FROM graph.pending_observations WHERE tenant_id = $1::uuid AND observation_id = $2::uuid AND ready`
+	markPendingReady    = `UPDATE graph.pending_observations SET ready = true
+	WHERE (tenant_id, observation_id) IN (SELECT tenant_id, observation_id FROM graph.pending_observations
+	  WHERE tenant_id = $1::uuid AND program_id = $2::uuid AND NOT ready AND missing && $3::text[]
+	  FOR UPDATE SKIP LOCKED)`
+)
+
 // IngestObservation implements graphstore.Store.
 func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequest) (graphstore.IngestResult, error) {
-	pi, err := graphstore.PrepareIngest(req)
+	out, ready, err := s.ingest(ctx, req, false)
 	if err != nil {
 		return graphstore.IngestResult{}, err
 	}
+	if ready {
+		s.releasePending(ctx, req, &out)
+	}
+	if len(out.Changes) > 0 {
+		s.notify.Broadcast()
+	}
+	return out, nil
+}
+
+// ingest applies or buffers one observation. fromPending re-ingests a ready
+// pending row (and is a no-op when another writer took it). ready reports
+// that the transaction marked pending rows of the program ready.
+func (s *Store) ingest(ctx context.Context, req graphstore.IngestRequest, fromPending bool) (graphstore.IngestResult, bool, error) {
+	pi, err := graphstore.PrepareIngest(req)
+	if err != nil {
+		return graphstore.IngestResult{}, false, err
+	}
 	p, err := kernel.Prepare(pi.Observation)
 	if err != nil {
-		return graphstore.IngestResult{}, graphstore.Classify(err)
+		return graphstore.IngestResult{}, false, graphstore.Classify(err)
 	}
 	o := pi.Observation
 	var out graphstore.IngestResult
+	var ready bool
+	obsUUID := graphstore.ObservationUUID(pi.Tenant.Text, o.ObservationID).String()
 	err = s.tx(ctx, pi.Tenant, txWriteDeferTenant, func(tx pgx.Tx) error {
-		out = graphstore.IngestResult{}
+		out, ready = graphstore.IngestResult{}, false
 		entIDs, edgeIDs := p.EntityIDs(), p.EdgeIDs()
 		// An authoritative capture may withdraw members of its source's
 		// units: read the heads first (no lock yet) so those records are
@@ -91,18 +132,35 @@ func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequ
 		if !pi.Run.IsZero() {
 			runUUID = pi.Run.UUID.String()
 		}
+		delPending := deletePendingResent
+		if fromPending {
+			delPending = deletePendingReady
+		}
 		b := &pgx.Batch{}
 		b.Queue(setTenant, pi.Tenant.UUID.String())
+		b.Queue(delPending, pi.Tenant.UUID.String(), obsUUID)
 		b.Queue(lockRecords, recordKeys(entIDs, edgeIDs))
-		b.Queue(insertObservation, graphstore.ObservationUUID(pi.Tenant.Text, o.ObservationID).String(),
+		b.Queue(insertObservation, obsUUID,
 			pi.Tenant.UUID.String(), pi.Program.UUID.String(), runUUID, pi.EffectPath, o.Tool.Name, pi.ToolVersion,
 			o.ObservedAt, float32(o.Confidence), rawRef, len(o.Entities), len(o.Edges), s.cfg.Now())
 		br := tx.SendBatch(ctx, b)
-		for _, step := range []string{"set tenant", "lock records"} {
-			if _, err := br.Exec(); err != nil {
-				_ = br.Close()
-				return graphstore.Internal(step, err)
-			}
+		if _, err := br.Exec(); err != nil {
+			_ = br.Close()
+			return graphstore.Internal("set tenant", err)
+		}
+		del, err := br.Exec()
+		if err != nil {
+			_ = br.Close()
+			return graphstore.Internal("delete pending", err)
+		}
+		if fromPending && del.RowsAffected() == 0 {
+			_ = br.Close()
+			out = graphstore.IngestResult{Duplicate: true, RefToEntityID: map[string]string{}}
+			return nil // another writer re-ingested it
+		}
+		if _, err := br.Exec(); err != nil {
+			_ = br.Close()
+			return graphstore.Internal("lock records", err)
 		}
 		tag, err := br.Exec()
 		if cerr := br.Close(); err == nil {
@@ -119,6 +177,10 @@ func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequ
 		if err != nil {
 			return err
 		}
+		if missing := kernel.Missing(st, p); len(missing) > 0 {
+			out, err = s.buffer(ctx, tx, pi, obsUUID, missing)
+			return err
+		}
 		res, err := kernel.Apply(st, p, s.cfg.Scope)
 		if errors.Is(err, kernel.ErrMissingRecords) {
 			return errRetry
@@ -130,6 +192,22 @@ func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequ
 		if err != nil {
 			return err
 		}
+		var created []string
+		for _, ev := range res.Events {
+			switch ev.Type {
+			case oam.ChangeEntityAdded:
+				created = append(created, ev.EntityID)
+			case oam.ChangeEdgeAdded:
+				created = append(created, ev.EdgeID)
+			}
+		}
+		if len(created) > 0 {
+			tag, err := tx.Exec(ctx, markPendingReady, pi.Tenant.UUID.String(), pi.Program.UUID.String(), created)
+			if err != nil {
+				return graphstore.Internal("mark pending ready", err)
+			}
+			ready = tag.RowsAffected() > 0
+		}
 		out = graphstore.IngestResult{
 			EntitiesCreated: res.EntitiesCreated, EntitiesUpdated: res.EntitiesUpdated,
 			EdgesCreated: res.EdgesCreated, EdgesUpdated: res.EdgesUpdated,
@@ -138,12 +216,112 @@ func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequ
 		return nil
 	})
 	if err != nil {
-		return graphstore.IngestResult{}, err
+		return graphstore.IngestResult{}, false, err
 	}
-	if len(out.Changes) > 0 {
-		s.notify.Broadcast()
+	return out, ready, nil
+}
+
+// buffer stores an observation with missing references, within the ingest
+// transaction (which holds the record locks of the missing ids, so a writer
+// creating one of them either committed before loadState saw it absent or
+// will see this row when it marks pending rows ready).
+func (s *Store) buffer(ctx context.Context, tx pgx.Tx, pi graphstore.PreparedIngest, obsUUID string, missing []string) (graphstore.IngestResult, error) {
+	if s.cfg.MaxPending < 0 {
+		return graphstore.IngestResult{}, graphstore.Classify(&oam.ValidationError{Path: "edges",
+			Err: fmt.Errorf("%w: %s", oam.ErrUnknownEntity, missing[0])})
 	}
-	return out, nil
+	t := pi.Tenant.UUID.String()
+	expired, err := tx.Exec(ctx, `DELETE FROM graph.pending_observations WHERE tenant_id = $1::uuid AND observed_at < $2`,
+		t, s.cfg.Now().Add(-s.cfg.PendingTTL))
+	if err != nil {
+		return graphstore.IngestResult{}, graphstore.Internal("expire pending", err)
+	}
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM graph.pending_observations WHERE tenant_id = $1::uuid`, t).Scan(&n); err != nil {
+		return graphstore.IngestResult{}, graphstore.Internal("count pending", err)
+	}
+	if n >= s.cfg.MaxPending {
+		return graphstore.IngestResult{}, graphstore.Classify(fmt.Errorf("%w: %d buffered", oam.ErrPendingLimit, n))
+	}
+	env, err := oam.EncodeObservation(pi.Observation)
+	if err != nil {
+		return graphstore.IngestResult{}, graphstore.Classify(err)
+	}
+	b := &pgx.Batch{}
+	// The dedup row goes again: the observation is not applied yet, and a
+	// re-send must reach the pending path (it deletes and re-buffers).
+	b.Queue(`DELETE FROM graph.observations WHERE id = $1::uuid`, obsUUID)
+	b.Queue(`INSERT INTO graph.pending_observations
+	(tenant_id, program_id, observation_id, effect_path, observation, missing, observed_at)
+	VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7)`, t, pi.Program.UUID.String(), obsUUID, pi.EffectPath,
+		env, missing, pi.Observation.ObservedAt)
+	if err := tx.SendBatch(ctx, b).Close(); err != nil {
+		return graphstore.IngestResult{}, graphstore.Internal("buffer pending", err)
+	}
+	return graphstore.IngestResult{Pending: true, Missing: missing, RefToEntityID: map[string]string{},
+		Expired: int(expired.RowsAffected())}, nil
+}
+
+// releasePending re-ingests the ready pending rows of req's program and
+// adds the applied ones to out (Released, Changes). An observation that
+// fails validation now is dropped (it would have been rejected in the
+// other order); any other error leaves the rows ready for the next
+// release. Best effort: the caller's own ingest has committed.
+func (s *Store) releasePending(ctx context.Context, req graphstore.IngestRequest, out *graphstore.IngestResult) {
+	pi, err := graphstore.PrepareIngest(req)
+	if err != nil {
+		return
+	}
+	for range 1000 { // a cascade releases more rows; bounded against a loop
+		type row struct {
+			id, effectPath string
+			env            []byte
+		}
+		var rows []row
+		err := s.tx(ctx, pi.Tenant, txRead, func(tx pgx.Tx) error {
+			rs, err := tx.Query(ctx, `SELECT observation_id::text, effect_path, observation FROM graph.pending_observations
+	WHERE tenant_id = $1::uuid AND program_id = $2::uuid AND ready ORDER BY observation_id LIMIT 100`,
+				pi.Tenant.UUID.String(), pi.Program.UUID.String())
+			if err != nil {
+				return err
+			}
+			rows, err = pgx.CollectRows(rs, func(r pgx.CollectableRow) (row, error) {
+				var x row
+				return x, r.Scan(&x.id, &x.effectPath, &x.env)
+			})
+			return err
+		})
+		if err != nil || len(rows) == 0 {
+			return
+		}
+		for _, r := range rows {
+			o, err := oam.DecodeObservation(r.env, oam.Strict)
+			if err != nil {
+				s.dropPending(ctx, pi.Tenant, r.id)
+				continue
+			}
+			res, _, err := s.ingest(ctx, graphstore.IngestRequest{TenantID: pi.Tenant.Text, ProgramID: pi.Program.Text,
+				EffectPath: r.effectPath, Observation: o}, true)
+			switch {
+			case core.KindOf(err) == core.KindInvalidArgument:
+				s.dropPending(ctx, pi.Tenant, r.id)
+			case err != nil:
+				return
+			case !res.Duplicate && !res.Pending:
+				out.Released = append(out.Released, o.ObservationID)
+				out.Changes = append(out.Changes, res.Changes...)
+			}
+		}
+	}
+}
+
+// dropPending deletes one pending row (an observation that can never be
+// applied).
+func (s *Store) dropPending(ctx context.Context, tenant graphstore.ID, obsUUID string) {
+	_ = s.tx(ctx, tenant, txWrite, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, deletePendingResent, tenant.UUID.String(), obsUUID)
+		return err
+	})
 }
 
 // changesOf converts kernel events with their seqs and the entity

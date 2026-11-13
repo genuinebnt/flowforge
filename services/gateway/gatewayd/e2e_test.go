@@ -80,6 +80,8 @@ func TestGatewayDevStackEndToEnd(t *testing.T) {
 		"FF_GRAPH_ADDR": st.Addrs[devstack.GraphName], "FF_NOTIFIER_ADDR": st.Addrs[devstack.NotifierName],
 		"FF_TOOL_RUNNER_ADDR": st.Addrs[devstack.ToolRunnerName], "FF_SIMILARITY_ADDR": st.Addrs[devstack.SimilarityName],
 	}
+	// auth.events go onto the stack's bus, as in cmd/flowforge dev.
+	gw.UseBus(st.Bus)
 	served := make(chan error, 1)
 	go func() { served <- gw.Serve(ctx, backends) }()
 	defer func() {
@@ -89,14 +91,21 @@ func TestGatewayDevStackEndToEnd(t *testing.T) {
 		}
 	}()
 
-	base := "http://" + addr + "/v1"
-	c := &client{t: t, base: base}
+	c := &client{t: t, base: "http://" + addr + "/v1"}
 	c.waitReady("http://" + addr + "/readyz")
+	gatewayFlow(t, c, logs.String)
+}
+
+// gatewayFlow is the end-to-end flow over the public REST API, shared by
+// the one-process test above and the multi-process topology test
+// (G-OPS-21): logs returns the gateway's log output (the verification
+// e-mail is logged there).
+func gatewayFlow(t *testing.T, c *client, logs func() string) {
 
 	signup := c.do("POST", "/auth/signup", map[string]any{"email": "e2e@example.com", "password": "a long enough passphrase 42", "tenant_name": "E2E"}, 202)
 	tenant := signup["tenant_id"].(string)
 	token := c.waitFor(func() (string, bool) {
-		m := regexp.MustCompile(`token=([A-Za-z0-9_-]+)`).FindStringSubmatch(logs.String())
+		m := regexp.MustCompile(`token=([A-Za-z0-9_-]+)`).FindStringSubmatch(logs())
 		if m == nil {
 			return "", false
 		}
@@ -151,6 +160,33 @@ func TestGatewayDevStackEndToEnd(t *testing.T) {
 	if items, _ := ents["items"].([]any); len(items) == 0 {
 		t.Fatalf("no graph entities after the run: %v", ents)
 	}
+
+	// G-SVC-02: an identity event reaches the notifier through the identity
+	// outbox relay and the bus: a rule on auth.login fires on the next login.
+	c.do("POST", "/alerts/rules", map[string]any{"name": "logins", "enabled": true,
+		"source": `alert logins when event.type == "auth.login" -> slack("security")`}, 201)
+	c.do("POST", "/auth/login", map[string]any{"email": "e2e@example.com", "password": "a long enough passphrase 42", "tenant_id": tenant}, 200)
+	c.waitFor(func() (string, bool) {
+		evs := c.do("GET", "/alerts/events", nil, 200)
+		items, _ := evs["items"].([]any)
+		return "", len(items) > 0
+	})
+
+	// G-OPS-10: schedules created at runtime through the gateway.
+	sch := c.do("POST", "/schedules", map[string]any{"name": "nightly", "cron": "0 3 * * *", "workflow_name": "hello",
+		"program_id": pid, "input": map[string]any{"names": []any{"n"}}}, 201)
+	sid, _ := sch["id"].(string)
+	if !strings.HasPrefix(sid, "sch_") || sch["next_fire_at"] == nil {
+		t.Fatalf("schedule: %v", sch)
+	}
+	c.do("POST", "/schedules", map[string]any{"name": "nightly", "cron": "0 3 * * *", "workflow_name": "hello"}, 409)
+	c.do("POST", "/schedules", map[string]any{"name": "bad", "cron": "0 25 * * *", "workflow_name": "hello"}, 400)
+	list := c.do("GET", "/schedules", nil, 200)
+	if items, _ := list["schedules"].([]any); len(items) != 1 {
+		t.Fatalf("schedules: %v", list)
+	}
+	c.do("DELETE", "/schedules/"+sid, nil, 204)
+	c.do("GET", "/schedules/"+sid, nil, 404)
 }
 
 type client struct {

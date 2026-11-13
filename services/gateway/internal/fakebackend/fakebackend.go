@@ -41,6 +41,8 @@ import (
 // Call records the metadata of one received call.
 type Call struct {
 	Method, Tenant, Actor, Role, RequestID, Traceparent, IdempotencyKey string
+	// Groups is the internal token's groups claim.
+	Groups []string
 }
 
 // Backend holds the fake state of every service.
@@ -101,6 +103,7 @@ type channel struct {
 type caller struct {
 	tenant, actor, sub string
 	role               auth.Role
+	groups             []string
 	idem               string
 }
 
@@ -192,12 +195,22 @@ func (b *Backend) authenticate(ctx context.Context, v *auth.Verifier, method str
 	if get("x-tenant-id") != claims.TenantID || get("x-actor") == "" || get("x-request-id") == "" || get("traceparent") == "" {
 		return nil, fail(codes.PermissionDenied, core.ReasonForbiddenRole, "metadata disagrees with the internal token")
 	}
-	c := caller{tenant: claims.TenantID, actor: get("x-actor"), sub: claims.Subject, role: claims.Role, idem: get("idempotency-key")}
+	c := caller{tenant: claims.TenantID, actor: get("x-actor"), sub: claims.Subject, role: claims.Role, groups: claims.Groups, idem: get("idempotency-key")}
 	b.mu.Lock()
 	b.calls = append(b.calls, Call{Method: method, Tenant: c.tenant, Actor: c.actor, Role: string(c.role), RequestID: get("x-request-id"),
-		Traceparent: get("traceparent"), IdempotencyKey: c.idem})
+		Traceparent: get("traceparent"), IdempotencyKey: c.idem, Groups: c.groups})
 	b.mu.Unlock()
 	return context.WithValue(ctx, ctxKey{}, c), nil
+}
+
+// SetApprovalRole changes the role an approval is addressed to (tests of
+// free-form approval roles such as finance_ap).
+func (b *Backend) SetApprovalRole(id, role string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if a, ok := b.approvals[id]; ok {
+		a.a.Role = role
+	}
 }
 
 // Calls returns the calls received so far.
@@ -752,6 +765,11 @@ func (e engineSrv) DecideApproval(ctx context.Context, r *pb.DecideApprovalReque
 	}
 	if a.a.Status != "pending" {
 		return nil, fail(codes.Aborted, core.ReasonApprovalAlreadyDecided, "approval already decided", "status", a.a.Status)
+	}
+	// The engine's rule (engine.DecideApproval): the approval role must be
+	// the caller's membership role or one of the token's groups.
+	if c := from(ctx); !auth.ApprovalRoleMatches(a.a.Role, c.role, c.groups) {
+		return nil, fail(codes.PermissionDenied, core.ReasonForbiddenRole, "deciding this approval requires role "+a.a.Role)
 	}
 	rn := b.runs[a.a.RunId]
 	if rn.r.CreatedBy == from(ctx).sub {

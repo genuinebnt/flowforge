@@ -26,6 +26,9 @@ type Identity struct {
 	Tenant core.UUID
 	Actor  string
 	Role   auth.Role
+	// Groups are the actor's tenant role groups from the token's groups
+	// claim (G-LIM-05): free-form approval roles such as "finance_ap".
+	Groups []string
 }
 
 // ServiceActor returns the actor of a service account ("service:<name>").
@@ -49,10 +52,13 @@ func roleRank(r auth.Role) int {
 
 // EngineCaller converts the identity to the engine's Caller.
 func (i Identity) EngineCaller() engine.Caller {
-	var roles []string
+	// Roles = the membership role plus the role groups: the engine matches
+	// approval.role against either (spec 9.7; auth.ApprovalRoleMatches).
+	roles := make([]string, 0, 1+len(i.Groups))
 	if i.Role != "" {
-		roles = []string{string(i.Role)}
+		roles = append(roles, string(i.Role))
 	}
+	roles = append(roles, i.Groups...)
 	return engine.Caller{Tenant: i.Tenant, Actor: i.Actor, Roles: roles}
 }
 

@@ -88,7 +88,11 @@ func template(t testing.TB) string {
 }
 
 // freshPool returns a pool on a new clone of the migrated template.
-func freshPool(t testing.TB) (*pgxpool.Pool, string) {
+func freshPool(t testing.TB) (*pgxpool.Pool, string) { return freshPoolAs(t, "") }
+
+// freshPoolAs is freshPool with every connection running as role (empty:
+// the DSN's superuser), through the "role" startup parameter.
+func freshPoolAs(t testing.TB, role string) (*pgxpool.Pool, string) {
 	t.Helper()
 	tmpl := template(t)
 	ctx := context.Background()
@@ -105,6 +109,9 @@ func freshPool(t testing.TB) (*pgxpool.Pool, string) {
 		t.Fatal(err)
 	}
 	cfg.ConnConfig.Database = name
+	if role != "" {
+		cfg.ConnConfig.RuntimeParams["role"] = role
+	}
 	cfg.MaxConns = 16
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
@@ -293,7 +300,7 @@ func TestGraphPG_RowLevelSecurity(t *testing.T) {
 		"DROP ROLE IF EXISTS " + role,
 		"CREATE ROLE " + role + " LOGIN",
 		"GRANT USAGE ON SCHEMA graph TO " + role,
-		"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA graph TO " + role,
+		"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA graph TO " + role, // DELETE: pending references
 		"GRANT USAGE ON ALL SEQUENCES IN SCHEMA graph TO " + role,
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
@@ -335,6 +342,11 @@ func TestGraphPG_RowLevelSecurity(t *testing.T) {
 // publish marks nothing (at least once, never lost).
 func TestGraphPG_Relay(t *testing.T) {
 	pool, _ := freshPool(t)
+	checkRelay(t, pool)
+}
+
+func checkRelay(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
 	ctx := context.Background()
 	s := pg.New(pool, pg.Config{})
 	tenant, prog := storetest.TenantID("relay"), storetest.ProgramID("relay")
@@ -378,6 +390,43 @@ func TestGraphPG_Relay(t *testing.T) {
 	}
 }
 
+// TestRegress_G_OPS_02_GraphAsServiceRole runs the store suites as
+// ff_graph, the non-owner service role of migration 0018, with row-level
+// security forced on every graph table: graphstore/pg must set
+// app.tenant_id in every transaction, and the cross-tenant relay may only
+// rely on its policy on graph.change_events (it reads entity snapshots per
+// tenant).
+func TestRegress_G_OPS_02_GraphAsServiceRole(t *testing.T) {
+	dsn(t)
+	asGraph := func(t testing.TB, o storetest.Options) graphstore.Store {
+		pool, _ := freshPoolAs(t, "ff_graph")
+		return pg.New(pool, pg.Config{Config: o.Config(), PollInterval: 50 * time.Millisecond})
+	}
+	t.Run("merge", func(t *testing.T) { storetest.MergeConformance(t, asGraph, mergeCases(t), memFactory) })
+	t.Run("idempotent", func(t *testing.T) { storetest.Idempotent(t, asGraph) })
+	t.Run("atomic", func(t *testing.T) { storetest.Atomic(t, asGraph) })
+	t.Run("convergence", func(t *testing.T) {
+		storetest.Convergence(t, asGraph, testkit.Rng(t), 10, memFactory)
+	})
+	t.Run("reads", func(t *testing.T) {
+		storetest.Neighbors(t, asGraph)
+		storetest.Path(t, asGraph)
+		storetest.BlastAndComponents(t, asGraph)
+		storetest.FindEntities(t, asGraph)
+		storetest.Search(t, asGraph)
+		storetest.Diff(t, asGraph)
+	})
+	t.Run("staleness", func(t *testing.T) { storetest.Staleness(t, asGraph) })
+	t.Run("tenant isolation", func(t *testing.T) { storetest.TenantIsolation(t, asGraph) })
+	t.Run("watch", func(t *testing.T) { storetest.WatchResume(t, asGraph) })
+	t.Run("snapshot", func(t *testing.T) { storetest.Snapshot(t, asGraph, memFactory) })
+	t.Run("add tag", func(t *testing.T) { storetest.AddTag(t, asGraph) })
+	t.Run("relay", func(t *testing.T) {
+		pool, _ := freshPoolAs(t, "ff_graph")
+		checkRelay(t, pool)
+	})
+}
+
 // TestGraphPG_SearchTextMaintained checks that search_text follows
 // content merges (spec 10.7).
 func TestGraphPG_SearchTextMaintained(t *testing.T) {
@@ -415,3 +464,83 @@ func BenchmarkSys01_Ingest(b *testing.B) {
 }
 
 const benchWorkers = 8
+
+// TestRegress_G_CORE_03_PendingReferencesPG pins the Postgres side of
+// pending references: observations that name an entity id racing with the
+// ingest that creates it all end up applied (none stuck in
+// graph.pending_observations), the per-tenant bound answers
+// RESOURCE_EXHAUSTED, and old rows expire by observed_at on the next
+// buffering ingest of the tenant.
+func TestRegress_G_CORE_03_PendingReferencesPG(t *testing.T) {
+	pool, _ := freshPool(t)
+	ctx := context.Background()
+	tenant, prog := storetest.TenantID("pend"), storetest.ProgramID("pend")
+	clock := storetest.NewClock(storetest.T0)
+	s := pg.New(pool, pg.Config{Config: graphstore.Config{Clock: clock, MaxPending: 50, PendingTTL: time.Hour}})
+	target := oam.FQDN{Name: "target.acme.com"}
+	id := storetest.EntityIDIn(tenant, prog, target)
+	ref := func(i int, at time.Time) graphstore.IngestRequest {
+		return graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: oam.Observation{
+			ObservationID: fmt.Sprint("ref-", i), Tool: oam.Tool{Name: "httpx"}, ObservedAt: at, Confidence: 0.5,
+			Entities: []oam.ObservedEntity{{Ref: "u", Asset: oam.URL{URL: fmt.Sprintf("https://target.acme.com/%d", i)}}},
+			Edges:    []oam.ObservedEdge{{From: "u", To: id, Relation: oam.SimpleRelation{Label: "related_to"}}}}}
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 40)
+	for i := range 30 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := s.IngestObservation(ctx, ref(i, storetest.T0)); err != nil {
+				errs <- err
+			}
+		}()
+		if i == 15 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: oam.Observation{
+					ObservationID: "creates", Tool: oam.Tool{Name: "dnsx"}, ObservedAt: storetest.T0, Confidence: 0.9,
+					Entities: []oam.ObservedEntity{{Ref: "a", Asset: target}}}})
+				if err != nil {
+					errs <- err
+				}
+			}()
+		}
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	var left, edges int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM graph.pending_observations`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM graph.edges`).Scan(&edges); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 || edges != 30 {
+		t.Fatalf("after the race: %d pending rows, %d edges; want 0 and 30", left, edges)
+	}
+
+	// Bound and expiry, on ids nobody creates.
+	other := storetest.EntityIDIn(tenant, prog, oam.FQDN{Name: "never.acme.com"})
+	small := pg.New(pool, pg.Config{Config: graphstore.Config{Clock: clock, MaxPending: 1, PendingTTL: time.Hour}})
+	req := func(i int, at time.Time) graphstore.IngestRequest {
+		r := ref(100+i, at)
+		r.Observation.Edges[0].To = other
+		return r
+	}
+	if res, err := small.IngestObservation(ctx, req(0, storetest.T0)); err != nil || !res.Pending {
+		t.Fatalf("first pending: %+v %v", res, err)
+	}
+	if _, err := small.IngestObservation(ctx, req(1, storetest.T0)); core.KindOf(err) != core.KindResourceExhausted {
+		t.Fatalf("over the bound: %v, want RESOURCE_EXHAUSTED", err)
+	}
+	clock.Set(storetest.T0.Add(2 * time.Hour))
+	res, err := small.IngestObservation(ctx, req(2, storetest.T0.Add(2*time.Hour)))
+	if err != nil || !res.Pending || res.Expired != 1 {
+		t.Fatalf("after the TTL: %+v %v, want pending with 1 expired", res, err)
+	}
+}

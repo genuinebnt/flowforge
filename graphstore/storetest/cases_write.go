@@ -54,8 +54,6 @@ func Atomic(t *testing.T, f Factory) {
 	before, evs := Canon(t, e.export()), len(e.changes(0))
 	bad := []oam.Observation{
 		obs("bad-1", "x", T0, 0.5, []oam.ObservedEntity{ent("a", oam.FQDN{Name: "new.acme.com"})}, simple("a", "zz", "related_to")),
-		obs("bad-2", "x", T0, 0.5, []oam.ObservedEntity{ent("a", oam.FQDN{Name: "new.acme.com"})},
-			simple("a", oam.EntityID(e.tenant, e.prog, oam.TypeFQDN, "fqdn:missing.acme.com"), "related_to")),
 		obs("bad-3", "x", T0, 0.5, []oam.ObservedEntity{ent("s", oam.Service{UniqueID: "s9"})}, simple("s", fx.ids["api"], "certificate")),
 		obs("bad-4", "", T0, 0.5, []oam.ObservedEntity{ent("a", oam.FQDN{Name: "new.acme.com"})}),
 		obs("bad-5", "x", T0, 0.5, []oam.ObservedEntity{ent("a", oam.FQDN{Name: "new\x00.acme.com"})}),
@@ -85,6 +83,68 @@ func Atomic(t *testing.T, f Factory) {
 	} {
 		_, err := e.s.IngestObservation(e.ctx, req)
 		wantKind(t, "bad request", err, core.KindInvalidArgument)
+	}
+	pendingReferences(t, e)
+}
+
+// pendingReferences checks G-CORE-03 on a store: an observation naming an
+// entity id that is not ingested yet waits without changing the graph, a
+// re-send is absorbed, and the ingest that creates the entity applies it
+// (IngestResult.Released) with its change events.
+func pendingReferences(t *testing.T, e *env) {
+	t.Helper()
+	missing := oam.EntityID(e.tenant, e.prog, oam.TypeFQDN, "fqdn:missing.acme.com")
+	waiting := obs("waits", "x", T0, 0.5, []oam.ObservedEntity{ent("a", oam.FQDN{Name: "waiting.acme.com"})},
+		simple("a", missing, "related_to"))
+	before := Canon(t, e.export())
+	for range 2 {
+		res := e.ingest(waiting)
+		if !res.Pending || len(res.Missing) != 1 || res.Missing[0] != missing || len(res.Changes) != 0 {
+			t.Fatalf("pending ingest: %+v", res)
+		}
+	}
+	if Canon(t, e.export()) != before {
+		t.Fatal("a pending observation changed the graph")
+	}
+	res := e.ingest(obs("creates", "x", T0, 0.5, []oam.ObservedEntity{ent("m", oam.FQDN{Name: "missing.acme.com"})}))
+	if len(res.Released) != 1 || res.Released[0] != "waits" {
+		t.Fatalf("released %v, want [waits]", res.Released)
+	}
+	var added int
+	for _, c := range res.Changes {
+		if c.Type == oam.ChangeEntityAdded || c.Type == oam.ChangeEdgeAdded {
+			added++
+		}
+	}
+	if added != 3 { // missing.acme.com, waiting.acme.com, the edge
+		t.Fatalf("change events of the release: %+v", res.Changes)
+	}
+	if again := e.ingest(waiting); !again.Duplicate {
+		t.Fatalf("re-sent released observation: %+v, want duplicate", again)
+	}
+
+	// An authoritative capture whose source is named by id waits for the
+	// source like any other reference, and its unit is applied on release.
+	page := oam.URL{URL: "https://late.acme.com/"}
+	pageID := EntityIDIn(e.tenant, e.prog, page)
+	capture := obs("capture", "extract", T0, 0.9, []oam.ObservedEntity{ent("s", oam.File{URL: "https://late.acme.com/a.js"})},
+		simple(pageID, "s", oam.LabelLoadsScript))
+	capture.Authority = &oam.Authority{Source: pageID, Profile: "default", Coverage: oam.CoverageComplete, CoveredRules: []string{oam.FamilyScripts}}
+	if res := e.ingest(capture); !res.Pending || len(res.Missing) != 1 || res.Missing[0] != pageID {
+		t.Fatalf("capture of a missing source: %+v, want pending on %s", res, pageID)
+	}
+	res = e.ingest(obs("page", "crawl", T0, 0.5, []oam.ObservedEntity{ent("p", page)}))
+	if len(res.Released) != 1 || res.Released[0] != "capture" {
+		t.Fatalf("released %v, want [capture]", res.Released)
+	}
+	var edges int
+	for _, c := range res.Changes {
+		if c.Type == oam.ChangeEdgeAdded {
+			edges++
+		}
+	}
+	if edges != 1 {
+		t.Fatalf("change events of the authoritative release: %+v", res.Changes)
 	}
 }
 
@@ -240,11 +300,16 @@ func TenantIsolation(t *testing.T, f Factory) {
 			t.Errorf("entity %s of tenant %s in other's export", x.ID, x.TenantID)
 		}
 	}
-	// Referencing another tenant's entity in an observation is unknown.
+	// Referencing another tenant's entity in an observation never resolves:
+	// the observation waits as a pending reference (G-CORE-03), and the
+	// other tenant's graph is untouched.
 	o := obs("x-ref", "x", T0, 0.5, []oam.ObservedEntity{ent("u", oam.URL{URL: "https://api.acme.com/"})}, simple("u", fx.ids["api"], "domain"))
-	_, err = e.s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: other, ProgramID: e.prog, Observation: o})
-	if !errors.Is(err, oam.ErrUnknownEntity) || core.KindOf(err) != core.KindInvalidArgument {
-		t.Errorf("cross-tenant reference: %v", err)
+	res, err := e.s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: other, ProgramID: e.prog, Observation: o})
+	if err != nil || !res.Pending || len(res.Changes) != 0 {
+		t.Errorf("cross-tenant reference: %+v %v, want pending", res, err)
+	}
+	if after := e2.export(); len(after.Entities) != len(b.Entities) || len(after.Edges) != len(b.Edges) {
+		t.Errorf("cross-tenant reference changed the other tenant's graph")
 	}
 	// Tagging another tenant's edge is NOT_FOUND.
 	if len(a.Edges) > 0 {
@@ -484,6 +549,7 @@ func Convergence(t *testing.T, f Factory, r core.Rng, cases int, oracle Factory)
 		for i := range list {
 			list[i] = RandomObservation(r, i, "", "")
 			list[i].ObservationID = fmt.Sprintf("c%d-%s", c, list[i].ObservationID)
+			AddIDReferences(r, &list[i], a.tenant, prog)
 		}
 		shuffled := slices.Clone(list)
 		for range core.IntN(r, 8) {

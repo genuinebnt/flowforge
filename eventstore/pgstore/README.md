@@ -48,8 +48,9 @@ workers).
 
 ## Limitations
 
-* Uses a small built-in connection pool because `pgxpool`'s dependency
-  (`puddle`) is not in go.mod; `New` accepts any pool with the `DB` methods.
+* `Open` uses a small built-in connection pool (it predates `pgxpool` in
+  go.mod); `New` accepts any pool with the `DB` methods, `*pgxpool.Pool`
+  included, which is what the engine service passes.
 * The store maintains only the scheduling columns of `engine.runs`
   (`status`, `last_seq`, lease, wake, fence); `started_at`, `finished_at`,
   `output` and `failure_*` are the engine's.

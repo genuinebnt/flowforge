@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -53,6 +54,9 @@ type InternalGrant struct {
 	TenantID core.UUID
 	Actor    string // usr_... or a service account id
 	Role     Role
+	// Groups are the actor's tenant role groups (Claims.Groups); at most
+	// MaxGroups valid names, or Internal fails.
+	Groups []string
 }
 
 func (m *Minter) jti() string {
@@ -95,11 +99,15 @@ func (m *Minter) Internal(g InternalGrant) (string, Claims, error) {
 	if g.Actor == "" {
 		return "", Claims{}, fmt.Errorf("auth: internal token needs an actor")
 	}
+	if !validGroups(g.Groups) {
+		return "", Claims{}, fmt.Errorf("auth: internal token groups must be at most %d valid names", MaxGroups)
+	}
 	return m.mint(Claims{
 		Audience: AudienceInternal,
 		Subject:  g.Actor,
 		TenantID: core.PublicID(core.PrefixTenant, g.TenantID),
 		Role:     g.Role,
+		Groups:   slices.Clone(g.Groups),
 	}, InternalTokenTTL)
 }
 

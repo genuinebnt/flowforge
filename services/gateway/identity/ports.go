@@ -187,6 +187,26 @@ type KeyStore interface {
 	GetPrivateKey(ctx context.Context, ref string) ([]byte, error)
 }
 
+// ProvisionedKey is an operator-provisioned signing key: its kid, the
+// reference stored as private_key_ref, and the seed.
+type ProvisionedKey struct {
+	KID  string
+	Ref  string
+	Seed []byte
+}
+
+// ProvisionedKeys is a KeyStore whose current key an operator provisions
+// (Terraform mounts FF_SIGNING_KEY_<KID>; keystore.Provisioned). The
+// KeyManager signs with CurrentKey, registers it in identity.signing_keys
+// if it is new (the previous active key becomes retiring), and never
+// generates keys: Rotate fails with ErrOperatorRotation and Maintain does
+// not rotate. ok false means no key is designated and the KeyManager
+// manages keys itself.
+type ProvisionedKeys interface {
+	KeyStore
+	CurrentKey(ctx context.Context) (key ProvisionedKey, ok bool, err error)
+}
+
 // MemKeyStore keeps seeds in process memory (development): keys vanish on
 // restart, and the KeyManager then rotates to a fresh key while the old
 // public keys keep verifying until they retire.

@@ -43,9 +43,22 @@ CREATE TABLE IF NOT EXISTS engine.approval_ext (
 );
 `
 
-// EnsureSchema applies SchemaSQL. The engine schema of the migrations
-// package (spec 10.4) must already exist.
+// EnsureSchema applies SchemaSQL unless migration 0013 already created its
+// tables. The check comes first because the ff_engine service role of
+// migration 0018 has no CREATE privilege on the engine schema, and
+// PostgreSQL checks that privilege even for CREATE TABLE IF NOT EXISTS on
+// an existing table. The engine schema of the migrations package (spec
+// 10.4) must already exist.
 func EnsureSchema(ctx context.Context, db DB) error {
+	var present bool
+	if err := db.QueryRow(ctx, `SELECT to_regclass('engine.workflow_version_ext') IS NOT NULL
+  AND to_regclass('engine.run_ext') IS NOT NULL AND to_regclass('engine.run_requests') IS NOT NULL
+  AND to_regclass('engine.approval_ext') IS NOT NULL`).Scan(&present); err != nil {
+		return fmt.Errorf("pgrepo: ensure schema: %w", err)
+	}
+	if present {
+		return nil
+	}
 	if _, err := db.Exec(ctx, SchemaSQL); err != nil {
 		return fmt.Errorf("pgrepo: ensure schema: %w", err)
 	}

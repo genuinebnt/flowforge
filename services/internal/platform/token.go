@@ -30,7 +30,7 @@ type MinterTokens struct {
 	Clock  core.Clock
 
 	mu    sync.Mutex
-	cache map[Identity]cachedToken
+	cache map[string]cachedToken // by cacheKey
 }
 
 type cachedToken struct {
@@ -40,19 +40,27 @@ type cachedToken struct {
 
 // NewMinterTokens returns a token source over m.
 func NewMinterTokens(m *auth.Minter, clock core.Clock) *MinterTokens {
-	return &MinterTokens{Minter: m, Clock: clock, cache: map[Identity]cachedToken{}}
+	return &MinterTokens{Minter: m, Clock: clock, cache: map[string]cachedToken{}}
+}
+
+// cacheKey identifies the claims a token carries. PORT: Identity holds a
+// slice, so it cannot be a Go map key; the NUL-separated form is
+// unambiguous because none of the parts may contain NUL.
+func cacheKey(id Identity) string {
+	return id.Tenant.String() + "\x00" + id.Actor + "\x00" + string(id.Role) + "\x00" + strings.Join(id.Groups, "\x00")
 }
 
 // Token implements TokenSource.
 func (t *MinterTokens) Token(_ context.Context, id Identity) (string, error) {
 	now := t.Clock.Now()
+	key := cacheKey(id)
 	t.mu.Lock()
-	if c, ok := t.cache[id]; ok && now.Before(c.until) {
+	if c, ok := t.cache[key]; ok && now.Before(c.until) {
 		t.mu.Unlock()
 		return c.token, nil
 	}
 	t.mu.Unlock()
-	tok, claims, err := t.Minter.Internal(auth.InternalGrant{TenantID: id.Tenant, Actor: id.Actor, Role: id.Role})
+	tok, claims, err := t.Minter.Internal(auth.InternalGrant{TenantID: id.Tenant, Actor: id.Actor, Role: id.Role, Groups: id.Groups})
 	if err != nil {
 		return "", err
 	}
@@ -61,7 +69,7 @@ func (t *MinterTokens) Token(_ context.Context, id Identity) (string, error) {
 	if len(t.cache) > 10000 {
 		clear(t.cache)
 	}
-	t.cache[id] = cachedToken{token: tok, until: claims.Issued().Add(life / 2)}
+	t.cache[key] = cachedToken{token: tok, until: claims.Issued().Add(life / 2)}
 	t.mu.Unlock()
 	return tok, nil
 }
@@ -152,7 +160,7 @@ func identityFromToken(ctx context.Context, v TokenVerifier, authz, tenantMD, ac
 	if role != "" && !role.Valid() {
 		return Identity{}, core.Errorf(core.KindUnauthenticated, core.ReasonTokenInvalid, "token role is unknown")
 	}
-	return Identity{Tenant: tenant, Actor: actor, Role: role}, nil
+	return Identity{Tenant: tenant, Actor: actor, Role: role, Groups: claims.Groups}, nil
 }
 
 // IdentityFromBearer verifies an "authorization"-style header value

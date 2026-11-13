@@ -72,6 +72,22 @@ hop that fails the same check; at most 64 records; UDP answers are cut to
 the client's EDNS size (at most 1232 octets, 512 without EDNS) with TC set,
 TCP answers to 16 KiB.
 
+## Notify path (G-SVC-08)
+
+The notifier's webhook and Slack deliveries are not program targets, so
+they carry `X-Flowforge-Egress-Purpose: notify` instead of a decision id.
+The proxy then requires the `service:notifier` identity, CONNECT (https
+only), a destination host on `NotifyAllowlist` (`FF_NOTIFY_ALLOWLIST`:
+comma-separated names, `.example.com` for every name below a domain; empty
+refuses everything), resolves the host itself and connects only when every
+address passes `alerts.CheckResolved` (public unicast; spec 15.4), pinned
+for the connection. Refusals use the same 403 + `X-Flowforge-Refused`
+(`notify_not_notifier`, `notify_https_only`, `notify_not_allowlisted`,
+`notify_no_resolver`, `notify_resolve_failed`, `forbidden_address`). The
+per-target rate limit does not apply: it is keyed by program, and the
+notifier throttles its own deliveries. Tested end to end in
+`services/notifier` (`TestRegress_G_SVC_08_WebhooksThroughEgressProxy`).
+
 ## Tests
 
 `proxy_test.go` is the M7 mock-target test (allowed request, redirect to an
@@ -102,9 +118,12 @@ reads:
 | `FF_EGRESS_DNS_LISTEN` / `FF_EGRESS_DNS_ADVERTISE` | DNS forwarder (UDP and TCP on one port) and its advertised address |
 | `FF_EGRESS_DNS_UPSTREAM` | recursive resolver `host:port` (default: the system resolver) |
 | `FF_REDIS_ADDR`, `FF_REDIS_AUTH` | keep the per-target GCRA in Redis (Redis TIME as the clock), shared by every replica |
+| `FF_REDIS_CA` | PEM (or a path to it) of the Redis server CA; set means TLS (Memorystore) |
+| `FF_NOTIFY_ALLOWLIST` | destination hosts of the notify path (see above); empty refuses every notify request |
 
 With `FF_DB_DSN` the proxy reads decisions from, and records `intel_source`
-decisions into, the scope schema.
+decisions into, the scope schema; in the dev stack it uses the scope
+service's repository.
 
 ## Limitations
 

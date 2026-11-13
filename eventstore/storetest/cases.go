@@ -465,7 +465,8 @@ func CreateRun(t *testing.T, nh NewHarness) {
 	}
 }
 
-// Snapshots: newest wins, only SnapshotsKept are retained, AtSeq <= head.
+// Snapshots: newest wins, only SnapshotsKept are retained, AtSeq <= head,
+// and DeleteSnapshots drops them all.
 func Snapshots(t *testing.T, nh NewHarness) {
 	e := newEnv(t, nh)
 	run := e.newRun()
@@ -507,6 +508,22 @@ func Snapshots(t *testing.T, nh NewHarness) {
 	e.wantErr(err, eventstore.ErrNotFound, "LoadSnapshot on unknown run")
 	err = e.s.SaveSnapshot(e.ctx, e.ids.next(), eventstore.Snapshot{ModuleSHA256: mod})
 	e.wantErr(err, eventstore.ErrNotFound, "SaveSnapshot on unknown run")
+	// DeleteSnapshots (spec 10.7, G-ENG-04): every snapshot goes, the
+	// events stay, a second call is a no-op and an unknown run is
+	// ErrNotFound.
+	if err := e.s.DeleteSnapshots(e.ctx, run); err != nil {
+		t.Fatalf("DeleteSnapshots: %v", err)
+	}
+	if _, ok, err := e.s.LoadSnapshot(e.ctx, run); err != nil || ok {
+		t.Fatalf("LoadSnapshot after DeleteSnapshots = %v, %v", ok, err)
+	}
+	if err := e.s.DeleteSnapshots(e.ctx, run); err != nil {
+		t.Fatalf("second DeleteSnapshots: %v", err)
+	}
+	if evs, err := e.s.Read(e.ctx, run, 1, 0); err != nil || len(evs) == 0 {
+		t.Fatalf("events after DeleteSnapshots: %d, %v", len(evs), err)
+	}
+	e.wantErr(e.s.DeleteSnapshots(e.ctx, e.ids.next()), eventstore.ErrNotFound, "DeleteSnapshots on unknown run")
 }
 
 // ReadyAndClaim covers ListReady ordering, sharding, concurrent claims and

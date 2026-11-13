@@ -38,6 +38,10 @@ var (
 	// ErrUnknownEntity means an entity or edge id does not exist in the graph
 	// (or belongs to another tenant or program).
 	ErrUnknownEntity = errors.New("oam: unknown entity or edge")
+	// ErrPendingLimit means an observation that references entities or
+	// edges not ingested yet cannot be buffered: the tenant already has
+	// Config.MaxPending observations waiting (G-CORE-03).
+	ErrPendingLimit = errors.New("oam: too many observations waiting for referenced entities")
 	// ErrInvalidRun means a covering-run report is incomplete.
 	ErrInvalidRun = errors.New("oam: invalid covering run")
 )

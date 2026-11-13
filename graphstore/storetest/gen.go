@@ -168,3 +168,36 @@ func RandomMixedObservation(r core.Rng, i int, tenant, program string) oam.Obser
 	}
 	return RandomAuthObservation(r, i, tenant, program)
 }
+
+// AddIDReferences adds to o up to two edges or tags that name an entity by
+// its ent_ id in (tenant, program) instead of a local ref (G-CORE-03). The
+// entity is drawn from the same universe as RandomObservation's assets, so
+// it may be created by an earlier observation, a later one, or none: the
+// store must buffer the observation until it exists and converge for any
+// order.
+func AddIDReferences(r core.Rng, o *oam.Observation, tenant, program string) {
+	if len(o.Entities) == 0 {
+		return
+	}
+	for range core.IntN(r, 3) {
+		id := EntityIDIn(tenant, program, arbAsset(r))
+		from := o.Entities[core.IntN(r, len(o.Entities))].Ref
+		if core.IntN(r, 2) == 0 {
+			o.Edges = append(o.Edges, oam.ObservedEdge{From: from, To: id, Relation: oam.SimpleRelation{Label: pick(r, "related_to", "seen_with")}})
+		} else {
+			o.Tags = append(o.Tags, oam.ObservedTag{Target: id, Property: oam.SimpleProperty{Name: "ref", Value: pick(r, "x", "y")}})
+		}
+	}
+}
+
+// EntityIDIn returns the ent_ id asset a gets in (tenant, program), the
+// canonical ids a store uses (graphstore.PrepareIngest output).
+func EntityIDIn(tenant, program string, a oam.Asset) string {
+	g := oam.NewGraph(oam.Config{})
+	res, err := g.Apply(oam.Observation{ObservationID: "id", TenantID: tenant, ProgramID: program,
+		Tool: oam.Tool{Name: "id"}, ObservedAt: T0, Entities: []oam.ObservedEntity{{Ref: "x", Asset: a}}})
+	if err != nil {
+		panic(err) // arbAsset draws valid assets only
+	}
+	return res.RefToEntityID["x"]
+}

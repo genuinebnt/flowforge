@@ -18,9 +18,12 @@ Creates:
   connector volume at `/cloudsql` when `cloudsql_instances` is set.
 - `roles/run.invoker` for each member of `invoker_members`.
 
-Ingress is limited to `INGRESS_TRAFFIC_INTERNAL_ONLY` or
-`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`; `public = true` disables the invoker
-check and is allowed only for the gateway (`infra/policy` enforces it).
+Ingress is `INGRESS_TRAFFIC_INTERNAL_ONLY`,
+`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` (the dev/prod gateway behind the LB)
+or `INGRESS_TRAFFIC_ALL`, which a precondition limits to the gateway and
+`infra/policy` limits to the lab (no load balancer; the API is the gateway's
+`run.app` URL). `public = true` disables the invoker check and is allowed
+only for the gateway (`infra/policy` enforces it).
 
 The image, revision name and traffic split are in `ignore_changes`: the
 deploy workflow rolls images forward by digest with 10% then 100% traffic,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -68,12 +69,41 @@ func (w *Worker) RunOnce(ctx context.Context) (bool, error) {
 // Config.WorkerConcurrency at a time and Config.TenantConcurrency per
 // tenant. When nothing is ready it waits for a wake notification or an
 // exponential backoff capped at Config.IdleBackoff.
+//
+// Cancelling ctx starts a graceful drain (Config.DrainTimeout): no new run
+// is claimed; the runs in progress keep their own context, so a tool call
+// in flight completes and its result is appended under the lease; each run
+// then stops at its next effect boundary and is released as running with
+// next_wake_at = now, so another worker resumes it at once. Run returns
+// when every run is released, or cancels the executions still in flight
+// when the drain timeout expires and returns once they are released.
 func (w *Worker) Run(ctx context.Context) error {
 	wake, unsub := w.e.hub.subscribeWorker()
 	defer unsub()
+	// PORT: context.WithoutCancel keeps the values of ctx (trace ids) but
+	// not its cancellation; execCancel is the drain deadline's cancel.
+	execCtx, execCancel := context.WithCancel(context.WithoutCancel(ctx))
+	defer execCancel()
+	var draining atomic.Bool
 	sem := make(chan struct{}, w.e.cfg.WorkerConcurrency)
 	var wg sync.WaitGroup
-	defer wg.Wait()
+	defer func() {
+		draining.Store(true)
+		done := make(chan struct{})
+		go func() { wg.Wait(); close(done) }()
+		if w.e.cfg.DrainTimeout < 0 {
+			execCancel()
+		} else {
+			t := time.NewTimer(w.e.cfg.DrainTimeout)
+			select {
+			case <-done:
+			case <-t.C:
+				execCancel()
+			}
+			t.Stop()
+		}
+		<-done
+	}()
 	minBackoff := max(w.e.cfg.IdleBackoff/16, time.Millisecond)
 	backoff := minBackoff
 	for {
@@ -86,6 +116,9 @@ func (w *Worker) Run(ctx context.Context) error {
 		if err != nil || len(leases) == 0 {
 			<-sem
 			if ctx.Err() != nil {
+				if len(leases) > 0 { // claimed as ctx ended: hand it straight back
+					_ = w.e.d.Store.ReleaseLease(execCtx, leases[0], eventstore.Next{Status: StatusRunning, WakeAt: w.e.now()})
+				}
 				return nil
 			}
 			t := time.NewTimer(backoff)
@@ -106,7 +139,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		go func(l eventstore.Lease) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			_ = w.process(ctx, l)
+			_ = w.processDraining(execCtx, l, draining.Load)
 		}(leases[0])
 	}
 }
@@ -131,6 +164,12 @@ func (w *Worker) releaseTenant(t core.UUID) {
 
 // process advances one leased run and releases it.
 func (w *Worker) process(ctx context.Context, lease eventstore.Lease) error {
+	return w.processDraining(ctx, lease, nil)
+}
+
+// processDraining is process with a drain signal: once draining reports
+// true the run stops at its next effect boundary (Worker.Run).
+func (w *Worker) processDraining(ctx context.Context, lease eventstore.Lease, draining func() bool) error {
 	st := w.e.d.Store
 	info, err := st.GetRun(ctx, lease.Run)
 	if err != nil {
@@ -143,6 +182,7 @@ func (w *Worker) process(ctx context.Context, lease eventstore.Lease) error {
 	defer w.releaseTenant(info.Tenant)
 
 	r := newRunner(ctx, w.e, lease, info)
+	r.draining = draining
 	next, err := r.advance()
 	if errors.Is(err, ErrLeaseLost) || r.fenced.Load() {
 		return ErrLeaseLost // another worker owns the run now; never write again

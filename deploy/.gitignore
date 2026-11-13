@@ -1,0 +1,3 @@
+# Local topology state: the env-file signing key and the blob directory
+# (scripts/local.sh); never committed or sent to a build.
+.local/

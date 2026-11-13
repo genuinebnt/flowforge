@@ -1,0 +1,16 @@
+#!/bin/bash
+# The Flowforge egress proxy (HTTP + CONNECT on port ${proxy_port}). The image
+# digest is the instance metadata key ff-egress-proxy-image, which the deploy
+# workflow updates; ff-image-watch restarts this unit when it changes.
+set -euo pipefail
+md=http://metadata.google.internal/computeMetadata/v1
+image="$(curl -sSf -H 'Metadata-Flavor: Google' "$md/instance/attributes/ff-egress-proxy-image")"
+export HOME=/var/lib/ff-home
+mkdir -p "$HOME"
+docker-credential-gcr configure-docker --registries='${registry}' >/dev/null
+docker pull "$image"
+docker container rm --force ff-egress-proxy >/dev/null 2>&1 || true
+exec docker run --rm --name ff-egress-proxy --network host --memory 192m \
+  --read-only --cap-drop ALL --security-opt no-new-privileges --user 65532:65532 \
+  --env-file /etc/ff/egress-proxy.env --env-file /run/ff/egress-proxy.env \
+  "$image"

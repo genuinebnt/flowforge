@@ -4,9 +4,12 @@
 #   push to main  plan + policy + apply to dev
 #   tag v*        plan + policy + apply to prod, gated by the protected "prod"
 #                 GitHub environment (required reviewers = manual approval)
+#   dispatch      lab only, never automatic: input lab = plan or apply
+#                 (GitHub environments lab-plan / lab)
 #
-# Each GitHub environment (dev-plan, prod-plan, dev, prod) defines the
-# variables GCP_WIF_PROVIDER and GCP_TERRAFORM_SA (see infra/README.md).
+# Each GitHub environment (dev-plan, prod-plan, dev, prod, lab-plan, lab)
+# defines the variables GCP_WIF_PROVIDER and GCP_TERRAFORM_SA (see
+# infra/README.md).
 name: terraform
 
 on:
@@ -20,6 +23,12 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      lab:
+        description: "lab environment: plan, or plan + apply (never runs automatically)"
+        type: choice
+        options: [none, plan, apply]
+        default: none
 
 permissions:
   contents: read
@@ -64,9 +73,16 @@ jobs:
 
       - name: terraform validate
         run: |
-          for env in dev prod; do
+          for env in lab dev prod; do
             terraform -chdir="infra/envs/$env" init -backend=false
             terraform -chdir="infra/envs/$env" validate
+          done
+
+      # Offline plans with mocked providers: lab cost guardrails, env wiring.
+      - name: terraform test (mock providers)
+        run: |
+          for env in lab dev prod; do
+            terraform -chdir="infra/envs/$env" test
           done
 
       - name: policy unit tests
@@ -239,4 +255,68 @@ jobs:
           conftest test --policy "$GITHUB_WORKSPACE/infra/policy" plan.json
 
       - name: apply
+        run: terraform apply -auto-approve tfplan
+
+  # The lab is applied only by hand: workflow_dispatch with lab = apply.
+  lab:
+    name: lab ${{ inputs.lab }}
+    if: github.event_name == 'workflow_dispatch' && inputs.lab != 'none'
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    environment: ${{ inputs.lab == 'apply' && 'lab' || 'lab-plan' }}
+    concurrency:
+      group: terraform-lab
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/envs/lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: install conftest
+        run: go install "github.com/open-policy-agent/conftest@${CONFTEST_VERSION}"
+
+      - name: plan
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+
+      - name: policy check (includes the lab cost rules)
+        run: |
+          terraform show -json tfplan > plan.json
+          conftest test --policy "$GITHUB_WORKSPACE/infra/policy" plan.json
+
+      - name: summary
+        if: always()
+        run: |
+          {
+            echo "### terraform plan (lab)"
+            echo '```'
+            terraform show -no-color tfplan | tail -n 60
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: apply
+        if: inputs.lab == 'apply'
         run: terraform apply -auto-approve tfplan

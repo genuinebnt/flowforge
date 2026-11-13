@@ -73,12 +73,13 @@ func TestPlcConformance(t *testing.T) {
 					}
 				}
 				return
-			case "rendezvous":
-				p = placement.Rendezvous{}
-			case "consistent":
-				p = placement.NewConsistentHash(placement.ConsistentConfig{VirtualNodes: f.Data.VirtualNodes})
 			default:
-				t.Fatalf("unknown algorithm %q", f.Data.Algorithm)
+				// Through the selection constructor, so every selectable
+				// scheme runs the golden data.
+				var err error
+				if p, err = placement.New(placement.Scheme(f.Data.Algorithm), placement.ConsistentConfig{VirtualNodes: f.Data.VirtualNodes}); err != nil {
+					t.Fatal(err)
+				}
 			}
 			for si, s := range f.Data.Sets {
 				for _, c := range s.Cases {
@@ -94,7 +95,11 @@ func TestPlcConformance(t *testing.T) {
 			}
 		})
 	}
-	for _, alg := range []string{"hash64", "rendezvous", "consistent"} {
+	algs := []string{"hash64"}
+	for _, s := range placement.Schemes() {
+		algs = append(algs, string(s))
+	}
+	for _, alg := range algs {
 		if !seen[alg] {
 			t.Errorf("no conformance file for %s", alg)
 		}

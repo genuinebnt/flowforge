@@ -53,7 +53,9 @@ type KeyedHasher interface {
 type TenantKeyHasher struct{ Key []byte }
 
 // KeyedHash implements KeyedHasher.
-func (h TenantKeyHasher) KeyedHash(secret []byte) string { return oam.SecretKeyedHash(h.Key, string(secret)) }
+func (h TenantKeyHasher) KeyedHash(secret []byte) string {
+	return oam.SecretKeyedHash(h.Key, string(secret))
+}
 
 // secretRule is one named rule. scan returns the spans of matches in s.
 type secretRule struct {

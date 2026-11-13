@@ -73,7 +73,7 @@ var builtins = [numBuiltins]Builtin{
 	BLower:       {BLower, "lower", 1, "lower(String) -> String; Unicode simple case mapping, locale independent"},
 	BUpper:       {BUpper, "upper", 1, "upper(String) -> String"},
 	BReplace:     {BReplace, "replace", 3, "replace(String, from, to) -> String; all non-overlapping occurrences"},
-	BParseInt:    {BParseInt, "parse_int", 1, "parse_int(String) -> Option<Int>; optional sign, decimal digits and _"},
+	BParseInt:    {BParseInt, "parse_int", 1, "parse_int(String) -> Option<Int>; optional + or - sign, then decimal digits only (no _, spaces or base prefix); None when out of i64 range"},
 	BParseFloat:  {BParseFloat, "parse_float", 1, "parse_float(String) -> Option<Float>; finite values only"},
 	BToString:    {BToString, "to_string", 1, "to_string(A) -> String; the display form INTERP uses"},
 	BTake:        {BTake, "take", 2, "take(List<A>, n Int) -> List<A>; n < 0 is treated as 0"},

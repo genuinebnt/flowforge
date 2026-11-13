@@ -1,5 +1,7 @@
 /bin/
 *.test
+# Vendored html5lib tokenizer suites use the .test extension.
+!/conformance/third_party/html5lib-tests/tokenizer/*.test
 *.out
 /coverage*
 /tmp/
@@ -7,3 +9,17 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+# Binaries from `go build ./cmd/<name>` run at the repository root.
+/flowforge
+/gateway
+/engine
+!/engine/
+/scope
+!/scope/
+/graph
+/notifier
+/similarity
+/tool-runner
+/egress-proxy
+/migrate
+/xtask

@@ -222,6 +222,13 @@ func (f *faultStore) LoadSnapshot(ctx context.Context, run eventstore.RunID) (ev
 	return snap, ok, err
 }
 
+// DeleteSnapshots passes through without entering the fault schedule:
+// the call is best effort in the engine, and keeping it out of the
+// operation count leaves existing seeds' histories unchanged.
+func (f *faultStore) DeleteSnapshots(ctx context.Context, run eventstore.RunID) error {
+	return f.inner.DeleteSnapshots(ctx, run)
+}
+
 func (f *faultStore) grant(op uint64, a *actor, l eventstore.Lease) {
 	f.c.hist.Leases = append(f.c.hist.Leases, LeaseGrant{Op: op, At: f.c.clock.Now(), Run: l.Run.String(),
 		Owner: string(l.Owner), Actor: actorID(a), Fence: l.Fence})

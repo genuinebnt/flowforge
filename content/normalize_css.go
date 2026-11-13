@@ -29,8 +29,8 @@ func normalizeCSS(body []byte, lim Limits, m *masker) normResult {
 	src := string(body)
 	var b strings.Builder
 	b.Grow(len(body))
-	pending := false   // white space or a comment was seen since the last emitted token
-	lineStart := true  // nothing emitted on the current line
+	pending := false  // white space or a comment was seen since the last emitted token
+	lineStart := true // nothing emitted on the current line
 	noSpaceAfter := false
 	parens, depth := 0, 0
 	lineTokens := 0 // tokens emitted on the current line

@@ -159,11 +159,10 @@ test that pins it. Merge semantics themselves are oam's (see
 
 ## For other owners
 
-30. **archtest.** `graphstore/pg` imports pgx, but `internal/archtest`
-    assigns every `graphstore/...` package to the pure layer 4 with no
-    third-party allowance, so `TestArchDeps` fails until an adapter entry
-    is added before the `graphstore` one:
-    `{prefix: "graphstore/pg", layer: layerAdapters, adapter: true, thirdParty: []string{"github.com/jackc/"}}`.
+30. **archtest.** `graphstore/pg` imports pgx; `internal/archtest` has the
+    adapter entry for it (`{prefix: "graphstore/pg", layer: layerAdapters,
+    adapter: true, thirdParty: []string{"github.com/jackc/"}}`, before the
+    `graphstore` one), so `TestArchDeps` passes.
 
 ## v2 graph expansion (V2 design §3)
 
@@ -216,7 +215,6 @@ oam's: `oam/OPEN_QUESTIONS.md` 22-35. This section covers the stores.
     entity id). Nothing is stored; `common` is `holders > 50`. Pivots and
     leads are expected to call it; no traversal filters on it yet.
 38. **Migration numbering.** The v2 migration is `0030_graph_v2.sql`
-    (0015-0029 are reserved for v1 fixes). The runner
-    (`migrations.Load`) still requires versions without gaps, so until
-    0015-0029 exist (or the runner allows gaps) `migrations.Apply` fails
-    with `ErrBadFile`. Owner: migrations runner.
+    (0015-0029 are reserved for v1 fixes; 0015-0018 exist). The runner
+    (`migrations.All`) allows gaps and rejects duplicate versions, so
+    0019-0029 stay free for later v1 fixes.

@@ -69,9 +69,10 @@ choice made, and where it is pinned.
     (fib) but slower when building large lists: each LIST_PUSH accounts the
     heap and grows the backing store element by element, while the
     tree-walker appends to preallocated Go slices. Recorded, not hidden.
-16. **parse_int and underscores.** The bytecode builtin table documents
-    `_` separators, the VM's implementation rejects them
-    (`parse_and_to_string` pins the implemented behaviour).
+16. **parse_int and underscores.** `parse_int` accepts an optional sign and
+    decimal digits only; `_` separators are rejected (None), and the
+    bytecode builtin table now says so (it used to document `_`; G-LANG-03).
+    `parse_and_to_string` pins the behaviour.
 17. **Fuel** is not modeled by the tree-walker; vm_008 runs the VM without
     the case's fuel limit. String, list, effect-count and call-depth limits
     are modeled.

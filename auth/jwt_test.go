@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -284,7 +285,7 @@ func TestMinterAccessAndInternal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if *got != claims || got.Subject != core.PublicID(core.PrefixUser, user) || got.TenantID != core.PublicID(core.PrefixTenant, tenant) ||
+	if !reflect.DeepEqual(*got, claims) || got.Subject != core.PublicID(core.PrefixUser, user) || got.TenantID != core.PublicID(core.PrefixTenant, tenant) ||
 		got.SessionID != core.PublicID(core.PrefixSession, session) || got.SessionVersion != 3 || got.Role != auth.RoleAnalyst ||
 		got.Expiry().Sub(got.Issued()) != auth.AccessTokenTTL || got.ID == "" {
 		t.Fatalf("access claims = %+v", got)

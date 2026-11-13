@@ -1,0 +1,463 @@
+{
+  "module": "limiter",
+  "date": "2026-11-13",
+  "commit": "7a4f9d0",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1s"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/gcra",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 21470732,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 65.16
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/gcra_atomic",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 24754477,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 48.4
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/leaky_bucket",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 15030303,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 69.67
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/token_bucket",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 17953588,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 63.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/sliding_window_counter",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 21105307,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 54.94
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/sliding_window_log",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 20731659,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 55.27
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim01_SingleKey/crdt",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6034533,
+      "metrics": {
+        "B/op": 53,
+        "allocs/op": 1,
+        "ns/op": 187.9
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim02_Contention/keys=1/sharded_atomic_gcra",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 9735459,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 123.7
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim02_Contention/keys=1/global_mutex_token_bucket",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 5789264,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 191.9
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim02_Contention/keys=1/global_mutex_gcra",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6151129,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 208.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim02_Contention/keys=1000/sharded_atomic_gcra",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 44178165,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 29.21
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim02_Contention/keys=1000/global_mutex_token_bucket",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6727210,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 176.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim02_Contention/keys=1000/global_mutex_gcra",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6604729,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 203.4
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra_atomic/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 21004719,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 58.93
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra_atomic/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 11100082,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 108.3
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra_atomic/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 16619610,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 72.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra_atomic/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 43387408,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 27.94
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 21055569,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 56.68
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 5972875,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 207.8
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 20620831,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 64.34
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/gcra/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 9299868,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 184.9
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/leaky_bucket/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 18666554,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 62.7
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/leaky_bucket/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6541226,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 187.3
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/leaky_bucket/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 18559056,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 66.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/leaky_bucket/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 5521596,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 186.1
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/token_bucket/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 20318532,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 59.12
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/token_bucket/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6315612,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 201.4
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/token_bucket/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 20025888,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 61.65
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/token_bucket/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 5562332,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 180.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_counter/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 22602717,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 52.83
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_counter/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 8079940,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 228.3
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_counter/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 21445539,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 58.94
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_counter/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 5686284,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 194.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_log/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 21634026,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 55.38
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_log/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 5974915,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 199.2
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_log/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 19848315,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 58.77
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/sliding_window_log/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 7183858,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 182.1
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/crdt/keys=1/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 6350257,
+      "metrics": {
+        "B/op": 53,
+        "allocs/op": 1,
+        "ns/op": 193.7
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/crdt/keys=1/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 3870786,
+      "metrics": {
+        "B/op": 49,
+        "allocs/op": 1,
+        "ns/op": 278.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/crdt/keys=1000/serial",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 4331991,
+      "metrics": {
+        "B/op": 303,
+        "allocs/op": 2,
+        "ns/op": 240.8
+      }
+    },
+    {
+      "bench_id": "BenchmarkLimAlgo/crdt/keys=1000/parallel",
+      "package": "github.com/genuinebnt/flowforge/limiter",
+      "iterations": 4593681,
+      "metrics": {
+        "B/op": 134,
+        "allocs/op": 1,
+        "ns/op": 251.6
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim03_Redis/conns=1",
+      "package": "github.com/genuinebnt/flowforge/limiter/redislimiter",
+      "iterations": 21392,
+      "metrics": {
+        "B/op": 630,
+        "allocs/op": 16,
+        "ns/op": 56434,
+        "p50-ns": 53320,
+        "p99-ns": 112052
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim03_Redis/conns=8",
+      "package": "github.com/genuinebnt/flowforge/limiter/redislimiter",
+      "iterations": 78860,
+      "metrics": {
+        "B/op": 669,
+        "allocs/op": 16,
+        "ns/op": 15602,
+        "p50-ns": 119000,
+        "p99-ns": 272145
+      }
+    },
+    {
+      "bench_id": "BenchmarkLim03_Redis/conns=64",
+      "package": "github.com/genuinebnt/flowforge/limiter/redislimiter",
+      "iterations": 113078,
+      "metrics": {
+        "B/op": 707,
+        "allocs/op": 16,
+        "ns/op": 11452,
+        "p50-ns": 683926,
+        "p99-ns": 1694526
+      }
+    }
+  ]
+}

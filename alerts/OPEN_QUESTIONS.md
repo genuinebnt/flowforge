@@ -115,8 +115,15 @@ pins it.
     spec's single transaction for the in-memory fake. A Postgres adapter
     must write the mark and the alert events in one transaction.
 
-17. **Throttle and digest state** live in the processor's memory. After a
-    restart the service should rebuild open windows from recent
-    `alert_events` (not implemented here).
+17. **Throttle and digest state** live in the processor's memory, and
+    every change is reported in `Outcome.State` (the windows and open
+    digests an event touched) so the caller persists it with the alert
+    events; `Processor.Restore` rebuilds a processor from that state
+    (G-LIM-06). Restore skips windows that have ended by the processor's
+    clock, drops digests whose rule is gone, and takes a digest's actions
+    and quiet hours from the current rule (they are not persisted, so a
+    rule edit applies to its open digest). `SuppressedBefore` of the first
+    alert after a restart counts only suppressions that were persisted.
+    *TestRegress_GLIM06_StateSurvivesRestart.*
 
 18. **Columns** in diagnostics count Unicode code points; offsets are bytes.

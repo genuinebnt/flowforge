@@ -3,6 +3,7 @@ package notifier
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,77 +14,31 @@ import (
 	"net/netip"
 	"net/smtp"
 	neturl "net/url"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/genuinebnt/flowforge/alerts"
+	"github.com/genuinebnt/flowforge/auth"
+	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/scope"
+	"github.com/genuinebnt/flowforge/services/internal/platform"
 )
 
-// Secrets resolves secret references (spec 15.4 "sm://..."). Values never
+// Secrets resolves the secret references of channel configs (spec 15.4
+// "sm://..."): platform.Secrets, wired in cmd as platform.LocalSecrets
+// (env://, file://) plus the Secret Manager adapter for sm://. Values never
 // leave the process except to the channel they belong to.
-type Secrets interface {
-	Resolve(ctx context.Context, ref string) ([]byte, error)
-}
+type Secrets = platform.Secrets
 
-// ErrSecretRef reports an unsupported or unknown reference.
-var ErrSecretRef = errors.New("notifier: cannot resolve secret reference")
-
-// EnvSecrets resolves "env://NAME" through Getenv (injected by cmd) and
-// "file:///path" from the filesystem. "sm://" (Secret Manager) is future
-// work and fails closed.
-type EnvSecrets struct{ Getenv func(string) string }
-
-// Resolve implements Secrets.
-func (e EnvSecrets) Resolve(_ context.Context, ref string) ([]byte, error) {
-	switch {
-	case strings.HasPrefix(ref, "env://") && e.Getenv != nil:
-		if v := e.Getenv(strings.TrimPrefix(ref, "env://")); v != "" {
-			return []byte(v), nil
-		}
-	case strings.HasPrefix(ref, "file://"):
-		b, err := os.ReadFile(strings.TrimPrefix(ref, "file://"))
-		if err == nil {
-			return bytes.TrimSpace(b), nil
-		}
-	}
-	return nil, fmt.Errorf("%w: %q", ErrSecretRef, ref)
-}
+// ErrSecretRef reports an unsupported or malformed reference.
+var ErrSecretRef = platform.ErrSecretRef
 
 // MapSecrets is an in-memory Secrets (tests and the dev stack).
-type MapSecrets struct {
-	mu sync.Mutex
-	m  map[string][]byte
-}
+type MapSecrets = platform.MemSecrets
 
 // NewMapSecrets returns a resolver over m.
-func NewMapSecrets(m map[string]string) *MapSecrets {
-	s := &MapSecrets{m: map[string][]byte{}}
-	for k, v := range m {
-		s.m[k] = []byte(v)
-	}
-	return s
-}
-
-// Set stores a secret.
-func (s *MapSecrets) Set(ref, value string) {
-	s.mu.Lock()
-	s.m[ref] = []byte(value)
-	s.mu.Unlock()
-}
-
-// Resolve implements Secrets.
-func (s *MapSecrets) Resolve(_ context.Context, ref string) ([]byte, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if v, ok := s.m[ref]; ok {
-		return v, nil
-	}
-	return nil, fmt.Errorf("%w: %q", ErrSecretRef, ref)
-}
+func NewMapSecrets(m map[string]string) *MapSecrets { return platform.NewMemSecrets(m) }
 
 // Message is one delivery's content.
 type Message struct {
@@ -145,6 +100,69 @@ type Senders struct {
 	// AllowInsecureLoopback permits http://127.0.0.1 webhook destinations
 	// (tests only). Everything else must be https to a public address.
 	AllowInsecureLoopback bool
+	// Egress, when set, sends webhook and Slack deliveries through the
+	// egress proxy's notify path (spec 17.1: the proxy is the only
+	// identity with internet access; G-SVC-08). The proxy then resolves,
+	// SSRF-checks and pins the destination and applies the operator
+	// allowlist. Nil sends directly after the same SSRF checks here (local
+	// development; prod requires FF_EGRESS_PROXY).
+	Egress *NotifyEgress
+}
+
+// NotifyEgress is the route of deliveries through the egress proxy.
+type NotifyEgress struct {
+	Proxy  *neturl.URL
+	Tokens platform.TokenSource
+	// IDTokens adds the Google ID token Cloud Run's invoker check needs
+	// when the proxy is an https:// Cloud Run URL.
+	IDTokens platform.IDTokenSource
+	// TLS overrides the TLS configuration (proxy hop and destination;
+	// tests); nil means the system roots.
+	TLS *tls.Config
+}
+
+// NewNotifyEgress parses the proxy address (host:port, http://host:port or
+// https://host[:port]); an empty address returns nil (direct delivery).
+func NewNotifyEgress(addr string, tokens platform.TokenSource, ids platform.IDTokenSource) (*NotifyEgress, error) {
+	if addr == "" {
+		return nil, nil
+	}
+	u, err := neturl.Parse(addr)
+	if err != nil || u.Host == "" {
+		u, err = neturl.Parse("http://" + addr)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("notifier: egress proxy address %q: %w", addr, err)
+	}
+	return &NotifyEgress{Proxy: u, Tokens: tokens, IDTokens: ids}, nil
+}
+
+// client returns a client whose https connections are CONNECT tunnels
+// through the proxy's notify path, authenticated as the notifier for
+// tenant. Redirects are not followed (as for direct delivery).
+func (e *NotifyEgress) client(tenant core.UUID) *http.Client {
+	return &http.Client{Timeout: 15 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		Transport: &http.Transport{DisableKeepAlives: true, Proxy: http.ProxyURL(e.Proxy), TLSClientConfig: e.TLS,
+			GetProxyConnectHeader: func(ctx context.Context, _ *neturl.URL, _ string) (http.Header, error) {
+				h := http.Header{}
+				h.Set(platform.HeaderEgressPurpose, platform.PurposeNotify)
+				if e.Tokens != nil {
+					tok, err := e.Tokens.Token(ctx, platform.Identity{Tenant: tenant, Actor: platform.ServiceActor("notifier"), Role: auth.RoleAnalyst})
+					if err != nil {
+						return nil, err
+					}
+					h.Set(platform.HeaderProxyAuthorization, "Bearer "+tok)
+				}
+				if e.Proxy.Scheme == "https" && e.IDTokens != nil {
+					tok, err := e.IDTokens.IDToken(ctx, "https://"+e.Proxy.Hostname())
+					if err != nil {
+						return nil, err
+					}
+					h.Set(platform.MDServerlessAuthorization, "Bearer "+tok)
+				}
+				return h, nil
+			}}}
 }
 
 // Send dispatches on the channel kind.
@@ -161,10 +179,15 @@ func (s *Senders) Send(ctx context.Context, ch Channel, target string, m Message
 }
 
 // checkedClient resolves raw's host, checks every address against the
-// SSRF deny list (spec 15.4) and returns a client pinned to them.
-func (s *Senders) checkedClient(ctx context.Context, raw string) (*http.Client, error) {
+// SSRF deny list (spec 15.4) and returns a client pinned to them. With
+// Egress set, the URL rules are checked here and the address checks and
+// pinning happen in the proxy.
+func (s *Senders) checkedClient(ctx context.Context, tenant core.UUID, raw string) (*http.Client, error) {
 	u, err := alerts.ValidateWebhookURL(raw)
 	var addrs []netip.Addr
+	if err == nil && s.Egress != nil {
+		return s.Egress.client(tenant), nil
+	}
 	if err != nil {
 		pu, perr := neturl.Parse(raw)
 		if !s.AllowInsecureLoopback || perr != nil || pu.Scheme != "http" || pu.Hostname() != "127.0.0.1" || pu.User != nil || pu.Port() == "" {
@@ -239,7 +262,7 @@ func (s *Senders) webhook(ctx context.Context, ch Channel, m Message) (int, erro
 	if err != nil {
 		return 0, err
 	}
-	c, err := s.checkedClient(ctx, url)
+	c, err := s.checkedClient(ctx, ch.Tenant, url)
 	if err != nil {
 		return 0, err
 	}
@@ -256,7 +279,7 @@ func (s *Senders) slack(ctx context.Context, ch Channel, target string, m Messag
 	if err != nil {
 		return 0, err
 	}
-	c, err := s.checkedClient(ctx, string(hook))
+	c, err := s.checkedClient(ctx, ch.Tenant, string(hook))
 	if err != nil {
 		return 0, err
 	}

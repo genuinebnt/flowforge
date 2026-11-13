@@ -2,6 +2,7 @@ package scope
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"net/netip"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
@@ -53,7 +55,14 @@ type Server struct {
 	o Options
 
 	mu       sync.Mutex
-	policies map[policyKey]*scope.Policy
+	policies map[policyKey]compiled
+}
+
+// compiled is a cached policy with the effective_from of its version, so
+// a pinned check can refuse a version that is not in effect yet.
+type compiled struct {
+	pol *scope.Policy
+	eff time.Time
 }
 
 type policyKey struct {
@@ -75,7 +84,7 @@ func NewServer(o Options) *Server {
 	if o.Metrics == nil {
 		o.Metrics = platform.NewMetrics(nil)
 	}
-	return &Server{o: o, policies: map[policyKey]*scope.Policy{}}
+	return &Server{o: o, policies: map[policyKey]compiled{}}
 }
 
 func repoErr(what string, err error) error {
@@ -224,8 +233,16 @@ func (s *Server) PutScope(ctx context.Context, req *pb.PutScopeRequest) (*pb.Sco
 	}
 	doc.ProgramID, doc.Version, doc.EffectiveFrom = pid.String(), int(req.GetBaseVersion()+1), eff
 	v := Version{Program: pid, Document: doc, EffectiveFrom: eff, CreatedBy: id.Actor, CreatedAt: now}
-	evs := []Event{{ID: s.newID(), Type: EventVersionPublished, Tenant: id.Tenant, Program: pid, At: now,
-		Payload: map[string]any{"program_id": convert.ID(core.PrefixProgram, pid), "version": req.GetBaseVersion() + 1}}}
+	// A future-dated version is announced as scheduled; ActivateDue
+	// publishes scope.version_published once effective_from passes, so no
+	// consumer applies a widening early (G-CORE-01).
+	typ := EventVersionPublished
+	if eff.After(now) {
+		typ = EventVersionScheduled
+	}
+	evs := []Event{{ID: s.newID(), Type: typ, Tenant: id.Tenant, Program: pid, At: now,
+		Payload: map[string]any{"program_id": convert.ID(core.PrefixProgram, pid), "version": req.GetBaseVersion() + 1,
+			"effective_from": core.FormatTime(eff)}}}
 	v, err = s.o.Repo.PutVersion(ctx, id.Tenant, req.GetBaseVersion(), v, evs)
 	if err != nil {
 		return nil, repoErr("program", err)
@@ -233,7 +250,10 @@ func (s *Server) PutScope(ctx context.Context, req *pb.PutScopeRequest) (*pb.Sco
 	return VersionProto(v), nil
 }
 
-// GetScope implements ScopeService (version 0 = current).
+// GetScope implements ScopeService. Version 0 is the version in effect now
+// (the highest one whose effective_from has passed, spec 4.1); a pending
+// future-dated version is returned only when asked for by number, and
+// ListScopeVersions lists it with its effective_from.
 func (s *Server) GetScope(ctx context.Context, req *pb.GetScopeRequest) (*pb.ScopeVersion, error) {
 	id, err := platform.MustIdentity(ctx)
 	if err != nil {
@@ -243,7 +263,16 @@ func (s *Server) GetScope(ctx context.Context, req *pb.GetScopeRequest) (*pb.Sco
 	if err != nil {
 		return nil, err
 	}
-	v, err := s.o.Repo.GetVersion(ctx, id.Tenant, pid, req.GetVersion())
+	n := req.GetVersion()
+	if n == 0 {
+		if n, err = s.o.Repo.EffectiveVersion(ctx, id.Tenant, pid, s.o.Clock.Now().UTC()); err != nil {
+			return nil, repoErr("program", err)
+		}
+		if n == 0 {
+			return nil, core.Errorf(core.KindNotFound, core.ReasonNotFound, "no scope version is in effect yet")
+		}
+	}
+	v, err := s.o.Repo.GetVersion(ctx, id.Tenant, pid, n)
 	if err != nil {
 		return nil, repoErr("scope version", err)
 	}
@@ -351,6 +380,9 @@ func (s *Server) GetKillSwitches(ctx context.Context, _ *pb.GetKillSwitchesReque
 // recorded before it is returned; any internal failure is an error, which
 // every caller treats as deny (fail closed, spec 2.4).
 func (s *Server) Check(ctx context.Context, req *pb.CheckRequest) (*pb.Decision, error) {
+	// Includes recording the decision: Check answers only after the decision
+	// log accepted it (record fails closed), so callers wait for both.
+	defer s.o.Metrics.ScopeCheck.Since(time.Now())
 	id, err := platform.MustIdentity(ctx)
 	if err != nil {
 		return nil, err
@@ -421,21 +453,33 @@ func (s *Server) check(ctx context.Context, id platform.Identity, req *pb.CheckR
 	if err != nil {
 		return rec, err
 	}
-	p, err := s.o.Repo.GetProgram(ctx, id.Tenant, pid)
-	if err != nil {
-		return rec, repoErr("program", err)
-	}
+	now := s.o.Clock.Now().UTC()
 	version := req.GetScopeVersion()
 	if version == 0 {
-		version = p.CurrentVersion
+		// The version in effect at decision time, never a pending one
+		// (spec 4.1 effective_from; G-CORE-01).
+		if version, err = s.o.Repo.EffectiveVersion(ctx, id.Tenant, pid, now); err != nil {
+			return rec, repoErr("program", err)
+		}
+		if version == 0 {
+			return rec, core.Errorf(core.KindFailedPrecondition, core.ReasonValidationFailed, "program has no scope document in effect")
+		}
+	} else if _, err := s.o.Repo.GetProgram(ctx, id.Tenant, pid); err != nil {
+		// The policy cache is keyed by program only: check tenancy first.
+		return rec, repoErr("program", err)
 	}
-	if version == 0 {
-		return rec, core.Errorf(core.KindFailedPrecondition, core.ReasonValidationFailed, "program has no scope document")
-	}
-	pol, err := s.policy(ctx, id.Tenant, pid, version)
+	c, err := s.policy(ctx, id.Tenant, pid, version)
 	if err != nil {
 		return rec, err
 	}
+	if c.eff.After(now) {
+		// A pinned version that is not in effect yet cannot authorize
+		// anything (fail closed); runs are only ever pinned to effective
+		// versions, so this is a caller asking ahead of time.
+		return rec, core.Errorf(core.KindFailedPrecondition, core.ReasonValidationFailed,
+			"scope version %d is not in effect until %s", version, core.FormatTime(c.eff))
+	}
+	pol := c.pol
 	kss, err := s.o.Repo.KillSwitches(ctx, id.Tenant)
 	if err != nil {
 		return rec, repoErr("kill switches", err)
@@ -443,7 +487,7 @@ func (s *Server) check(ctx context.Context, id platform.Identity, req *pb.CheckR
 	_, killed := Engaged(kss, id.Tenant, pid)
 	class := convert.ClassFrom(req.GetActivityClass())
 	d := pol.Check(ctx, scope.Request{Target: req.GetTarget(), Kind: convert.TargetKind(req.GetKind()), Class: class,
-		Now: s.o.Clock.Now().UTC(), KillSwitch: killed, SkipResolution: !req.GetResolve(),
+		Now: now, KillSwitch: killed, SkipResolution: !req.GetResolve(),
 		ResolvePassive: req.GetResolve()})
 	did := s.newID()
 	d.ID = core.PublicID(core.PrefixDecision, did)
@@ -456,29 +500,108 @@ func (s *Server) check(ctx context.Context, id platform.Identity, req *pb.CheckR
 
 // policy returns the compiled policy of (program, version), cached; the
 // caller has already checked that the program belongs to the tenant.
-func (s *Server) policy(ctx context.Context, tenant, program core.UUID, version int32) (*scope.Policy, error) {
+func (s *Server) policy(ctx context.Context, tenant, program core.UUID, version int32) (compiled, error) {
 	k := policyKey{program, version}
 	s.mu.Lock()
-	p := s.policies[k]
+	c, ok := s.policies[k]
 	s.mu.Unlock()
-	if p != nil {
-		return p, nil
+	if ok {
+		return c, nil
 	}
 	v, err := s.o.Repo.GetVersion(ctx, tenant, program, version)
 	if err != nil {
-		return nil, repoErr("scope version", err)
+		return compiled{}, repoErr("scope version", err)
 	}
-	p, err = scope.Compile(v.Document, scope.WithResolver(s.o.Resolver))
+	p, err := scope.Compile(v.Document, scope.WithResolver(s.o.Resolver))
 	if err != nil {
-		return nil, core.Errorf(core.KindInternal, core.ReasonInternal, "stored scope version %d does not compile: %v", version, err)
+		return compiled{}, core.Errorf(core.KindInternal, core.ReasonInternal, "stored scope version %d does not compile: %v", version, err)
 	}
+	c = compiled{pol: p, eff: v.EffectiveFrom}
 	s.mu.Lock()
 	if len(s.policies) > 4096 {
 		clear(s.policies)
 	}
-	s.policies[k] = p
+	s.policies[k] = c
 	s.mu.Unlock()
-	return p, nil
+	return c, nil
+}
+
+// ActivationLookback is how far back ActivationLoop looks on start, so a
+// version that took effect while the service was down is still announced.
+const ActivationLookback = 24 * time.Hour
+
+// ActivateDue publishes scope.version_published for every future-dated
+// version whose effective_from lies in (after, upTo], and returns the
+// effective_from of the last one announced (after when none). Event ids
+// are derived from (program, version), so a repeated window re-emits the
+// same ids and the outboxes and consumer inboxes drop the duplicates.
+func (s *Server) ActivateDue(ctx context.Context, after, upTo time.Time) (time.Time, error) {
+	last := after
+	for {
+		due, err := s.o.Repo.DueVersions(ctx, last, upTo, 100)
+		if err != nil {
+			return last, err
+		}
+		if len(due) == 0 {
+			return last, nil
+		}
+		evs := make([]Event, 0, len(due))
+		for _, d := range due {
+			evs = append(evs, Event{ID: activationID(d.Program, d.Version), Type: EventVersionPublished, Tenant: d.Tenant, Program: d.Program,
+				At: d.EffectiveFrom, Payload: map[string]any{"program_id": convert.ID(core.PrefixProgram, d.Program), "version": d.Version,
+					"effective_from": core.FormatTime(d.EffectiveFrom)}})
+		}
+		if err := s.o.Repo.AppendEvents(ctx, evs); err != nil {
+			return last, err
+		}
+		next := due[len(due)-1].EffectiveFrom
+		if len(due) < 100 || !next.After(last) {
+			// The cursor is exclusive, so if more than 100 versions share
+			// one effective_from the ones past this page are never
+			// announced; accepted, since timestamps come from separate
+			// PutScope calls and practically never collide.
+			return next, nil
+		}
+		last = next
+	}
+}
+
+// ActivationLoop calls ActivateDue every interval (default 10 s) until ctx
+// ends, starting ActivationLookback in the past. Errors are logged and the
+// window retried, so a storage outage delays activation notices but never
+// loses them while the process runs.
+func (s *Server) ActivationLoop(interval time.Duration) func(context.Context) error {
+	if interval <= 0 {
+		interval = 10 * time.Second
+	}
+	return func(ctx context.Context) error {
+		after := s.o.Clock.Now().UTC().Add(-ActivationLookback)
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		for {
+			next, err := s.ActivateDue(ctx, after, s.o.Clock.Now().UTC())
+			if err != nil {
+				s.o.Logger.WarnContext(ctx, "scope.activation_failed", "error", err.Error())
+			}
+			after = next
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-t.C:
+			}
+		}
+	}
+}
+
+// activationID is a name-based UUID (version 8, RFC 9562 5.8) over
+// (program, version): the same activation always gets the same event id.
+func activationID(program core.UUID, version int32) core.UUID {
+	h := sha256.Sum256([]byte("scope.version_effective\x00" + program.String() + "\x00" + strconv.Itoa(int(version))))
+	var u core.UUID
+	copy(u[:], h[:16])
+	u[6] = (u[6] & 0x0f) | 0x80
+	u[8] = (u[8] & 0x3f) | 0x80
+	return u
 }
 
 // DecisionLog looks up recorded decisions; the egress proxy validates

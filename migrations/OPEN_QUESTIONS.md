@@ -26,8 +26,8 @@ leaves open.
    applies it. Files after 0012 must not depend on it.
 6. **pgxpool.** `Apply` takes a `Beginner` (anything with
    `Begin(ctx) (pgx.Tx, error)`): `*pgx.Conn`, `*pgxpool.Pool` and
-   `*pgxpool.Conn` all fit. This module does not depend on pgxpool (its
-   `puddle` dependency is not in go.mod), so tests use `*pgx.Conn`.
+   `*pgxpool.Conn` all fit. `cmd/migrate` passes a `*pgxpool.Pool`; the
+   tests use `*pgx.Conn`.
 
 ## Spec DDL issues (transcribed unchanged, noted here)
 
@@ -53,19 +53,36 @@ leaves open.
     setting match nothing (fail closed) instead of raising an error.
     Services set the tenant per transaction with
     `set_config('app.tenant_id', $1, true)`.
-12. `ENABLE`, not `FORCE`: the table owner and `BYPASSRLS` roles are exempt.
-    The engine scheduler (`ListReady`/`ClaimReady` span tenants), outbox
-    relays and retention jobs are cross-tenant by nature and connect with
-    such a role; request paths use an application role that is subject to
-    the policies. Which roles exist is deployment configuration
-    (section 17), not a migration.
-13. Not covered: tables without `tenant_id` (`run_events`, `effects`,
-    `timers`, `engine.snapshots`, `scope_versions`, `deliveries`, outboxes,
-    inboxes) are reached through a tenant-scoped parent; global tables
-    (`identity.tenants`, `identity.users`, `identity.signing_keys`,
-    `engine.tools`, `scope.kill_switches`); `identity.auth_audit` because its
-    `tenant_id` is nullable (failed logins). Adding `tenant_id` to the child
-    tables would be a spec change.
+12. **`FORCE` and role-scoped exemptions (0018).** 0007 used `ENABLE`, which
+    exempts the table owner. 0018 adds `FORCE`, so only superusers skip the
+    policies, and replaces "connect as the owner or a `BYPASSRLS` role" for
+    cross-tenant paths with permissive policies scoped to one role
+    (`CREATE POLICY svc_ff_engine ON engine.runs TO ff_engine USING (true)`).
+    Chosen over `BYPASSRLS` because (a) a `CREATEROLE` migrator such as Cloud
+    SQL's cannot grant `BYPASSRLS` without holding it (PostgreSQL 16), and
+    (b) the policy exempts the role on its own schema's tables only. The
+    engine scheduler (`ListReady`/`ClaimReady` span tenants and run as
+    `ff_engine`) therefore needs no SECURITY DEFINER claim function and no
+    second connection pool. The engine, scope, notifier and identity stores
+    do not yet pass a tenant on every call (the event store is keyed by run
+    id), so those roles get the exemption on their whole schema; graph sets
+    `app.tenant_id` in every transaction and stays subject to RLS except on
+    `graph.change_events`, which its relay scans across tenants (it reads
+    entity snapshots per tenant with the tenant set). Maintenance jobs use
+    `ff_maintenance`, exempt everywhere. Roles are created by
+    `ff_sync_roles()` (NOLOGIN when absent), not by Terraform alone, so the
+    policies can name them in every environment.
+13. **Coverage.** Tenant tables (every table with `tenant_id` in a service
+    schema, `identity.auth_audit` included: rows with a NULL tenant match
+    nothing), every partition of `scope.scope_decisions`, and the child
+    tables without `tenant_id` (`run_events`, `effects`, `timers`,
+    `engine.snapshots`, `run_ext`, `run_requests`, `approval_ext`,
+    `workflow_versions`, `workflow_version_ext`, `scope_versions`,
+    `deliveries`), which follow their parent through `parent_visible`. Not
+    covered: global tables (`identity.tenants`, `users`, `signing_keys`,
+    `email_verifications`, `engine.tools`, `engine.workers`,
+    `scope.kill_switches`) and the outbox and inbox tables, which belong to
+    one service and are protected by the schema grants alone.
 
 ## Additions
 

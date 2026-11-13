@@ -33,6 +33,9 @@ type outgoing struct {
 	requestID   string
 	traceparent string
 	idemKey     string
+	// groups are the caller's role groups (auth.Claims.Groups), loaded
+	// only by handlers whose backend needs them (call.loadGroups).
+	groups []string
 }
 
 func (c *call) outgoing() outgoing {
@@ -46,6 +49,26 @@ func (c *call) outgoing() outgoing {
 		o.actor = o.sub
 	}
 	return o
+}
+
+// loadGroups reads the caller's role groups and adds them to the internal
+// tokens of the rest of the call. Only users have groups (an API key holds
+// just its role). It is a per-call lookup, not a cached claim, so removing
+// a member takes effect on the next request; handlers call it only where
+// the backend uses groups (deciding approvals), which keeps the lookup off
+// every other route.
+func (c *call) loadGroups() ([]string, error) {
+	if c.p == nil || !c.p.KeyID.IsZero() {
+		return nil, nil
+	}
+	gs, err := c.s.cfg.Identity.UserRoleGroups(c.ctx, c.p.TenantID, c.p.UserID)
+	if err != nil {
+		return nil, err
+	}
+	o, _ := c.ctx.Value(keyOutgoing).(outgoing)
+	o.groups = gs
+	c.ctx = context.WithValue(c.ctx, keyOutgoing, o)
+	return gs, nil
 }
 
 // MinterSource yields the current token minter (identity.KeyManager).
@@ -64,7 +87,7 @@ func withInternalToken(ctx context.Context, keys MinterSource) (context.Context,
 	if !ok || o.tenant.IsZero() {
 		return nil, status.Error(codes.Internal, errNoCaller.Error())
 	}
-	tok, _, err := keys.Minter().Internal(auth.InternalGrant{TenantID: o.tenant, Actor: o.sub, Role: o.role})
+	tok, _, err := keys.Minter().Internal(auth.InternalGrant{TenantID: o.tenant, Actor: o.sub, Role: o.role, Groups: o.groups})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "gateway: mint internal token: %v", err)
 	}

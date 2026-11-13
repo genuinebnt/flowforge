@@ -10,5 +10,10 @@ output "slo_alert_policies" {
 
 output "log_metrics" {
   description = "Log-based metric names."
-  value       = [google_logging_metric.scope_denials.name, google_logging_metric.approvals.name]
+  value       = concat(google_logging_metric.scope_denials[*].name, google_logging_metric.approvals[*].name)
+}
+
+output "budget_name" {
+  description = "Billing budget resource name."
+  value       = google_billing_budget.monthly.name
 }

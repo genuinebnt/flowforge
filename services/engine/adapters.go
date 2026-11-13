@@ -226,6 +226,36 @@ func (p MemPublisher) Publish(_ context.Context, envs []engine.Envelope) error {
 type MeteredPublisher struct {
 	Next    engine.Publisher
 	Metrics *platform.Metrics
+	// Logger receives one ApprovalLogMsg line per approval state change,
+	// which the ff_approvals log-based metric of infra/modules/monitoring
+	// counts (filter: service="engine", msg="approval.changed"; labels
+	// status and role). Nil logs nothing.
+	Logger *slog.Logger
+}
+
+// ApprovalLogMsg is the msg of the approval state-change log line; it must
+// equal infra/modules/monitoring's approval_msg variable.
+const ApprovalLogMsg = "approval.changed"
+
+// approvalLogStatus maps engine approval statuses to the status label the
+// monitoring metric documents (requested, approved, rejected, expired;
+// cancelled is kept as is).
+func approvalLogStatus(s string) string {
+	switch s {
+	case engine.ApprovalPending:
+		return "requested"
+	case engine.ApprovalDenied:
+		return "rejected"
+	}
+	return s
+}
+
+// EngineObserver exports engine.Observer measurements as metrics.
+type EngineObserver struct{ Metrics *platform.Metrics }
+
+// RunStarted implements engine.Observer (ff_run_submit_to_start_seconds).
+func (o EngineObserver) RunStarted(_ core.UUID, d time.Duration) {
+	o.Metrics.RunSubmitToStart.Observe(max(d, 0).Seconds())
 }
 
 // Publish implements engine.Publisher.
@@ -250,6 +280,16 @@ func (p MeteredPublisher) Publish(ctx context.Context, envs []engine.Envelope) e
 			p.Metrics.ApprovalsPending.Add(1)
 		case "approval.approved", "approval.denied", "approval.expired", "approval.cancelled":
 			p.Metrics.ApprovalsPending.Add(-1)
+		}
+		if p.Logger != nil && strings.HasPrefix(e.Type, "approval.") {
+			var a struct {
+				ApprovalID string `json:"approval_id"`
+				RunID      string `json:"run_id"`
+				Role       string `json:"role"`
+			}
+			_ = json.Unmarshal(e.Payload, &a)
+			p.Logger.InfoContext(ctx, ApprovalLogMsg, "status", approvalLogStatus(strings.TrimPrefix(e.Type, "approval.")),
+				"role", a.Role, "approval_id", a.ApprovalID, "run_id", a.RunID)
 		}
 	}
 	return nil
@@ -286,15 +326,95 @@ func (c ContextLimiter) AcquireAll(reqs []limiter.Request, now time.Duration) (l
 	return c.L.AcquireAll(ctx, reqs, now)
 }
 
+// FailoverLimiter is the engine's limiter when Redis is configured: Redis
+// (Primary, through a per-call timeout) while it answers, and the spec
+// 23.8 outage policy when it fails with limiter.ErrUnavailable: passive
+// work falls back to Local, an in-process limiter with reduced rates
+// (LocalLimitRules), and active work gets the error, which the engine
+// turns into a wait (fail closed: a per-target rate can never exceed its
+// ceiling because some instance lost Redis). Local budgets are per
+// process, so N engine instances admit up to N times the local rate.
+type FailoverLimiter struct {
+	Primary limiter.ContextLimiter
+	Local   limiter.Limiter
+	// Timeout bounds one Redis call (default 200 ms); a timeout counts as
+	// unavailable.
+	Timeout time.Duration
+}
+
+var _ engine.WorkLimiter = FailoverLimiter{}
+
+func (f FailoverLimiter) ctx() (context.Context, context.CancelFunc) {
+	t := f.Timeout
+	if t <= 0 {
+		t = 200 * time.Millisecond
+	}
+	return context.WithTimeout(context.Background(), t)
+}
+
+// AcquireAll implements engine.Limiter; without a work kind the request is
+// treated as active (fail closed).
+func (f FailoverLimiter) AcquireAll(reqs []limiter.Request, now time.Duration) (limiter.Result, error) {
+	return f.AcquireAllWork(reqs, limiter.WorkActive, now)
+}
+
+// AcquireAllWork implements engine.WorkLimiter. now is the engine's
+// monotonic reading; Redis uses its own TIME, Local uses now.
+func (f FailoverLimiter) AcquireAllWork(reqs []limiter.Request, work limiter.Work, now time.Duration) (limiter.Result, error) {
+	ctx, cancel := f.ctx()
+	defer cancel()
+	return limiter.Failover{Primary: f.Primary, Local: f.Local}.AcquireAll(ctx, reqs, work, now)
+}
+
+// LocalLimitRules are DefaultLimitRules scaled by fraction (0 < fraction
+// <= 1; rates and bursts never below 1), the conservative local budgets of
+// spec 14.4 for passive work during a Redis outage.
+func LocalLimitRules(fraction float64) []limiter.Rule {
+	rules := DefaultLimitRules()
+	for i := range rules {
+		rules[i].Params.Rate = max(rules[i].Params.Rate*fraction, 1)
+		rules[i].Params.Burst = max(int(float64(rules[i].Params.Burst)*fraction), 1)
+	}
+	return rules
+}
+
+// NewFailoverLimiter returns the FailoverLimiter over primary (Redis) with
+// local budgets of LocalLimitRules(DefaultLocalFraction).
+func NewFailoverLimiter(primary limiter.ContextLimiter) (FailoverLimiter, error) {
+	local, err := limiter.NewAtomicGCRA(LocalLimitRules(DefaultLocalFraction)...)
+	if err != nil {
+		return FailoverLimiter{}, err
+	}
+	return FailoverLimiter{Primary: primary, Local: local}, nil
+}
+
+// DefaultLocalFraction is the share of the distributed rates an engine
+// instance allows itself on local budgets.
+const DefaultLocalFraction = 0.1
+
 // MeteredLimiter counts denials (ff_limiter_denied_total{level}).
 type MeteredLimiter struct {
 	Next    engine.Limiter
 	Metrics *platform.Metrics
 }
 
+var _ engine.WorkLimiter = MeteredLimiter{}
+
 // AcquireAll implements engine.Limiter.
 func (m MeteredLimiter) AcquireAll(reqs []limiter.Request, now time.Duration) (limiter.Result, error) {
-	r, err := m.Next.AcquireAll(reqs, now)
+	return m.count(m.Next.AcquireAll(reqs, now))
+}
+
+// AcquireAllWork implements engine.WorkLimiter, forwarding the work kind
+// when Next understands it.
+func (m MeteredLimiter) AcquireAllWork(reqs []limiter.Request, work limiter.Work, now time.Duration) (limiter.Result, error) {
+	if wl, ok := m.Next.(engine.WorkLimiter); ok {
+		return m.count(wl.AcquireAllWork(reqs, work, now))
+	}
+	return m.count(m.Next.AcquireAll(reqs, now))
+}
+
+func (m MeteredLimiter) count(r limiter.Result, err error) (limiter.Result, error) {
 	if err == nil && !r.Allowed {
 		m.Metrics.LimiterDenied.Inc("tool_call")
 	}

@@ -1,0 +1,27 @@
+{
+  "id": "lim_008_hierarchy_atomic",
+  "comment": "Spec 14.1/14.3 hierarchy atomicity: AcquireAll charges every key or none. A denial by any key (or a cost above one key's capacity) leaves every other key of the request uncharged. Keys are the 14.3 forms (rl:t:<tenant>:<class>, rl:h:<program>:<target>); all steps at t=0, so nothing refills. 'limit' is the burst of the denying key.",
+  "rules": [
+    { "pattern": "*", "rate_per_s": 1000, "burst": 100 },
+    { "pattern": "rl:t:*", "rate_per_s": 1, "burst": 2 },
+    { "pattern": "rl:h:*", "rate_per_s": 1, "burst": 3 }
+  ],
+  "steps": [
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_a:active", "cost": 1 }, { "key": "rl:h:prg_1:acme.com", "cost": 1 }],
+      "expect": { "allow": true } },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_a:active", "cost": 1 }, { "key": "rl:h:prg_1:acme.com", "cost": 1 }],
+      "expect": { "allow": true } },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_a:active", "cost": 1 }, { "key": "rl:h:prg_1:acme.com", "cost": 1 }],
+      "expect": { "allow": false, "limit": 2 }, "comment": "tenant a is spent; the target keeps its last token" },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_b:active", "cost": 1 }, { "key": "rl:h:prg_1:acme.com", "cost": 1 }],
+      "expect": { "allow": true, "remaining": 0 }, "comment": "the denied call above charged nothing on the target" },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_b:active", "cost": 1 }, { "key": "rl:h:prg_1:acme.com", "cost": 1 }],
+      "expect": { "allow": false, "limit": 3 }, "comment": "the target denies now" },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_b:active", "cost": 1 }],
+      "expect": { "allow": true, "remaining": 0 }, "comment": "tenant b was not charged by the target's denial" },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_c:active", "cost": 2 }, { "key": "rl:h:prg_2:example.com", "cost": 4 }],
+      "expect": { "allow": false, "error": "cost_exceeds_capacity" } },
+    { "t_ms": 0, "requests": [{ "key": "rl:t:ten_c:active", "cost": 2 }],
+      "expect": { "allow": true, "remaining": 0 }, "comment": "the rejected request charged nothing on tenant c" }
+  ]
+}

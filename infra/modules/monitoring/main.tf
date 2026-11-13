@@ -15,6 +15,7 @@ terraform {
 }
 
 locals {
+  log_env  = coalesce(var.log_env, var.env)
   channels = [for c in google_monitoring_notification_channel.email : c.id]
 
   # spec 18.1 SLO candidates.
@@ -57,7 +58,7 @@ resource "google_monitoring_notification_channel" "email" {
 }
 
 resource "google_monitoring_alert_policy" "slo" {
-  for_each     = local.slos
+  for_each     = var.alert_policies_enabled ? local.slos : {}
   project      = var.project_id
   display_name = "[${var.env}] ${each.value.display}"
   combiner     = "OR"
@@ -90,6 +91,7 @@ resource "google_monitoring_alert_policy" "slo" {
 
 # Undeliverable events pile up in *.dead-letter.ops (spec 11.7).
 resource "google_monitoring_alert_policy" "dead_letters" {
+  count        = var.alert_policies_enabled ? 1 : 0
   project      = var.project_id
   display_name = "[${var.env}] Pub/Sub dead letters present"
   combiner     = "OR"
@@ -124,9 +126,10 @@ resource "google_monitoring_alert_policy" "dead_letters" {
 # with the 18.1 field set; scope and engine log one line per decision.
 
 resource "google_logging_metric" "scope_denials" {
+  count   = var.log_metrics_enabled ? 1 : 0
   project = var.project_id
   name    = "ff_scope_denials"
-  filter  = "resource.type=\"cloud_run_revision\" AND jsonPayload.env=\"${var.env}\" AND jsonPayload.service=\"scope\" AND jsonPayload.msg=\"${var.scope_decision_msg}\" AND jsonPayload.decision=\"deny\""
+  filter  = "resource.type=\"cloud_run_revision\" AND jsonPayload.env=\"${local.log_env}\" AND jsonPayload.service=\"scope\" AND jsonPayload.msg=\"${var.scope_decision_msg}\" AND jsonPayload.decision=\"deny\""
 
   metric_descriptor {
     metric_kind  = "DELTA"
@@ -152,9 +155,10 @@ resource "google_logging_metric" "scope_denials" {
 }
 
 resource "google_logging_metric" "approvals" {
+  count   = var.log_metrics_enabled ? 1 : 0
   project = var.project_id
   name    = "ff_approvals"
-  filter  = "resource.type=\"cloud_run_revision\" AND jsonPayload.env=\"${var.env}\" AND jsonPayload.service=\"engine\" AND jsonPayload.msg=\"${var.approval_msg}\""
+  filter  = "resource.type=\"cloud_run_revision\" AND jsonPayload.env=\"${local.log_env}\" AND jsonPayload.service=\"engine\" AND jsonPayload.msg=\"${var.approval_msg}\""
 
   metric_descriptor {
     metric_kind  = "DELTA"
@@ -201,7 +205,7 @@ resource "google_monitoring_dashboard" "overview" {
             }
           }
         }],
-        [
+        var.log_metrics_enabled ? [
           {
             xPos   = 0
             yPos   = 8
@@ -214,7 +218,7 @@ resource "google_monitoring_dashboard" "overview" {
                   plotType = "STACKED_BAR"
                   timeSeriesQuery = {
                     timeSeriesFilter = {
-                      filter = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.scope_denials.name}\" resource.type=\"cloud_run_revision\""
+                      filter = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.scope_denials[0].name}\" resource.type=\"cloud_run_revision\""
                       aggregation = {
                         alignmentPeriod    = "300s"
                         perSeriesAligner   = "ALIGN_SUM"
@@ -239,7 +243,7 @@ resource "google_monitoring_dashboard" "overview" {
                   plotType = "STACKED_BAR"
                   timeSeriesQuery = {
                     timeSeriesFilter = {
-                      filter = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.approvals.name}\" resource.type=\"cloud_run_revision\""
+                      filter = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.approvals[0].name}\" resource.type=\"cloud_run_revision\""
                       aggregation = {
                         alignmentPeriod    = "300s"
                         perSeriesAligner   = "ALIGN_SUM"
@@ -252,7 +256,7 @@ resource "google_monitoring_dashboard" "overview" {
               }
             }
           },
-        ],
+        ] : [],
       )
     }
   })
@@ -291,8 +295,12 @@ resource "google_billing_budget" "monthly" {
     spend_basis       = "FORECASTED_SPEND"
   }
 
+  # Every budget update (several a day) also goes to budget_pubsub_topic
+  # when set; the budget-shutdown module consumes it.
   all_updates_rule {
     monitoring_notification_channels = local.channels
     disable_default_iam_recipients   = false
+    pubsub_topic                     = var.budget_pubsub_topic
+    schema_version                   = var.budget_pubsub_topic == null ? null : "1.0"
   }
 }

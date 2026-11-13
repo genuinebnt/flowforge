@@ -21,6 +21,7 @@ type Store interface {
     Subscribe(ctx, run RunID, fromSeq uint64) iter.Seq2[Event, error]
     SaveSnapshot(ctx, run RunID, snap Snapshot) error
     LoadSnapshot(ctx, run RunID) (Snapshot, bool, error)
+    DeleteSnapshots(ctx, run RunID) error   // spec 10.7: when the run finishes (G-ENG-04)
     AcquireLease(ctx, run RunID, owner WorkerID, ttl time.Duration) (Lease, error)
     RenewLease(ctx, lease Lease, ttl time.Duration) (Lease, error)
     ReleaseLease(ctx, lease Lease, next Next) error
@@ -62,3 +63,19 @@ Scripted scenarios live in `conformance/eventstore/*.json`.
   is not part of the store; ready runs are ordered by priority, then wake
   time, then id.
 * See `OPEN_QUESTIONS.md`.
+
+## Choosing an algorithm
+
+Decision point: where run logs live (spec 23.1). `MemStore` and
+`pgstore.Store` pass the same conformance suite (`storetest.Run`).
+`go test -run '^$' -bench ESAlgo ./eventstore/pgstore` (pg needs
+`FF_TEST_PG_DSN`) compares them on the b_es_01 and b_es_02 workloads:
+
+| Store | append, 16 runs x 10 events | lease claim, 10k runs, 16 workers |
+|---|---|---|
+| `mem` | 86k events/s | 685 claims/s |
+| `pg` (local PostgreSQL 16) | 12k events/s | 687 claims/s |
+
+Measured 2026-11-13 on a 4-vCPU Linux container (Go 1.26, `GOMAXPROCS=4`); see `docs/ALGORITHMS.md` for the consolidated entry. Three iterations only, so the claim figures are dominated by setup;
+use `BenchmarkES01`/`ES02` for baselines. Memory is the dev and test
+store; Postgres is the durable one every deployed engine uses.

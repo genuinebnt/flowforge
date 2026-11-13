@@ -11,7 +11,7 @@
 // re-resolving, so DNS rebinding cannot redirect the connection). Private,
 // loopback, link-local and metadata addresses are refused unless the scope
 // explicitly allows them with a cidr rule. Plain-HTTP redirects are
-// re-checked hop by hop.
+// re-checked hop by hop; a redirect to an out-of-scope host is refused.
 //
 // A URL decision covers its URL's host and port. A host-level decision
 // (Host or IP) covers its host for TCP to the ports of the program's
@@ -27,11 +27,22 @@
 // (rl:h:<program>:<registrable domain or ip>, GCRA at the scope rate, plus
 // a concurrency cap); denials answer 429 (SOCKS: "connection not allowed by
 // ruleset"). Every refusal is logged and counted.
+//
+// The notifier's webhook and Slack deliveries take a second path
+// (X-Flowforge-Egress-Purpose: notify, G-SVC-08): alert destinations are
+// operator-configured, not program targets, so instead of a scope decision
+// the destination host must be on NotifyAllowlist, the caller must be the
+// notifier service, only CONNECT (https) is accepted, and the proxy resolves
+// the host itself and connects only to addresses that pass the webhook SSRF
+// checks of spec 15.4 (alerts.CheckResolved), pinned for the connection.
+// The per-target limit does not apply to it: it is keyed by program, and
+// the notifier throttles its own deliveries (spec 15.3).
 package egressproxy
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -44,6 +55,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/genuinebnt/flowforge/alerts"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/limiter"
@@ -87,6 +99,19 @@ type Proxy struct {
 	// Clock drives the per-target limiter (monotonic readings) and decision
 	// ids (default core.SystemClock). Tests inject a fake clock.
 	Clock core.Clock
+	// NotifyAllowlist are the destination hosts of the notify path: an
+	// exact host name ("hooks.slack.com") or a suffix entry starting with a
+	// dot (".example.com" matches every name below example.com, not
+	// example.com itself). Empty refuses every notify request (fail
+	// closed).
+	NotifyAllowlist []string
+	// Resolver resolves notify destinations (the decision path never
+	// resolves: it uses the decision's pinned addresses).
+	Resolver scope.Resolver
+	// CheckNotifyAddrs vets the resolved notify addresses; nil means
+	// alerts.CheckResolved (public unicast only). Tests replace it to reach
+	// a loopback listener.
+	CheckNotifyAddrs func([]netip.Addr) error
 
 	// Ports is the TCP port policy for host-level decisions (nil:
 	// DefaultPorts, 80 and 443).
@@ -176,6 +201,9 @@ type request struct {
 	ports    []int        // declared ports (nil: none declared)
 	intel    *IntelSource // set when the target is an allowlisted source
 	via      string       // "http", "connect", "socks5"
+	// notify marks the notifier path; pinned are the addresses it checked.
+	notify bool
+	pinned []netip.Addr
 }
 
 // logRefusal logs and counts a refusal.
@@ -215,7 +243,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rf = parseHTTPTarget(r, rq)
 	}
 	if rf == nil {
-		rf = p.authorize(ctx, rq)
+		if r.Header.Get(platform.HeaderEgressPurpose) == platform.PurposeNotify {
+			rf = p.validateNotify(ctx, r, rq)
+		} else {
+			rf = p.authorize(ctx, rq)
+		}
 	}
 	if rf != nil {
 		p.refused(ctx, w, rq, target, rf)
@@ -293,6 +325,17 @@ func parseHTTPTarget(r *http.Request, rq *request) *refusal {
 	return nil
 }
 
+// normalizeHost replaces rq.host by its normalized form (scope 4.5), so
+// matching and allowlists compare canonical names.
+func normalizeHost(rq *request) *refusal {
+	t, err := scope.Normalize(rq.host, scope.TargetHost)
+	if err != nil {
+		return refuse("invalid_target", "host does not normalize")
+	}
+	rq.host = t.String()
+	return nil
+}
+
 // loadDecision loads the pinned decision for the caller's tenant and checks
 // that it is an allow, recent, and of the request's run.
 func (p *Proxy) loadDecision(ctx context.Context, rq *request) *refusal {
@@ -331,11 +374,9 @@ func (p *Proxy) killSwitch(ctx context.Context, rq *request) *refusal {
 // authorize checks that rq's pinned decision covers (host, port), or that
 // the target is an intelligence source reachable by the decision's class.
 func (p *Proxy) authorize(ctx context.Context, rq *request) *refusal {
-	t, err := scope.Normalize(rq.host, scope.TargetHost)
-	if err != nil {
-		return refuse("invalid_target", "host does not normalize")
+	if rf := normalizeHost(rq); rf != nil {
+		return rf
 	}
-	rq.host = t.String()
 	if rf := p.loadDecision(ctx, rq); rf != nil {
 		return rf
 	}
@@ -371,6 +412,64 @@ func (p *Proxy) intelFor(host string) *IntelSource {
 		}
 	}
 	return nil
+}
+
+// validateNotify checks a notifier delivery (see the package comment).
+func (p *Proxy) validateNotify(ctx context.Context, r *http.Request, rq *request) *refusal {
+	rq.notify = true
+	if rf := normalizeHost(rq); rf != nil {
+		return rf
+	}
+	if rq.id.Actor != platform.ServiceActor("notifier") {
+		return refuse("notify_not_notifier", "the notify path is for the notifier service")
+	}
+	if r.Method != http.MethodConnect {
+		return refuse("notify_https_only", "notify deliveries are https (CONNECT)")
+	}
+	if !notifyAllowed(p.NotifyAllowlist, rq.host) {
+		return refuse("notify_not_allowlisted", "destination host is not on the notify allowlist")
+	}
+	if a, err := netip.ParseAddr(rq.host); err == nil {
+		rq.pinned = []netip.Addr{a}
+	} else {
+		if p.Resolver == nil {
+			return refuse("notify_no_resolver", "proxy cannot resolve notify destinations")
+		}
+		addrs, err := p.Resolver.LookupAddrs(ctx, rq.host)
+		if err != nil {
+			return refuse("notify_resolve_failed", err.Error())
+		}
+		rq.pinned = addrs
+	}
+	// Every address must pass: a name with one internal address could be
+	// steered there by whichever answer the dialer picks.
+	check := p.CheckNotifyAddrs
+	if check == nil {
+		check = alerts.CheckResolved
+	}
+	if err := check(rq.pinned); err != nil {
+		return refuse("forbidden_address", err.Error())
+	}
+	return nil
+}
+
+// notifyAllowed matches host against the allowlist entries (exact names,
+// or ".suffix" entries for the names below a domain).
+func notifyAllowed(list []string, host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	for _, e := range list {
+		e = strings.ToLower(strings.TrimSpace(strings.TrimSuffix(e, ".")))
+		switch {
+		case e == "":
+		case strings.HasPrefix(e, "."):
+			if strings.HasSuffix(host, e) && len(host) > len(e) {
+				return true
+			}
+		case host == e:
+			return true
+		}
+	}
+	return false
 }
 
 func stripPort(h string) string {
@@ -435,8 +534,17 @@ func Forbidden(a netip.Addr) bool {
 }
 
 // connect admits rq against the per-target limit and dials. The release
-// function must be called when the request or tunnel ends.
+// function must be called when the request or tunnel ends. A notify
+// request has no program to key a limit on and dials its checked
+// addresses.
 func (p *Proxy) connect(ctx context.Context, rq *request) (net.Conn, func(), *refusal) {
+	if rq.notify {
+		conn, rf := p.dialPinned(ctx, rq.pinned, rq.port)
+		if rf != nil {
+			return nil, nil, rf
+		}
+		return conn, func() {}, nil
+	}
 	release, rf := p.admit(ctx, rq)
 	if rf != nil {
 		return nil, nil, rf
@@ -521,15 +629,21 @@ func (p *Proxy) dialIntel(ctx context.Context, rq *request) (net.Conn, *refusal)
 	if rf := p.recordIntel(ctx, rq, rq.host, addrs); rf != nil {
 		return nil, rf
 	}
+	return p.dialPinned(ctx, addrs, rq.port)
+}
+
+// dialPinned connects to the first reachable address of addrs (already
+// checked by the caller).
+func (p *Proxy) dialPinned(ctx context.Context, addrs []netip.Addr, port int) (net.Conn, *refusal) {
 	var lastErr error
-	for _, a := range addrs {
-		conn, err := p.dialAddr(ctx, a, rq.port)
+	for _, ip := range addrs {
+		conn, err := p.dialAddr(ctx, ip, port)
 		if err == nil {
 			return conn, nil
 		}
 		lastErr = err
 	}
-	rf := refuse("connect_failed", lastErr.Error())
+	rf := refuse("connect_failed", fmt.Sprint(lastErr)) // lastErr is nil when addrs is empty
 	rf.status = http.StatusBadGateway
 	return nil, rf
 }

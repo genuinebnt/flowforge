@@ -251,7 +251,10 @@ func (x *xmlWriter) node(id xmlparse.NodeID) {
 	case xmlparse.NodeElement:
 		x.flush()
 		attrs := x.d.AttrsOf(id)
-		type kv struct{ ns bool; sortKey, text string }
+		type kv struct {
+			ns            bool
+			sortKey, text string
+		}
 		list := make([]kv, 0, len(attrs))
 		for _, a := range attrs {
 			q := a.Name.QName()
