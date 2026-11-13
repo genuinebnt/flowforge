@@ -29,9 +29,17 @@ are bounded at 10 min). Internal services verify those tokens with the
 gateway's JWKS (`FF_JWKS_URL=https://<gateway>/.well-known/jwks.json`,
 same `FF_JWT_ISSUER`).
 
-`cmd/gateway` environment: `FF_GATEWAY_ADDR` (or `PORT`), `FF_DB_DSN`
+`cmd/gateway` environment: `FF_GATEWAY_ADDR` (or `PORT`), `FF_ENV`, `FF_DB_DSN`
 (empty: in-memory identity), `FF_DB_MIGRATE`, `FF_REDIS_ADDR`/`FF_REDIS_AUTH`
-(empty: per-process revocation, lockouts and limits), `FF_JWT_ISSUER`
+(empty: per-process revocation, lockouts and limits), `FF_REDIS_CA` (PEM
+or path; set = TLS to Redis), signing keys (below: `FF_SIGNING_KEY_STORE`,
+`FF_SIGNING_KID`, `FF_SIGNING_KEY_<KID>`, `FF_SIGNING_KEY_DIR`,
+`FF_SECRET_PROJECT`), Argon2id (`FF_ARGON2_MEMORY_KIB`, `FF_ARGON2_TIME`,
+`FF_ARGON2_PARALLELISM`, each defaulting to and never below the 13.1
+floor; `FF_ARGON2_TARGET_MS` calibrates the iterations at start to that
+hash time, clamped to 200-500 ms, and logs the result; hashes with other
+parameters are re-hashed at the next login), `FF_ID_TOKEN_AUDIENCE_AUTO`
+(ID tokens to `https://` backends; on when `K_SERVICE` is set), `FF_JWT_ISSUER`
 (required), `FF_JWT_AUDIENCE` (must be `flowforge-api`), `FF_PUBLIC_URL`,
 `FF_COOKIE_DOMAIN`, `FF_COOKIE_INSECURE`, `FF_TRUST_XFF`, `FF_GRPC_TLS`,
 and `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR` (also analytics),
@@ -48,6 +56,7 @@ checked before any internal call; `read` = every role.
 | POST /auth/logout | any token, or a refresh token | identity |
 | GET /me | any | identity |
 | GET /tenant/members, GET/PATCH /tenant/members/{user_id}, POST /tenant/invites | members:admin (admin) | identity |
+| GET /tenant/role-groups, PUT/DELETE /tenant/role-groups/{name}/members/{user_id} | members:admin (admin) | identity |
 | GET, POST /api-keys; DELETE /api-keys/{id} | members:admin (admin) | identity |
 | GET /programs, GET /programs/{id}, GET /programs/{id}/scope, GET /programs/{id}/scope/versions | read | scope |
 | POST /programs, PATCH /programs/{id}, PUT /programs/{id}/scope, POST /programs/{id}/kill-switch | programs:admin (admin) | scope |
@@ -57,8 +66,10 @@ checked before any internal call; `read` = every role.
 | GET /tools | read | tool runner |
 | POST /runs, POST /runs/{id}:cancel | runs:submit (analyst) | engine |
 | GET /runs, GET /runs/{id}, GET /runs/{id}/events, GET /runs/{id}/watch (SSE) | read | engine |
+| POST /schedules, DELETE /schedules/{id} | runs:submit (analyst) | engine (HTTP `/internal/schedules`, G-OPS-10) |
+| GET /schedules, GET /schedules/{id} | read | engine (HTTP) |
 | GET /approvals, GET /approvals/{id} | read | engine |
-| POST /approvals/{id}:decide | approvals:decide (approver) + approval role match | engine |
+| POST /approvals/{id}:decide | approvals:decide (approver) + approval role matches the membership role or a role group | engine |
 | GET /graph/entities, /graph/entities/{id}, /graph/entities/{id}/neighbors, /graph/search, /graph/diff, /graph/changes/watch (SSE); POST /graph/paths | read | graph |
 | GET /graph/entities/{id}/similar, POST /graph/similar; GET /programs/{pid}/entities/{id}/similar, POST /programs/{pid}/similar | read | similarity (+ graph for hit types) |
 | POST /graph/analysis, POST /programs/{pid}/graph/analysis | runs:submit (analyst) | analytics |
@@ -96,8 +107,27 @@ Go 1.22 `ServeMux` matching (`rewriteVerb`), so patterns stay standard.
 * **API keys** `ffk_<id>_<secret>`: SHA-256 of the secret stored, shown
   once, role ≤ admin, revocable, optional expiry.
 * **Signing keys**: `KeyManager` keeps one active key (private half only in
-  the `KeyStore`, the table holds `private_key_ref`), rotates every 90
-  days (old key → retiring until its tokens expire → retired, unpublished).
+  the `KeyStore`, the table holds `private_key_ref`); the previous one is
+  retiring until its tokens expire, then retired and unpublished. Stores
+  (`identity/keystore`, `FF_SIGNING_KEY_STORE`; empty picks `env` when
+  `FF_SIGNING_KID` is set, `dir` when `FF_SIGNING_KEY_DIR` is, else
+  `memory`, which `FF_ENV=prod` refuses):
+  * `env` (the Terraform layout): signs with `FF_SIGNING_KID`, seed in
+    `FF_SIGNING_KEY_<KID>` (or `FF_SIGNING_KEY`). Every instance and
+    restart registers and uses the same kid. Rotation is
+    operator-driven: add secret `ff-signing-key-<new>`, add the kid to
+    `signing_key_kids`, set `current_signing_kid`, apply; the gateway
+    then activates the new kid and the old one retires. `Rotate` returns
+    `ErrOperatorRotation` and the 90-day automatic rotation is off.
+    Internal services mount the same variables to sign their own calls.
+  * `sm`: the same, reading `sm://projects/<FF_SECRET_PROJECT>/secrets/ff-signing-key-<kid>/versions/latest`.
+  * `sm-managed`: the gateway generates keys and stores each as secret
+    `ff-signing-key-<kid>` (needs secret create rights); automatic 90-day
+    rotation.
+  * `dir`: key files in `FF_SIGNING_KEY_DIR` (0600, written atomically);
+    gateways sharing the directory and database share rotations (local
+    multi-process runs).
+  * `memory`: dev; every restart rotates to a new key.
   `/.well-known/jwks.json` (`Cache-Control: public, max-age=300`).
 
 ## Cookies and CSRF
@@ -156,8 +186,9 @@ public endpoints keyed by client IP as `rl:api:ip/<ip>:<class>`), GCRA
 parameters per tenant plan (`Config.Plans`, plan read from
 `identity.tenants.plan`, cached 1 min). Every limited response carries
 `RateLimit-Limit` (burst), `RateLimit-Remaining`, `RateLimit-Reset`
-(seconds to a full bucket); 429 adds `Retry-After`. Probes and JWKS are
-not limited.
+(seconds to a full bucket); 429 adds `Retry-After`. An unreachable
+limiter denies with `503 unavailable` and `Retry-After` (spec 2.4, fail
+closed). Probes and JWKS are not limited.
 
 ## Tests
 
@@ -189,12 +220,12 @@ go test ./services/gateway -run '^$' -fuzz FuzzRESTJSON -fuzztime 20s -fuzzminim
 
 ## Simplified or missing
 
-* Secret Manager/KMS `KeyStore` and a real e-mail provider are ports only
-  (dev: in-memory keys, log mailer). With the dev key store every restart
-  rotates to a new key (old public keys keep verifying until retired).
+* A real e-mail provider is a port only (dev: log mailer). KMS-held
+  signing keys are not implemented (Secret Manager is).
 * Breached-password check is a small built-in list in `cmd/gateway`.
-* The outbox is written (`identity.outbox`, topic `auth.events`) but no
-  relay publishes it here.
+* The outbox is written (`identity.outbox`, topic `auth.events`,
+  including `auth.signup_throttled` and `auth.login_throttled` for the
+  default signup-abuse alert rule) but no relay publishes it here.
 * PATCH /programs/{id} only changes `status` (active/paused via the
   program kill switch): the scope contract has no update RPC.
 * `paused_runs` in PUT scope is `null` (not in `ScopeVersion`; pausing is

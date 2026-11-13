@@ -117,7 +117,7 @@ func New(d Deps, o Options) (*Service, error) {
 	}
 	var pub engine.Publisher
 	if d.Publisher != nil {
-		pub = MeteredPublisher{Next: d.Publisher, Metrics: d.Metrics}
+		pub = MeteredPublisher{Next: d.Publisher, Metrics: d.Metrics, Logger: d.Logger}
 	}
 	var ing engine.Ingester
 	if d.Graph != nil {
@@ -126,7 +126,7 @@ func New(d Deps, o Options) (*Service, error) {
 	e, err := engine.New(engine.Deps{
 		Store: d.Store, Repo: d.Repo, Compiler: Compiler{}, Scope: d.Scope, Tools: d.Tools,
 		Executor: &Executor{C: d.Runner, Logger: d.Logger}, Ingester: ing, Limiter: lim, Publisher: pub,
-		Clock: d.Clock, Rng: &lockedRng{r: core.SystemRng{}},
+		Observer: EngineObserver{Metrics: d.Metrics}, Clock: d.Clock, Rng: &lockedRng{r: core.SystemRng{}},
 	}, o.Engine)
 	if err != nil {
 		return nil, err

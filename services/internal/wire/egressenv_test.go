@@ -16,11 +16,13 @@ import (
 func env(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
 
 // TestEgressConfigFromEnv: the standalone variables map to the proxy's
-// port policy, intel allowlist, listeners and upstream; bad values fail.
+// port policy, intel allowlist, listeners, upstream, notify allowlist and
+// Redis CA; bad values fail.
 func TestEgressConfigFromEnv(t *testing.T) {
 	o, err := wire.EgressConfigFromEnv(env(map[string]string{
 		"FF_EGRESS_PORTS": "80, 443,8000-8099", "FF_EGRESS_INTEL": "default,crt.test:8443=127.0.0.1,*.cymru.test:43",
 		"FF_EGRESS_SOCKS_LISTEN": "127.0.0.1:0", "FF_EGRESS_DNS_LISTEN": "127.0.0.1:0", "FF_EGRESS_DNS_UPSTREAM": "192.0.2.53:53",
+		"FF_NOTIFY_ALLOWLIST": "hooks.slack.com, ,.example.com", "FF_REDIS_CA": "pem",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -32,6 +34,9 @@ func TestEgressConfigFromEnv(t *testing.T) {
 	last, prev := o.Intel[n-1], o.Intel[n-2]
 	if n < 3 || prev.Host != "crt.test" || prev.Ports[0] != 8443 || prev.Addrs[0].String() != "127.0.0.1" || !last.Subdomains || last.Host != "cymru.test" {
 		t.Fatalf("intel %+v", o.Intel)
+	}
+	if len(o.NotifyAllowlist) != 2 || o.NotifyAllowlist[0] != "hooks.slack.com" || o.NotifyAllowlist[1] != ".example.com" || o.RedisCA != "pem" {
+		t.Fatalf("notify allowlist %q, redis CA %q", o.NotifyAllowlist, o.RedisCA)
 	}
 	if o.Upstream == nil || o.SOCKSListen == "" || o.DNSListen == "" {
 		t.Fatalf("%+v", o)

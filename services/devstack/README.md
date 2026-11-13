@@ -17,7 +17,11 @@ destinations, intel sources, DNS forwarder A/AAAA), `ProbePorts`
 (httpprobe), `EgressPorts` (port policy, default `CommonPorts`),
 `IntelSources` (default `DefaultIntelSources()`), `DNSUpstream`,
 `EgressClock` (fake clock for the per-target limiter), `Secrets`,
-`AllowInsecureWebhooks`, `Engine` (poll intervals), `Ports`.
+`AllowInsecureWebhooks`, `Engine` (poll intervals), `Ports`, `Blobs` (raw
+tool output and snapshot files; `flowforge dev` sets a directory store
+from `FF_BLOB_DIR`). With `DBDSN` the engine also runs the in-process
+scheduler and the maintenance loop. The stack always uses the in-process
+bus (one process); the multi-process profile is `deploy/compose.local.yml`.
 
 The egress proxy's SOCKS5 listener and DNS forwarder (UDP and TCP on the
 same port) are in `Addrs["egress-socks5"]` and `Addrs["egress-dns"]`; the

@@ -3,6 +3,7 @@ package toolrunner
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,6 +50,12 @@ type Egress struct {
 	Tokens platform.TokenSource
 	// Service is the identity the runner presents to the proxy.
 	Service string
+	// IDTokens adds a Google ID token (X-Serverless-Authorization) when
+	// the proxy is an https:// Cloud Run URL (spec 17.3; G-SVC-13).
+	IDTokens platform.IDTokenSource
+	// TLS overrides the TLS configuration towards an https:// proxy
+	// (tests); nil means the system roots.
+	TLS *tls.Config
 	// SOCKS makes DialTCP use the proxy's SOCKS5 listener instead of
 	// CONNECT.
 	SOCKS bool
@@ -64,7 +71,8 @@ type cachedTicket struct {
 
 var _ Network = (*Egress)(nil)
 
-// NewEgress parses the proxy address (host:port or http://host:port).
+// NewEgress parses the proxy address (host:port, http://host:port or
+// https://host[:port], the last spoken to over TLS).
 func NewEgress(addr string, tokens platform.TokenSource) (*Egress, error) {
 	if addr == "" {
 		return nil, nil
@@ -100,6 +108,13 @@ func (e *Egress) headers(ctx context.Context, tc *ToolCtx, decision string) (htt
 		}
 		h.Set(platform.HeaderProxyAuthorization, "Bearer "+tok)
 	}
+	if e.Proxy.Scheme == "https" && e.IDTokens != nil {
+		tok, err := e.IDTokens.IDToken(ctx, "https://"+e.Proxy.Hostname())
+		if err != nil {
+			return nil, err
+		}
+		h.Set(platform.MDServerlessAuthorization, "Bearer "+tok)
+	}
 	h.Set(platform.HeaderDecisionID, decision)
 	h.Set(platform.HeaderRunID, core.PublicID(core.PrefixRun, tc.Run))
 	h.Set(platform.HeaderEffectPath, tc.Path)
@@ -113,6 +128,7 @@ func (e *Egress) transport(tc *ToolCtx, holder *decisionHolder) http.RoundTrippe
 		GetProxyConnectHeader: func(ctx context.Context, _ *url.URL, _ string) (http.Header, error) {
 			return e.headers(ctx, tc, holder.get())
 		},
+		TLSClientConfig:       e.TLS, // used for the proxy hop when it is https://
 		ResponseHeaderTimeout: 30 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 	}
@@ -222,9 +238,32 @@ func (e *Egress) DialTCP(ctx context.Context, tc *ToolCtx, d scope.Decision, hos
 
 func (e *Egress) connect(ctx context.Context, tc *ToolCtx, d scope.Decision, hostport string, declared []int) (net.Conn, error) {
 	var dl net.Dialer
-	conn, err := dl.DialContext(ctx, "tcp", e.Proxy.Host)
+	addr := e.Proxy.Host
+	if e.Proxy.Port() == "" {
+		port := "80"
+		if e.Proxy.Scheme == "https" {
+			port = "443" // Cloud Run serves TLS on 443 only
+		}
+		addr = net.JoinHostPort(e.Proxy.Hostname(), port)
+	}
+	conn, err := dl.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
+	}
+	if e.Proxy.Scheme == "https" {
+		conf := &tls.Config{MinVersion: tls.VersionTLS12}
+		if e.TLS != nil {
+			conf = e.TLS.Clone()
+		}
+		if conf.ServerName == "" {
+			conf.ServerName = e.Proxy.Hostname()
+		}
+		tlsConn := tls.Client(conn, conf)
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			conn.Close()
+			return nil, err
+		}
+		conn = tlsConn
 	}
 	if dl, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(dl)
@@ -298,7 +337,7 @@ func (e *Egress) Ticket(ctx context.Context, tc *ToolCtx, d scope.Decision, decl
 		return egressproxy.TicketResponse{}, err
 	}
 	req.Header = h
-	tr := &http.Transport{Proxy: http.ProxyURL(e.Proxy), DisableKeepAlives: true}
+	tr := &http.Transport{Proxy: http.ProxyURL(e.Proxy), DisableKeepAlives: true, TLSClientConfig: e.TLS}
 	resp, err := tr.RoundTrip(req)
 	if err != nil {
 		return egressproxy.TicketResponse{}, err

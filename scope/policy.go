@@ -18,7 +18,7 @@ type Policy struct {
 	windows  []window
 	asns     []uint32
 	indexed  *indexedMatcher // nil when linear is set
-	linear   *linearMatcher  // reference matcher, tests and benchmarks only
+	linear   *linearMatcher  // MatcherLinear: the reference scan
 	resolver Resolver
 }
 
@@ -30,13 +30,33 @@ type config struct {
 	linear   bool
 }
 
+// Matcher selects how Compile finds the first rule matching a target
+// (spec 4.3 "first matching rule"; docs/CONVENTIONS.md "Pluggable
+// algorithms"). Both answer identically (TestScopeProp_IndexedMatchesNaive
+// and the conformance suite run both); they differ in cost only.
+type Matcher string
+
+// Matchers.
+const (
+	// MatcherIndexed (the default) uses a reversed-label trie for names,
+	// binary tries for CIDRs and a per-origin path map for URL prefixes:
+	// lookups independent of the rule count.
+	MatcherIndexed Matcher = "indexed"
+	// MatcherLinear scans the rules in order, a direct transcription of
+	// the spec. It is the baseline the indexed matcher is tested and
+	// measured against, and cheaper to build for a handful of rules.
+	MatcherLinear Matcher = "linear"
+)
+
+// Matchers returns every Matcher, default first.
+func Matchers() []Matcher { return []Matcher{MatcherIndexed, MatcherLinear} }
+
+// WithMatcher selects the matcher; an unknown value keeps MatcherIndexed.
+func WithMatcher(m Matcher) Option { return func(c *config) { c.linear = m == MatcherLinear } }
+
 // WithResolver sets the resolver used by active checks of hostnames.
 // Without one, every such check is denied with reason resolution_failed.
 func WithResolver(r Resolver) Option { return func(c *config) { c.resolver = r } }
-
-// withLinearMatcher swaps the indexed matcher for the reference linear
-// scan; tests and benchmarks use it as the baseline.
-func withLinearMatcher() Option { return func(c *config) { c.linear = true } }
 
 // Compile validates doc and builds its indexes. The returned error is the
 // same as doc.Validate's.

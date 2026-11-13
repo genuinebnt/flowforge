@@ -50,8 +50,18 @@ locals {
   # migrations owner. similarity reads/writes graph.embeddings (spec 22).
   db_users = ["gateway", "engine", "scope", "graph", "notifier", "similarity", "migrator"]
 
+  # Internal-token signing keys (spec 13.2, 13.7; G-OPS-12). Every key id in
+  # signing_key_kids is mounted as FF_SIGNING_KEY_<KID> (upper case, "-" ->
+  # "_"), FF_SIGNING_KID names the key to sign with and FF_SIGNING_KIDS lists
+  # every mounted id (current and next, for rotation). Verification goes
+  # through FF_JWKS_URL (the gateway's JWKS). Mounted on every service that
+  # calls another one; scope and notifier only verify.
   signing_key_env = {
     for k in var.signing_key_kids : "FF_SIGNING_KEY_${upper(replace(k, "-", "_"))}" => { secret = "ff-signing-key-${k}" }
+  }
+  env_signing = {
+    FF_SIGNING_KID  = var.current_signing_kid
+    FF_SIGNING_KIDS = join(",", var.signing_key_kids)
   }
   webhook_env = {
     for c in var.webhook_channels : "FF_WEBHOOK_${upper(replace(c, "-", "_"))}" => { secret = "ff-webhook-${c}" }
@@ -72,12 +82,20 @@ locals {
 
   # --- spec 17.5 environment variables.
   env_common = {
-    FF_ENV            = var.env
-    FF_JWKS_URL       = "${local.run_url["gateway"]}/.well-known/jwks.json"
-    FF_JWT_ISSUER     = var.jwt_issuer
-    FF_JWT_AUDIENCE   = var.jwt_audience_internal
-    FF_PUBSUB_PROJECT = var.project_id
-    FF_TOPIC_PREFIX   = var.topic_prefix
+    FF_ENV = var.env
+    FF_BUS = "pubsub"
+    # Cloud Run gives a revision 10 s after SIGTERM; the engine's graceful
+    # drain (G-ENG-05) must finish inside that, so it is shorter than the
+    # 20 s default used off Cloud Run.
+    FF_DRAIN_TIMEOUT = var.drain_timeout
+    # Webhook and Slack hosts the egress proxy's notify path may reach
+    # (G-SVC-08); empty refuses every delivery (fail closed).
+    FF_NOTIFY_ALLOWLIST = join(",", var.notify_allowlist)
+    FF_JWKS_URL         = "${local.run_url["gateway"]}/.well-known/jwks.json"
+    FF_JWT_ISSUER       = var.jwt_issuer
+    FF_JWT_AUDIENCE     = var.jwt_audience_internal
+    FF_PUBSUB_PROJECT   = var.project_id
+    FF_TOPIC_PREFIX     = var.topic_prefix
   }
   env_redis = {
     FF_REDIS_ADDR = module.redis.address
@@ -110,11 +128,10 @@ locals {
       roles      = ["roles/cloudsql.client"]
       health     = "/readyz"
       liveness   = "/healthz"
-      env = merge(local.env_common, local.env_db["gateway"], local.env_redis,
-        local.addr["engine"], local.addr["scope"], local.addr["graph"], local.addr["notifier"], local.addr["similarity"],
+      env = merge(local.env_common, local.env_db["gateway"], local.env_redis, local.env_signing,
+        local.addr["engine"], local.addr["scope"], local.addr["graph"], local.addr["notifier"], local.addr["similarity"], local.addr["tool-runner"],
         {
           FF_JWT_AUDIENCE      = var.jwt_audience_public
-          FF_SIGNING_KID       = var.current_signing_kid
           FF_INTERNAL_AUDIENCE = var.jwt_audience_internal
       })
       secret_env = merge(local.secret_db["gateway"], local.secret_redis, local.signing_key_env)
@@ -129,16 +146,18 @@ locals {
       roles      = ["roles/cloudsql.client"]
       health     = null
       liveness   = null
-      env = merge(local.env_common, local.env_db["engine"], local.env_redis, local.env_bucket,
+      env = merge(local.env_common, local.env_db["engine"], local.env_redis, local.env_bucket, local.env_signing,
         local.addr["scope"], local.addr["graph"], local.addr["tool-runner"],
         {
-          FF_EGRESS_PROXY      = local.run_url["egress-proxy"]
-          FF_LLM_ENDPOINT      = var.llm_endpoint
-          FF_LLM_MODEL         = var.llm_model
-          FF_FUEL_DEFAULT      = tostring(var.fuel_default)
-          FF_PLAN_FUEL_DEFAULT = tostring(var.plan_fuel_default)
+          FF_EGRESS_PROXY         = local.run_url["egress-proxy"]
+          FF_TICK_OIDC_AUDIENCE   = local.run_url["engine"]
+          FF_TICK_SERVICE_ACCOUNT = google_service_account.scheduler.email
+          FF_LLM_ENDPOINT         = var.llm_endpoint
+          FF_LLM_MODEL            = var.llm_model
+          FF_FUEL_DEFAULT         = tostring(var.fuel_default)
+          FF_PLAN_FUEL_DEFAULT    = tostring(var.plan_fuel_default)
       })
-      secret_env = merge(local.secret_db["engine"], local.secret_redis, local.llm_env)
+      secret_env = merge(local.secret_db["engine"], local.secret_redis, local.llm_env, local.signing_key_env)
     }
     scope = {
       ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
@@ -163,8 +182,8 @@ locals {
       roles      = ["roles/cloudsql.client"]
       health     = null
       liveness   = null
-      env        = merge(local.env_common, local.env_db["graph"], local.env_bucket)
-      secret_env = local.secret_db["graph"]
+      env        = merge(local.env_common, local.env_db["graph"], local.env_bucket, local.env_signing, local.addr["scope"])
+      secret_env = merge(local.secret_db["graph"], local.signing_key_env)
     }
     notifier = {
       ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
@@ -191,8 +210,8 @@ locals {
       roles      = ["roles/cloudsql.client"]
       health     = null
       liveness   = null
-      env        = merge(local.env_common, local.env_db["similarity"])
-      secret_env = local.secret_db["similarity"]
+      env        = merge(local.env_common, local.env_db["similarity"], local.env_signing, local.addr["graph"], local.addr["scope"])
+      secret_env = merge(local.secret_db["similarity"], local.signing_key_env)
     }
     tool-runner = {
       ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
@@ -204,10 +223,10 @@ locals {
       roles      = [] # no database access (spec 17.2)
       health     = null
       liveness   = null
-      env = merge(local.env_common, local.env_redis, local.env_bucket, local.addr["scope"], {
+      env = merge(local.env_common, local.env_redis, local.env_bucket, local.env_signing, local.addr["scope"], {
         FF_EGRESS_PROXY = local.run_url["egress-proxy"]
       })
-      secret_env = merge(local.secret_redis, local.tool_secret_env)
+      secret_env = merge(local.secret_redis, local.tool_secret_env, local.signing_key_env)
     }
     egress-proxy = {
       ingress    = "INGRESS_TRAFFIC_INTERNAL_ONLY"
@@ -219,19 +238,19 @@ locals {
       roles      = []
       health     = null
       liveness   = null
-      env        = local.env_common
-      secret_env = {}
+      env        = merge(local.env_common, local.env_signing, local.addr["scope"])
+      secret_env = local.signing_key_env
     }
   }
 
   # Cloud Run Invoker grants (spec 17.2): callee => callers.
   invokers = {
     engine       = ["gateway"]
-    scope        = ["gateway", "engine", "tool-runner"]
-    graph        = ["gateway", "engine"]
+    scope        = ["gateway", "engine", "tool-runner", "egress-proxy", "graph", "similarity"]
+    graph        = ["gateway", "engine", "similarity"]
     notifier     = ["gateway"]
     similarity   = ["gateway"]
-    tool-runner  = ["engine"]
+    tool-runner  = ["engine", "gateway"]
     egress-proxy = ["tool-runner", "engine", "notifier"]
   }
   invoker_pairs = merge([
@@ -580,7 +599,40 @@ resource "google_cloud_run_v2_service_iam_member" "scheduler_engine" {
   member   = google_service_account.scheduler.member
 }
 
-# The engine creates runs with idempotency key schedule:<id>:<fire time>.
+# One tick job drives every workflow schedule (G-OPS-10): the engine's
+# in-process scheduler fires the schedules that are due on each tick, with
+# idempotency key schedule:<id>:<fire time>, so schedules created at runtime
+# need no Cloud Scheduler job of their own.
+resource "google_cloud_scheduler_job" "tick" {
+  count       = var.schedule_tick_enabled ? 1 : 0
+  project     = var.project_id
+  region      = var.region
+  name        = "${local.name}-schedules-tick"
+  description = "Flowforge schedules tick (POST /internal/schedules:tick)"
+  schedule    = var.schedule_tick_cron
+  time_zone   = "Etc/UTC"
+
+  retry_config {
+    retry_count          = 0 # the next tick catches up
+    min_backoff_duration = "5s"
+    max_backoff_duration = "60s"
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.run_url["engine"]}/internal/schedules:tick"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.run_url["engine"]
+    }
+  }
+
+  depends_on = [google_cloud_run_v2_service_iam_member.scheduler_engine]
+}
+
+# Optional per-schedule jobs (spec 17.1 /internal/schedules/{id}:fire); the
+# tick above makes them unnecessary for most deployments.
 resource "google_cloud_scheduler_job" "schedule" {
   for_each    = var.schedules
   project     = var.project_id
@@ -727,6 +779,33 @@ module "monitoring" {
   billing_account     = var.billing_account
   monthly_budget      = var.monthly_budget
   budget_currency     = var.budget_currency
+  budget_pubsub_topic = var.budget_shutdown_enabled ? module.budget_shutdown[0].topic_id : null
+
+  depends_on = [google_project_service.apis]
+}
+
+# Optional budget-triggered shutdown (G-OPS-20): closes the gateway, pauses
+# the scheduler jobs, sets min instances 0 and stops Cloud SQL. Memorystore,
+# NAT, the load balancer and reserved IPs keep billing; `make gcp-down`
+# removes them.
+module "budget_shutdown" {
+  count          = var.budget_shutdown_enabled ? 1 : 0
+  source         = "../../modules/budget-shutdown"
+  project_id     = var.project_id
+  project_number = local.project_number
+  region         = var.region
+  name           = local.name
+  image          = var.budget_shutdown_image
+  threshold      = var.budget_shutdown_threshold
+  labels         = local.labels
+
+  gateway = {
+    service            = module.svc["gateway"].name
+    service_account_id = module.svc["gateway"].service_account_id
+  }
+  scale_down_services = { for s, v in var.scaling : module.svc[s].name => module.svc[s].service_account_id if v.min > 0 }
+  scheduler_jobs      = concat(google_cloud_scheduler_job.tick[*].name, [for j in google_cloud_scheduler_job.schedule : j.name])
+  sql_instance        = module.sql.instance_name
 
   depends_on = [google_project_service.apis]
 }
@@ -761,6 +840,21 @@ output "ci_service_account" {
 output "workload_identity_provider" {
   description = "Full provider name for google-github-actions/auth (vars.GCP_WIF_PROVIDER)."
   value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+output "power" {
+  description = "Names used by infra/scripts/gcp.sh (make gcp-pause / gcp-resume / gcp-cost)."
+  value = {
+    project        = var.project_id
+    region         = var.region
+    gateway        = module.svc["gateway"].name
+    services       = join(" ", [for s, m in module.svc : m.name])
+    warm_services  = join(" ", [for s, v in var.scaling : "${module.svc[s].name}=${v.min}" if v.min > 0])
+    scheduler_jobs = join(" ", concat(google_cloud_scheduler_job.tick[*].name, [for j in google_cloud_scheduler_job.schedule : j.name]))
+    sql_instance   = module.sql.instance_name
+    vm             = ""
+    vm_zone        = ""
+  }
 }
 
 output "topics" {

@@ -27,6 +27,7 @@ type Deps struct {
 	Publisher  Publisher
 	Embedder   Embedder
 	Similarity SimilarityIndex
+	Observer   Observer // optional
 	Clock      core.Clock
 	Rng        core.Rng
 }

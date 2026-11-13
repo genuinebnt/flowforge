@@ -28,6 +28,9 @@ type Backends struct {
 	ToolRunner flowforgev1.ToolRunnerServiceClient
 	Analytics  graphv1.GraphAnalyticsClient
 	Similarity similarityv1.SimilarityClient
+	// Schedules is the engine's schedule API (nil: /v1/schedules answers
+	// 503).
+	Schedules Schedules
 }
 
 // CookieConfig controls the console cookies (spec 13.5).

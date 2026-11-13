@@ -91,3 +91,37 @@ func BenchmarkCompile(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkVMAlgo compares the two evaluators of a compiled workflow (one
+// decision point: bytecode VM vs tree-walking interpreter, spec 8; the
+// differential tests check they agree) on the b_vm_01 programs, one
+// evaluator per sub-benchmark:
+//
+//	go test -run '^$' -bench VMAlgo ./compiler
+func BenchmarkVMAlgo(b *testing.B) {
+	cfg := vm.Config{FuelLimit: 1 << 40, Limits: vm.Limits{Heap: 1 << 30}}
+	none := func(vm.Suspended) vm.EffectResult { return vm.EffectResult{} }
+	for _, eval := range []string{"vm", "treewalk"} {
+		for _, p := range vmBenchPrograms {
+			b.Run(eval+"/"+p.name, func(b *testing.B) {
+				res, diags := compiler.Compile(p.src, compiler.Options{})
+				if res == nil {
+					b.Fatal(diags)
+				}
+				b.ReportAllocs()
+				for b.Loop() {
+					var out vm.Outcome
+					var err error
+					if eval == "vm" {
+						out, _, err = vm.RunWithEffects(res.Verified, cfg, nil, none)
+					} else {
+						out, _, err = runTreeWalkPlain(res, cfg, none)
+					}
+					if _, ok := out.(vm.Completed); !ok || err != nil {
+						b.Fatalf("%s: %v %v", eval, out, err)
+					}
+				}
+			})
+		}
+	}
+}

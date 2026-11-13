@@ -14,3 +14,7 @@ One event topic from spec 11.7 (`run.events`, `approval.events`,
   `publishers` member, `roles/pubsub.subscriber` on its own subscription for
   each consumer, and the Pub/Sub service agent's publisher/subscriber grants
   that dead-lettering requires.
+
+`topic_retention_enabled = false` (lab) leaves message retention off on the
+topics themselves; topic retention is billed as message storage, and
+subscriptions still keep undelivered messages for their retention.

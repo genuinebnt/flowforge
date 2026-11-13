@@ -405,3 +405,49 @@ func (s *Server) deleteAPIKey(c *call) error {
 	}
 	return c.noContent()
 }
+
+// ---- role groups (G-LIM-05) ---------------------------------------------
+
+// listRoleGroups is GET /v1/tenant/role-groups: every group with its
+// members ({"items": [{"name", "members": [usr_...]}]}, not paginated: a
+// tenant has few groups and each member at most auth.MaxGroups).
+func (s *Server) listRoleGroups(c *call) error {
+	gs, err := s.cfg.Identity.ListRoleGroups(c.ctx, c.p.TenantID)
+	if err != nil {
+		return err
+	}
+	items := make([]map[string]any, 0, len(gs))
+	for _, g := range gs {
+		ms := make([]string, 0, len(g.Members))
+		for _, u := range g.Members {
+			ms = append(ms, core.PublicID(core.PrefixUser, u))
+		}
+		items = append(items, map[string]any{"name": g.Name, "members": ms})
+	}
+	return c.ok(listOf(items, ""))
+}
+
+// putRoleGroupMember is PUT /v1/tenant/role-groups/{name}/members/{user_id}
+// (idempotent: 204 whether or not the user was already a member).
+func (s *Server) putRoleGroupMember(c *call) error {
+	uid, err := c.userParam()
+	if err != nil {
+		return err
+	}
+	if err := s.cfg.Identity.AddRoleGroupMember(c.ctx, c.actor(), c.r.PathValue("name"), uid); err != nil {
+		return err
+	}
+	return c.noContent()
+}
+
+// deleteRoleGroupMember is DELETE /v1/tenant/role-groups/{name}/members/{user_id}.
+func (s *Server) deleteRoleGroupMember(c *call) error {
+	uid, err := c.userParam()
+	if err != nil {
+		return err
+	}
+	if err := s.cfg.Identity.RemoveRoleGroupMember(c.ctx, c.actor(), c.r.PathValue("name"), uid); err != nil {
+		return err
+	}
+	return c.noContent()
+}

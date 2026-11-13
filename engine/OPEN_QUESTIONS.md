@@ -61,7 +61,11 @@ Each choice is pinned by a test where it changes behaviour.
     APPROVAL_ALREADY_DECIDED). "Idempotent per (approval, actor)": the same
     actor repeating the same decision gets the approval back; anything else
     on a decided approval is 409. The approval's `proposed` is `{}` (the
-    effect carries no proposal).
+    effect carries no proposal). `Caller.Roles` is the membership role
+    plus the caller's tenant role groups (the internal token's `groups`
+    claim, managed in the gateway's identity service, G-LIM-05), so a
+    free-form approval role such as `finance_ap` is decidable by group
+    members; the engine stores no groups itself.
 11. **Tool inputs** are sent as the single input's JSON, or a JSON array
     for several inputs; proofs are unwrapped and Hosts sent as plain names.
     Outputs are decoded with the tool's `output_type` (`vm.FromJSON`); a
@@ -89,10 +93,10 @@ Each choice is pinned by a test where it changes behaviour.
     it) and rejects agent effects with diagnostic `E0490` (the DSL's E0404
     and E0405 are taken). CheckWorkflow compiles too, because the effect
     names of spec 7.5 call agent steps `llm` and cannot tell them apart.
-18. **Archtest.** `engine/pgrepo` imports pgx and needs an adapter entry in
-    `internal/archtest` (`{prefix: "engine/pgrepo", layer: layerAdapters,
-    adapter: true, thirdParty: []string{"github.com/jackc/"}}` before the
-    `engine` entry); until then TestArchDeps reports it.
+18. **Archtest.** `engine/pgrepo` imports pgx; `internal/archtest` has its
+    adapter entry (`{prefix: "engine/pgrepo", layer: layerAdapters,
+    adapter: true, thirdParty: []string{"github.com/jackc/"}}`, before the
+    `engine` entry), so TestArchDeps passes.
 19. **pgrepo schema additions** (SchemaSQL): `workflow_version_ext`
     (actor text, program, attributes), `run_ext` (fine status, outbox
     watermark), `run_requests`, `approval_ext` (deciding actor). The uuid
@@ -109,5 +113,16 @@ Each choice is pinned by a test where it changes behaviour.
     whose watermark is below its head is released as `running` (woken after
     `IdleBackoff`), not as terminal, so a failed publish of the last batch
     is retried (found by `sim`; `TestRegress_OutboxTerminalLoss`).
-21. **Graceful shutdown** cancels in-flight executions like a crash: the
-    next owner sees `effect_started` without a result.
+21. **Graceful shutdown** (G-ENG-05). Cancelling `Worker.Run`'s context
+    (SIGTERM) drains: no new claim; runs in progress keep a context that is
+    not cancelled, so an in-flight tool call finishes and its result is
+    appended under the lease; each run stops at its next effect boundary
+    (`haltDrain`, checked first in `boundary`) and is released as running
+    with `next_wake_at = now`, so another instance resumes it at once.
+    Compensations are not interrupted by the drain. Only after
+    `Config.DrainTimeout` (default 20 s, `FF_DRAIN_TIMEOUT`; negative
+    disables) are the remaining executions cancelled, which is then a crash
+    for those effects (outcome unknown for non-idempotent tools). The
+    timeout must stay below the platform's SIGTERM-to-SIGKILL grace (Cloud
+    Run documents 10 s for services: set `FF_DRAIN_TIMEOUT` below it there).
+    `TestRegress_G_ENG_05_GracefulDrain`.

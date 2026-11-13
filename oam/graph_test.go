@@ -135,8 +135,13 @@ func TestGraphTenantIsolation(t *testing.T) {
 	o := obs("2", "x", t0, 0.5, ent("u", oam.URL{URL: "https://a.acme.com/"}))
 	o.TenantID = "other"
 	o.Edges = []oam.ObservedEdge{{From: "u", To: id, Relation: oam.SimpleRelation{Label: "domain"}}}
-	if _, err := g.Apply(o); !errors.Is(err, oam.ErrUnknownEntity) {
-		t.Fatalf("cross-tenant edge: %v", err)
+	// Another tenant's id is never resolvable here: the observation waits
+	// (G-CORE-03) and nothing of it is applied.
+	if r, err := g.Apply(o); err != nil || !r.Pending || len(r.Missing) != 1 || r.Missing[0] != id {
+		t.Fatalf("cross-tenant edge: %+v %v", r, err)
+	}
+	if len(g.Edges()) != 0 {
+		t.Fatal("cross-tenant edge applied")
 	}
 	// Same observation id in another tenant is a different observation.
 	o2 := obs("1", "x", t0, 0.5, ent("a", oam.FQDN{Name: "a.acme.com"}))

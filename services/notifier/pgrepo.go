@@ -9,12 +9,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/genuinebnt/flowforge/alerts"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
 	scopesvc "github.com/genuinebnt/flowforge/services/scope"
 )
 
-// PgRepo is Repo over the notifier schema (migrations 0006 and 0014). The
+// PgRepo is Repo over the notifier schema (migrations 0006, 0014 and 0017). The
 // delivery worker spans tenants, so it connects with a role that bypasses
 // row-level security; tenant-scoped queries filter by tenant explicitly.
 type PgRepo struct{ DB bus.DB }
@@ -186,6 +187,91 @@ func (t pgTx) InsertDelivery(ctx context.Context, d Delivery) error {
 SELECT $1, $2, $3, $4, 0, $5, $6 WHERE EXISTS (SELECT 1 FROM notifier.alert_events WHERE id = $2)`,
 		d.ID.String(), d.AlertEventID.String(), d.ChannelID.String(), d.Status, d.NextAttemptAt, d.Target)
 	return err
+}
+
+func (t pgTx) SaveAlertState(ctx context.Context, tenant, program core.UUID, c alerts.StateChange) error {
+	for _, w := range c.Throttle {
+		if _, err := t.tx.Exec(ctx, `INSERT INTO notifier.throttle_windows (tenant_id, program_id, dedupe_key, until, suppressed)
+VALUES ($1, $2, $3, $4, $5) ON CONFLICT (tenant_id, program_id, dedupe_key) DO UPDATE SET until = EXCLUDED.until, suppressed = EXCLUDED.suppressed`,
+			tenant.String(), program.String(), w.Key, w.Until, w.Suppressed); err != nil {
+			return err
+		}
+	}
+	for _, d := range c.Digests {
+		rule, err := core.ParsePublicID(core.PrefixAlertRule, d.RuleID)
+		if err != nil {
+			return err
+		}
+		body, err := json.Marshal(d)
+		if err != nil {
+			return err
+		}
+		if _, err := t.tx.Exec(ctx, `INSERT INTO notifier.digest_buffers (tenant_id, program_id, rule_id, digest, window_end)
+VALUES ($1, $2, $3, $4::text::jsonb, $5) ON CONFLICT (tenant_id, program_id, rule_id) DO UPDATE SET digest = EXCLUDED.digest, window_end = EXCLUDED.window_end`,
+			tenant.String(), program.String(), rule.String(), string(body), d.WindowEnd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t pgTx) CloseDigest(ctx context.Context, tenant, program core.UUID, rule string) error {
+	id, err := core.ParsePublicID(core.PrefixAlertRule, rule)
+	if err != nil {
+		return err
+	}
+	_, err = t.tx.Exec(ctx, `DELETE FROM notifier.digest_buffers WHERE tenant_id = $1 AND program_id = $2 AND rule_id = $3`,
+		tenant.String(), program.String(), id.String())
+	return err
+}
+
+// LoadAlertState implements Repo. Ended windows are returned too: the
+// processor's clock, not the database's, decides (alerts.Processor.Restore
+// skips them), so tests with a fake clock and skewed hosts agree.
+func (p *PgRepo) LoadAlertState(ctx context.Context, tenant, program core.UUID) (alerts.ProcessorState, error) {
+	var s alerts.ProcessorState
+	rows, err := p.DB.Query(ctx, `SELECT dedupe_key, until, suppressed FROM notifier.throttle_windows
+WHERE tenant_id = $1 AND program_id = $2`, tenant.String(), program.String())
+	if err != nil {
+		return s, err
+	}
+	for rows.Next() {
+		var w alerts.ThrottleWindow
+		if err := rows.Scan(&w.Key, &w.Until, &w.Suppressed); err != nil {
+			rows.Close()
+			return s, err
+		}
+		s.Throttle = append(s.Throttle, w)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return s, err
+	}
+	rows, err = p.DB.Query(ctx, `SELECT digest::text FROM notifier.digest_buffers WHERE tenant_id = $1 AND program_id = $2`,
+		tenant.String(), program.String())
+	if err != nil {
+		return s, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			return s, err
+		}
+		var d alerts.Digest
+		if err := json.Unmarshal([]byte(raw), &d); err != nil {
+			return s, err
+		}
+		s.Digests = append(s.Digests, d)
+	}
+	return s, rows.Err()
+}
+
+// PruneAlertState implements Repo.
+func (p *PgRepo) PruneAlertState(ctx context.Context, now time.Time, limit int) (int64, error) {
+	tag, err := p.DB.Exec(ctx, `DELETE FROM notifier.throttle_windows WHERE ctid IN (
+  SELECT ctid FROM notifier.throttle_windows WHERE until <= $1 LIMIT $2)`, now, limit)
+	return tag.RowsAffected(), err
 }
 
 // InTx implements Repo.

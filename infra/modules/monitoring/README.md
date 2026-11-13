@@ -26,3 +26,9 @@ observability row, 17.6, 18.1).
   forecast warning at 100 %. Creating budgets needs
   `roles/billing.costsManager` on the billing account for the identity that
   runs Terraform.
+
+Toggles for the lab: `alert_policies_enabled` and `log_metrics_enabled`
+(default `true`; alerting and user-defined metrics may be billed),
+`log_env` (the `env` field of log lines when it differs from `env`; the lab
+runs `FF_ENV=prod`), and `budget_pubsub_topic`, which sends every budget
+notification to a Pub/Sub topic (the `budget-shutdown` module).

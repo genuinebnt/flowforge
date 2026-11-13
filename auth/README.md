@@ -13,9 +13,9 @@ fuzz_jwt, benchmark b_auth_01.
 
 | Area | Identifiers |
 |---|---|
-| Passwords | `Hasher` (`NewHasher`, `Hash`, `Verify`, `NeedsRehash`), `Params`, `PolicyParams`, `PasswordPolicy`, `BreachedChecker`, `BreachedSet` |
+| Passwords | `Hasher` (`NewHasher`, `Hash`, `Verify`, `NeedsRehash`), `Params`, `PolicyParams`, `Calibrate` / `Measure` (raise iterations to a 200-500 ms target, 13.1), `PasswordPolicy`, `BreachedChecker`, `BreachedSet` |
 | Keys | `SigningKey`, `PublicKey`, `KeyState`, `KeySet` (JWKS `MarshalJSON`, `ParseJWKS`), `KeyResolver`, `KeyCache`, `KeySource`, `MemoryKeySource` |
-| Tokens | `Claims`, `Signer`, `Minter` (`Access`, `Internal`), `Verifier`, `VerifierConfig`, `InternalVerifierConfig`, `RevocationChecker`, `InMemoryRevocation`, `NoRevocation` |
+| Tokens | `Claims` (internal tokens may carry `groups`: at most `MaxGroups` `ValidGroupName`s, rejected in access tokens), `Signer`, `Minter` (`Access`, `Internal`), `Verifier`, `VerifierConfig`, `InternalVerifierConfig`, `RevocationChecker`, `InMemoryRevocation`, `NoRevocation` |
 | Opaque secrets | `NewRefreshToken`, `HashToken`, `NewAPIKey`, `ParseAPIKey`, `EmailVerifier`, `VerificationStore`, `NewCSRFToken`, `CheckCSRF`, `CSRFRequired` |
 | Refresh rotation | `Refresher` (`Start`, `Rotate`, `RevokeSession`), `RefreshStore`, `InMemoryRefreshStore` |
 | Login | `LoginService`, `UserStore`, `Throttle`, `LockoutStore`, `PasswordHasher` and in-memory fakes; `IPThrottleKey`, `AccountThrottleKey` |
@@ -43,8 +43,12 @@ and `BenchmarkAuth01_Hash` use the real 13.1 parameters.
 
 ## Limitations
 
-* No signup flow, invites, password reset or Google ID token / mTLS
-  alternatives (17); those are service compositions of these primitives.
+* The signup, e-mail verification, invite and password-reset flows are not
+  in this package: they are compositions of these primitives in the gateway's
+  identity module (`services/gateway/identity`, routes `/auth/signup`,
+  `/auth/password/forgot`, `/auth/password/reset`, `/auth/invites:accept`;
+  see `services/gateway/README.md`). Google ID token / mTLS service
+  authentication (17) is not implemented (G-LIM-09).
 * `KeyCache` serializes fetches under its lock; a slow key source delays
   verifications that need a refresh (at most once per minute).
 * Rehash-on-login failures are swallowed (retried next login); the result

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Self-signed server certificate for Postgres (first boot only): traffic on
+# the private network is encrypted (clients use sslmode=prefer; the server is
+# not authenticated). Without openssl Postgres runs without TLS.
+set -uo pipefail
+d=/mnt/disks/ff/postgres-tls
+if [ ! -s "$d/server.key" ]; then
+  args=(req -x509 -newkey rsa:2048 -nodes -days 3650 -subj /CN=ff-lab-postgres)
+  if command -v openssl >/dev/null 2>&1; then
+    openssl "$${args[@]}" -keyout "$d/server.key" -out "$d/server.crt"
+  else
+    docker run --rm -v "$d:/tls" --entrypoint openssl '${pg_image}' "$${args[@]}" -keyout /tls/server.key -out /tls/server.crt
+  fi || echo "ff-pg-tls: certificate generation failed; Postgres runs without TLS" >&2
+fi
+if [ -s "$d/server.key" ]; then
+  chown 999:999 "$d"/server.* # postgres in the Debian image
+  chmod 0600 "$d/server.key"
+fi
+exit 0

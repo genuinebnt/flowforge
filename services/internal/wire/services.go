@@ -9,7 +9,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -31,6 +30,8 @@ import (
 	"github.com/genuinebnt/flowforge/services/internal/bus"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
+	"github.com/genuinebnt/flowforge/services/internal/platform/redisconf"
+	"github.com/genuinebnt/flowforge/services/maintenance"
 	"github.com/genuinebnt/flowforge/services/notifier"
 	scopesvc "github.com/genuinebnt/flowforge/services/scope"
 	"github.com/genuinebnt/flowforge/services/similarity"
@@ -63,7 +64,8 @@ func Scope(env *Env, o ScopeOptions) (*Component, scopesvc.Repo) {
 		repo = &scopesvc.PgRepo{DB: env.DB}
 	}
 	srv := scopesvc.NewServer(scopesvc.Options{Repo: repo, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger, Metrics: env.Metrics})
-	c := &Component{Register: func(g *grpc.Server) { pb.RegisterScopeServiceServer(g, srv) }, Ready: repo.Ping}
+	c := &Component{Register: func(g *grpc.Server) { pb.RegisterScopeServiceServer(g, srv) }, Ready: repo.Ping,
+		Run: []func(context.Context) error{srv.ActivationLoop(0)}}
 	if env.Bus != nil {
 		c.Run = append(c.Run, relayLoop(env, repo.Outbox()))
 	}
@@ -74,8 +76,20 @@ func Scope(env *Env, o ScopeOptions) (*Component, scopesvc.Repo) {
 type EngineOptions struct {
 	ScopeAddr, ToolRunnerAddr, GraphAddr string
 	RedisAddr, RedisAuth                 string
-	Workers                              int
-	Engine                               engine.Config
+	// RedisCA is FF_REDIS_CA (redisconf.Config.CA): set enables TLS.
+	RedisCA string
+	Workers int
+	Engine  engine.Config
+	// ScheduleInterval is how often the in-process scheduler fires due
+	// workflow schedules (default 15 s; G-OPS-10).
+	ScheduleInterval time.Duration
+	// MaintenanceInterval is how often the retention and partition jobs
+	// run in process with Postgres (default 1 h; negative disables, e.g.
+	// when Cloud Scheduler's tick drives them; G-OPS-03).
+	MaintenanceInterval time.Duration
+	// TickAudience and TickServiceAccount accept Cloud Scheduler's Google
+	// ID token on POST /internal/schedules:tick.
+	TickAudience, TickServiceAccount string
 }
 
 // Engine builds the engine service.
@@ -122,13 +136,21 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 		d.Publisher, d.Outbox, d.Inbox = enginesvc.MemPublisher{Outbox: out}, out, bus.NewMemInbox()
 	}
 	if o.RedisAddr != "" {
-		rc := redis.NewClient(&redis.Options{Addr: o.RedisAddr, Password: o.RedisAuth})
+		// FF_REDIS_CA set means Memorystore TLS (G-OPS-13).
+		rc, err := redisconf.NewClient(redisconf.Config{Addr: o.RedisAddr, Auth: o.RedisAuth, CA: o.RedisCA})
+		if err != nil {
+			return nil, nil, err
+		}
 		rl, err := redislimiter.New(rc, redislimiter.Options{}, enginesvc.DefaultLimitRules()...)
 		if err != nil {
 			return nil, nil, err
 		}
 		closers = append(closers, func() { rc.Close() })
-		d.Limiter = enginesvc.ContextLimiter{L: rl}
+		// Spec 23.8: on a Redis outage passive work continues on local
+		// budgets and active work waits (G-LIM-02).
+		if d.Limiter, err = enginesvc.NewFailoverLimiter(rl); err != nil {
+			return nil, nil, err
+		}
 	} else {
 		g, err := limiter.NewAtomicGCRA(enginesvc.DefaultLimitRules()...)
 		if err != nil {
@@ -140,11 +162,33 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 	if err != nil {
 		return nil, nil, err
 	}
+	var store enginesvc.ScheduleStore = enginesvc.NewMemSchedules()
+	var maint func(context.Context) error
+	var runner *maintenance.Runner
+	if env.DB != nil {
+		store = enginesvc.PgSchedules{DB: env.DB}
+		runner = &maintenance.Runner{Pool: env.DB, Blobs: env.Blobs, Logger: env.Logger}
+		maint = func(ctx context.Context) error {
+			_, err := runner.RunOnce(ctx)
+			if errors.Is(err, maintenance.ErrBusy) {
+				return nil
+			}
+			return err
+		}
+	}
+	sched := &enginesvc.Scheduler{Store: store, Engine: svc.Engine, Clock: env.Clock, Logger: env.Logger}
+	sh := svc.SchedulesHandler(sched, enginesvc.TickAuth{Verifier: env.Verifier, Audience: o.TickAudience, ServiceAccount: o.TickServiceAccount}, maint)
+	if o.ScheduleInterval <= 0 {
+		o.ScheduleInterval = 15 * time.Second
+	}
 	c := &Component{
 		Register: func(g *grpc.Server) { pb.RegisterEngineServiceServer(g, svc.Server) },
-		Routes:   map[string]http.Handler{"/internal/schedules/": svc.HTTPHandler()},
-		Run:      []func(context.Context) error{svc.Run},
-		Ready:    ping(env),
+		Routes:   map[string]http.Handler{"/internal/schedules": sh, "/internal/schedules/": sh, "/internal/schedules:tick": sh},
+		Run: []func(context.Context) error{svc.Run, func(ctx context.Context) error {
+			sched.Run(ctx, o.ScheduleInterval)
+			return nil
+		}},
+		Ready: ping(env),
 		Close: func() {
 			for _, f := range closers {
 				f()
@@ -153,6 +197,13 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 	}
 	if wake != nil {
 		c.Run = append(c.Run, func(ctx context.Context) error { enginesvc.ListenWake(ctx, env.DSN, wake, env.Logger); return nil })
+	}
+	if runner != nil && o.MaintenanceInterval >= 0 {
+		iv := o.MaintenanceInterval
+		if iv == 0 {
+			iv = time.Hour
+		}
+		c.Run = append(c.Run, func(ctx context.Context) error { runner.Loop(ctx, iv); return nil })
 	}
 	return c, svc, nil
 }
@@ -178,6 +229,9 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 	if err != nil {
 		return nil, err
 	}
+	if eg != nil {
+		eg.IDTokens = env.IDTokens
+	}
 	if o.Resolver == nil {
 		o.Resolver = scopesvc.NetResolver{}
 	}
@@ -186,7 +240,7 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 		ads = toolrunner.DefaultAdapters(toolrunner.HTTPProbe{Ports: o.ProbePorts})
 	}
 	srv := toolrunner.NewServer(toolrunner.Options{Adapters: ads, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "tool-runner"),
-		Egress: eg, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger})
+		Egress: eg, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger, Raw: env.Blobs})
 	return &Component{Register: func(g *grpc.Server) { pb.RegisterToolRunnerServiceServer(g, srv) }, Close: func() { conn.Close() }}, nil
 }
 
@@ -219,6 +273,14 @@ type EgressOptions struct {
 	// RedisAddr, when set, keeps the per-target limiter in Redis so every
 	// replica shares it (Redis TIME is the clock).
 	RedisAddr, RedisAuth string
+	// RedisCA is FF_REDIS_CA (redisconf.Config.CA): set enables TLS.
+	RedisCA string
+
+	// NotifyAllowlist are the notifier destinations the proxy's notify path
+	// admits (FF_NOTIFY_ALLOWLIST; egressproxy.Proxy.NotifyAllowlist).
+	NotifyAllowlist []string
+	// Resolver resolves notify destinations (default net.Resolver).
+	Resolver scope.Resolver
 }
 
 // EgressProxy builds the egress proxy (a plain HTTP proxy, not gRPC).
@@ -238,7 +300,10 @@ func EgressProxy(env *Env, o EgressOptions) (*Component, *egressproxy.Proxy, err
 	}
 	p := &egressproxy.Proxy{Decisions: o.Decisions, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "egress-proxy"),
 		Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics, Recorder: o.Recorder, Ports: o.Ports, Intel: o.Intel,
-		IntelResolver: o.IntelResolver, Upstream: o.Upstream}
+		IntelResolver: o.IntelResolver, Upstream: o.Upstream, NotifyAllowlist: o.NotifyAllowlist, Resolver: o.Resolver}
+	if p.Resolver == nil {
+		p.Resolver = scopesvc.NetResolver{}
+	}
 	if p.IntelResolver == nil {
 		p.IntelResolver = scopesvc.NetResolver{}
 	}
@@ -252,7 +317,11 @@ func EgressProxy(env *Env, o EgressOptions) (*Component, *egressproxy.Proxy, err
 		}
 	}
 	if o.RedisAddr != "" {
-		rc := redis.NewClient(&redis.Options{Addr: o.RedisAddr, Password: o.RedisAuth})
+		rc, err := redisconf.NewClient(redisconf.Config{Addr: o.RedisAddr, Auth: o.RedisAuth, CA: o.RedisCA})
+		if err != nil {
+			closeAll()
+			return nil, nil, err
+		}
 		rl, err := redislimiter.New(rc, redislimiter.Options{})
 		if err != nil {
 			closeAll()
@@ -363,6 +432,10 @@ func Graph(env *Env, o GraphOptions) (*Component, graphstore.Store, error) {
 	}
 	srv := graphsvc.NewServer(graphsvc.Options{Store: store, Bus: env.Bus, PublishInline: env.DB == nil, Logger: env.Logger, Metrics: env.Metrics, Clock: env.Clock})
 	an := graphsvc.NewAnalytics(store, env.Clock)
+	an.Blobs = env.Blobs
+	an.OnWriteError = func(ctx context.Context, program string, err error) {
+		env.Logger.WarnContext(ctx, "graph.snapshot_write_failed", "program_id", program, "error", err.Error())
+	}
 	c.Register = func(g *grpc.Server) {
 		pb.RegisterGraphServiceServer(g, srv)
 		graphv1.RegisterGraphAnalyticsServer(g, an)
@@ -408,6 +481,9 @@ type NotifierOptions struct {
 	Email                 notifier.EmailSender
 	AllowInsecureLoopback bool
 	ConsoleBaseURL        string
+	// Egress routes webhook and Slack deliveries through the egress proxy
+	// (nil: direct, local development).
+	Egress *notifier.NotifyEgress
 }
 
 // Notifier builds the notifier.
@@ -423,7 +499,8 @@ func Notifier(env *Env, o NotifierOptions) (*Component, *notifier.Service) {
 		o.Email = notifier.LogEmail{Logger: env.Logger}
 	}
 	svc := notifier.NewService(notifier.Options{Repo: repo, Bus: env.Bus, Clock: env.Clock, Logger: env.Logger, Metrics: env.Metrics,
-		Senders: &notifier.Senders{Secrets: o.Secrets, Resolver: o.Resolver, Email: o.Email, AllowInsecureLoopback: o.AllowInsecureLoopback}})
+		Senders: &notifier.Senders{Secrets: o.Secrets, Resolver: o.Resolver, Email: o.Email, AllowInsecureLoopback: o.AllowInsecureLoopback,
+			Egress: o.Egress}})
 	srv := &notifier.Server{S: svc}
 	return &Component{Register: func(g *grpc.Server) { pb.RegisterNotifierServiceServer(g, srv) },
 		Run: []func(context.Context) error{svc.Run}, Ready: repo.Ping}, svc

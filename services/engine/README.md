@@ -29,7 +29,18 @@ EngineService (spec 9, 11.4) over `engine.Engine`.
   `Authorization`; creates a run as `schedule:<id>` with idempotency key
   `schedule:<id>:<fire time>` (body `fire_time`, else the
   `X-CloudScheduler-ScheduleTime` header, else the current minute).
+* Workflow schedules (G-OPS-10, `schedules.go`, `cron.go`): a JSON API
+  under `/internal/schedules` (GET list, POST create, GET/DELETE `{id}`)
+  that the gateway's `/v1/schedules` forwards to, a `ScheduleStore`
+  (`MemSchedules`, `PgSchedules` over engine.schedules), and a `Scheduler`
+  that fires due schedules every 15 s in process and on
+  `POST /internal/schedules:tick` (internal token, or Cloud Scheduler's
+  Google ID token with `TickAuth.Audience`). Each firing uses idempotency
+  key `schedule:<sch_id>:<fire time>`; missed firings coalesce. The tick
+  also runs a maintenance pass (services/maintenance). Cron: five fields,
+  UTC, `*`, values, ranges, lists, steps; day-of-month OR day-of-week when
+  both are restricted (Vixie cron); no names or `@` shorthands.
 
 Tests: `go test ./services/engine/` — diagnostics as error details,
 idempotent submit, WatchRun resume, tenant isolation, schedule idempotency
-(memory and Postgres).
+(memory and Postgres), `TestCron`, `TestRegress_GOPS10_Schedules_{Memory,Postgres}`.

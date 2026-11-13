@@ -15,6 +15,7 @@ import (
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/limiter"
 	"github.com/genuinebnt/flowforge/services/gateway"
+	"github.com/genuinebnt/flowforge/services/gateway/identity"
 	"github.com/genuinebnt/flowforge/services/gateway/identity/identitytest"
 	"github.com/genuinebnt/flowforge/services/gateway/internal/fakebackend"
 	"github.com/genuinebnt/flowforge/testkit"
@@ -43,6 +44,8 @@ type harness struct {
 
 type harnessOpts struct {
 	keepAlive time.Duration
+	// limiterFactory backs both the API limits and the auth throttles.
+	limiterFactory identity.LimiterFactory
 }
 
 func bigLimits() map[string]limiter.Params {
@@ -53,7 +56,7 @@ func bigLimits() map[string]limiter.Params {
 func newHarness(t testing.TB, o harnessOpts) *harness {
 	t.Helper()
 	clock := testkit.NewFakeClock(t0)
-	fx := identitytest.New(t, clock, identitytest.Options{})
+	fx := identitytest.New(t, clock, identitytest.Options{LimiterFactory: o.limiterFactory})
 	be, backends := fakebackend.Start(t, clock, fx.Keys, identitytest.Issuer, fx.Keys)
 	plans := gateway.PlanLimits{"free": bigLimits(), "anonymous": bigLimits(),
 		"tiny": {gateway.ClassRead: {Rate: 0.001, Burst: 2}, gateway.ClassWrite: {Rate: 0.001, Burst: 2}}}

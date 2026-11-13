@@ -10,11 +10,19 @@ pinned by a test or a conformance transcript (`conformance/api`).
    (including GET) use `members:admin` (configs may hold webhook targets);
    `GET /me` and `POST /auth/logout` need only a valid credential. As in
    `auth/OPEN_QUESTIONS.md` 14, 13.6 wins over the "Min. role" column.
-2. **Approval role match.** The gateway applies `auth.CanDecideApproval`
-   when the approval names one of the five membership roles; free-form
-   approval roles (`lead`, `finance_ap`) depend on groups the engine owns,
-   so the gateway only requires `approvals:decide` and leaves the match
-   (and the self-approval rule) to the engine.
+2. **Approval role match.** Free-form approval roles (`lead`,
+   `finance_ap`) are tenant role groups (G-LIM-05): `identity.role_groups`
+   / `role_group_members` (migration 0015), managed by admins through
+   `PUT`/`DELETE /tenant/role-groups/{name}/members/{user_id}` and `GET
+   /tenant/role-groups` (members:admin, like the other membership
+   endpoints; not in 13.6). Group names are `[a-z][a-z0-9_.-]{0,63}` and
+   never a membership role name; a user holds at most 32. On
+   `:decide` the gateway reads the caller's groups (per request, so a
+   removal applies at once), applies `auth.CanDecideApproval(role,
+   approval.role, groups)` and sends the groups in the internal token's
+   bounded `groups` claim; the engine matches approval.role against the
+   membership role or a group again and applies the self-approval rule.
+   API keys hold no groups. Other calls do not look groups up.
 3. **Login failure reason.** 11.8 has no credentials reason; bad
    credentials, unknown e-mails and missing memberships are `401
    token_invalid` with one fixed message. "Email address not verified" is
@@ -49,8 +57,12 @@ pinned by a test or a conformance transcript (`conformance/api`).
     5xx are not. Replayed bodies keep the original `request_id`. Public
     `/auth/*` POSTs never store responses.
 12. **Rate-limit keys for anonymous callers** are `rl:api:ip/<ip>:<class>`
-    (14.3 only names tenant keys). Limiter errors fail open for API limits
-    (auth throttles inside the identity service fail closed). Health,
+    (14.3 only names tenant keys). Limiter errors fail closed (spec 2.4): API
+    limits answer `503 unavailable` with `Retry-After: 2`, not 429 (the
+    caller exceeded nothing, and 11.8 maps UNAVAILABLE to 503 "retry with
+    backoff"); the auth throttles inside the identity service answer 503
+    on signup, resend and forgot, and the uniform login error path a 500.
+    Both deny (G-LIM-01). Health,
     readiness and JWKS are not limited and carry no RateLimit headers.
     `RateLimit-Reset` is the time until the bucket is full again.
 13. **Auth throttle keys** not named by 14.3: resend
@@ -75,3 +87,10 @@ pinned by a test or a conformance transcript (`conformance/api`).
     carries `user:` / `apikey:` (11.1).
 19. **Write deadlines** use the wall clock (socket deadlines), not the
     injected clock; SSE streams extend the deadline on every write.
+20. **Schedules** (`/v1/schedules`, G-OPS-10) are not in spec 12.3. They
+    need `runs:submit` to create or delete (a schedule submits runs) and
+    `read` to list. The gateway forwards them as JSON over HTTP to the
+    engine's `/internal/schedules` with the caller's internal token, since
+    the v1 EngineService proto has no schedule RPCs; the engine's 400, 404
+    and 409 become `validation_failed`, `not_found` and `already_exists`.
+    The ids carry a new `sch_` prefix (core.PrefixSchedule).

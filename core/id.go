@@ -141,6 +141,7 @@ const (
 	PrefixRequest         Prefix = "req"
 	PrefixPlan            Prefix = "pln"
 	PrefixChannel         Prefix = "chn"
+	PrefixSchedule        Prefix = "sch" // workflow schedules (G-OPS-10; not in spec 1.2)
 )
 
 // crockford is the Crockford base32 alphabet used for the textual part of

@@ -1,5 +1,5 @@
 {
-  "description": "Rejected observations have no effect at all (ingest is atomic): a docs-tagged label between disallowed types (oam_004), an edge to an unknown local ref, an edge to an entity id that does not exist, an unknown asset key on a strict request. An edge to an existing entity id (ent_...) then succeeds, and a label check against that stored entity's type rejects a bad one.",
+  "description": "Rejected observations have no effect at all (ingest is atomic): a docs-tagged label between disallowed types (oam_004), an edge to an unknown local ref, an unknown asset key on a strict request. An edge to an entity id that is never ingested is buffered as pending (G-CORE-03) and never applied. An edge to an existing entity id (ent_...) then succeeds, and a label check against that stored entity's type rejects a bad one.",
   "order_dependent": true,
   "steps": [
     {"observation": {"observation_id": "bad-label", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
@@ -13,7 +13,7 @@
     {"observation": {"observation_id": "bad-id", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
       "entities": [{"ref": "u", "asset": {"type": "URL", "url": "https://nope.acme.com/"}}],
       "edges": [{"from": "u", "to": "ent_160YMM00PWGTPRMK676C7MC8PM", "relation": {"type": "SimpleRelation", "label": "domain"}}]},
-     "error": "unknown_entity"},
+     "pending": true},
     {"observation": {"observation_id": "bad-field", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "x"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.5,
       "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "nope.acme.com", "colour": "red"}}]},
      "error": "unknown_field"},

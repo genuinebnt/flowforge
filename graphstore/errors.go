@@ -38,7 +38,8 @@ func NotFound(what, id string) error {
 
 // Classify maps an error from a lower layer to the *core.Error the store
 // returns at its boundary: oam validation failures become INVALID_ARGUMENT
-// (VALIDATION_FAILED, the failing path in Meta["field"]), context errors
+// (VALIDATION_FAILED, the failing path in Meta["field"]), a full buffer of
+// pending references is RESOURCE_EXHAUSTED (QUOTA_EXCEEDED), context errors
 // become DEADLINE_EXCEEDED or ABORTED, *core.Error values pass through and
 // everything else is INTERNAL. The original error stays reachable with
 // errors.Is / errors.As.
@@ -55,6 +56,8 @@ func Classify(err error) error {
 		return core.Wrap(err, core.KindDeadlineExceeded, core.ReasonDeadlineExceeded)
 	case errors.Is(err, context.Canceled):
 		return core.Wrap(err, core.KindAborted, ReasonCancelled)
+	case errors.Is(err, oam.ErrPendingLimit):
+		return core.Wrap(err, core.KindResourceExhausted, core.ReasonQuotaExceeded)
 	case isOAMInput(err):
 		e := core.Wrap(err, core.KindInvalidArgument, core.ReasonValidationFailed)
 		var ve *oam.ValidationError

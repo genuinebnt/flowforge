@@ -488,6 +488,18 @@ WHERE run_id = $1 ORDER BY at_seq DESC LIMIT 1`, pgUUID(run)).Scan(&at, &snap.Mo
 	return snap, true, nil
 }
 
+// DeleteSnapshots implements eventstore.Store.
+func (s *Store) DeleteSnapshots(ctx context.Context, run eventstore.RunID) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM engine.snapshots WHERE run_id = $1`, pgUUID(run))
+	if err != nil {
+		return wrap("delete snapshots", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return wrap("delete snapshots", s.notFoundOr(ctx, run, nil))
+	}
+	return nil
+}
+
 // AcquireLease implements eventstore.Store with the conditional UPDATE of
 // spec 23.4: the database clock decides expiry and fence + 1 makes fences
 // strictly increasing, durably.

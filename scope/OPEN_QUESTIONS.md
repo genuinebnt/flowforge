@@ -84,8 +84,11 @@ brackets).
     Resolved addresses are tried in answer order. [`first_rule_wins`,
     rest_example.json `url_wildcard_first`]
 
-14. **effective_from** is carried but not enforced by `Check`: choosing the
-    version (current or pinned) is the scope service's job.
+14. **effective_from** is carried but not enforced by `Policy.Check`:
+    choosing the version is the scope service's job, and it does enforce
+    it (`services/scope`, G-CORE-01): version 0 means the highest version
+    whose effective_from has passed, runs are pinned to that version, and
+    a pinned check of a version not yet in effect fails closed.
 
 15. **Status ignores max_class**, windows and resolution: it is the
     rule-matching part of a passive check. A target that does not

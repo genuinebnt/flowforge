@@ -49,6 +49,15 @@ type Config struct {
 	RateLimitErrorBackoff time.Duration
 	// Executor is the executor name recorded in effect_started.
 	Executor string
+	// DrainTimeout bounds the graceful drain of Worker.Run once its context
+	// is cancelled (SIGTERM): the worker stops claiming, in-flight effects
+	// may finish and be recorded, each run is released at its next effect
+	// boundary with next_wake_at = now, and only after DrainTimeout are the
+	// remaining executions cancelled, as a crash would (their effects then
+	// become outcome-unknown for the next owner). Real time. Default 20 s,
+	// below the termination grace of the platform; negative disables the
+	// drain (cancel at once).
+	DrainTimeout time.Duration
 }
 
 func (c Config) withDefaults() Config {
@@ -70,6 +79,9 @@ func (c Config) withDefaults() Config {
 	def(&c.IdleBackoff, time.Second)
 	def(&c.SnapshotInterval, 5*time.Minute)
 	def(&c.RateLimitErrorBackoff, time.Second)
+	if c.DrainTimeout == 0 {
+		c.DrainTimeout = 20 * time.Second
+	}
 	if c.TenantConcurrency <= 0 {
 		c.TenantConcurrency = 20
 	}

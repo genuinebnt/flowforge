@@ -123,13 +123,23 @@ variable "jwt_audience_internal" {
 }
 
 variable "signing_key_kids" {
-  description = "Key ids with a Secret Manager secret ff-signing-key-<kid> (current and next, for rotation, spec 13.7)."
+  description = "Key ids with a Secret Manager secret ff-signing-key-<kid> (current and next, for rotation, spec 13.7), mounted as FF_SIGNING_KEY_<KID> with KID upper-cased and \"-\" replaced by \"_\"."
   type        = list(string)
+
+  validation {
+    condition     = length(var.signing_key_kids) > 0 && alltrue([for k in var.signing_key_kids : can(regex("^[a-z0-9][a-z0-9-]{0,40}$", k))])
+    error_message = "Key ids must be lowercase letters, digits and dashes (they become secret ids and env var names)."
+  }
 }
 
 variable "current_signing_kid" {
-  description = "Key id the gateway signs with (FF_SIGNING_KID)."
+  description = "Key id the services sign internal tokens with (FF_SIGNING_KID); must be one of signing_key_kids."
   type        = string
+
+  validation {
+    condition     = contains(var.signing_key_kids, var.current_signing_kid)
+    error_message = "current_signing_kid must be one of signing_key_kids."
+  }
 }
 
 # --- engine
@@ -177,6 +187,18 @@ variable "tool_secrets" {
 }
 
 # --- scheduler
+variable "schedule_tick_enabled" {
+  description = "Create the Cloud Scheduler job that POSTs /internal/schedules:tick on the engine (G-OPS-10)."
+  type        = bool
+  default     = true
+}
+
+variable "schedule_tick_cron" {
+  description = "Cron of the schedules tick."
+  type        = string
+  default     = "* * * * *"
+}
+
 variable "schedules" {
   description = "Schedule id => { cron, time_zone }. Each fires POST /internal/schedules/<id>:fire on the engine with OIDC."
   type = map(object({
@@ -225,4 +247,34 @@ variable "budget_currency" {
   description = "Budget currency."
   type        = string
   default     = "USD"
+}
+
+variable "budget_shutdown_enabled" {
+  description = "Create the budget-triggered shutdown (infra/modules/budget-shutdown). Off by default."
+  type        = bool
+  default     = false
+}
+
+variable "budget_shutdown_image" {
+  description = "google-cloud-cli image pinned by digest for the shutdown handler (required when budget_shutdown_enabled)."
+  type        = string
+  default     = "gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+variable "budget_shutdown_threshold" {
+  description = "Shut down when actual spend >= this fraction of monthly_budget."
+  type        = number
+  default     = 1.0
+}
+
+variable "drain_timeout" {
+  description = "Engine graceful drain on SIGTERM (Go duration). Must stay below Cloud Run's 10 s termination grace."
+  type        = string
+  default     = "8s"
+}
+
+variable "notify_allowlist" {
+  description = "HTTPS hosts the notifier may deliver webhooks and Slack messages to, through the egress proxy."
+  type        = list(string)
+  default     = ["hooks.slack.com"]
 }

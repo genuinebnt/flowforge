@@ -21,10 +21,11 @@ Behavioural decisions shared with every implementation are in
    Read re-encodes each payload canonically (same bytes as MemStore for
    ordinary documents). Number spellings jsonb rewrites (`1e3` to `1000`,
    `-0` to `0`) stay rewritten: equal by value only.
-5. **Connection pool.** `pgxpool` needs `github.com/jackc/puddle/v2`, which
-   is not in go.mod (and go.mod is not changed by this package). `Open` uses
-   a minimal bounded pool over `pgx.Conn`; `New(db DB, cfg)` accepts any
-   value with `Begin`, `Exec`, `Query`, `QueryRow` (a `*pgxpool.Pool` fits).
+5. **Connection pool.** `Open` uses a minimal bounded pool over `pgx.Conn`,
+   written when `pgxpool`'s dependency (`puddle`) was not in go.mod. It is
+   now (the services use `*pgxpool.Pool`), and `New(db DB, cfg)` accepts any
+   value with `Begin`, `Exec`, `Query`, `QueryRow`, so a `*pgxpool.Pool`
+   fits; the built-in pool is kept for `Open` and its tests.
 6. **Append round trips.** BEGIN, `SELECT ... FOR UPDATE`, one statement
    that inserts the events (via `unnest` arrays), advances `last_seq` and
    notifies, COMMIT. A single CTE statement could do it in one round trip

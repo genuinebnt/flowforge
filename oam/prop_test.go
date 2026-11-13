@@ -66,7 +66,30 @@ func arbObservation(r core.Rng, i int) oam.Observation {
 		}
 		o.Tags = append(o.Tags, oam.ObservedTag{Target: target, Property: p})
 	}
+	// Edges and tags naming an existing-entity id (G-CORE-03): the entity
+	// may come from a later observation, an earlier one, or none at all.
+	for range core.IntN(r, 3) {
+		id := entityIDOf(o.TenantID, o.ProgramID, arbAsset(r))
+		if core.IntN(r, 2) == 0 {
+			o.Edges = append(o.Edges, oam.ObservedEdge{From: fmt.Sprint("r", core.IntN(r, n)), To: id,
+				Relation: oam.SimpleRelation{Label: pick(r, "related_to", "seen_with")}})
+		} else {
+			o.Tags = append(o.Tags, oam.ObservedTag{Target: id, Property: oam.SimpleProperty{Name: "ref", Value: pick(r, "x", "y")}})
+		}
+	}
 	return o
+}
+
+// entityIDOf returns the ent_ id a's entity gets in (tenant, program),
+// read back from a scratch graph.
+func entityIDOf(tenant, program string, a oam.Asset) string {
+	g := oam.NewGraph(oam.Config{})
+	res, err := g.Apply(oam.Observation{ObservationID: "id", TenantID: tenant, ProgramID: program,
+		Tool: oam.Tool{Name: "x"}, ObservedAt: t0, Entities: []oam.ObservedEntity{ent("x", a)}})
+	if err != nil {
+		panic(err) // arbAsset only draws valid assets
+	}
+	return res.RefToEntityID["x"]
 }
 
 func applyAll(t testing.TB, cfg oam.Config, list []oam.Observation) string {
@@ -81,7 +104,9 @@ func applyAll(t testing.TB, cfg oam.Config, list []oam.Observation) string {
 }
 
 // TestOAMProp_MergeConverges checks spec 25.4 / 23.5: any permutation and
-// any duplication of an observation list gives byte-identical state.
+// any duplication of an observation list gives byte-identical state,
+// including observations that reference entity ids ingested later
+// (pending references, G-CORE-03).
 func TestOAMProp_MergeConverges(t *testing.T) {
 	r := testkit.Rng(t)
 	cfg := oam.Config{Scope: func(_, _ string, a oam.Asset) oam.ScopeStatus {

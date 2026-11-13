@@ -1,6 +1,6 @@
 # Nightly stage of spec 25.11 adapted to Go: property tests at 100,000 cases,
 # 30-minute fuzzing per target, race detector and AddressSanitizer runs, the
-# full benchmark suite compared with the last recorded baseline, coverage.
+# full benchmark suite compared with the last recorded baseline, coverage, and ff-sim at 10,000 seeds per fault profile (FF_SIM_SEEDS).
 name: nightly
 
 on:
@@ -49,6 +49,22 @@ jobs:
           go-version-file: go.mod
       - name: property tests
         run: go test -count=1 -timeout 320m -run 'Prop_' ./...
+
+  sim:
+    name: deterministic simulation (10,000 seeds per profile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      FF_SIM_SEEDS: "10000"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: sim (ff-sim, spec 23.8)
+        run: go test -count=1 -timeout 290m -run 'TestSim' ./sim
 
   sanitizers:
     name: race and address sanitizers

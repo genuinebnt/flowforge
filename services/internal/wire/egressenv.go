@@ -9,7 +9,7 @@ import (
 	"github.com/genuinebnt/flowforge/services/egressproxy"
 )
 
-// EgressConfigFromEnv reads the standalone egress proxy's v2 settings
+// EgressConfigFromEnv reads the standalone egress proxy's settings
 // through getenv (services/egressproxy/README.md lists the variables):
 //
 //	FF_EGRESS_PORTS           port policy: "80,443,8000-8099" (default 80,443)
@@ -24,11 +24,20 @@ import (
 //	FF_EGRESS_DNS_UPSTREAM    recursive resolver host:port (default: the
 //	                          system resolver)
 //	FF_REDIS_ADDR, FF_REDIS_AUTH  shared per-target limiter
+//	FF_REDIS_CA               Redis server CA (PEM or path): TLS to Redis
+//	FF_NOTIFY_ALLOWLIST       notifier destinations of the notify path:
+//	                          comma-separated names, ".example.com" for
+//	                          every name below a domain (empty: none)
 func EgressConfigFromEnv(getenv func(string) string) (EgressOptions, error) {
 	o := EgressOptions{
 		SOCKSListen: getenv("FF_EGRESS_SOCKS_LISTEN"), SOCKSAdvertise: getenv("FF_EGRESS_SOCKS_ADVERTISE"),
 		DNSListen: getenv("FF_EGRESS_DNS_LISTEN"), DNSAdvertise: getenv("FF_EGRESS_DNS_ADVERTISE"),
-		RedisAddr: getenv("FF_REDIS_ADDR"), RedisAuth: getenv("FF_REDIS_AUTH"),
+		RedisAddr: getenv("FF_REDIS_ADDR"), RedisAuth: getenv("FF_REDIS_AUTH"), RedisCA: getenv("FF_REDIS_CA"),
+	}
+	for _, e := range strings.Split(getenv("FF_NOTIFY_ALLOWLIST"), ",") {
+		if e = strings.TrimSpace(e); e != "" {
+			o.NotifyAllowlist = append(o.NotifyAllowlist, e)
+		}
 	}
 	if v := getenv("FF_EGRESS_PORTS"); v != "" {
 		rs, err := ParsePortRanges(v)

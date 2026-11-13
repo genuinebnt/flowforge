@@ -1,0 +1,20 @@
+#!/bin/bash
+# Postgres 16 on the host network (port 5432). The data directory is on the
+# data disk; the initdb script (pg_trgm, citext, vector when available) runs
+# once, on an empty data directory.
+set -euo pipefail
+docker container rm --force ff-postgres >/dev/null 2>&1 || true
+tls=()
+if [ -s /mnt/disks/ff/postgres-tls/server.key ]; then
+  tls=(-c ssl=on -c ssl_cert_file=/tls/server.crt -c ssl_key_file=/tls/server.key)
+fi
+exec docker run --rm --name ff-postgres --network host --memory 384m \
+  --env-file /run/ff/postgres.env \
+  -e POSTGRES_USER=flowforge -e POSTGRES_DB=flowforge -e PGDATA=/var/lib/postgresql/data/pgdata \
+  -v /mnt/disks/ff/postgres:/var/lib/postgresql/data \
+  -v /mnt/disks/ff/postgres-tls:/tls:ro \
+  -v /etc/ff/initdb:/docker-entrypoint-initdb.d:ro \
+  '${pg_image}' postgres \
+  -c listen_addresses='*' -c max_connections=${max_connections} \
+  -c shared_buffers=96MB -c effective_cache_size=256MB -c work_mem=2MB -c maintenance_work_mem=32MB \
+  "$${tls[@]}"

@@ -31,7 +31,9 @@ type SignupResult struct {
 func (s *Service) throttle(ctx context.Context, key string, l auth.Limit) error {
 	ok, retry, err := s.cfg.Limiter.Allow(ctx, key, l)
 	if err != nil {
-		return errInternal(err)
+		// Fail closed (spec 2.4): an unreachable limiter denies, as
+		// UNAVAILABLE so clients retry with backoff (11.8).
+		return &core.Error{Kind: core.KindUnavailable, Reason: core.ReasonUnavailable, Message: "rate limiter unavailable; retry later", Err: err}
 	}
 	if !ok {
 		return errRateLimited(retry)
@@ -53,6 +55,11 @@ func accountKey(email, endpoint string) string {
 // notice.
 func (s *Service) Signup(ctx context.Context, in SignupInput, ci ClientInfo) (SignupResult, error) {
 	if err := s.throttle(ctx, limiter.AuthIPKey(ci.IP, "signup"), s.cfg.Limits.Signup); err != nil {
+		if errors.Is(err, core.ErrExhausted) {
+			// auth.signup_throttled feeds the default signup-abuse alert
+			// rule (alerts.DefaultRuleSignupAbuse, spec 15.4; G-LIM-07).
+			s.recordBestEffort(ctx, EventSignupThrottled, core.Nil, core.Nil, ci, map[string]string{"endpoint": "signup"})
+		}
 		return SignupResult{}, err
 	}
 	email, err := NormalizeEmail(in.Email)

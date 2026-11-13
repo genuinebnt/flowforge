@@ -1,0 +1,127 @@
+# Local multi-process topology (G-OPS-21): every service in its own
+# container, built from deploy/Dockerfile, against one Postgres, with the
+# Postgres event bus (FF_BUS=postgres, migration 0016), a local blob
+# directory and env-file secrets. No cloud account is needed.
+#
+#   make local-up      # scripts/local.sh up: writes deploy/.local/local.env, builds, starts
+#   curl http://127.0.0.1:8080/readyz
+#   make local-down    # stops it and deletes the database volume
+#
+# The same topology without containers is the Go test
+# services/gateway/gatewayd TestRegress_GOPS21_MultiProcessTopology (each
+# binary as an OS process). Redis is optional: start with
+# `--profile redis` and FF_REDIS_ADDR=redis:6379 in local.env.
+
+name: flowforge-local
+
+x-service: &service
+  env_file: [.local/local.env]
+  restart: unless-stopped
+  read_only: true
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+x-env: &env
+  FF_ENV: dev
+  FF_DB_DSN: postgres://postgres:postgres@postgres:5432/flowforge?sslmode=disable
+  FF_BUS: postgres
+  FF_BLOB_DIR: /data/blobs
+  FF_JWT_ISSUER: http://127.0.0.1:${FF_GATEWAY_PORT:-8080}
+  FF_SCOPE_ADDR: scope:8080
+  FF_ENGINE_ADDR: engine:8080
+  FF_GRAPH_ADDR: graph:8080
+  FF_TOOL_RUNNER_ADDR: tool-runner:8080
+  FF_NOTIFIER_ADDR: notifier:8080
+  FF_SIMILARITY_ADDR: similarity:8080
+  FF_EGRESS_PROXY: http://egress-proxy:8080
+
+services:
+  postgres:
+    image: ${FF_PG_IMAGE:-postgres:16}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flowforge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    command: ["postgres", "-c", "max_connections=300"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flowforge"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7
+    profiles: [redis]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  migrate:
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: migrate}}
+    image: flowforge-local/migrate
+    environment:
+      FF_DB_DSN: postgres://postgres:postgres@postgres:5432/flowforge?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  scope:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: scope}}
+    image: flowforge-local/scope
+    environment: *env
+
+  graph:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: graph}}
+    image: flowforge-local/graph
+    environment: *env
+    volumes: [./.local/blobs:/data/blobs]
+
+  egress-proxy:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: egress-proxy}}
+    image: flowforge-local/egress-proxy
+    environment: *env
+
+  tool-runner:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: tool-runner}}
+    image: flowforge-local/tool-runner
+    environment: *env
+    volumes: [./.local/blobs:/data/blobs]
+
+  engine:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: engine}}
+    image: flowforge-local/engine
+    environment: *env
+    volumes: [./.local/blobs:/data/blobs]
+
+  similarity:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: similarity}}
+    image: flowforge-local/similarity
+    environment: *env
+
+  notifier:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: notifier}}
+    image: flowforge-local/notifier
+    environment: *env
+
+  gateway:
+    <<: *service
+    build: {context: .., dockerfile: deploy/Dockerfile, args: {SERVICE: gateway}}
+    image: flowforge-local/gateway
+    environment:
+      <<: *env
+      FF_GATEWAY_ADDR: :8080
+      FF_COOKIE_INSECURE: "true"
+    ports:
+      - "127.0.0.1:${FF_GATEWAY_PORT:-8080}:8080"
+
+volumes:
+  pgdata:

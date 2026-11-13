@@ -72,3 +72,20 @@ the cases whose id carries their number.
 * Spec ambiguities and the choices made are listed in `OPEN_QUESTIONS.md`.
 * `Normalize` allocates (inside `netnorm`); a decision costs about 7
   small allocations regardless of rule count.
+
+## Choosing an algorithm
+
+Decision point: first-matching-rule lookup (spec 4.3). `Compile(doc,
+WithMatcher(m))` selects it; `Matchers()` lists the candidates. Both run
+the conformance suite and `TestScopeProp_IndexedMatchesNaive` /
+`FuzzScopeDecide` compare them decision by decision.
+
+| Matcher | 10 rules | 1,000 rules | 10,000 rules |
+|---|---|---|---|
+| `indexed` (default) | 975 ns | 1.26 µs | 1.30 µs |
+| `linear` | 941 ns | 6.09 µs | 136 µs |
+
+`go test -run '^$' -bench ScopeAlgo ./scope` (normalize + decide, 7
+allocations per check either way). Measured 2026-11-13 on a 4-vCPU Linux container (Go 1.26, `GOMAXPROCS=4`); see `docs/ALGORITHMS.md` for the consolidated entry. The indexed matcher is flat in the
+rule count; the linear scan is on par only for a handful of rules, where it
+also skips building the tries.

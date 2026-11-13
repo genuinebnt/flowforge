@@ -275,6 +275,17 @@ type Metrics struct {
 	BusDeadLetters       Counter   // ff_bus_dead_letters_total{topic}
 	RPCTotal             Counter   // ff_rpc_requests_total{method,code}
 	RPCDuration          Histogram // ff_rpc_duration_seconds{method}
+	// ScopeCheck is the latency of one ScopeService.Check (the 100 ms p99
+	// SLO of infra/modules/monitoring). CheckBatch is not recorded here:
+	// its latency grows with the batch (ff_rpc_duration_seconds has it).
+	ScopeCheck Histogram // ff_scope_check_seconds
+	// RunSubmitToStart is the time from a run's run_submitted event to its
+	// run_started event (both event times), the 5 s p95 SLO.
+	RunSubmitToStart Histogram // ff_run_submit_to_start_seconds
+	// GraphPending counts observations waiting for referenced entity ids
+	// (G-CORE-03) by event: buffered, released, expired, rejected (the
+	// per-tenant bound was full).
+	GraphPending Counter // ff_graph_pending_observations_total{event}
 }
 
 // NewMetrics registers the standard metrics in r (a new registry when nil).
@@ -301,5 +312,8 @@ func NewMetrics(r *Registry) *Metrics {
 		BusDeadLetters:       r.Counter("ff_bus_dead_letters_total", "Messages moved to a dead-letter topic.", "topic"),
 		RPCTotal:             r.Counter("ff_rpc_requests_total", "RPCs handled.", "method", "code"),
 		RPCDuration:          r.Histogram("ff_rpc_duration_seconds", "RPC handling time.", nil, "method"),
+		ScopeCheck:           r.Histogram("ff_scope_check_seconds", "Latency of one scope check (ScopeService.Check).", nil),
+		RunSubmitToStart:     r.Histogram("ff_run_submit_to_start_seconds", "Time from run_submitted to run_started.", nil),
+		GraphPending:         r.Counter("ff_graph_pending_observations_total", "Observations waiting for referenced entities, by event.", "event"),
 	}
 }

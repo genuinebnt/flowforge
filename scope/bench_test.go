@@ -85,7 +85,7 @@ func BenchmarkScope01_Decide(b *testing.B) {
 		for _, m := range []struct {
 			name string
 			opts []Option
-		}{{"indexed", nil}, {"naive", []Option{withLinearMatcher()}}} {
+		}{{"indexed", nil}, {"naive", []Option{WithMatcher(MatcherLinear)}}} {
 			p, err := Compile(doc, m.opts...)
 			if err != nil {
 				b.Fatal(err)
@@ -100,6 +100,34 @@ func BenchmarkScope01_Decide(b *testing.B) {
 					i++
 				}
 				b.ReportMetric(float64(allowed)/float64(max(i, 1)), "allow-ratio")
+			})
+		}
+	}
+}
+
+// BenchmarkScopeAlgo compares the selectable Matchers (one decision point:
+// first-matching-rule lookup, spec 4.3) on normalize-and-decide at 10,
+// 1,000 and 10,000 rules (b_scope_01's workload):
+//
+//	go test -run '^$' -bench ScopeAlgo ./scope
+func BenchmarkScopeAlgo(b *testing.B) {
+	ctx := context.Background()
+	for _, m := range Matchers() {
+		for _, n := range []int{10, 1000, 10000} {
+			r := core.NewSplitMix64(uint64(n))
+			doc := benchDocument(r, n)
+			reqs := benchTargets(r, doc, 4096)
+			p, err := Compile(doc, WithMatcher(m))
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.Run(fmt.Sprintf("%s/rules=%d", m, n), func(b *testing.B) {
+				b.ReportAllocs()
+				i := 0
+				for b.Loop() {
+					p.Check(ctx, reqs[i%len(reqs)])
+					i++
+				}
 			})
 		}
 	}

@@ -23,14 +23,14 @@ locals {
 resource "google_pubsub_topic" "this" {
   project                    = var.project_id
   name                       = local.topic_name
-  message_retention_duration = var.topic_retention
+  message_retention_duration = var.topic_retention_enabled ? var.topic_retention : null
   labels                     = merge(var.labels, { "ff-topic" = local.label_safe })
 }
 
 resource "google_pubsub_topic" "dead_letter" {
   project                    = var.project_id
   name                       = local.dlq_name
-  message_retention_duration = var.dead_letter_retention
+  message_retention_duration = var.topic_retention_enabled ? var.dead_letter_retention : null
   labels                     = merge(var.labels, { "ff-topic" = "${local.label_safe}-dead-letter" })
 }
 

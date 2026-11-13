@@ -134,7 +134,7 @@ func TestScopeProp_IndexedMatchesNaive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		linear, err := Compile(doc, WithResolver(hashResolver{}), withLinearMatcher())
+		linear, err := Compile(doc, WithResolver(hashResolver{}), WithMatcher(MatcherLinear))
 		if err != nil {
 			t.Fatal(err)
 		}

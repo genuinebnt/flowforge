@@ -200,7 +200,12 @@ func (r *runner) rateLimit(spec ToolSpec, proofs []vm.Value) (*stepResult, *Effe
 	if err != nil {
 		return nil, &EffectError{Code: "rate_limited", Message: err.Error()}
 	}
-	res, err := r.e.d.Limiter.AcquireAll(reqs, r.e.d.Clock.Monotonic())
+	var res limiter.Result
+	if wl, ok := r.e.d.Limiter.(WorkLimiter); ok {
+		res, err = wl.AcquireAllWork(reqs, WorkOf(spec.EffectClass), r.e.d.Clock.Monotonic())
+	} else {
+		res, err = r.e.d.Limiter.AcquireAll(reqs, r.e.d.Clock.Monotonic())
+	}
 	switch {
 	case err != nil && res.RetryAfter == limiter.Never:
 		return nil, &EffectError{Code: "rate_limited", Message: "the request can never pass the rate limit: " + err.Error()}

@@ -61,6 +61,11 @@ type Store interface {
 	// false when the run has none.
 	LoadSnapshot(ctx context.Context, run RunID) (snap Snapshot, ok bool, err error)
 
+	// DeleteSnapshots removes every snapshot of the run (spec 10.7: delete
+	// when the run finishes). It is idempotent; an unknown run is
+	// ErrNotFound. Events and leases are untouched.
+	DeleteSnapshots(ctx context.Context, run RunID) error
+
 	// AcquireLease grants owner a lease for ttl if the run is unleased,
 	// its lease expired, or owner already holds it (re-acquiring yields a
 	// new fence and stales the old one). The returned fence is strictly

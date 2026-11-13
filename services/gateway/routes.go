@@ -53,6 +53,11 @@ func (s *Server) routes() []route {
 		r(get, "/tenant/members/{user_id}", members, s.getMember),
 		r(patch, "/tenant/members/{user_id}", members, s.patchMember),
 		r(post, "/tenant/invites", members, s.createInvite),
+		// Role groups for free-form approval roles (G-LIM-05; not in 13.6,
+		// so members:admin like the other membership endpoints).
+		r(get, "/tenant/role-groups", members, s.listRoleGroups),
+		r(put, "/tenant/role-groups/{name}/members/{user_id}", members, s.putRoleGroupMember),
+		r(del, "/tenant/role-groups/{name}/members/{user_id}", members, s.deleteRoleGroupMember),
 		r(get, "/api-keys", members, s.listAPIKeys),
 		r(post, "/api-keys", members, s.createAPIKey),
 		r(del, "/api-keys/{id}", members, s.deleteAPIKey),
@@ -79,6 +84,10 @@ func (s *Server) routes() []route {
 		r(get, "/runs/{id}", read, s.getRun),
 		r(post, "/runs/{id}/:cancel", runs, s.cancelRun),
 		r(get, "/runs/{id}/events", read, s.listRunEvents),
+		r(post, "/schedules", runs, s.createSchedule),
+		r(get, "/schedules", read, s.listSchedules),
+		r(get, "/schedules/{id}", read, s.getSchedule),
+		r(del, "/schedules/{id}", runs, s.deleteSchedule),
 		sse("/runs/{id}/watch", s.watchRun),
 
 		// Approvals (12.7).

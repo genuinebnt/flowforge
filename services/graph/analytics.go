@@ -27,9 +27,18 @@ type Analytics struct {
 	graphv1.UnimplementedGraphAnalyticsServer
 	Store graphstore.Store
 	Clock core.Clock
+	// Blobs, when set, receives a snapshot file (spec 21.4,
+	// snapshots/{tenant}/{program}/{watermark}.ffcs) and a graph.snapshots
+	// catalogue row each time a snapshot at a new watermark is built, so
+	// GetSnapshotInfo reports its gcs_uri (G-OPS-14).
+	Blobs graphstore.BlobStore
+	// OnWriteError observes a failed snapshot write (default: ignored;
+	// the in-memory snapshot still serves the request).
+	OnWriteError func(ctx context.Context, program string, err error)
 
-	mu    sync.Mutex
-	snaps map[[2]string]snapEntry
+	mu      sync.Mutex
+	snaps   map[[2]string]snapEntry
+	written map[[2]string]uint64
 }
 
 type snapEntry struct {
@@ -43,7 +52,7 @@ func NewAnalytics(store graphstore.Store, clock core.Clock) *Analytics {
 	if clock == nil {
 		clock = &core.SystemClock{}
 	}
-	return &Analytics{Store: store, Clock: clock, snaps: map[[2]string]snapEntry{}}
+	return &Analytics{Store: store, Clock: clock, snaps: map[[2]string]snapEntry{}, written: map[[2]string]uint64{}}
 }
 
 func (a *Analytics) scope(ctx context.Context, tenantID, programID string) (graphstore.Caller, string, error) {
@@ -80,7 +89,25 @@ func (a *Analytics) snapshot(ctx context.Context, c graphstore.Caller, program s
 	e = snapEntry{g: g, watermark: wm, builtAt: a.Clock.Now()}
 	a.mu.Lock()
 	a.snaps[k] = e
+	_, seen := a.written[k]
+	fresh := a.Blobs != nil && (!seen || wm > a.written[k])
+	if fresh {
+		a.written[k] = wm
+	}
 	a.mu.Unlock()
+	if fresh {
+		// The Store port records catalogue rows only through
+		// WriteSnapshot, which builds its own copy (one extra build per new
+		// watermark); a row at an existing watermark is kept, not doubled.
+		if _, err := a.Store.WriteSnapshot(ctx, c, program, a.Blobs); err != nil {
+			a.mu.Lock()
+			delete(a.written, k)
+			a.mu.Unlock()
+			if a.OnWriteError != nil {
+				a.OnWriteError(ctx, program, err)
+			}
+		}
+	}
 	if wm < min {
 		return e, core.Errorf(core.KindFailedPrecondition, core.ReasonValidationFailed,
 			"snapshot watermark %d is older than min_watermark_seq %d", wm, min)

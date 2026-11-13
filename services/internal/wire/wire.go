@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
 )
@@ -29,6 +30,9 @@ type Env struct {
 	Clock    core.Clock
 	Tokens   platform.TokenSource
 	Verifier platform.TokenVerifier
+	// IDTokens adds Google ID tokens to calls to https:// (Cloud Run)
+	// addresses; nil locally (platform.ClientOptions.IDTokens).
+	IDTokens platform.IDTokenSource
 	// DB is nil for the in-memory stores; DSN is its connection string
 	// (LISTEN connections).
 	DB  *pgxpool.Pool
@@ -36,6 +40,10 @@ type Env struct {
 	// Bus is nil when no event bus is available (standalone binaries: no
 	// Pub/Sub adapter yet); outboxes then keep their rows unpublished.
 	Bus bus.Bus
+	// Blobs is the object store for raw tool output, snapshot files and
+	// run archives (services/internal/blob); nil keeps raw output out of
+	// storage and snapshots in memory.
+	Blobs graphstore.BlobStore
 }
 
 // Dial opens a client connection with env's token source.
@@ -43,7 +51,7 @@ func (e *Env) Dial(target string) (*grpc.ClientConn, error) {
 	if target == "" {
 		return nil, errors.New("wire: empty service address")
 	}
-	return platform.Dial(target, platform.ClientOptions{Tokens: e.Tokens})
+	return platform.Dial(target, platform.ClientOptions{Tokens: e.Tokens, IDTokens: e.IDTokens})
 }
 
 // Component is a built service.

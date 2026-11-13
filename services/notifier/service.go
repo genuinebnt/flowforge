@@ -70,8 +70,9 @@ func NewService(o Options) *Service {
 	return &Service{o: o, procs: map[[2]core.UUID]*alerts.Processor{}, rng: &lockedRng{r: core.SystemRng{}}}
 }
 
-// Invalidate drops the processors of tenant (its rules changed). Throttle
-// and digest state is in memory and restarts (alerts OPEN_QUESTIONS).
+// Invalidate drops the processors of tenant (its rules changed). The next
+// event rebuilds them from the current rules and the persisted throttle
+// windows and digests (G-LIM-06), so a rule edit does not reopen windows.
 func (s *Service) Invalidate(tenant core.UUID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -123,6 +124,11 @@ func (s *Service) processor(ctx context.Context, tenant, program core.UUID) (*al
 	if err != nil {
 		return nil, err
 	}
+	st, err := s.o.Repo.LoadAlertState(ctx, tenant, program)
+	if err != nil {
+		return nil, err
+	}
+	p.Restore(st)
 	s.mu.Lock()
 	s.procs[k] = p
 	s.mu.Unlock()
@@ -190,10 +196,15 @@ func (s *Service) HandleEvent(ctx context.Context, env *pb.EventEnvelope) error 
 	if err != nil {
 		return nil
 	}
-	return s.o.Repo.InTx(ctx, func(ctx context.Context, tx Tx) error {
+	err = s.o.Repo.InTx(ctx, func(ctx context.Context, tx Tx) error {
 		out, err := p.Process(context.WithValue(ctx, txKey{}, tx), ev)
 		if err != nil || out.Duplicate {
 			return err
+		}
+		if !out.State.Empty() {
+			if err := tx.SaveAlertState(ctx, tenant, program, out.State); err != nil {
+				return err
+			}
 		}
 		ids := map[[2]string]core.UUID{}
 		for _, a := range out.Alerts {
@@ -226,6 +237,23 @@ func (s *Service) HandleEvent(ctx context.Context, env *pb.EventEnvelope) error 
 		}
 		return nil
 	})
+	if err != nil {
+		// The processor's memory already holds this event's windows but the
+		// transaction did not commit: drop it so the redelivery starts from
+		// the persisted state instead of being throttled by itself.
+		s.drop(tenant, program, p)
+	}
+	return err
+}
+
+// drop forgets the cached processor of (tenant, program) if it is still p.
+func (s *Service) drop(tenant, program core.UUID, p *alerts.Processor) {
+	k := [2]core.UUID{tenant, program}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.procs[k] == p {
+		delete(s.procs, k)
+	}
 }
 
 func (s *Service) newID() core.UUID { return core.NewUUIDv7(s.o.Clock, s.rng) }
@@ -287,14 +315,17 @@ func (s *Service) Run(ctx context.Context) error {
 			return nil
 		case <-t.C:
 		}
-		s.flushDigests(ctx)
+		s.FlushDigests(ctx)
 		if _, err := s.DeliverDue(ctx); err != nil && ctx.Err() == nil {
 			s.o.Logger.WarnContext(ctx, "notifier.delivery_loop", "error", err.Error())
 		}
 	}
 }
 
-func (s *Service) flushDigests(ctx context.Context) {
+// FlushDigests delivers every digest whose window has ended: one alert
+// event and its deliveries, and the persisted digest deleted, in one
+// transaction. Run calls it on every delivery tick.
+func (s *Service) FlushDigests(ctx context.Context) {
 	s.mu.Lock()
 	procs := make(map[[2]core.UUID]*alerts.Processor, len(s.procs))
 	for k, v := range s.procs {
@@ -318,9 +349,15 @@ func (s *Service) flushDigests(ctx context.Context) {
 					CreatedAt: s.o.Clock.Now().UTC()}); err != nil {
 					return err
 				}
+				if err := tx.CloseDigest(ctx, k[0], k[1], n.RuleID); err != nil {
+					return err
+				}
 				return s.deliveries(ctx, tx, k[0], id, n)
 			})
 			if err != nil {
+				// The digest is still persisted: reloading the processor
+				// brings it back, due, for the next flush.
+				s.drop(k[0], k[1], p)
 				s.o.Logger.ErrorContext(ctx, "notifier.digest_failed", "rule_id", n.RuleID, "error", err.Error())
 			}
 		}
