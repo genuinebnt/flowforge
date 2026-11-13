@@ -293,7 +293,8 @@ func HolderHost(e Entity) string {
 }
 
 // ComputeCommonness counts the distinct active sources pointing at e over
-// active edges and the distinct hosts they stand for (HolderHost).
+// active edges (self-loops excluded) and the distinct hosts they stand
+// for (HolderHost); e is common when the hosts exceed CommonThreshold.
 func ComputeCommonness(ctx context.Context, r Reader, e Entity) (Commonness, error) {
 	edges, err := r.Edges(ctx, []string{e.ID}, false, true, nil)
 	if err != nil {

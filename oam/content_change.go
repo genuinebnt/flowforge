@@ -111,6 +111,8 @@ func (p ContentChangePatch) Normalize() (ContentChangePatch, error) {
 	if len(p.Summary) > MaxSummaryKeys {
 		return p, bad("more than %d summary keys", MaxSummaryKeys)
 	}
+	// PORT: map order is random, so with several bad keys the one the error
+	// names varies between runs; whether the patch is valid does not.
 	for k, v := range p.Summary {
 		if !isLowerIdent(k, true) || len(k) > 64 || v < 0 {
 			return p, bad("summary %q=%d: keys are lower-case identifiers, counts non-negative", k, v)

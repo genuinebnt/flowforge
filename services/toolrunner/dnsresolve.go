@@ -28,7 +28,8 @@ import (
 // IPAddress and FQDN entities with dns_record edges (BasicDNSRelation for
 // A, AAAA, CNAME and NS; PrefDNSRelation for MX) and TXT data as
 // DNSRecordProperty tags. Every hop of a CNAME chain is scope-checked
-// (spec 4.5); a denied hop is skipped and its addresses are not used.
+// (spec 4.5); a denied hop's name still appears as the CNAME edge's
+// target, but nothing it resolves to is used.
 type DNSResolve struct{}
 
 // Spec implements Adapter.
@@ -139,6 +140,10 @@ func (DNSResolve) viaForwarder(ctx context.Context, tc *ToolCtx, nw Network, d s
 		}
 		answered++
 		// Follow the CNAME chain from name, checking each hop.
+		// At most 8 hops, the forwarder's maxCNAMEHops. The CNAME record of
+		// a hop is a fact about its (allowed) owner, so the edge to a
+		// denied target is kept, as the forwarder keeps that record;
+		// nothing below the denied target is used.
 		owner := name
 		ownerRef := root
 		for range 8 {

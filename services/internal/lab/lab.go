@@ -7,9 +7,12 @@
 // values (nonces, timestamps, request ids) per response, and logs every
 // request and query so a test can prove which hosts were contacted.
 //
-// Everything is deterministic except the listen ports: certificates come
-// from fixed Ed25519 seeds, volatile values from core.SplitMix64 with the
-// manifest's seed, and times from the lab Clock.
+// Certificates come from fixed Ed25519 seeds, volatile values from
+// core.SplitMix64 with the manifest's seed, and times from the lab Clock.
+// Not deterministic: the listen ports, the DNS client's query ids
+// (core.SystemRng), and which response gets which volatile values, since
+// they are drawn in the order requests arrive and a monitor fetches
+// concurrently. The acceptance assertions depend on none of these.
 package lab
 
 import (

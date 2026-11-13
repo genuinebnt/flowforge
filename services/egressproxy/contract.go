@@ -39,8 +39,9 @@ const (
 // (username = decision id, password = ticket; RFC 1929 limits both to 255
 // octets, too short for an internal token) and DNS queries (EDNS option
 // EDNSTicketOption). It is bound to the caller's identity, the decision,
-// the run, the effect path and the declared ports, and expires with the
-// internal token lifetime.
+// the run, the effect path and the declared ports, and expires after the
+// proxy's TicketTTL (default 60 s) or when the decision reaches
+// MaxDecisionAge, whichever comes first.
 type TicketResponse struct {
 	Ticket      string `json:"ticket"`
 	DecisionID  string `json:"decision_id"`

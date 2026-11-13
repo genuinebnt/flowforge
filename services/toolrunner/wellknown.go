@@ -20,12 +20,15 @@ import (
 // -> List<Url>`. For each configured scheme and port (Ports) it fetches
 // and stores robots.txt (RFC 9309), security.txt (RFC 9116, at
 // /.well-known/ and then the legacy root path), the sitemaps robots.txt
-// names (else /sitemap.xml; a sitemap index is followed one level),
-// OpenAPI/Swagger documents at their conventional paths and a GraphQL
-// endpoint (a `{__typename}` query by GET, which every GraphQL server
-// answers with a JSON data or errors member). A resource counts as found
-// only when it answered 2xx and its sniffed kind is the expected one, so
-// a catch-all route proves nothing. Every URL is scope-checked before it
+// names (else /sitemap.xml; the sitemaps a sitemap index lists are read
+// too, at any depth, maxSitemaps in all, although spec 36.1 says "one
+// level"), OpenAPI/Swagger documents at their conventional paths and a
+// GraphQL endpoint (a `{__typename}` query by GET, which every GraphQL
+// server answers with a JSON data or errors member). A resource counts as
+// found only when it answered 2xx and its sniffed kind is the expected one
+// (an OpenAPI document must also yield a schema endpoint; GraphQL accepts
+// 200 or 400 with a GraphQL response body), so a catch-all route proves
+// nothing. Every URL is scope-checked before it
 // is fetched; an origin whose robots.txt cannot be reached is skipped.
 //
 // The output is the found resources' URLs followed by the in-scope
@@ -163,7 +166,7 @@ func (a *WellKnown) origin(ctx context.Context, tc *ToolCtx, out Emitter, prof c
 				continue
 			}
 			if f.Attr("kind") == "sitemapindex" {
-				sitemaps = appendUnique(sitemaps, u) // one more level, bounded by maxSitemaps
+				sitemaps = appendUnique(sitemaps, u) // read in a later iteration; the loop stops at maxSitemaps
 				continue
 			}
 			entries = appendUnique(entries, u)

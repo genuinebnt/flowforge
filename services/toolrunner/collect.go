@@ -74,8 +74,12 @@ func (a *Collect) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, o
 }
 
 // resources captures the scripts and styles a page loads and the source
-// maps those scripts name (one level), at most MaxResources in document
-// order.
+// maps those scripts name (one level), at most MaxResources. The order is
+// that of the page's stored features (scripts, then styles, each sorted
+// by lineage key, not document order), then each captured script's source
+// map as it is found; what the limit cuts is reported as resource_limit.
+// Two bundles sharing a lineage key are one feature, so only the one its
+// Ref names is captured.
 func (a *Collect) resources(ctx context.Context, tc *ToolCtx, out Emitter, page *capture, prof content.Profile) ([]snapshotRecord, error) {
 	out2 := []snapshotRecord{}
 	if a.c.cfg.MaxResources < 0 || page.snap.GetKind() != string(content.KindHTML) || page.snap.GetDegraded() {

@@ -252,7 +252,7 @@ type fetchOpts struct {
 // proxy may dial. Scope's active check resolves a name before it matches
 // the allow rules (spec 4.3 step 7), so without the passive step every
 // out-of-scope link a crawl meets would be looked up in its owner's DNS;
-// with it only in-scope names are resolved (as D3 has passive checks do).
+// with it only in-scope names are resolved (as D3's passive checks do).
 func allowed(ctx context.Context, tc *ToolCtx, out Emitter, target string) (scope.Decision, bool, error) {
 	if _, ok, err := tc.Allowed(ctx, out, target, scope.TargetURL, core.ClassPassive); err != nil || !ok {
 		return scope.Decision{}, false, err

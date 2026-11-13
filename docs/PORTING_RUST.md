@@ -657,8 +657,10 @@ extractor, 200 inner documents.
 
 ### 5A.1 `ff-htmlparse` (`htmlparse`)
 
-* 84 tokenizer states (the 79 of WHATWG 13.2.5 plus five
-  processing-instruction states of whatwg/html `c18a7c5`), the 2025
+* 84 tokenizer states (79 of the 80 of WHATWG 13.2.5, the decimal
+  character reference start state being folded into the numeric character
+  reference state, plus five processing-instruction states of whatwg/html
+  `c18a7c5`), the 2025
   `<select>` and `<search>` rules, scripting off. html5ever is the design
   reference (state enum, insertion-mode enum, `SplitWhitespace`, AFE
   markers) but not the oracle: it lacks the 2025 rules.
@@ -673,17 +675,32 @@ extractor, 200 inner documents.
   other encodings come from x/text here and encoding_rs there, both built
   from the WHATWG index tables.*
 * Error positions: *PORT: Col is in UTF-16 code units, not bytes or
-  chars*; CR LF is one break. Errors sorted by offset with emission order
-  kept for ties (Rust's stable `sort_by` gives the same result).
+  chars*; CR LF is one break. The tokenizer's and the tree builder's
+  error lists (each in offset order) are merged by offset, tokenizer
+  first on ties, which is emission order; the line/column sweep sorts an
+  index stably (Rust's stable `sort_by` gives the same result).
 * *PORT: Go strings may hold any bytes; this parser only ever stores valid
   UTF-8 (ill-formed input and surrogates become U+FFFD), so every string
-  maps to a Rust String. The input itself stays &[u8].*
+  maps to a Rust String. The input itself stays &[u8].* *PORT:
+  utf8.DecodeRune reports every ill-formed sequence as (RuneError, 1);
+  the maximal-subpart width (one U+FFFD per subpart, as
+  `Utf8Error::error_len` gives it) and the three-byte "generalized
+  UTF-8" surrogate case (ED A0..BF xx: one surrogate-in-input-stream
+  error and one U+FFFD in the tokenizer; three U+FFFD from Decode) are
+  computed explicitly.*
 * *PORT: the tokenizer returns a pointer aliasing an internal buffer; in
   Rust return an owned Token (or a borrow tied to &mut self).* Tag-name
   switches: match on `&[u8]` or intern. Foreign-content fix-up maps are
   lookup-only (a `match` or `phf`). `Descendants` is a push iterator; in
-  Rust implement `Iterator` over the same explicit stack.
-* Limits: `MaxDepth` 512 (element inserted childless, parsing continues),
+  Rust implement `Iterator` over the same explicit stack. *PORT: `Dump`
+  and the selectedcontent clone recurse over tree depth (Go stacks grow);
+  make them iterative.* The text buffer for multi-token Text nodes exists
+  because Go strings are immutable (appending would copy); a Rust
+  `String` can be appended in place.
+* Tree errors are located at the start of the token being processed (for
+  EOF: the end of the last emitted token, before any trailing unfinished
+  tag). Limits: `MaxDepth` 512, Blink's and WebKit's parser depth (element
+  inserted childless, parsing continues),
   `MaxAttributes` 1024, `MaxInputSize` 256 MiB (content passes 8 MiB).
 * Conformance: html5lib tokenizer (7050 runs) and WPT `.dat` (1967/1973);
   the known-failure lists are asserted exactly, so port them as data.
@@ -942,6 +959,22 @@ extractor, 200 inner documents.
 * Redaction rescans until stable (CONTENT-INV-10); the secret rule list
   and placeholder `[REDACTED:<rule>:<shape>:<length>]` are conformance
   data (`conformance/content/secrets/cases.json`).
+* Go library behaviours the outputs depend on (each marked `PORT:` in
+  the code): *strconv.Quote is Go's quoting (\xNN for invalid bytes,
+  \u escapes for runes strconv.IsPrint rejects, U+00AD and U+2028 among
+  them)*; module hashes and lineage tokens are built from it.
+  *strings.Fields / strings.TrimSpace split on Unicode White_Space* (HTML
+  class tokens, CSP sources; Rust's split_whitespace / trim match).
+  *bytes.ToLower is Unicode-aware (the Kelvin sign lowers to "k") and
+  turns invalid bytes into U+FFFD* before the integrity markers are
+  matched. *encoding/json.Valid accepts invalid UTF-8 inside strings, and
+  json.Unmarshal matches struct keys case-insensitively (last duplicate
+  wins)* in sniffing. Attribute names of a normalized start tag are
+  unique except a pre-existing `data-ff-<name>` marker, ordered by Go's
+  unstable sort (insertion sort up to 12 elements). The observation id
+  hashes the fetch time with exactly nine fraction digits, UTC. Of two
+  features that differ only in Ref (two bundles with one lineage key),
+  the smallest Ref is kept (sortFeatures).
 * `conformance/content/spa/expected.json` is the end-to-end oracle:
   normalized SHA-256 per artifact, features, coverage, classes, scores,
   module diffs, lineage and observation edges.
@@ -966,6 +999,13 @@ extractor, 200 inner documents.
   The cache never affects output.*
 * Text-index document ids `seq << 20 | position`; quotas checked exactly
   in the write transaction (CSTORE-INV-06).
+* *PORT: records go through encoding/json: invalid UTF-8 in a string
+  becomes U+FFFD (normalized texts that are not UTF-8 are stored as
+  base64 for that reason), U+2028/U+2029 are escaped, []byte is padded
+  standard base64, time.Time is RFC 3339 with up to nine fraction digits,
+  float64 uses Go's shortest form.* A port that writes records into a
+  shared chunk store must match them byte for byte. *The simhash bigint
+  column holds the uint64 bit pattern.*
 
 ### 5A.16 v2 parts of `ff-oam`, `ff-graphstore`, `ff-alerts`, `ff-dsl`, `ff-bytecode`
 
@@ -976,6 +1016,10 @@ extractor, 200 inner documents.
   (event ids derive from the emission index, so the order is a contract);
   `tag_changed` patches with root add/remove; `ContentChangePatch`
   normalization.
+* oam: *ContentChangePatch.Normalize and CheckNoSecrets walk maps, so
+  with several bad keys the one an error names varies (the verdict does
+  not); LooksLikeSecret's entropy uses math.Log2, not correctly rounded,
+  so a run within an ulp of 3.5 bits may be judged differently.*
 * graphstore: AsOf replay from the empty graph; commonness threshold 50;
   `conformance/graphstore` (gs_001-gs_006) runs against every store
   (`TestGraph001_*`).
@@ -984,6 +1028,10 @@ extractor, 200 inner documents.
   codec builtins after `list_append`; builtin type ids and builtin ids are
   append-only, so a Go-compiled FFBC module that calls them must load in
   the Rust VM.
+* tools (services/toolrunner): *Go's x509 splits extended key usages
+  into known ones and unknown OIDs, so the TLSCertificate lists the known
+  usages first, whatever their DER order.* The REST snapshot body is a
+  JSON string, so invalid UTF-8 becomes U+FFFD there.
 * egress (services): EDNS ticket option code 65280; SOCKS5 username =
   decision id, password = ticket; refusal reasons (Part II 40.4) are
   stable strings shared by both implementations' proxies.

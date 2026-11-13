@@ -223,9 +223,10 @@ func (cr *crawler) openVersion(ctx context.Context, u string) (*pb.ContentSnapsh
 // redirect's target only, else the canonical http(s) URLs an HTML or
 // sitemap capture links to (anchors and <link> references, frames,
 // sitemap entries). The target of a redirect is crawled as a URL of its
-// own because content resolves a capture's references against the
-// requested URL (content OPEN_QUESTIONS: base after redirects), which is
-// the wrong base for the redirected document.
+// own: it is another (URL, profile) key, and its links are read from its
+// own capture when the crawl reaches it. (Content resolves a redirected
+// capture's references against the final URL since TestRegress_RedirectBase,
+// so the requested URL is no longer a wrong base.)
 func (cr *crawler) links(ctx context.Context, id string) ([]string, error) {
 	s, err := cr.a.c.getSnapshot(ctx, cr.tc, id, true)
 	if err != nil {

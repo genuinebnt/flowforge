@@ -264,8 +264,8 @@ func diffDocuments(d Diff, to Snapshot, hr hunksRecord, sr semanticRecord) []tex
 }
 
 // indexedText is a document's text fields: the (bounded, redacted)
-// text, and the decoded text of base64, hex, gzip, zlib and zstd blobs
-// found in it (V2 §12.14, content.DecodeBlobs: bounded, never inside a
+// text, and the decoded text of the blobs content.DecodeBlobs finds in it
+// (base64 in either alphabet, hex, gzip, zlib, zstd) (V2 §12.14, content.DecodeBlobs: bounded, never inside a
 // secret, redacted) with the encodings it was decoded from.
 type indexedText struct {
 	text, decoded, from string
@@ -273,6 +273,11 @@ type indexedText struct {
 
 // indexText bounds a document's text, decodes the blobs in it and redacts
 // both (V2 §12.11: nothing credential-shaped is indexed).
+//
+// Every caller passes text that ingest already redacted (hunk lines and
+// normalized texts are redacted, feature keys of secrets are hashes or
+// previews), so the cut can only split a placeholder, never expose part
+// of a secret; the Redact here is a second pass.
 func indexText(s string) indexedText {
 	if len(s) > maxDocText {
 		s = s[:maxDocText]

@@ -49,6 +49,9 @@ func contentSnapshotJSON(sn *pb.ContentSnapshot) map[string]any {
 		"lineage_parent_id": nonEmpty(sn.GetLineageParentId()), "outcome": sn.GetOutcome(), "coverage": sn.GetCoverage(),
 		"degraded": sn.GetDegraded(), "pinned": sn.GetPinned(), "pin_reason": nonEmpty(sn.GetPinReason()), "created_at": ts(sn.GetCreatedAt())}
 	if sn.GetBody() != nil {
+		// PORT: the body goes into JSON as a string, so encoding/json
+		// replaces each invalid UTF-8 byte with U+FFFD: a binary body is not
+		// byte-exact over REST (body_sha256 still names the original).
 		m["body"], m["body_raw"] = string(sn.GetBody()), sn.GetBodyRaw()
 	}
 	if sn.GetNormalized() != "" {
@@ -247,7 +250,7 @@ func (s *Server) searchChanges(c *call) error {
 	return c.ok(map[string]any{"hits": hits, "total": res.GetTotal()})
 }
 
-// GET /v1/changes/first-appeared?program_id=&text=
+// GET /v1/changes/first-appeared?program_id=&text=&include_vendor=
 func (s *Server) firstAppeared(c *call) error {
 	cl, err := s.content()
 	if err != nil {

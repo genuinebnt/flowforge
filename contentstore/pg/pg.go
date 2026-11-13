@@ -39,9 +39,12 @@ func New(db DB) *Repo { return &Repo{DB: db} }
 // graphstore/pg does.
 const setTenant = `SELECT set_config('app.tenant_id', $1, true)`
 
-// InTx implements contentstore.Repo. Unique violations (a concurrent
-// ingest of the same key or capture) map to contentstore.ErrConflict, which
-// the store retries.
+// InTx implements contentstore.Repo. The transaction runs at Postgres'
+// default isolation (read committed); the store serializes writers with
+// the row locks of OpenVersion and LockSnapshot. app.tenant_id is set with
+// is_local = true, so it ends with the transaction. Unique violations (a
+// concurrent ingest of the same key or capture), serialization failures
+// and deadlocks map to contentstore.ErrConflict, which the store retries.
 func (r *Repo) InTx(ctx context.Context, tenant core.UUID, fn func(contentstore.Tx) error) (err error) {
 	tx, err := r.DB.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -162,6 +165,8 @@ func (t *pgTx) scanSnapshots(rows pgx.Rows) ([]contentstore.Snapshot, error) {
 		if validTo != nil {
 			s.ValidTo = validTo.UTC()
 		}
+		// PORT: simhash is a bigint holding the uint64's bit pattern (two's
+		// complement); convert with as-casts, not a range-checked conversion.
 		s.Tenant, s.SimHash = t.tenant, uint64(sim)
 		s.FetchedAt, s.LastSeen, s.ValidFrom, s.CreatedAt = s.FetchedAt.UTC(), s.LastSeen.UTC(), s.ValidFrom.UTC(), s.CreatedAt.UTC()
 		out = append(out, s)
@@ -251,6 +256,9 @@ func (t *pgTx) KeySnapshots(ctx context.Context, k contentstore.Key) ([]contents
 	return t.snapshots(ctx, keyWhere+` ORDER BY valid_from DESC, id DESC`, t.keyArgs(k)...)
 }
 
+// Keys orders by url and profile in the database collation (the columns
+// have none of their own), which need not be MemRepo's byte order; callers
+// only iterate the keys, so the order reaches no output.
 func (t *pgTx) Keys(ctx context.Context, program core.UUID) ([]contentstore.Key, error) {
 	rows, err := t.tx.Query(ctx, `SELECT DISTINCT url, profile FROM content.snapshots WHERE tenant_id = $1 AND program_id = $2 ORDER BY url, profile`,
 		t.tenant.String(), program.String())
@@ -382,6 +390,9 @@ func (t *pgTx) DeleteSnapshots(ctx context.Context, ids []core.UUID) error {
 	return err
 }
 
+// NextDiffSeq increments content.programs.diff_seq; the row lock the
+// UPDATE takes serializes seq allocation per program until commit, so
+// seqs are gap-free in commit order of the allocating transactions.
 func (t *pgTx) NextDiffSeq(ctx context.Context, program core.UUID) (int64, error) {
 	var seq int64
 	err := t.tx.QueryRow(ctx, `UPDATE content.programs SET diff_seq = diff_seq + 1 WHERE tenant_id = $1 AND program_id = $2 RETURNING diff_seq`,

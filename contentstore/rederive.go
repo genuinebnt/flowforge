@@ -24,7 +24,8 @@ import (
 // new derivation, and the index documents of those diffs are replaced.
 // Re-derivation is not a change: it creates no snapshot, diff, finding
 // event or alert, moves no validity interval, counts no capture, and
-// keeps every id and diff sequence number (CSTORE-INV-15).
+// keeps every id and diff sequence number (CSTORE-INV-15; INV-14 to -16
+// are in the README's register, not yet in spec 39).
 //
 // Order. A snapshot is re-derived only after its predecessor (lineage
 // parent, else parent), so the diff into it is recomputed between two
@@ -34,8 +35,14 @@ import (
 // not. The diffs out of a re-derived snapshot whose successor is still
 // stale keep their old content: their hunks, stored by reference to the
 // old normalized text, are rewritten verbatim, and the successor's own
-// re-derivation recomputes them. At every commit point each diff is
-// therefore either entirely of the old derivation or entirely of the new.
+// re-derivation recomputes them when the successor's derived records
+// change. When they do not (changed is false in rederiveOnce), nothing but
+// the successor's stamp is written, so the verbatim diff into it keeps the
+// old derivation's content although both sides now carry the new stamp
+// (reported in the G-CMT-02 pass; the diff's sides and seq are right, its
+// hunks and semantic record are those of the old predecessor text). Apart
+// from that case each diff is, at every commit point, either entirely of
+// the old derivation or entirely of the new.
 //
 // Storage. The raw blobs (capture record, redacted body) are unchanged.
 // The derived blobs are encoded as at ingest (a delta frame against the

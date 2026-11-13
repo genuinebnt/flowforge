@@ -18,8 +18,9 @@ const handshakeTimeout = 10 * time.Second
 // a ticket from TicketPath; the request then goes through the same checks
 // as a CONNECT: the pinned decision must cover (host, port), the per-target
 // limit must admit it and only pinned addresses are dialled. Refusals get
-// reply 2 (connection not allowed by ruleset); BIND and UDP ASSOCIATE get
-// reply 7.
+// reply 2 (connection not allowed by ruleset), a failed upstream dial
+// reply 5 (connection refused); BIND and UDP ASSOCIATE get reply 7, which
+// socks5.ServerHandshake writes.
 func (p *Proxy) ServeSOCKS(ctx context.Context, l net.Listener) error {
 	p.init()
 	go func() {

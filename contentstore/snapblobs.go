@@ -91,6 +91,11 @@ func (s *Store) snapshotPlain(ctx context.Context, tc *tenantChunks, snap Snapsh
 	}
 	var base *plainBlobs
 	if !snap.DeltaBase.IsZero() {
+		// A guard on the recorded depth, which ingest keeps below
+		// KeyframeInterval (re-derive and retention never deepen a chain).
+		// It allows one more than that and does not check that the base is
+		// one level shallower, so it bounds the recursion only for rows this
+		// package wrote, not for a hand-made base cycle.
 		if snap.DeltaDepth > s.cfg.KeyframeInterval+1 {
 			return plainBlobs{}, integrity("delta chain of %s deeper than %d", snap.PublicID(), s.cfg.KeyframeInterval)
 		}

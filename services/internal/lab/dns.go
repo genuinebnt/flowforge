@@ -38,6 +38,8 @@ func (l *Lab) startDNS() error {
 			if err != nil {
 				return
 			}
+			// 512 bytes: the RFC 1035 UDP limit. The lab ignores EDNS, so a
+			// longer answer is truncated (TC) and the client retries on TCP.
 			if resp := l.answer(buf[:n], 512); resp != nil {
 				_, _ = pc.WriteTo(resp, from)
 			}
@@ -52,6 +54,8 @@ func (l *Lab) startDNS() error {
 			}
 			go func() {
 				defer c.Close()
+				// Socket deadlines use real time, not the lab Clock, which
+				// jumps by weeks between deploys.
 				_ = c.SetDeadline(time.Now().Add(5 * time.Second))
 				q, err := dnsmsg.ReadTCP(c, dnsmsg.MaxMessageLen)
 				if err != nil {

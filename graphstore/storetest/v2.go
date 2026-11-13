@@ -367,9 +367,9 @@ func Commonness(t *testing.T, f Factory) {
 	check(80, 50)
 }
 
-// BenchAuthoritative measures authoritative ingest: pages with edges
-// extracted edges each (scripts, links and forms) re-captured with small
-// changes (about 2 % of the edges replaced per capture), every capture
+// BenchAuthoritative measures authoritative ingest: `pages` pages with
+// `edges` extracted edges each (scripts, links and form endpoints),
+// re-captured round robin with small changes (about 2 % of the edges replaced per capture), every capture
 // complete for all three families, so each withdraws what it no longer
 // reports. One iteration is one re-capture; it reports captures/s and
 // edges/s.

@@ -143,6 +143,8 @@ func (s *Server) ListSnapshots(ctx context.Context, req *pb.ListSnapshotsRequest
 		return nil, err
 	}
 	size := int(req.GetPage().GetPageSize())
+	// Out of range (including above 1000) falls back to the default 100,
+	// not to the maximum. One extra row tells whether a next page exists.
 	if size <= 0 || size > 1000 {
 		size = 100
 	}
@@ -170,7 +172,9 @@ func (s *Server) ListSnapshots(ctx context.Context, req *pb.ListSnapshotsRequest
 	return out, nil
 }
 
-// cursorToken encodes a list position: "<valid_from unix ms>.<snapshot uuid>".
+// cursorToken encodes a list position: "<valid_from unix ms>.<snapshot
+// uuid>". Milliseconds lose nothing: ingest truncates fetch times, and so
+// valid_from, to the millisecond.
 func cursorToken(s contentstore.Snapshot) string {
 	return strings.Join([]string{itoa64(s.ValidFrom.UnixMilli()), s.ID.String()}, ".")
 }
@@ -359,7 +363,8 @@ func (s *Server) IndexTenant(ctx context.Context, t core.UUID) {
 
 // RederiveTenant re-derives one batch (Options.RederiveBatch) of a
 // tenant's snapshots whose derivation stamp is not the store's pipeline's
-// and reports whether stale snapshots remain. Failures are logged.
+// and reports whether stale snapshots remain. A failure is logged and
+// reported as remaining work, so a caller looping on it tries again.
 func (s *Server) RederiveTenant(ctx context.Context, t core.UUID) bool {
 	rep, err := s.o.Store.Rederive(ctx, t, contentstore.RederiveOptions{BatchSize: s.o.RederiveBatch})
 	if err != nil {

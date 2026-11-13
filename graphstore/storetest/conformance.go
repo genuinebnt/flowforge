@@ -60,7 +60,7 @@ type AsOfRead struct {
 		Direction string   `json:"direction"` // out, in or both
 		Depth     int      `json:"depth"`
 		Labels    []string `json:"labels"`
-		Entities  []string `json:"entities"` // "<key> <state>", in (distance, id) order is not required: compared as sets
+		Entities  []string `json:"entities"` // "<key> <state>", compared as a set (any order)
 		Edges     []string `json:"edges"`    // "<from key> <label> <to key> <state>"
 	} `json:"neighbors"`
 }

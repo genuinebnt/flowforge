@@ -45,8 +45,9 @@ import (
 //
 // Transcript flags: bit 0 = a record was cut or dropped by the limit.
 // Record flags: bit 0 = truncated, bit 1 = redacted. Kinds are the RawKind
-// values. Records are in capture order (the order their first byte was
-// read).
+// values. Records are in the order they were opened (a connection
+// wrapped by Conn, a message added by Add), not the order of their first
+// byte.
 
 // RawKind is the protocol of a raw record.
 type RawKind uint8
@@ -494,8 +495,9 @@ func (c *ChunkRaw) Close(ctx context.Context) error {
 // RawStoreFor returns the raw store over the services' object store
 // (services/internal/blob): the chunk store in memory for graphstore.MemBlobs,
 // the chunk store in <root>/raw-chunks for graphstore.DirBlobs, and BlobRaw
-// for any other store (Cloud Storage: chunkstore has no bucket backend
-// yet, G-CST-02). nil gives nil (no raw capture).
+// for any other store (Cloud Storage). chunkstore/gcsstore exists since
+// G-CST-02 closed, but this path does not use it: raw transcripts in a
+// bucket stay one object each. nil gives nil (no raw capture).
 func RawStoreFor(b graphstore.BlobStore, clock core.Clock) (RawStore, error) {
 	cfg := chunkstore.Config{Clock: clock}
 	switch b := b.(type) {
@@ -513,9 +515,8 @@ func RawStoreFor(b graphstore.BlobStore, clock core.Clock) (RawStore, error) {
 	return BlobRaw{Blobs: b}, nil
 }
 
-// BlobRaw is a RawStore over an object store without a chunk-store
-// backend (a Cloud Storage bucket until chunkstore has one, G-CST-02):
-// each transcript is one object named by its SHA-256,
+// BlobRaw is a RawStore over an object store used without a chunk store
+// (the Cloud Storage case of RawStoreFor): each transcript is one object named by its SHA-256,
 // "raw/<tenant uuid>/<yyyy-mm-dd>/<sha256>.ffrw", so an identical
 // transcript is stored once and bucket lifecycle rules expire objects
 // individually.

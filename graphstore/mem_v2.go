@@ -64,6 +64,8 @@ func (m *Mem) RecordContentChange(ctx context.Context, c Caller, req ContentChan
 		return ChangeEvent{}, Classify(err)
 	}
 	m.index(p, []oam.ChangeEvent{ev})
+	// A repeat also wakes waiters (Postgres broadcasts only on insert); a
+	// spurious wakeup finds no new event and is harmless.
 	m.notify.Broadcast()
 	return m.changes(p, []oam.ChangeEvent{ev})[0], nil
 }

@@ -252,6 +252,8 @@ func (p *Proxy) dnsAllowed(ctx context.Context, rq *request, name string) (bool,
 // reply encodes the answer to m within limit octets.
 func (p *Proxy) reply(m dnsmsg.Message, rc dnsmsg.RCode, answers []dnsmsg.RR, udp bool, limit int) []byte {
 	r := dnsmsg.Message{Header: dnsmsg.Header{ID: m.Header.ID, Response: true, Opcode: m.Header.Opcode,
+		// The header holds only the low 4 bits of an RCODE; the forwarder
+		// does not relay extended RCODEs in OPT.
 		RecursionDesired: m.Header.RecursionDesired, RecursionAvailable: true, CheckingDisabled: m.Header.CheckingDisabled, RCode: rc & 0xF},
 		Questions: m.Questions, Answers: answers}
 	if _, ok := m.EDNS(); ok {
@@ -380,6 +382,8 @@ func (u ServerUpstream) Lookup(ctx context.Context, name string, t dnsmsg.Type) 
 	}
 	id := uint16(core.SystemRng{}.Uint64())
 	q := dnsmsg.NewQuery(id, name, t)
+	// 1232 octets: the DNS Flag Day 2020 payload size, which avoids IP
+	// fragmentation on common paths.
 	q.SetEDNS(dnsmsg.EDNS{UDPSize: 1232})
 	b, err := dnsmsg.Encode(q)
 	if err != nil {
@@ -498,6 +502,8 @@ func (u NetUpstream) Lookup(ctx context.Context, name string, t dnsmsg.Type) (DN
 		var txts []string
 		if txts, err = r.LookupTXT(ctx, host); err == nil {
 			for _, s := range txts {
+				// net.Resolver joins a record's character-strings; split
+				// again at the 255-octet limit of one (RFC 1035 §3.3).
 				var parts []string
 				for len(s) > 255 {
 					parts, s = append(parts, s[:255]), s[255:]

@@ -77,8 +77,10 @@ func parseKey(s string) ([32]byte, error) {
 	return k, nil
 }
 
-// Content builds the content service. The returned repo is the outbox
-// source in memory mode (nil with Postgres).
+// Content builds the content service: its component (gRPC registration,
+// readiness, the outbox relay, the sweep and batched-indexing loops) and
+// the server. Without a database the repository, and with it the outbox,
+// is in memory.
 func Content(env *Env, o ContentOptions) (*Component, *contentsvc.Server, error) {
 	kek := &contentstore.LocalKEK{KeyID: o.KEKID, Rng: core.SystemRng{}}
 	if kek.KeyID == "" {
@@ -227,6 +229,9 @@ func every(ctx context.Context, d time.Duration, f func()) {
 }
 
 // memContentOutbox adapts the in-memory content outbox to bus.OutboxSource.
+// Rows are handed out in append order (so per ordering key in commit
+// order); their IDs are positions in the batch only, since MemRepo marks
+// what was published itself.
 type memContentOutbox struct{ r *contentstore.MemRepo }
 
 func (m memContentOutbox) Claim(ctx context.Context, limit int, publish func(context.Context, []bus.OutboxRow) error) (int, error) {

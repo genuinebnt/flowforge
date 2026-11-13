@@ -156,6 +156,8 @@ func CheckNoSecrets(p Property) error {
 		}
 		return nil
 	}
+	// PORT: map order is random: with several secret-like fields, which
+	// one the error names varies; the verdict does not.
 	for k, v := range content {
 		if err := walk(k, v); err != nil {
 			return err
@@ -236,6 +238,11 @@ func secretRun(r string) bool {
 }
 
 // shannon returns the entropy in bits per symbol of a byte histogram.
+//
+// PORT: the sum runs over byte values in ascending order; Go's math.Log2
+// is not correctly rounded (nor is Rust's f64::log2), so a run whose
+// entropy is within an ulp of 3.5 may be judged differently. Keep the
+// order of the sum.
 func shannon(counts []int, n int) float64 {
 	h := 0.0
 	for _, c := range counts {

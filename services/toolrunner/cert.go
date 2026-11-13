@@ -32,7 +32,8 @@ var keyUsageNames = []struct {
 }
 
 // extKeyUsageNames maps X.509 extended key usages (RFC 5280 §4.2.1.12)
-// to OAM's names. Usages OAM does not name are reported by OID.
+// to OAM's names; it covers every usage Go's x509 knows. OIDs Go does not
+// know (UnknownExtKeyUsage) are reported by their dotted OID.
 var extKeyUsageNames = map[x509.ExtKeyUsage]string{
 	x509.ExtKeyUsageAny: oam.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth: oam.ExtKeyUsageServerAuth,
 	x509.ExtKeyUsageClientAuth: oam.ExtKeyUsageClientAuth, x509.ExtKeyUsageCodeSigning: oam.ExtKeyUsageCodeSigning,
@@ -83,7 +84,10 @@ func certAsset(c *x509.Certificate) oam.TLSCertificate {
 			a.KeyUsage = append(a.KeyUsage, k.name)
 		}
 	}
-	// Extension order (RFC 5280 keeps it as encoded).
+	// PORT: Go's x509 splits the extension into the usages it knows (in
+	// encoded order) and the unknown OIDs (in encoded order); the output
+	// lists the known ones first, so their interleaving with unknown OIDs
+	// in the DER is lost. A port parsing the DER itself must do the same.
 	for _, u := range c.ExtKeyUsage {
 		if n, ok := extKeyUsageNames[u]; ok {
 			a.ExtKeyUsage = append(a.ExtKeyUsage, n)

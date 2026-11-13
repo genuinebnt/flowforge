@@ -20,7 +20,8 @@ var DefaultRate = scope.Rate{RequestsPerSecond: 10, Burst: 20, Concurrency: 8}
 // hostLimits is the per-target limit at the network edge (V2_DESIGN §9,
 // spec 14.3): GCRA per EdgeKey(program, registrable domain or ip) at the
 // program's scope rate, plus a cap on concurrent requests and tunnels per
-// key. Every HTTP request, CONNECT tunnel and SOCKS tunnel acquires it, so
+// key (counted per proxy process; the GCRA state is shared when Limiter
+// is). Every HTTP request, CONNECT tunnel and SOCKS tunnel acquires it, so
 // tools with internal parallelism cannot exceed the program's rate.
 type hostLimits struct {
 	mu         sync.Mutex
