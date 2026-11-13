@@ -3,17 +3,19 @@
 #   tag v*        -> prod, gated by the protected "prod" GitHub environment
 #                    (required reviewers = manual approval)
 #   dispatch      -> lab, dev (or prod from a v* tag); the lab is deployed
-#                    only by hand. In the lab the egress proxy runs on the VM:
-#                    its digest goes to the instance metadata key
-#                    ff-egress-proxy-image, which the VM watches.
+#                    only by hand. In every environment the egress proxy runs
+#                    on a VM, not Cloud Run (CONNECT on any port, SOCKS5 and
+#                    DNS over UDP need it): its digest goes to the instance
+#                    metadata key ff-egress-proxy-image, which the VM watches.
 # Order: build and push every image to Artifact Registry (vulnerability
 # scanning on push), run the migrations job, roll out the internal services,
 # roll out the gateway last; each service gets 10 % then 100 % of traffic.
 #
 # Each GitHub environment (dev, prod, lab) defines the variables GCP_PROJECT,
 # GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOY_SA (sa-ci) and FF_API_DOMAIN (lab:
-# the gateway's run.app host, Terraform output api_url); lab also defines
-# GCP_VM_NAME and GCP_VM_ZONE (output vm).
+# the gateway's run.app host, Terraform output api_url), and GCP_VM_NAME and
+# GCP_VM_ZONE for the VM that runs the egress proxy (lab: output vm; dev and
+# prod: output egress_proxy.instance and egress_proxy.zone).
 name: deploy
 
 on:
@@ -65,7 +67,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        service: [gateway, engine, scope, graph, notifier, similarity, tool-runner, egress-proxy, migrate]
+        service: [gateway, engine, scope, graph, notifier, similarity, content, tool-runner, egress-proxy, migrate]
     env:
       REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/flowforge
     steps:
@@ -161,7 +163,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        service: [scope, graph, similarity, tool-runner, egress-proxy, notifier, engine]
+        service: [scope, graph, similarity, content, tool-runner, egress-proxy, notifier, engine]
     env:
       GCP_REGION: ${{ vars.GCP_REGION }}
       CANARY_SOAK_SECONDS: ${{ needs.target.outputs.env == 'prod' && '300' || '60' }}
@@ -184,13 +186,13 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: 10 % then 100 %
-        if: needs.target.outputs.env != 'lab' || matrix.service != 'egress-proxy'
+        if: matrix.service != 'egress-proxy'
         run: .github/scripts/rollout.sh "${{ matrix.service }}" "$(cat "digests/${{ matrix.service }}")"
 
-      # lab: the egress proxy is a container on the VM; ff-image-watch on the
-      # VM restarts it when this metadata key changes.
-      - name: egress proxy on the lab VM
-        if: needs.target.outputs.env == 'lab' && matrix.service == 'egress-proxy'
+      # The egress proxy is a container on a VM in every environment;
+      # ff-image-watch on the VM restarts it when this metadata key changes.
+      - name: egress proxy on its VM
+        if: matrix.service == 'egress-proxy'
         env:
           GCP_PROJECT: ${{ vars.GCP_PROJECT }}
           GCP_VM_NAME: ${{ vars.GCP_VM_NAME }}

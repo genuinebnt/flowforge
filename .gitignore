@@ -6,6 +6,7 @@
 /coverage*
 /tmp/
 .terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan
