@@ -456,7 +456,7 @@
   },
   {
    "name": "typed content fields",
-   "when": "entity.port == 8443 && entity.is_ca == false && \"digital_signature\" in entity.key_usage && entity.not_after < event.occurred_at + 720h",
+   "when": "entity.port == 8443 && entity.is_ca == false && \"Digital Signature\" in entity.key_usage && entity.not_after < event.occurred_at + 720h",
    "event": {
     "event_id": "evt_cert",
     "type": "graph.entity_changed",
@@ -469,9 +469,35 @@
       "port": 8443,
       "is_ca": false,
       "key_usage": [
-       "digital_signature"
+       "Digital Signature"
       ],
       "not_after": "2026-12-01T00:00:00Z"
+     }
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "ext_key_usage is a typed string list",
+   "when": "\"TLS Server Authentication\" in entity.ext_key_usage && !(\"TLS Client Authentication\" in entity.ext_key_usage)",
+   "event": {
+    "event_id": "evt_cert",
+    "type": "graph.entity_changed",
+    "tenant_id": "ten_1",
+    "occurred_at": "2026-11-12T14:00:00Z",
+    "entity": {
+     "id": "ent_c",
+     "asset_type": "TLSCertificate",
+     "content": {
+      "port": 8443,
+      "is_ca": false,
+      "key_usage": [
+       "Digital Signature"
+      ],
+      "not_after": "2026-12-01T00:00:00Z",
+      "ext_key_usage": [
+       "TLS Server Authentication"
+      ]
      }
     }
    },

@@ -19,7 +19,7 @@ func sampleAssets() []oam.Asset {
 		oam.AutonomousSystem{Number: 64496},
 		oam.URL{URL: "https://api.acme.com/x?y=1", Scheme: "https", Host: "api.acme.com", Port: 443, Path: "/x", Options: "y=1", Fragment: "f"},
 		oam.Service{UniqueID: "abc", ServiceType: "http", Output: "HTTP/1.1 200", OutputLength: 12, Attributes: map[string][]string{"server": {"nginx"}}},
-		oam.TLSCertificate{FingerprintSHA256: oam.TLSFingerprint([]byte("der")), SerialNumber: "01", KeyUsage: []string{"digital_signature"}, IsCA: ptr(false)},
+		oam.TLSCertificate{FingerprintSHA256: oam.TLSFingerprint([]byte("der")), SerialNumber: "01", KeyUsage: []string{oam.KeyUsageDigitalSignature}, IsCA: ptr(false)},
 		oam.File{URL: "https://acme.com/a.pdf", Name: "a.pdf", FileType: "application/pdf"},
 		oam.DomainRecord{Domain: "acme.com", Status: []string{"ok"}, DNSSEC: ptr(true)},
 		oam.IPNetRecord{Handle: "NET-1", CIDR: "203.0.113.0/24", NetType: "ASSIGNED"},

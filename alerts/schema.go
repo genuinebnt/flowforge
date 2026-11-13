@@ -199,7 +199,7 @@ func contentFieldKinds() map[string]typ {
 	for _, n := range []string{"not_before", "not_after", "created_date", "updated_date", "expiration_date", "founding_date"} {
 		m[n] = tTimeT
 	}
-	for _, n := range []string{"key_usage", "crl_distribution_points", "status", "target_markets"} {
+	for _, n := range []string{"key_usage", "ext_key_usage", "crl_distribution_points", "status", "target_markets"} {
 		m[n] = tStrList
 	}
 	m["attributes"] = tObjectT
