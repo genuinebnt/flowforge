@@ -22,8 +22,8 @@ const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 
 // Mapping is one decoded segment. GenLine and GenCol are 0-based
 // positions in the generated file; Source, OrigLine, OrigCol and Name are
-// absolute (deltas resolved). Source and Name are -1 when the segment has
-// no such field (1-field and 4-field segments).
+// absolute (deltas resolved). Source, OrigLine and OrigCol are -1 for a
+// 1-field segment, Name is -1 for 1- and 4-field segments.
 type Mapping struct {
 	GenLine, GenCol   int32
 	Source            int32
@@ -142,7 +142,7 @@ func DecodeMappings(s string, nSources, nNames int) (ms []Mapping, lines int, er
 // apply adds one segment's deltas to the running values and checks them.
 func (ds *decodeState) apply(f []int64, nSources, nNames, at int) (Mapping, *Error) {
 	ds.genCol += f[0]
-	m := Mapping{GenLine: int32(ds.line), Source: -1, Name: -1}
+	m := Mapping{GenLine: int32(ds.line), Source: -1, OrigLine: -1, OrigCol: -1, Name: -1}
 	if ds.genCol < 0 || ds.genCol > math.MaxInt32 {
 		return m, errAt(CodeNegativeValue, at)
 	}

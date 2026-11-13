@@ -72,7 +72,9 @@ func (m *MinHasher) Permutations() int { return len(m.a) }
 // Coefficients returns copies of the permutation coefficients a and b.
 func (m *MinHasher) Coefficients() (a, b []uint64) { return slices.Clone(m.a), slices.Clone(m.b) }
 
-// MulAddMod61 returns (a*x + b) mod 2^61-1 for a, x, b < 2^61-1.
+// MulAddMod61 returns (a*x + b) mod 2^61-1 for a, x, b < 2^61-1, folding
+// the 122-bit product with the Mersenne identity 2^61 ≡ 1. PORT: bits.Mul64
+// is a full 64x64→128 multiply (u128 in Rust).
 func MulAddMod61(a, x, b uint64) uint64 {
 	hi, lo := bits.Mul64(a, x)
 	// a*x < 2^122 = hi*2^64 + lo; fold the bits above 61 back in.

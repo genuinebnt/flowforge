@@ -29,12 +29,12 @@ type field struct {
 	ifB bool
 }
 
-func nd(name string, s uint8) field          { return field{name: name, kind: fNode, slot: s} }
-func ls(name string, s uint8) field          { return field{name: name, kind: fList, slot: s} }
-func fl(name string, f NodeFlags) field      { return field{name: name, kind: fFlag, flag: f} }
-func op(name string) field                   { return field{name: name, kind: fOp} }
-func constFalse(name string) field           { return field{name: name, kind: fFalse} }
-func constNull(name string) field            { return field{name: name, kind: fNull} }
+func nd(name string, s uint8) field     { return field{name: name, kind: fNode, slot: s} }
+func ls(name string, s uint8) field     { return field{name: name, kind: fList, slot: s} }
+func fl(name string, f NodeFlags) field { return field{name: name, kind: fFlag, flag: f} }
+func op(name string) field              { return field{name: name, kind: fOp} }
+func constFalse(name string) field      { return field{name: name, kind: fFalse} }
+func constNull(name string) field       { return field{name: name, kind: fNull} }
 func fnFields(withID bool, arrow bool) []field {
 	f := []field{nd("id", 0), ls("params", 0), nd("body", 1), fl("async", NAsync), fl("expression", NExpression)}
 	if arrow {

@@ -11,16 +11,16 @@ import (
 type numState uint8
 
 const (
-	numStart            numState = iota // first character
-	numLeadingZero                      // after an initial 0
-	numDecimalInteger                   // DecimalIntegerLiteral digits
-	numLegacyOctalLike                  // LegacyOctalIntegerLiteral / NonOctalDecimalIntegerLiteral (B.1.1)
-	numFraction                         // after the decimal point
-	numExponent                         // after e / E: optional sign
-	numExponentDigits                   // DecimalDigits of ExponentPart
-	numNonDecimal                       // HexIntegerLiteral / OctalIntegerLiteral / BinaryIntegerLiteral digits
-	numBigIntSuffix                     // BigIntLiteralSuffix n
-	numEnd                              // check the following code point
+	numStart           numState = iota // first character
+	numLeadingZero                     // after an initial 0
+	numDecimalInteger                  // DecimalIntegerLiteral digits
+	numLegacyOctalLike                 // LegacyOctalIntegerLiteral / NonOctalDecimalIntegerLiteral (B.1.1)
+	numFraction                        // after the decimal point
+	numExponent                        // after e / E: optional sign
+	numExponentDigits                  // DecimalDigits of ExponentPart
+	numNonDecimal                      // HexIntegerLiteral / OctalIntegerLiteral / BinaryIntegerLiteral digits
+	numBigIntSuffix                    // BigIntLiteralSuffix n
+	numEnd                             // check the following code point
 )
 
 // scanNumericLiteral recognises NumericLiteral at start. The value is

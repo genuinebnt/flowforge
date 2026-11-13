@@ -18,10 +18,13 @@ type Options struct {
 	// MaxInputSize limits the input in bytes (0: DefaultMaxInputSize,
 	// negative: unlimited); only the prefix is parsed (ErrInputSizeLimit).
 	MaxInputSize int
+	// CharRefLookup selects the named character reference lookup
+	// algorithm (CharRefTrie by default).
+	CharRefLookup CharRefStrategy
 }
 
 func (o Options) tokenizeOptions() TokenizeOptions {
-	return TokenizeOptions{MaxAttributes: o.MaxAttributes, MaxInputSize: o.MaxInputSize}
+	return TokenizeOptions{MaxAttributes: o.MaxAttributes, MaxInputSize: o.MaxInputSize, CharRefLookup: o.CharRefLookup}
 }
 
 // Parse parses a complete HTML document from UTF-8 input (use Decode or

@@ -13,6 +13,13 @@ const DefaultShingleWidth = 3
 
 // Tokens lower-cases text (Unicode simple folding to lower case) and splits
 // it into maximal runs of letters and digits.
+//
+// PORT: strings.ToLower maps rune by rune with the simple (1:1) Unicode
+// lowercase mapping and keeps invalid UTF-8 bytes as U+FFFD-free raw
+// bytes only when no rune changes; Rust's str::to_lowercase uses the full
+// mapping (e.g. 'İ' becomes two runes) and final-sigma rules, so port
+// with char::to_lowercase taking the simple mapping. Letters and digits
+// are unicode.IsLetter / unicode.IsDigit (categories L* and Nd).
 func Tokens(text string) []string {
 	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)

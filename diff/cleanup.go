@@ -36,8 +36,9 @@ type CleanupOptions struct {
 	// Score rates the boundary between the non-empty token runs left and
 	// right for the lossless shift (higher is better), like
 	// diff_cleanupSemanticScore. An empty side always scores 6 (the edge
-	// score) without a call. Nil scores every inner boundary 0, which
-	// slides edits as far right (down) as possible, like git.
+	// score) without a call. Nil scores every inner boundary 0: an edit then
+	// moves to where a neighbouring equality disappears (the edge score
+	// wins) or, failing that, as far right (down) as it can slide.
 	Score func(left, right []uint32) int
 }
 

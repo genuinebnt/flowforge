@@ -15,6 +15,9 @@ const NoToken uint32 = 1<<32 - 1
 // same id exactly when they are byte-equal. Ids are deterministic: they
 // depend only on the order of Intern calls. It is not safe for concurrent
 // use.
+//
+// PORT: keys are raw byte strings (no Unicode normalization); the map is
+// only looked up, ids come from the append order of strs.
 type Interner struct {
 	ids  map[string]uint32
 	strs []string
@@ -95,6 +98,11 @@ func SplitLines(text []byte) []string {
 // SplitWords splits s into word tokens that tile it exactly: maximal runs
 // of letters, digits and '_', maximal runs of white space, and every other
 // rune on its own. Invalid UTF-8 bytes are single tokens.
+//
+// PORT: letters, digits and white space are Go's unicode.IsLetter,
+// unicode.IsDigit and unicode.IsSpace (Unicode 15.0 tables); Rust's
+// char::is_alphabetic/is_numeric/is_whitespace differ in places, so port
+// the same categories (L*, Nd, and Go's White_Space set).
 func SplitWords(s string) []string {
 	var out []string
 	for i := 0; i < len(s); {

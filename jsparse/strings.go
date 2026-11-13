@@ -4,10 +4,10 @@ package jsparse
 type escapeResult uint8
 
 const (
-	escOK          escapeResult = iota
-	escContinuation             // LineContinuation: contributes nothing
-	escLegacy                   // LegacyOctalEscapeSequence or NonOctalDecimalEscapeSequence (B.1.2)
-	escInvalid                  // malformed \x / \u (or NotEscapeSequence in a template)
+	escOK           escapeResult = iota
+	escContinuation              // LineContinuation: contributes nothing
+	escLegacy                    // LegacyOctalEscapeSequence or NonOctalDecimalEscapeSequence (B.1.2)
+	escInvalid                   // malformed \x / \u (or NotEscapeSequence in a template)
 )
 
 // scanEscape decodes the EscapeSequence after a backslash at l.pos-1

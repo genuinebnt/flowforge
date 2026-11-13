@@ -12,6 +12,9 @@ package diff
 // x < n. Only the diagonals k ≡ d (mod 2) in [-min(d,m), min(d,n)] are
 // computed at step d. That keeps the overlap test of the linear-space
 // variant exact.
+//
+// PORT: frontier values and indices are Go int (64-bit); use isize/usize,
+// and keep -1 as the "unreachable" marker.
 
 // stepRange returns the diagonals computed at step d: [lo, hi] with the
 // parity of d, clipped to [-m, n].
@@ -123,7 +126,8 @@ func myersGreedy(bld *builder, a, b []uint32, aLo, aHi, bLo, bHi, limit int) boo
 	if endD < 0 {
 		return false
 	}
-	// Backtrack from (n, m), collecting runs in reverse.
+	// Backtrack from (n, m): at each step d recompute which move the
+	// forward pass took (same tie rule), so the trace needs no move bits.
 	type run struct {
 		kind OpKind
 		n    int
@@ -246,7 +250,8 @@ func (l *linear) midSnake(aLo, aHi, bLo, bHi, limit int) (x0, y0, x1, y1 int, ok
 		if odd && d > 0 && limit >= 0 && 2*d-1 > limit {
 			return 0, 0, 0, 0, false
 		}
-		// Forward step d.
+		// Forward D-paths (paper Lemma 3): with odd delta an overlap can only
+		// be found here, against the reverse (d-1)-paths, giving D = 2d-1.
 		lo, hi := stepRange(d, n, m)
 		for k := lo; k <= hi; k += 2 {
 			x := 0
@@ -276,7 +281,9 @@ func (l *linear) midSnake(aLo, aHi, bLo, bHi, limit int) (x0, y0, x1, y1 int, ok
 		if !odd && d > 0 && limit >= 0 && 2*d > limit {
 			return 0, 0, 0, 0, false
 		}
-		// Reverse step d, in coordinates mirrored at (n, m).
+		// Reverse D-paths in coordinates mirrored at (n, m): with even delta
+		// an overlap can only be found here, against the forward d-paths,
+		// giving D = 2d.
 		lo, hi = stepRange(d, n, m)
 		for kr := lo; kr <= hi; kr += 2 {
 			x := 0

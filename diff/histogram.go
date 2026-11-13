@@ -3,9 +3,10 @@ package diff
 // Histogram diff, following git's xdiff/xhistogram.c (itself after JGit's
 // HistogramDiff). For a range, every line of a is counted; scanning b, each
 // line present in a is extended to the longest common region around each
-// of its occurrences, and the region whose rarest line is rarest (ties:
-// the longer region) becomes the split point. Lines occurring more than
-// maxChainLength (64) times are never anchors; if a range has common lines
+// of its occurrences, and a region replaces the current best when it is
+// longer or its rarest line is rarer (git's order-dependent rule); the
+// best region splits the range. Lines occurring more than
+// histMaxChain (git's max_chain_length, 64) times are never anchors; if a range has common lines
 // but all are that frequent, it falls back to Myers. A range with no common
 // line is a replacement. Like git, histogram works on the whole input (no
 // prefix/suffix trimming), and git's hash-bucket chain limit has no
@@ -27,8 +28,10 @@ type histIndex struct {
 	tokRec   []int32  // dense token -> record index (when stamped)
 	tokStamp []uint32 // dense token -> epoch that wrote tokRec
 	epoch    uint32
-	lineRec  []int32 // a index -> record index (absolute positions)
-	next     []int32 // a index -> next occurrence (absolute), -1 none
+	// PORT: int32 positions, as git uses 32-bit line numbers: inputs are
+	// limited to 2^31-1 tokens per side.
+	lineRec []int32 // a index -> record index (absolute positions)
+	next    []int32 // a index -> next occurrence (absolute), -1 none
 }
 
 type region struct{ begin1, end1, begin2, end2 int } // inclusive ends
@@ -167,7 +170,8 @@ func histogramDiff(a, b []uint32, limit int) (EditScript, bool) {
 }
 
 // denseTokens renumbers the tokens of a and b as 0..k-1 in first-seen
-// order; equality is preserved exactly.
+// order; equality is preserved exactly. PORT: the map is only looked up,
+// never iterated, so its order cannot reach the output.
 func denseTokens(a, b []uint32) (da, db []uint32, k int) {
 	ids := make(map[uint32]uint32, len(a))
 	conv := func(s []uint32) []uint32 {

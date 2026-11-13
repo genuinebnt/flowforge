@@ -129,27 +129,27 @@ type Op uint8
 const (
 	OpNone Op = iota
 	// Binary.
-	OpEq        // ==
-	OpNotEq     // !=
-	OpStrictEq  // ===
-	OpStrictNe  // !==
-	OpLt        // <
-	OpLe        // <=
-	OpGt        // >
-	OpGe        // >=
-	OpShl       // <<
-	OpShr       // >>
-	OpUShr      // >>>
-	OpAdd       // +
-	OpSub       // -
-	OpMul       // *
-	OpDiv       // /
-	OpMod       // %
-	OpExp       // **
-	OpBitOr     // |
-	OpBitXor    // ^
-	OpBitAnd    // &
-	OpIn        // in
+	OpEq         // ==
+	OpNotEq      // !=
+	OpStrictEq   // ===
+	OpStrictNe   // !==
+	OpLt         // <
+	OpLe         // <=
+	OpGt         // >
+	OpGe         // >=
+	OpShl        // <<
+	OpShr        // >>
+	OpUShr       // >>>
+	OpAdd        // +
+	OpSub        // -
+	OpMul        // *
+	OpDiv        // /
+	OpMod        // %
+	OpExp        // **
+	OpBitOr      // |
+	OpBitXor     // ^
+	OpBitAnd     // &
+	OpIn         // in
 	OpInstanceof // instanceof
 	// Logical.
 	OpOr       // ||

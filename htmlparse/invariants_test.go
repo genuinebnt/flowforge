@@ -603,6 +603,9 @@ func TestHTMLInv11_NamedReferenceLongestMatch(t *testing.T) {
 		if want := brute(b); got != want {
 			t.Fatalf("%q: longest match %d, want %d", b, got, want)
 		}
+		if tl, ti := lookupEntityTrie(b); tl != got || ti != idx {
+			t.Fatalf("%q: trie strategy gives (%d, %d), sorted search (%d, %d)", b, tl, ti, got, idx)
+		}
 		if got > 0 && entityNames[idx] != string(b[:got]) {
 			t.Fatalf("%q: index %d names %q", b, idx, entityNames[idx])
 		}

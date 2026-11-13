@@ -57,6 +57,9 @@ type printer struct {
 	min    bool
 	out    []byte
 	indent int
+	// afterRegex is set right after a regular expression literal, whose
+	// flags would absorb a following identifier character.
+	afterRegex bool
 }
 
 func (w *printer) n(id NodeID) *Node { return &w.p.Nodes[id] }
@@ -86,12 +89,15 @@ func (w *printer) tok(s string) {
 			need = true
 		case last == '.' && isDecimalDigit(first):
 			need = true
+		case w.afterRegex && isWordByte(first):
+			need = true
 		}
 		if need {
 			w.out = append(w.out, ' ')
 		}
 	}
 	w.out = append(w.out, s...)
+	w.afterRegex = false
 }
 
 // isWordByte reports bytes that continue an identifier or number,
@@ -1223,6 +1229,7 @@ func (w *printer) literal(n *Node) {
 		w.tok("null")
 	case LitRegExp:
 		w.tok("/" + n.Str + "/" + n.Str2)
+		w.afterRegex = true
 	}
 }
 

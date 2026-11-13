@@ -211,6 +211,7 @@ type Tokenizer struct {
 	lastStartTag string
 	allowCDATA   bool
 	maxAttrs     int
+	charRef      CharRefStrategy
 
 	queue [4]Token
 	qhead int
@@ -227,6 +228,7 @@ func NewTokenizer(input []byte, opts TokenizeOptions) *Tokenizer {
 		maxAttrs:     limitOrDefault(opts.MaxAttributes, DefaultMaxAttributes),
 		lastStartTag: opts.LastStartTag,
 		allowCDATA:   opts.AllowCDATA,
+		charRef:      opts.CharRefLookup,
 	}
 	if max := limitOrDefault(opts.MaxInputSize, DefaultMaxInputSize); len(input) > max {
 		input = input[:max]

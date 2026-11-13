@@ -90,6 +90,9 @@ type TokenizeOptions struct {
 	// DefaultMaxInputSize, negative: unlimited). Longer input is
 	// truncated, with ErrInputSizeLimit.
 	MaxInputSize int
+	// CharRefLookup selects the named character reference lookup
+	// algorithm (CharRefTrie by default).
+	CharRefLookup CharRefStrategy
 }
 
 // Default limits.

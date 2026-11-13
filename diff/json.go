@@ -98,6 +98,10 @@ func (v Value) Get(key string) (Value, bool) {
 // ParseJSON decodes exactly one JSON value (RFC 8259) with
 // encoding/json's UseNumber, rejecting duplicate object keys, trailing
 // data and nesting deeper than MaxJSONDepth. Errors wrap ErrInvalidJSON.
+//
+// PORT: encoding/json replaces invalid UTF-8 in strings with U+FFFD and
+// keeps number text verbatim; in Rust use serde_json with
+// "arbitrary_precision" and "preserve_order" plus a duplicate-key check.
 func ParseJSON(b []byte) (Value, error) {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.UseNumber()
@@ -180,6 +184,11 @@ func valueFromToken(dec *json.Decoder, tok json.Token, depth int) (Value, error)
 
 // EncodeJSON writes v as compact JSON: members in stored order, numbers as
 // their text, strings escaped like encoding/json without HTML escaping.
+//
+// PORT: encoding/json (Go 1.22+) writes \b \f \n \r \t, other control
+// characters as \u00XX, U+2028/U+2029 as \u2028/\u2029, leaves <>& alone
+// (SetEscapeHTML(false)) and replaces invalid UTF-8 with \ufffd; reproduce
+// that exactly for byte-identical patches.
 func EncodeJSON(v Value) []byte {
 	var buf bytes.Buffer
 	encodeValue(&buf, v)
@@ -328,8 +337,11 @@ func canonicalNumber(s string) string {
 
 // hashCons assigns every distinct JSON value (under Equal) a dense uint32
 // id bottom-up: a node's key is its kind plus its scalar payload or its
-// children's ids, so equal subtrees get equal ids without hashing their
-// full text, and different subtrees never collide.
+// children's ids (object members sorted by key, so member order does not
+// matter), so equal subtrees get equal ids without hashing their full text
+// and different subtrees never collide. PORT: only map lookups; the ids
+// feed Myers, so any port assigning them in the same first-seen order gets
+// the same patches.
 type hashCons struct {
 	ids map[string]uint32
 	buf []byte

@@ -1,6 +1,7 @@
 package sketch
 
 // FNV-1a 64 parameters (http://www.isthe.com/chongo/tech/comp/fnv/).
+// PORT: the multiply wraps modulo 2^64 (wrapping_mul in Rust).
 const (
 	fnvOffset64 uint64 = 14695981039346656037
 	fnvPrime64  uint64 = 1099511628211

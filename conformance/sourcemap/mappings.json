@@ -21,7 +21,7 @@
     {"name": "comma before semicolon", "mappings": "A,;A", "sources": 0, "names": 0, "error": "invalid_segment", "offset": 2},
     {"name": "truncated VLQ", "mappings": "AAAg", "sources": 1, "names": 0, "error": "vlq_truncated", "offset": 4},
     {"name": "bad character", "mappings": "AA*A", "sources": 1, "names": 0, "error": "invalid_vlq_char", "offset": 2},
-    {"name": "source index out of range", "mappings": "AACA", "sources": 1, "names": 0, "error": "index_out_of_range", "offset": 0},
+    {"name": "source index out of range", "mappings": "ACAA", "sources": 1, "names": 0, "error": "index_out_of_range", "offset": 0},
     {"name": "name index out of range", "mappings": "AAAAC", "sources": 1, "names": 1, "error": "index_out_of_range", "offset": 0},
     {"name": "negative column", "mappings": "D", "sources": 0, "names": 0, "error": "negative_value", "offset": 0},
     {"name": "negative original line", "mappings": "AADA", "sources": 1, "names": 0, "error": "negative_value", "offset": 0},

@@ -42,40 +42,40 @@ const (
 	CodeInvalidOptional  // template or `new` in an optional chain
 
 	// Early errors (static semantics).
-	CodeInvalidAssignTarget  // not a valid assignment/update target
-	CodeInvalidPattern       // invalid destructuring pattern or binding element
-	CodeDuplicateProto       // duplicate __proto__ in an object literal
-	CodeRedeclaration        // conflicting lexical/var declaration
-	CodeReservedWord         // reserved word used as an identifier
-	CodeStrictEvalArguments  // eval/arguments bound or assigned in strict code
-	CodeStrictWith           // with statement in strict code
-	CodeStrictDelete         // delete of an unqualified identifier in strict code
-	CodeStrictOctal          // legacy octal literal or escape in strict code / template
-	CodeFunctionPosition     // function declaration where only a statement is allowed
-	CodeIllegalBreak         // break outside loop/switch or to an unknown label
-	CodeIllegalContinue      // continue outside loop or to a non-iteration label
-	CodeDuplicateLabel       // label already in scope
-	CodeIllegalReturn        // return outside a function
-	CodeNewTarget            // new.target outside a function
-	CodeImportMeta           // import.meta outside a module
-	CodeSuperCall            // super() outside a derived constructor
-	CodeSuperProperty        // super.x outside a method
-	CodeYieldAwaitInParams   // yield/await expression in formal parameters
-	CodeDuplicateParam       // duplicate parameter where not allowed
-	CodeNonSimpleUseStrict   // "use strict" in a function with non-simple parameters
-	CodePrivateName          // undeclared, duplicate or invalid private name
-	CodeClassConstructor     // duplicate or special-method constructor
-	CodeStaticPrototype      // static member named prototype
-	CodeClassField           // field named constructor, or arguments in a field initializer
-	CodeAwaitInStaticBlock   // await or arguments in a class static block
-	CodeLetName              // let bound as a lexical name
-	CodeExport               // export of an undeclared or duplicate name
-	CodeInvalidRegExpFlags   // invalid or duplicate regular expression flags
-	CodeInvalidRegExp        // regular expression pattern rejected by the validator
-	CodeInvalidTemplate      // invalid escape in an untagged template
-	CodeAccessorParams       // getter with parameters or setter without exactly one
-	CodeLabelledFunction     // labelled function declaration in strict code or as a loop body
-	CodeInvalidUseOfKeyword  // yield/await/let/static used where reserved
+	CodeInvalidAssignTarget // not a valid assignment/update target
+	CodeInvalidPattern      // invalid destructuring pattern or binding element
+	CodeDuplicateProto      // duplicate __proto__ in an object literal
+	CodeRedeclaration       // conflicting lexical/var declaration
+	CodeReservedWord        // reserved word used as an identifier
+	CodeStrictEvalArguments // eval/arguments bound or assigned in strict code
+	CodeStrictWith          // with statement in strict code
+	CodeStrictDelete        // delete of an unqualified identifier in strict code
+	CodeStrictOctal         // legacy octal literal or escape in strict code / template
+	CodeFunctionPosition    // function declaration where only a statement is allowed
+	CodeIllegalBreak        // break outside loop/switch or to an unknown label
+	CodeIllegalContinue     // continue outside loop or to a non-iteration label
+	CodeDuplicateLabel      // label already in scope
+	CodeIllegalReturn       // return outside a function
+	CodeNewTarget           // new.target outside a function
+	CodeImportMeta          // import.meta outside a module
+	CodeSuperCall           // super() outside a derived constructor
+	CodeSuperProperty       // super.x outside a method
+	CodeYieldAwaitInParams  // yield/await expression in formal parameters
+	CodeDuplicateParam      // duplicate parameter where not allowed
+	CodeNonSimpleUseStrict  // "use strict" in a function with non-simple parameters
+	CodePrivateName         // undeclared, duplicate or invalid private name
+	CodeClassConstructor    // duplicate or special-method constructor
+	CodeStaticPrototype     // static member named prototype
+	CodeClassField          // field named constructor, or arguments in a field initializer
+	CodeAwaitInStaticBlock  // await or arguments in a class static block
+	CodeLetName             // let bound as a lexical name
+	CodeExport              // export of an undeclared or duplicate name
+	CodeInvalidRegExpFlags  // invalid or duplicate regular expression flags
+	CodeInvalidRegExp       // regular expression pattern rejected by the validator
+	CodeInvalidTemplate     // invalid escape in an untagged template
+	CodeAccessorParams      // getter with parameters or setter without exactly one
+	CodeLabelledFunction    // labelled function declaration in strict code or as a loop body
+	CodeInvalidUseOfKeyword // yield/await/let/static used where reserved
 
 	// Limits.
 	CodeTooDeep // nesting deeper than Options.MaxDepth

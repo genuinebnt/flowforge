@@ -86,8 +86,9 @@ func (s EditScript) Changes() int {
 	return n
 }
 
-// String renders the ops compactly ("=3 -1 +2"), for logs and test
-// failures.
+// String renders the ops compactly ("=3 -1 +2": equal, delete and insert
+// run lengths). For a canonical script this determines every range by
+// tiling, so it is also the conformance format of scripts.json.
 func (s EditScript) String() string {
 	var b strings.Builder
 	for i, o := range s.Ops {

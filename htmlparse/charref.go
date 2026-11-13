@@ -6,6 +6,66 @@ package htmlparse
 
 //go:generate sh -c "cd .. && go run ./htmlparse/internal/gen -src \"$(go list -m -f '{{.Dir}}' golang.org/x/net)/html/entity.go\" -go htmlparse/entities_table.go -json conformance/htmlparse/entities.json"
 
+// CharRefStrategy selects the named character reference lookup
+// algorithm. Both find the longest name in the WHATWG table that prefixes
+// the input (HTML §13.2.5 "named character reference state") and give
+// identical results (HTML-INV-11); they differ only in speed and table
+// size. See README.md "Performance comparison" for why the default won.
+type CharRefStrategy uint8
+
+const (
+	// CharRefTrie (the default) walks a generated compact prefix trie
+	// (9854 nodes, 9853 edges, about 100 KB of static tables) with a
+	// binary search over each node's sorted edges.
+	CharRefTrie CharRefStrategy = iota
+	// CharRefSortedSearch narrows a range of the sorted name table with
+	// two binary searches per input byte; it needs no table beyond the
+	// names themselves but is about 1.6x slower on entity-dense text.
+	CharRefSortedSearch
+)
+
+// entityTrieNode is a node of the generated prefix trie: its outgoing
+// edges are entityTrieEdges[first : first+count]; entity is the index in
+// entityNames of the name ending at this node, or -1.
+type entityTrieNode struct {
+	first  uint16
+	count  uint8
+	entity int16
+}
+
+// entityTrieEdge is one labelled trie edge.
+type entityTrieEdge struct {
+	c     byte
+	child uint16
+}
+
+// lookupEntityTrie is lookupEntity over the prefix trie.
+func lookupEntityTrie(b []byte) (int, int) {
+	node := 0
+	bestLen, best := 0, -1
+	for k := 0; k < len(b) && k < entityMaxLen; k++ {
+		n := entityTrieNodes[node]
+		lo, hi := int(n.first), int(n.first)+int(n.count)
+		c := b[k]
+		for lo < hi {
+			m := int(uint(lo+hi) >> 1)
+			if entityTrieEdges[m].c < c {
+				lo = m + 1
+			} else {
+				hi = m
+			}
+		}
+		if lo >= int(n.first)+int(n.count) || entityTrieEdges[lo].c != c {
+			break
+		}
+		node = int(entityTrieEdges[lo].child)
+		if e := entityTrieNodes[node].entity; e >= 0 {
+			bestLen, best = k+1, int(e)
+		}
+	}
+	return bestLen, best
+}
+
 // lookupEntity finds the longest named character reference that is a
 // prefix of b and returns its length and index in entityNames, or (0, -1).
 //
@@ -96,7 +156,12 @@ func (t *Tokenizer) flushCharRef() {
 
 // namedCharacterReferenceState is the named character reference state.
 func (t *Tokenizer) namedCharacterReferenceState() {
-	n, idx := lookupEntity(t.in[t.pos:])
+	var n, idx int
+	if t.charRef == CharRefSortedSearch {
+		n, idx = lookupEntity(t.in[t.pos:])
+	} else {
+		n, idx = lookupEntityTrie(t.in[t.pos:])
+	}
 	if n == 0 {
 		t.flushCharRef()
 		t.state = stateAmbiguousAmpersand
