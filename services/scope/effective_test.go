@@ -3,6 +3,7 @@ package scope_test
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -157,4 +158,89 @@ func eventType(t *testing.T, payload []byte) string {
 		t.Fatal(err)
 	}
 	return v.Type
+}
+
+func TestRegress_G_CORE_10_ActivationSharedTime_Memory(t *testing.T) {
+	runActivationSharedTime(t, scopesvc.NewMemRepo())
+}
+
+func TestRegress_G_CORE_10_ActivationSharedTime_Postgres(t *testing.T) {
+	dsn := servicetest.FreshDB(t)
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if err := migrations.Apply(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
+	runActivationSharedTime(t, &scopesvc.PgRepo{DB: pool})
+}
+
+// runActivationSharedTime: ActivateDue paged by effective_from alone, so
+// when a page of 100 ended inside a group of versions sharing one
+// effective_from (a round time such as midnight), the rest of the group
+// was never announced and in-flight runs of those programs were never
+// re-validated against the new version. It now pages by (effective_from,
+// program, version).
+func runActivationSharedTime(t *testing.T, repo scopesvc.Repo) {
+	ctx := context.Background()
+	clock := testkit.NewFakeClock(time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC))
+	srv := scopesvc.NewServer(scopesvc.Options{Repo: repo, Clock: clock, Resolver: servicetest.NewResolver(map[string]string{"app.test": "203.0.113.10"})})
+	a := platform.WithIdentity(ctx, platform.Identity{Tenant: servicetest.TenantA, Actor: servicetest.UserA, Role: "admin"})
+	midnight := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
+	const n = 130
+	want := map[string]bool{}
+	for i := range n {
+		p, err := srv.CreateProgram(a, &pb.CreateProgramRequest{Name: "p" + strconv.Itoa(i), InitialScope: servicetest.ScopeDoc("app.test")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := srv.PutScope(a, &pb.PutScopeRequest{ProgramId: p.GetId(), BaseVersion: 1,
+			Document: servicetest.ScopeDoc("app.test"), EffectiveFrom: timestamppb.New(midnight)}); err != nil {
+			t.Fatal(err)
+		}
+		want[p.GetId()] = true
+	}
+	clock.Advance(13 * time.Hour)
+	last, err := srv.ActivateDue(ctx, clock.Now().Add(-24*time.Hour), clock.Now())
+	if err != nil || !last.Equal(midnight) {
+		t.Fatalf("ActivateDue = %v, %v", last, err)
+	}
+	got := map[string]bool{}
+	for {
+		claimed, err := repo.Outbox().Claim(ctx, 100, func(_ context.Context, rows []bus.OutboxRow) error {
+			for _, r := range rows {
+				var v struct {
+					Type    string         `json:"type"`
+					Generic map[string]any `json:"generic"`
+					Payload map[string]any `json:"payload"`
+				}
+				if err := json.Unmarshal(r.Payload, &v); err != nil {
+					t.Fatal(err)
+				}
+				if v.Type != scopesvc.EventVersionPublished {
+					continue
+				}
+				m := v.Payload
+				if m == nil {
+					m = v.Generic
+				}
+				if ver, _ := m["version"].(float64); ver == 2 {
+					pid, _ := m["program_id"].(string)
+					got[pid] = true
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if claimed == 0 {
+			break
+		}
+	}
+	if len(got) != n {
+		t.Fatalf("%d of %d programs had their version 2 announced", len(got), n)
+	}
 }

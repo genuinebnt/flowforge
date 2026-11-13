@@ -221,6 +221,19 @@ assumptions it was written against.
 | G-SVC-16 | `raw_ref` stores the tool's observation rather than raw protocol bytes | v2 (chunkstore raw capture) |
 | G-SEC-01 | RLS gives real isolation only for graph and similarity; engine, scope, notifier and gateway stores do not set the tenant per transaction, so they use schema-wide role policies | v3 (per-transaction tenant in every store) |
 
+### Found during the v1 comment pass
+
+| ID | Gap | Target |
+|---|---|---|
+| G-CORE-09 | `Activity.Prohibited` (spec 4.1) was stored and passed around but enforced nowhere: the compiler adapters passed only `max_class` | **closed on feat_v1** (an entry names a tool or an effect class, `core.ProhibitedActivity`; E0402 at compile, SCOPE_DENIED at submit, pause at re-validation, `scope_denied`/`class_exceeds_program` before every tool effect; scope OPEN_QUESTIONS 18; TestRegress_G_CORE_09_*, dsl `f_E0402_prohibited_*`) |
+| G-LIM-11 | `auth.IPThrottleKey` (login) did not escape `:` while `limiter.AuthIPKey` (signup, reset) did, and neither normalized the address, so one IPv6 client had two spellings and `::ffff:a.b.c.d` differed from `a.b.c.d` | **closed on feat_v1** (`netnorm.ClientIPText` + limiter escaping in both; TestRegress_G_LIM_11_IPKeysAgree). Deploy: in-flight login throttle windows of IPv6 clients reset once (their key spelling changes); IPv4 and signup/reset keys are unchanged |
+| G-ENG-11 | Due schedules sharing `next_fire_at` fired in map order (memory) or arbitrary order (Postgres), so under a limit the stores fired different ones | **closed on feat_v1** (ties by schedule id in both; TestRegress_G_ENG_11_ScheduleTieOrder_*) |
+| G-CORE-10 | Scope activation paged by `effective_from` alone: a page of 100 ending inside a group sharing one `effective_from` (round times) left the rest unannounced, so their in-flight runs were never re-validated | **closed on feat_v1** (keyset paging by effective_from, program, version; TestRegress_G_CORE_10_ActivationSharedTime_*) |
+| G-SVC-17 | With `FF_TRUST_XFF` the gateway keyed callers by the first X-Forwarded-For entry, which the client writes (Google's proxies append), so a client could choose its rate-limit and login-throttle key; Terraform did not set it, so on Cloud Run every client shared the front end's address | **closed on feat_v1** (hop count from the right, `FF_TRUST_XFF`=N; Terraform sets 1 in lab, 2 in dev/prod, to confirm on the first apply, G-OPS-17; TestRegress_G_SVC_17_ForwardedForRightmost) |
+| G-SVC-18 | A User-Agent with invalid UTF-8, or cut at 256 bytes inside a rune, made the auth_audit insert fail, failing signup, verification and password reset | **closed on feat_v1** (sanitized in the gateway and pgstore; TestRegress_G_SVC_18_*) |
+| G-SVC-19 | The notifier's SMTP sender put the alert summary (rendered from target-controlled graph data) into the Subject header unescaped: header injection | **closed on feat_v1** (control characters replaced; TestRegress_G_SVC_19_SMTPHeaderInjection) |
+| G-SVC-20 | `notifier.MemRepo.DueDeliveries` ordered by id, Postgres by `next_attempt_at, id` | **closed on feat_v1** (memory matches Postgres; TestRegress_G_SVC_20_MemDeliveryOrder) |
+
 ## Doc and code conflicts to resolve with the fixes
 
 1. infra and cloud-sql READMEs vs code on DB grants (G-OPS-01).
@@ -239,7 +252,7 @@ assumptions it was written against.
 
 ## Counts
 
-* **v1 (fix on `feat_v1`, merge forward):** 30 rows, including 7 of the 8 high-severity ones.
+* **v1 (fix on `feat_v1`, merge forward):** 38 rows, including 7 of the 8 high-severity ones.
 * **v2:** 17 rows.
 * **v3:** 30 rows.
 * **v4:** 3 rows.

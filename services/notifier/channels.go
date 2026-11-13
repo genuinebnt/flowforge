@@ -72,7 +72,8 @@ func (l LogEmail) SendMail(ctx context.Context, _ map[string]any, from, to, subj
 }
 
 // SMTPEmail sends through net/smtp. The channel's provider_secret_ref
-// resolves to "user:password@host:port".
+// resolves to "user:password@host:port". net/smtp takes no context, so
+// cancelling ctx does not interrupt a send in progress.
 type SMTPEmail struct{ Secrets Secrets }
 
 // SendMail implements EmailSender.
@@ -88,8 +89,31 @@ func (s SMTPEmail) SendMail(ctx context.Context, cfg map[string]any, from, to, s
 		return errors.New("notifier: smtp secret must be user:password@host:port")
 	}
 	host, _, _ := net.SplitHostPort(addr)
-	msg := "From: " + from + "\r\nTo: " + to + "\r\nSubject: " + subject + "\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" + text
-	return smtp.SendMail(addr, smtp.PlainAuth("", user, pass, host), from, []string{to}, []byte(msg))
+	from, to = headerValue(from), headerValue(to)
+	return smtp.SendMail(addr, smtp.PlainAuth("", user, pass, host), from, []string{to}, SMTPMessage(from, to, subject, text))
+}
+
+// SMTPMessage builds the RFC 5322 message SMTPEmail sends. Header values
+// have CR, LF and other control characters replaced with spaces: the
+// subject carries the alert summary, which a rule renders from graph data
+// (titles, names) a scanned target controls, and a line break there would
+// let it add headers or a body of its own (G-SVC-19). Body lines end in
+// CRLF as SMTP requires.
+func SMTPMessage(from, to, subject, text string) []byte {
+	body := strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\n", "\r\n")
+	return []byte("From: " + headerValue(from) + "\r\nTo: " + headerValue(to) + "\r\nSubject: " + headerValue(subject) +
+		"\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" + body)
+}
+
+// headerValue replaces control characters (CR and LF included) with
+// spaces, so a value stays on its header line.
+func headerValue(v string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, v)
 }
 
 // Senders holds the channel implementations.

@@ -53,8 +53,11 @@ type Config struct {
 	PublicURL    string // FF_PUBLIC_URL: console base URL for e-mail links
 	CookieDomain string // FF_COOKIE_DOMAIN
 	CookieInsec  bool   // FF_COOKIE_INSECURE: drop Secure (local HTTP only)
-	TrustXFF     bool   // FF_TRUST_XFF: client IP from X-Forwarded-For
-	GRPCTLS      bool   // FF_GRPC_TLS: TLS (system roots) to host:port internal services; https:// addresses always use TLS
+	// ForwardedHops (FF_TRUST_XFF): trusted proxies that append to
+	// X-Forwarded-For; the client IP is that many entries from the right.
+	// "true" means 1, "false" or unset 0 (gateway.Config.ForwardedHops).
+	ForwardedHops int
+	GRPCTLS       bool // FF_GRPC_TLS: TLS (system roots) to host:port internal services; https:// addresses always use TLS
 	// IDTokens (FF_ID_TOKEN_AUDIENCE_AUTO, or K_SERVICE on Cloud Run) adds
 	// a Google ID token for each https:// backend to its calls (spec 17.3;
 	// G-SVC-13). IDTokenSource and BackendTLS override the token source and
@@ -117,7 +120,7 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		RedisAddr: getenv("FF_REDIS_ADDR"), RedisAuth: getenv("FF_REDIS_AUTH"), RedisCA: getenv("FF_REDIS_CA"),
 		Issuer: getenv("FF_JWT_ISSUER"), Audience: getenv("FF_JWT_AUDIENCE"), PublicURL: getenv("FF_PUBLIC_URL"),
 		CookieDomain: getenv("FF_COOKIE_DOMAIN"), CookieInsec: boolEnv(getenv("FF_COOKIE_INSECURE")),
-		TrustXFF: boolEnv(getenv("FF_TRUST_XFF")), GRPCTLS: boolEnv(getenv("FF_GRPC_TLS")), IDTokens: platform.IDTokensFromEnv(getenv),
+		GRPCTLS: boolEnv(getenv("FF_GRPC_TLS")), IDTokens: platform.IDTokensFromEnv(getenv),
 		Backends: map[string]string{}, ShutdownGrace: 15 * time.Second,
 		BusKind: getenv("FF_BUS"), PubSubProject: getenv("FF_PUBSUB_PROJECT"), TopicPrefix: getenv("FF_TOPIC_PREFIX"),
 		PubSubCreate: boolEnv(getenv("FF_PUBSUB_CREATE")),
@@ -131,6 +134,17 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 	if c.Issuer == "" {
 		return c, errors.New("FF_JWT_ISSUER is required")
+	}
+	if v := strings.TrimSpace(getenv("FF_TRUST_XFF")); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil && (v != "0" && v != "1") {
+			if b {
+				c.ForwardedHops = 1
+			}
+		} else if n, err := strconv.Atoi(v); err != nil || n < 0 || n > 8 {
+			return c, fmt.Errorf("FF_TRUST_XFF: %q is not true, false or a number of proxies (0-8)", v)
+		} else {
+			c.ForwardedHops = n
+		}
 	}
 	c.Env = getenv("FF_ENV")
 	if c.Env == "" {
@@ -193,7 +207,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 }
 
 // commonBreached is a tiny offline breached-password list; production
-// should plug a k-anonymity or bloom-filter checker into auth.PasswordPolicy.
+// should plug a k-anonymity or bloom-filter checker into auth.PasswordPolicy
+// (G-LIM-04, v3).
 var commonBreached = []string{"password1234", "123456789012", "qwertyuiopas", "passwordpassword", "correct horse battery staple"}
 
 // Gateway is an assembled gateway whose identity side (stores, signing
@@ -460,7 +475,7 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 	srv, err := gateway.New(gateway.Config{
 		Identity: g.svc, Revocations: g.revocations, Limiter: g.lim, Backends: be, Clock: g.clock, IDs: core.SystemRng{},
 		Issuer: cfg.Issuer, Cookies: gateway.CookieConfig{Domain: cfg.CookieDomain, Insecure: cfg.CookieInsec},
-		TrustForwardedFor: cfg.TrustXFF, Readiness: g.ready, Log: log,
+		ForwardedHops: cfg.ForwardedHops, Readiness: g.ready, Log: log,
 	})
 	if err != nil {
 		return err

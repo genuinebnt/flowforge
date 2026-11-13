@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -13,6 +14,8 @@ import (
 	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/limiter"
+	"github.com/genuinebnt/flowforge/services/gateway"
+	"github.com/genuinebnt/flowforge/services/gateway/gatewayd"
 	"github.com/genuinebnt/flowforge/services/gateway/identity"
 )
 
@@ -147,5 +150,54 @@ func TestRegress_G_LIM_05_RoleGroupApprovals(t *testing.T) {
 	last := calls[len(calls)-1]
 	if !strings.HasSuffix(last.Method, "DecideApproval") || !slices.Equal(last.Groups, []string{"finance_ap"}) {
 		t.Fatalf("internal token of the decision: %+v", last)
+	}
+}
+
+// TestRegress_G_SVC_17_ForwardedForRightmost: with FF_TRUST_XFF the
+// gateway keyed unauthenticated callers by the first X-Forwarded-For
+// entry, which the client writes itself (Google's front ends append), so a
+// client could choose a fresh rate-limit and login-throttle key per
+// request. The client IP is now counted from the right.
+func TestRegress_G_SVC_17_ForwardedForRightmost(t *testing.T) {
+	req := func(remote string, xff ...string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = remote
+		for _, v := range xff {
+			r.Header.Add("X-Forwarded-For", v)
+		}
+		return r
+	}
+	for _, tc := range []struct {
+		r    *http.Request
+		hops int
+		want string
+	}{
+		{req("169.254.1.1:5000", "6.6.6.6, 198.51.100.7"), 1, "198.51.100.7"},               // run.app: GFE appended the client
+		{req("169.254.1.1:5000", "6.6.6.6", "198.51.100.7, 35.191.0.1"), 2, "198.51.100.7"}, // LB in front; two header lines
+		{req("169.254.1.1:5000", "::ffff:198.51.100.7"), 1, "198.51.100.7"},
+		{req("169.254.1.1:5000", "6.6.6.6, 198.51.100.7"), 0, "169.254.1.1"},
+		{req("169.254.1.1:5000", "198.51.100.7"), 2, "169.254.1.1"}, // fewer entries than proxies
+		{req("169.254.1.1:5000", "6.6.6.6, garbage"), 1, "unknown"},
+		{req("[2001:db8::1]:443"), 1, "2001:db8::1"},
+	} {
+		if got := gateway.ClientIPForTest(tc.r, tc.hops); got != tc.want {
+			t.Errorf("hops %d XFF %q: %q, want %q", tc.hops, tc.r.Header.Values("X-Forwarded-For"), got, tc.want)
+		}
+	}
+	env := func(xff string) func(string) string {
+		m := map[string]string{"FF_TRUST_XFF": xff, "FF_JWT_ISSUER": "https://x"}
+		for _, k := range []string{"FF_SCOPE_ADDR", "FF_ENGINE_ADDR", "FF_GRAPH_ADDR", "FF_NOTIFIER_ADDR", "FF_TOOL_RUNNER_ADDR", "FF_SIMILARITY_ADDR"} {
+			m[k] = "localhost:1"
+		}
+		return func(k string) string { return m[k] }
+	}
+	for v, want := range map[string]int{"": 0, "true": 1, "false": 0, "2": 2, "0": 0, "1": 1} {
+		c, err := gatewayd.LoadConfig(env(v))
+		if err != nil || c.ForwardedHops != want {
+			t.Errorf("FF_TRUST_XFF=%q: hops %d, %v; want %d", v, c.ForwardedHops, err, want)
+		}
+	}
+	if _, err := gatewayd.LoadConfig(env("lots")); err == nil {
+		t.Error("FF_TRUST_XFF=lots accepted")
 	}
 }

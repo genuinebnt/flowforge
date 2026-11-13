@@ -307,11 +307,19 @@ func (r *MemRepo) SetAlertStatus(_ context.Context, id core.UUID, status string)
 	return nil
 }
 
-// DueDeliveries implements Repo.
+// DueDeliveries implements Repo: earliest next_attempt_at first, ties by
+// id, as PgRepo's ORDER BY next_attempt_at, id, so both pick the same ones
+// under limit (G-ENG-11 is the same rule for schedules).
 func (r *MemRepo) DueDeliveries(_ context.Context, now time.Time, limit int) ([]Delivery, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return byID(r.deliveries, func(d Delivery) bool { return d.Status == DeliveryPending && !d.NextAttemptAt.After(now) }, core.Nil, limit), nil
+	out := byID(r.deliveries, func(d Delivery) bool { return d.Status == DeliveryPending && !d.NextAttemptAt.After(now) }, core.Nil, 0)
+	// byID sorted by id; the stable sort keeps that order among equal times.
+	slices.SortStableFunc(out, func(a, b Delivery) int { return a.NextAttemptAt.Compare(b.NextAttemptAt) })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }
 
 // DeliveriesOf implements Repo.

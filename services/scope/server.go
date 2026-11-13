@@ -531,15 +531,22 @@ const ActivationLookback = 24 * time.Hour
 
 // ActivateDue publishes scope.version_published for every future-dated
 // version whose effective_from lies in (after, upTo], and returns the
-// effective_from of the last one announced (after when none). Event ids
-// are derived from (program, version), so a repeated window re-emits the
-// same ids and the outboxes and consumer inboxes drop the duplicates.
+// effective_from of the last one announced (after when none, or on an
+// error, so the caller retries the whole window; re-announcing is
+// harmless, see below). It pages
+// through them by (effective_from, program, version), so any number of
+// versions sharing one effective_from (round times such as midnight are
+// common) are all announced (G-CORE-10). Event ids are derived from
+// (program, version), so a repeated window re-emits the same ids and the
+// outboxes and consumer inboxes drop the duplicates.
 func (s *Server) ActivateDue(ctx context.Context, after, upTo time.Time) (time.Time, error) {
+	const page = 100
 	last := after
+	var from *DueVersion
 	for {
-		due, err := s.o.Repo.DueVersions(ctx, last, upTo, 100)
+		due, err := s.o.Repo.DueVersions(ctx, after, from, upTo, page)
 		if err != nil {
-			return last, err
+			return after, err
 		}
 		if len(due) == 0 {
 			return last, nil
@@ -551,17 +558,14 @@ func (s *Server) ActivateDue(ctx context.Context, after, upTo time.Time) (time.T
 					"effective_from": core.FormatTime(d.EffectiveFrom)}})
 		}
 		if err := s.o.Repo.AppendEvents(ctx, evs); err != nil {
-			return last, err
+			return after, err
 		}
-		next := due[len(due)-1].EffectiveFrom
-		if len(due) < 100 || !next.After(last) {
-			// The cursor is exclusive, so if more than 100 versions share
-			// one effective_from the ones past this page are never
-			// announced; accepted, since timestamps come from separate
-			// PutScope calls and practically never collide.
-			return next, nil
+		end := due[len(due)-1]
+		last = end.EffectiveFrom
+		if len(due) < page {
+			return last, nil
 		}
-		last = next
+		from = &end
 	}
 }
 

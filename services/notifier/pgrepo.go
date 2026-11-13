@@ -16,8 +16,10 @@ import (
 )
 
 // PgRepo is Repo over the notifier schema (migrations 0006, 0014 and 0017). The
-// delivery worker spans tenants, so it connects with a role that bypasses
-// row-level security; tenant-scoped queries filter by tenant explicitly.
+// delivery worker spans tenants and PgRepo never sets app.tenant_id, so it
+// connects as ff_notifier, whose role-scoped svc_ff_notifier policies admit
+// every tenant's rows under forced row-level security (0018, G-OPS-02);
+// tenant-scoped queries filter by tenant explicitly (G-SEC-01).
 type PgRepo struct{ DB bus.DB }
 
 var _ Repo = (*PgRepo)(nil)

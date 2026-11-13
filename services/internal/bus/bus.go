@@ -32,8 +32,10 @@ import (
 // Handlers must be idempotent by event_id (Inbox).
 type Handler func(ctx context.Context, env *pb.EventEnvelope) error
 
-// Bus is the publish/subscribe port. Delivery is at least once and in
-// publication order per subscription.
+// Bus is the publish/subscribe port. Delivery is at least once and, per
+// subscription, in publication order among envelopes with the same
+// OrderingKey; envelopes without a key may arrive in any order (Mem
+// happens to keep publication order, PgBus and Pub/Sub do not).
 type Bus interface {
 	// Publish delivers env to every subscription of topic.
 	Publish(ctx context.Context, topic string, env *pb.EventEnvelope) error

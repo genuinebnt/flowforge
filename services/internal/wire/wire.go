@@ -37,8 +37,9 @@ type Env struct {
 	// (LISTEN connections).
 	DB  *pgxpool.Pool
 	DSN string
-	// Bus is nil when no event bus is available (standalone binaries: no
-	// Pub/Sub adapter yet); outboxes then keep their rows unpublished.
+	// Bus is the event bus (busconfig.Resolve picks Pub/Sub, the Postgres
+	// bus or the in-process one; G-SVC-01). Nil means none: outboxes then
+	// keep their rows unpublished and nothing is consumed (some tests).
 	Bus bus.Bus
 	// Blobs is the object store for raw tool output, snapshot files and
 	// run archives (services/internal/blob); nil keeps raw output out of

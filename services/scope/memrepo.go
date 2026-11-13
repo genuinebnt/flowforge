@@ -142,22 +142,30 @@ func (r *MemRepo) EffectiveVersion(_ context.Context, tenant, program core.UUID,
 }
 
 // DueVersions implements Repo.
-func (r *MemRepo) DueVersions(_ context.Context, after, upTo time.Time, limit int) ([]DueVersion, error) {
+func (r *MemRepo) DueVersions(_ context.Context, after time.Time, from *DueVersion, upTo time.Time, limit int) ([]DueVersion, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	// PORT: Postgres orders uuid by its bytes; the canonical lowercase hex
+	// text compares the same way.
+	order := func(a, b DueVersion) int {
+		return cmp.Or(a.EffectiveFrom.Compare(b.EffectiveFrom), cmp.Compare(a.Program.String(), b.Program.String()), cmp.Compare(a.Version, b.Version))
+	}
 	var out []DueVersion
 	for pid, vs := range r.versions {
 		for _, v := range vs {
-			if v.EffectiveFrom.After(v.CreatedAt) && v.EffectiveFrom.After(after) && !v.EffectiveFrom.After(upTo) {
-				out = append(out, DueVersion{Tenant: r.programs[pid].Tenant, Program: pid, Version: v.Version, EffectiveFrom: v.EffectiveFrom})
+			d := DueVersion{Tenant: r.programs[pid].Tenant, Program: pid, Version: v.Version, EffectiveFrom: v.EffectiveFrom}
+			past := v.EffectiveFrom.After(after)
+			if from != nil {
+				past = order(d, *from) > 0
+			}
+			if v.EffectiveFrom.After(v.CreatedAt) && past && !v.EffectiveFrom.After(upTo) {
+				out = append(out, d)
 			}
 		}
 	}
 	// PORT: map iteration order is random in Go; sort so activation events
-	// are emitted in effective_from order, as the Postgres query returns them.
-	slices.SortFunc(out, func(a, b DueVersion) int {
-		return cmp.Or(a.EffectiveFrom.Compare(b.EffectiveFrom), cmp.Compare(a.Program.String(), b.Program.String()), cmp.Compare(a.Version, b.Version))
-	})
+	// are emitted in the Postgres query's order.
+	slices.SortFunc(out, order)
 	if len(out) > limit {
 		out = out[:limit]
 	}

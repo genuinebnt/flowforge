@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
@@ -163,5 +164,24 @@ func TestGatewayRouteTableMatchesMatrix(t *testing.T) {
 		case r.method != http.MethodGet && r.perm == auth.PermRead && !strings.Contains(k, "similar") && !strings.Contains(k, "paths"):
 			t.Errorf("%s: state-changing route with read permission", k)
 		}
+	}
+}
+
+// TestRegress_G_SVC_18_UserAgentUTF8: the gateway cut User-Agent at 256
+// bytes without regard to runes and passed invalid UTF-8 through, which
+// Postgres refuses in identity.auth_audit.user_agent.
+func TestRegress_G_SVC_18_UserAgentUTF8(t *testing.T) {
+	for _, ua := range []string{"a\xffb", strings.Repeat("a", 255) + "é" + "tail", strings.Repeat("€", 200), "plain"} {
+		r, _ := http.NewRequest(http.MethodGet, "/", nil)
+		r.Header.Set("User-Agent", ua)
+		got := userAgent(r)
+		if !utf8.ValidString(got) || len(got) > 256 || (len(ua) > 256 && len(got) < 250) {
+			t.Errorf("userAgent(%q) = %q (%d bytes)", ua, got, len(got))
+		}
+	}
+	r, _ := http.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("User-Agent", "plain")
+	if userAgent(r) != "plain" {
+		t.Error("a valid short User-Agent was changed")
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -568,7 +569,10 @@ func (s *Store) AppendAudit(ctx context.Context, a identity.AuditRecord) error {
 	}
 	var ua any
 	if a.UserAgent != "" {
-		ua = a.UserAgent
+		// Postgres text refuses invalid UTF-8 and NUL; the gateway already
+		// sanitizes, this keeps other callers from failing the transaction
+		// the audit row is part of (G-SVC-18).
+		ua = strings.ReplaceAll(strings.ToValidUTF8(a.UserAgent, "\uFFFD"), "\x00", "")
 	}
 	_, err = s.q.Exec(ctx, `INSERT INTO identity.auth_audit (at, tenant_id, user_id, event, ip, user_agent, detail)
 		VALUES ($1,$2,$3,$4,$5::inet,$6,$7)`,

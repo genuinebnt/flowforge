@@ -137,6 +137,11 @@ locals {
         {
           FF_JWT_AUDIENCE      = var.jwt_audience_public
           FF_INTERNAL_AUDIENCE = var.jwt_audience_internal
+          # Client IP for rate limits and login throttles: the last X-Forwarded-For
+          # entry from the right; on run.app Google's front end appends the client address, so it is the last entry. Entries to its left are client-supplied
+          # (G-SVC-17). Confirm on the first apply (G-OPS-17): too low keys every
+          # client by a proxy address, too high lets a client choose its key.
+          FF_TRUST_XFF = "1"
       })
       secret_env = merge(local.secret_db, local.secret_redis, local.signing_key_env)
     }

@@ -63,7 +63,9 @@ import (
 // lockKey serializes maintenance passes ("ffmaint" in ASCII).
 const lockKey int64 = 0x66666d61696e74
 
-// Retention is the spec 10.7 retention, overridable for tests.
+// Retention is the spec 10.7 retention. The zero Retention means
+// DefaultRetention; any other value is used field by field as given, so
+// a zero field there keeps nothing older than now.
 type Retention struct {
 	RunEvents       time.Duration // 400 days
 	Decisions       int           // months, 13

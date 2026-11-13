@@ -85,9 +85,15 @@ type Config struct {
 	KeepAlive time.Duration
 	// WriteTimeout bounds writing a non-streaming response (default 30 s).
 	WriteTimeout time.Duration
-	// TrustForwardedFor takes the client IP from the first X-Forwarded-For
-	// entry (set behind a load balancer that overwrites it).
-	TrustForwardedFor bool
+	// ForwardedHops is the number of trusted proxies in front of the
+	// gateway that each append the address they received the request from
+	// to X-Forwarded-For (Google's front ends and load balancers append;
+	// none overwrites). The client IP is then the ForwardedHops-th entry
+	// from the right; entries to its left are client-supplied and ignored.
+	// 0 (the default) uses the connection's address. With fewer entries
+	// than hops the request did not pass every proxy, and the connection's
+	// address is used (G-SVC-17).
+	ForwardedHops int
 	// Readiness checks run by /readyz.
 	Readiness map[string]func(ctx context.Context) error
 	Log       *slog.Logger

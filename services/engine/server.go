@@ -2,8 +2,10 @@
 // over engine.Engine, wired with the compiler, the event store and repo
 // (Postgres or in memory), the scope service client, the tool runner and
 // graph clients, the limiter and the outbox; the worker pool; the
-// scope.events consumer (scope changes and kill switches); and the Cloud
-// Scheduler endpoint POST /internal/schedules/{id}:fire.
+// scope.events consumer (scope changes and kill switches); and the
+// schedule API under /internal/schedules (SchedulesHandler: the stored
+// schedules of G-OPS-10, their in-process firing and the :tick and
+// {id}:fire endpoints Cloud Scheduler calls).
 package engine
 
 import (

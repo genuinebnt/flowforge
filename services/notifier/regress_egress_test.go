@@ -115,3 +115,18 @@ func TestRegress_G_SVC_08_WebhooksThroughEgressProxy(t *testing.T) {
 		t.Fatalf("tool-runner on the notify path: %q", buf[:n])
 	}
 }
+
+// TestRegress_G_SVC_19_SMTPHeaderInjection: the alert summary (rendered
+// from graph data a scanned target controls) went into the Subject header
+// unescaped, so a CR LF in it added headers or a body.
+func TestRegress_G_SVC_19_SMTPHeaderInjection(t *testing.T) {
+	msg := string(notifier.SMTPMessage("a@x.test", "b@x.test\r\nBcc: evil@x.test", "[Flowforge] title\r\nBcc: evil@x.test\r\n\r\nfake", "line1\nline2"))
+	head, body, ok := strings.Cut(msg, "\r\n\r\n")
+	if !ok || body != "line1\r\nline2" {
+		t.Fatalf("body %q", body)
+	}
+	lines := strings.Split(head, "\r\n")
+	if len(lines) != 4 || strings.Contains(head, "\nBcc:") {
+		t.Fatalf("header lines %q", lines)
+	}
+}

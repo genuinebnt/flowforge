@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -103,5 +104,38 @@ func throttleRestart(t *testing.T, repo notifier.Repo) {
 	}
 	if n, err := repo.PruneAlertState(ctx, clock.Now().Add(2*time.Hour), 100); err != nil || n != 1 {
 		t.Fatalf("prune %d %v", n, err)
+	}
+}
+
+// TestRegress_G_SVC_20_MemDeliveryOrder: MemRepo.DueDeliveries returned
+// due deliveries by id while PgRepo orders by next_attempt_at, id, so
+// under the batch limit memory retried a newer delivery before an older
+// one that Postgres would have picked.
+func TestRegress_G_SVC_20_MemDeliveryOrder(t *testing.T) {
+	ctx := context.Background()
+	r := notifier.NewMemRepo()
+	t0 := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	id := func(n int) core.UUID { return core.MustParseUUID(fmt.Sprintf("0190a1b2-0000-7000-8000-%012d", n)) }
+	// id order 1..4; due order 4, 2, 3 (tie by id), 1.
+	for _, d := range []struct {
+		n  int
+		at time.Time
+	}{{1, t0.Add(-time.Minute)}, {2, t0.Add(-3 * time.Minute)}, {3, t0.Add(-3 * time.Minute)}, {4, t0.Add(-4 * time.Minute)}, {5, t0.Add(time.Minute)}} {
+		if err := r.InTx(ctx, func(ctx context.Context, tx notifier.Tx) error {
+			return tx.InsertDelivery(ctx, notifier.Delivery{ID: id(d.n), Status: notifier.DeliveryPending, NextAttemptAt: d.at})
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := r.DueDeliveries(ctx, t0, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []core.UUID
+	for _, d := range got {
+		ids = append(ids, d.ID)
+	}
+	if want := []core.UUID{id(4), id(2), id(3)}; !slices.Equal(ids, want) {
+		t.Fatalf("due %v, want %v", ids, want)
 	}
 }
