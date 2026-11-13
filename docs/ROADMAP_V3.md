@@ -35,7 +35,7 @@ benchmarks with acceptance shapes, and no trivial tests.
 | T6 | Leads and learned ranking under a data-use policy | M | v2 scores, T5 |
 | T7 | Detection framework and advisory matching | M–L | T1 (library detection), T2 |
 | T8 | Anomaly toolkit | M | v2 content, T6 policy |
-| T9 | Agent step and MCP front (spec 16, deferred in v1 and v2) | L | T6, T7 |
+| T9 | Agent step and MCP front: **moved to v4** (`docs/ROADMAP_V4.md`) | — | — |
 | T10 | Carry-overs from the v2 roadmap | — | — |
 
 ---
@@ -268,25 +268,13 @@ From Sentinel `domain/anomaly/`, behind the T6 data-use policy:
 
 Every output is a ranked suggestion with evidence.
 
-## T9. Agent step and MCP front
+## T9. Agent step and MCP front: moved to v4
 
-v1 and v2 deferred the agent step (D1). T6 and T7 give agents something
-worth reasoning over. Scope:
-
-* **MCP server** (hybrid design from v1 planning): read-only graph,
-  change and search tools, plus `check_plan` and `submit_plan` through the
-  normal compile, policy and approval gate.
-* **Planner:**
-  * Claude or Genkit adapters behind the `Llm` and `Embedder` ports;
-  * a repair loop that feeds compiler diagnostics back to the model;
-  * budgets;
-  * untrusted-content wrapping (spec 16.3);
-  * an eval harness replaying recorded runs (16.6).
-* **Model output is advisory:** a `Suggestion` with status `proposed`
-  that records the question, evidence, alternatives, missing evidence and
-  the permitted next step (Sentinel METHODOLOGY-INTELLIGENCE MI01–MI20).
-  No tenant data goes to a third-party model unless the tenant's
-  data-use policy allows it.
+The agent step, the MCP server and the agent roles are now the subject of
+`docs/ROADMAP_V4.md` (the agentic intelligence platform). v4 starts only
+when the v1–v3 gap register (`docs/GAPS.md`) is closed. v3 must deliver
+the evidence model, leads, detection ledger and data-use policy that
+agents depend on.
 
 ## T10. Carry-overs from the v2 roadmap
 
@@ -313,7 +301,6 @@ and roll into v3 unless pulled forward:
 7. **T6** leads and ranking, with the data-use policy.
 8. **T4** entity resolution and namespaces.
 9. **T8** anomaly toolkit.
-10. **T9** agent step and MCP.
 
 Carry-overs (T10) are interleaved as capacity allows. A1 (sandbox) should
 come before any tier-1 detection probes ship.
@@ -330,5 +317,5 @@ come before any tier-1 detection probes ship.
   rather than adopting oxc or Sentinel's parsers. The project is for
   learning, so the parsers are part of the point. oxc and swc remain
   design references and test oracles.
-* **Open:** third-party model use for T9 (default none unless a tenant
-  opts in).
+* Third-party model use moves to the v4 decisions (`docs/ROADMAP_V4.md`
+  §8).
