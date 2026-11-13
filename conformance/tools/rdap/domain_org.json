@@ -1,0 +1,375 @@
+{
+ "description": "www.example.org is looked up as its registrable domain example.org at PIR (a thick registry): registrant organization kept, redacted administrative contact and registrar ignored, DNSSEC and events mapped.",
+ "input": "www.example.org",
+ "scope": {
+  "allow": [
+   "*.example.org",
+   "example.org"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://data.iana.org/rdap/dns.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": {
+    "description": "RDAP bootstrap file for Domain Name System registrations",
+    "publication": "2026-10-01T18:00:01Z",
+    "services": [
+     [
+      [
+       "com",
+       "net"
+      ],
+      [
+       "https://rdap.verisign.com/com/v1/"
+      ]
+     ],
+     [
+      [
+       "org"
+      ],
+      [
+       "https://rdap.publicinterestregistry.org/rdap/"
+      ]
+     ],
+     [
+      [
+       "xn--p1ai",
+       "ru"
+      ],
+      [
+       "https://rdap.tcinet.ru/"
+      ]
+     ]
+    ],
+    "version": "1.0"
+   }
+  },
+  {
+   "url": "https://rdap.publicinterestregistry.org/rdap/domain/example.org",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/rdap+json"
+   },
+   "body": {
+    "objectClassName": "domain",
+    "handle": "D402200000000000000-LROR",
+    "ldhName": "example.org",
+    "rdapConformance": [
+     "rdap_level_0",
+     "icann_rdap_response_profile_0",
+     "icann_rdap_technical_implementation_guide_0"
+    ],
+    "status": [
+     "client delete prohibited",
+     "client transfer prohibited",
+     "client update prohibited"
+    ],
+    "events": [
+     {
+      "eventAction": "registration",
+      "eventDate": "1995-08-31T04:00:00Z"
+     },
+     {
+      "eventAction": "expiration",
+      "eventDate": "2027-08-30T04:00:00Z"
+     },
+     {
+      "eventAction": "last changed",
+      "eventDate": "2026-07-01T09:15:22.31Z"
+     },
+     {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2026-11-12T23:59:01Z"
+     }
+    ],
+    "secureDNS": {
+     "zoneSigned": true,
+     "delegationSigned": true,
+     "dsData": [
+      {
+       "keyTag": 26974,
+       "algorithm": 8,
+       "digestType": 2,
+       "digest": "4FEDE294C53F438A158C41D39489CD78A86BEB0D8A0AEAFF14745C0D16E1DE32"
+      }
+     ]
+    },
+    "nameservers": [
+     {
+      "objectClassName": "nameserver",
+      "ldhName": "a.iana-servers.net"
+     },
+     {
+      "objectClassName": "nameserver",
+      "ldhName": "b.iana-servers.net"
+     }
+    ],
+    "entities": [
+     {
+      "objectClassName": "entity",
+      "handle": "376",
+      "roles": [
+       "registrar"
+      ],
+      "publicIds": [
+       {
+        "type": "IANA Registrar ID",
+        "identifier": "376"
+       }
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "RESERVED-Internet Assigned Numbers Authority"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "org"
+        ],
+        [
+         "adr",
+         {
+          "label": "1600 Amphitheatre Parkway\nMountain View\nCA\n94043\nUnited States"
+         },
+         "text",
+         [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+         ]
+        ]
+       ]
+      ],
+      "entities": [
+       {
+        "objectClassName": "entity",
+        "roles": [
+         "abuse"
+        ],
+        "vcardArray": [
+         "vcard",
+         [
+          [
+           "version",
+           {},
+           "text",
+           "4.0"
+          ],
+          [
+           "fn",
+           {},
+           "text",
+           ""
+          ],
+          [
+           "tel",
+           {
+            "type": "voice"
+           },
+           "uri",
+           "tel:+1.3104489170"
+          ]
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "objectClassName": "entity",
+      "handle": "REDACTED FOR PRIVACY",
+      "roles": [
+       "registrant"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         ""
+        ],
+        [
+         "org",
+         {},
+         "text",
+         "Internet Assigned Numbers Authority"
+        ],
+        [
+         "adr",
+         {
+          "cc": "US"
+         },
+         "text",
+         [
+          "",
+          "",
+          "",
+          "",
+          "CA",
+          "",
+          "US"
+         ]
+        ]
+       ]
+      ],
+      "remarks": [
+       {
+        "title": "REDACTED FOR PRIVACY",
+        "type": "object redacted due to authorization"
+       }
+      ]
+     },
+     {
+      "objectClassName": "entity",
+      "handle": "REDACTED FOR PRIVACY",
+      "roles": [
+       "administrative",
+       "technical"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "REDACTED FOR PRIVACY"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "individual"
+        ]
+       ]
+      ]
+     }
+    ],
+    "port43": "whois.publicinterestregistry.org",
+    "notices": [
+     {
+      "title": "Terms of Use",
+      "description": [
+       "Access to Public Interest Registry WHOIS information is provided ..."
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "expect": {
+  "output": [
+   {
+    "legal_name": null,
+    "name": "Internet Assigned Numbers Authority",
+    "unique_id": "rdap-name:internet assigned numbers authority"
+   }
+  ],
+  "skipped": [],
+  "requests": [
+   "https://data.iana.org/rdap/dns.json",
+   "https://rdap.publicinterestregistry.org/rdap/domain/example.org"
+  ],
+  "dials": [],
+  "dns_queries": [],
+  "observations": [
+   {
+    "confidence": 0.9,
+    "edges": [
+     {
+      "from": "e0",
+      "relation": {
+       "label": "registration_record",
+       "type": "SimpleRelation"
+      },
+      "to": "e1"
+     },
+     {
+      "from": "e1",
+      "relation": {
+       "label": "registrant",
+       "type": "SimpleRelation"
+      },
+      "to": "e2"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "name": "example.org",
+       "type": "FQDN"
+      },
+      "ref": "e0"
+     },
+     {
+      "asset": {
+       "created_date": "1995-08-31T04:00:00.000Z",
+       "dnssec": true,
+       "domain": "example.org",
+       "expiration_date": "2027-08-30T04:00:00.000Z",
+       "extension": "org",
+       "id": "D402200000000000000-LROR",
+       "name": "example",
+       "status": [
+        "client delete prohibited",
+        "client transfer prohibited",
+        "client update prohibited"
+       ],
+       "type": "DomainRecord",
+       "updated_date": "2026-07-01T09:15:22.310Z",
+       "whois_server": "whois.publicinterestregistry.org"
+      },
+      "ref": "e1"
+     },
+     {
+      "asset": {
+       "name": "Internet Assigned Numbers Authority",
+       "type": "Organization",
+       "unique_id": "rdap-name:internet assigned numbers authority"
+      },
+      "ref": "e2"
+     }
+    ],
+    "observation_id": "obs_6Z0698FYM0GHMRGYHPF28HJ861",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "rdap",
+     "version": "1.0.0"
+    }
+   }
+  ]
+ }
+}

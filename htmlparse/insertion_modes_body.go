@@ -157,7 +157,7 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		b.framesetOK = false
 		return false
 	case tagForm:
-		parsingTemplate := b.templateOnStack()
+		parsingTemplate := b.parsingTemplateContents()
 		if b.form != None && !parsingTemplate {
 			b.parseError(ErrUnexpectedStartTag)
 			return false
@@ -475,7 +475,7 @@ func (b *treeBuilder) inBodyEndTag(tok *Token) bool {
 		b.popUntil(tok.atom)
 		return false
 	case tagForm:
-		if !b.templateOnStack() {
+		if !b.parsingTemplateContents() {
 			node := b.form
 			b.form = None
 			if node == None || !b.nodeInScope(node) {

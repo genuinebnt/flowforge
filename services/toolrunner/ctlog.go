@@ -158,11 +158,16 @@ func (c *CTLog) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, out
 		_ = out.Progress(int64(i), total, "certificates")
 		der, err := ctGet(ctx, hc, base+"/?d="+strconv.FormatInt(id, 10), 1<<20)
 		if err != nil {
-			if te, ok := isToolError(err); ok && te.Retryable {
-				_ = out.Skipped("crt.sh certificate "+strconv.FormatInt(id, 10), "unavailable")
-				continue
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
 			}
-			return nil, err
+			reason := "unavailable"
+			if te, ok := isToolError(err); ok {
+				reason = te.Code
+			}
+			// One missing certificate does not fail the search.
+			_ = out.Skipped("crt.sh certificate "+strconv.FormatInt(id, 10), reason)
+			continue
 		}
 		cert, err := parseCertificate(der)
 		if err != nil {

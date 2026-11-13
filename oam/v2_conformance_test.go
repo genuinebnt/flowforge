@@ -187,10 +187,10 @@ func TestOAMConformance_Properties(t *testing.T) {
 type contentChangeFile struct {
 	Description string `json:"description"`
 	Cases       []struct {
-		Name       string                 `json:"name"`
-		Patch      oam.ContentChangePatch `json:"patch"`
+		Name       string                  `json:"name"`
+		Patch      oam.ContentChangePatch  `json:"patch"`
 		Normalized *oam.ContentChangePatch `json:"normalized"`
-		Error      bool                   `json:"error"`
+		Error      bool                    `json:"error"`
 	} `json:"cases"`
 }
 

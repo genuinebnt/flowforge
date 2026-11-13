@@ -1,0 +1,24 @@
+{
+ "description": "Out-of-scope IP: skipped, no request.",
+ "input": "198.51.100.9",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "http": [],
+ "expect": {
+  "output": [],
+  "skipped": [
+   {
+    "target": "198.51.100.9",
+    "reason": "no_matching_allow"
+   }
+  ],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

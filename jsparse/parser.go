@@ -200,6 +200,10 @@ func (p *parser) checkLexError() {
 		span = Span{t.Start, t.End}
 	}
 	msg := t.Err.String()
+	if p.skipping {
+		p.diags = append(p.diags, Diagnostic{Code: t.Err, Span: span, Message: msg})
+		return
+	}
 	if t.Kind == TInvalid || t.Err == CodeUnterminatedString || t.Err == CodeUnterminatedTemplate || t.Err == CodeUnterminatedRegExp {
 		p.syntaxErrorAt(t.Err, span, msg)
 		return

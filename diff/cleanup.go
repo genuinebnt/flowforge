@@ -23,21 +23,22 @@ import (
 //  3. Lossless shift (diff_cleanupSemanticLossless): a single edit between
 //     two equalities slides to the position with the best boundary score.
 //  4. Overlap: when a deletion ends with a prefix of the following
-//     insertion (or the reverse) and the overlap is more than half of
+//     insertion (or the reverse) and the overlap is at least half of
 //     either, the overlap becomes an equality.
 //
-// Unlike diff-match-patch, step 4 requires strictly more than half (so
-// step 1 can never undo it), and the four steps repeat until nothing
-// changes, so the result is a fixpoint: CleanupSemantic is idempotent.
+// The four steps (plus a final merge) repeat until a whole round changes
+// nothing, so the result is a fixpoint and CleanupSemantic is idempotent.
+// On diff-match-patch's own test vectors a single round already gives its
+// published results (conformance/diff/cleanup.json).
 
 // CleanupOptions configures CleanupSemantic.
 type CleanupOptions struct {
-	// Score rates the boundary between two adjacent tokens for the lossless
-	// shift (higher is better). It is not called for the ends of a
-	// sequence, which always score 6 (diff-match-patch's edge score). Nil
-	// scores every inner boundary 0, which slides edits as far right
-	// (down) as possible, like git.
-	Score func(left, right uint32) int
+	// Score rates the boundary between the non-empty token runs left and
+	// right for the lossless shift (higher is better), like
+	// diff_cleanupSemanticScore. An empty side always scores 6 (the edge
+	// score) without a call. Nil scores every inner boundary 0, which
+	// slides edits as far right (down) as possible, like git.
+	Score func(left, right []uint32) int
 }
 
 // seg is one run of the token-level diff list.
@@ -54,18 +55,23 @@ func CleanupSemantic(old []uint32, s EditScript, opts CleanupOptions) (EditScrip
 	if err != nil {
 		return EditScript{}, err
 	}
+	return fromSegs(cleanupSemanticSegs(segs, opts.Score), s.OldLen, s.NewLen), nil
+}
+
+// cleanupSemanticSegs runs cleanup rounds until a fixpoint.
+func cleanupSemanticSegs(segs []seg, score func(l, r []uint32) int) []seg {
 	for iter := 0; iter < len(segs)+8; iter++ {
 		before := cloneSegs(segs)
 		segs = cleanupEliminate(segs)
 		segs = cleanupMerge(segs)
-		segs = cleanupLossless(segs, opts.Score)
+		segs = cleanupLossless(segs, score)
 		segs = cleanupOverlap(segs)
 		segs = cleanupMerge(segs)
 		if segsEqual(segs, before) {
 			break
 		}
 	}
-	return fromSegs(segs, s.OldLen, s.NewLen), nil
+	return segs
 }
 
 func toSegs(old []uint32, s EditScript) ([]seg, error) {
@@ -271,7 +277,7 @@ func shiftPass(segs []seg) ([]seg, bool) {
 }
 
 // cleanupLossless is diff_cleanupSemanticLossless.
-func cleanupLossless(segs []seg, score func(l, r uint32) int) []seg {
+func cleanupLossless(segs []seg, score func(l, r []uint32) int) []seg {
 	sc := func(left, right []uint32) int {
 		if len(left) == 0 || len(right) == 0 {
 			return 6
@@ -279,7 +285,7 @@ func cleanupLossless(segs []seg, score func(l, r uint32) int) []seg {
 		if score == nil {
 			return 0
 		}
-		return score(left[len(left)-1], right[0])
+		return score(left, right)
 	}
 	for p := 1; p < len(segs)-1; p++ {
 		if segs[p-1].kind != OpEqual || segs[p+1].kind != OpEqual || segs[p].kind == OpEqual {
@@ -327,14 +333,14 @@ func cleanupOverlap(segs []seg) []seg {
 		del, ins := segs[p-1].toks, segs[p].toks
 		o1, o2 := commonOverlap(del, ins), commonOverlap(ins, del)
 		if o1 >= o2 {
-			if o1 > 0 && (2*o1 > len(del) || 2*o1 > len(ins)) {
+			if o1 > 0 && (2*o1 >= len(del) || 2*o1 >= len(ins)) {
 				eq := seg{OpEqual, slices.Clone(ins[:o1])}
 				segs[p-1].toks = slices.Clone(del[:len(del)-o1])
 				segs[p].toks = slices.Clone(ins[o1:])
 				segs = slices.Insert(segs, p, eq)
 				p++
 			}
-		} else if 2*o2 > len(del) || 2*o2 > len(ins) {
+		} else if 2*o2 >= len(del) || 2*o2 >= len(ins) {
 			eq := seg{OpEqual, slices.Clone(del[:o2])}
 			segs[p-1] = seg{OpInsert, slices.Clone(ins[:len(ins)-o2])}
 			segs[p] = seg{OpDelete, slices.Clone(del[o2:])}
@@ -379,10 +385,10 @@ func commonOverlap(a, b []uint32) int {
 // LineScorer returns a boundary score for interned lines: 5 next to a
 // blank (white-space only) line, 4 at any other line boundary. With it the
 // lossless shift moves changes to start or end at blank lines.
-func LineScorer(in *Interner) func(left, right uint32) int {
-	return func(left, right uint32) int {
-		l, _ := in.Value(left)
-		r, _ := in.Value(right)
+func LineScorer(in *Interner) func(left, right []uint32) int {
+	return func(left, right []uint32) int {
+		l, _ := in.Value(left[len(left)-1])
+		r, _ := in.Value(right[0])
 		if strings.TrimSpace(l) == "" || strings.TrimSpace(r) == "" {
 			return 5
 		}
@@ -390,26 +396,37 @@ func LineScorer(in *Interner) func(left, right uint32) int {
 	}
 }
 
-// WordScorer returns diff-match-patch's boundary score for interned word
-// tokens (SplitWords): 5 next to a blank line (white space holding two
-// line breaks), 4 at a line break, 3 after the end of a sentence, 2 at
+// TextScorer returns diff-match-patch's diff_cleanupSemanticScore for
+// interned text tokens (characters or SplitWords words), computed on the
+// text of the last three tokens of left and the first four of right: 5 at
+// a blank line, 4 at a line break, 3 after the end of a sentence, 2 at
 // white space, 1 at other punctuation, 0 inside a word.
-func WordScorer(in *Interner) func(left, right uint32) int {
-	return func(left, right uint32) int {
-		l, _ := in.Value(left)
-		r, _ := in.Value(right)
-		if l == "" || r == "" {
+func TextScorer(in *Interner) func(left, right []uint32) int {
+	return func(left, right []uint32) int {
+		var lb, rb strings.Builder
+		for _, id := range left[max(0, len(left)-3):] {
+			v, _ := in.Value(id)
+			lb.WriteString(v)
+		}
+		for _, id := range right[:min(4, len(right))] {
+			v, _ := in.Value(id)
+			rb.WriteString(v)
+		}
+		one, two := lb.String(), rb.String()
+		if one == "" || two == "" {
 			return 6
 		}
-		c1, _ := utf8.DecodeLastRuneInString(l)
-		c2, _ := utf8.DecodeRuneInString(r)
+		c1, _ := utf8.DecodeLastRuneInString(one)
+		c2, _ := utf8.DecodeRuneInString(two)
 		nonAlnum1 := !unicode.IsLetter(c1) && !unicode.IsDigit(c1)
 		nonAlnum2 := !unicode.IsLetter(c2) && !unicode.IsDigit(c2)
-		ws1, ws2 := unicode.IsSpace(c1), unicode.IsSpace(c2)
-		lb1 := c1 == '\r' || c1 == '\n'
-		lb2 := c2 == '\r' || c2 == '\n'
-		blank1 := lb1 && strings.TrimSpace(l) == "" && strings.Count(l, "\n") >= 2
-		blank2 := lb2 && strings.TrimSpace(r) == "" && strings.Count(r, "\n") >= 2
+		ws1 := nonAlnum1 && unicode.IsSpace(c1)
+		ws2 := nonAlnum2 && unicode.IsSpace(c2)
+		lb1 := ws1 && (c1 == '\r' || c1 == '\n')
+		lb2 := ws2 && (c2 == '\r' || c2 == '\n')
+		blank1 := lb1 && (strings.HasSuffix(one, "\n\n") || strings.HasSuffix(one, "\n\r\n"))
+		blank2 := lb2 && (strings.HasPrefix(two, "\n\n") || strings.HasPrefix(two, "\n\r\n") ||
+			strings.HasPrefix(two, "\r\n\n") || strings.HasPrefix(two, "\r\n\r\n"))
 		switch {
 		case blank1 || blank2:
 			return 5

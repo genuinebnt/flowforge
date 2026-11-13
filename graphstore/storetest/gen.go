@@ -92,3 +92,79 @@ func RandomCoveringRun(r core.Rng, i int) CoveringRun {
 	run := pick(r, "run-1", "run-2", "run-3", fmt.Sprintf("cover-%d", i))
 	return CoveringRun{Tool: pick(r, "subfinder", "dnsx", "httpx"), Run: RunID(run), At: T0.Add(time.Hour + time.Duration(i)*time.Minute)}
 }
+
+var (
+	authPages   = []string{"https://acme.com/", "https://acme.com/shop"}
+	authScripts = []string{"https://acme.com/a.js", "https://acme.com/b.js", "https://cdn.acme.com/c.js"}
+	authLinks   = []string{"https://acme.com/about", "https://acme.com/help"}
+	authForms   = []string{"https://acme.com/login", "https://acme.com/search"}
+)
+
+// RandomAuthObservation draws observation number i of a content-capture
+// workload: complete, partial, failed and unsupported authoritative
+// captures of two pages under two profiles with random covered rule
+// families (scripts, links, frames, forms, headers), mixed with classic
+// crawler observations of the same facts, header tags on the pages and
+// the occasional non-source edge. Times tie often.
+func RandomAuthObservation(r core.Rng, i int, tenant, program string) oam.Observation {
+	o := oam.Observation{
+		ObservationID: fmt.Sprintf("auth-%d", i), TenantID: tenant, ProgramID: program, RunID: RunID(pick(r, "run-1", "run-2")),
+		ObservedAt: T0.Add(time.Duration(core.IntN(r, 6)) * time.Minute), Confidence: pick(r, 0.5, 0.9),
+		Tool: oam.Tool{Name: "extract"},
+	}
+	o.Entities = append(o.Entities, ent("p", oam.URL{URL: pick(r, authPages...)}))
+	n := 0
+	add := func(a oam.Asset, label string) {
+		ref := fmt.Sprint("t", n)
+		n++
+		o.Entities = append(o.Entities, ent(ref, a))
+		o.Edges = append(o.Edges, oam.ObservedEdge{From: "p", To: ref, Relation: oam.SimpleRelation{Label: label}})
+	}
+	for _, u := range authScripts {
+		if core.IntN(r, 2) == 0 {
+			add(oam.File{URL: u}, oam.LabelLoadsScript)
+		}
+	}
+	for _, u := range authLinks {
+		if core.IntN(r, 2) == 0 {
+			add(oam.URL{URL: u}, pick(r, oam.LabelLinksTo, oam.LabelEmbeds))
+		}
+	}
+	for _, u := range authForms {
+		if core.IntN(r, 3) == 0 {
+			add(oam.Endpoint{Method: "POST", URLTemplate: u, Source: oam.EndpointSourceHTMLForm}, oam.LabelFormAction)
+		}
+	}
+	for _, h := range []string{"server", "x-frame-options"} {
+		if core.IntN(r, 2) == 0 {
+			o.Tags = append(o.Tags, oam.ObservedTag{Target: "p", Property: oam.HTTPHeaderProperty{Name: h, Value: pick(r, "a", "b")}})
+		}
+	}
+	if core.IntN(r, 4) == 0 && n > 1 {
+		o.Edges = append(o.Edges, oam.ObservedEdge{From: "t0", To: "t1", Relation: oam.SimpleRelation{Label: "seen_with"}})
+	}
+	if core.IntN(r, 4) == 0 {
+		o.Tool.Name = "crawl"
+		return o
+	}
+	cov := pick(r, oam.CoverageComplete, oam.CoverageComplete, oam.CoverageComplete, oam.CoveragePartial, oam.CoverageFailed, oam.CoverageUnsupported)
+	var rules []string
+	for _, f := range []string{oam.FamilyScripts, oam.FamilyLinks, oam.FamilyFrames, oam.FamilyForms, oam.FamilyHeaders} {
+		if core.IntN(r, 3) > 0 {
+			rules = append(rules, f)
+		}
+	}
+	o.Authority = &oam.Authority{Source: "p", Profile: pick(r, "default", "mobile"), Coverage: cov, CoveredRules: rules}
+	o.Cause = pick(r, "", oam.CauseTarget, oam.CauseParser)
+	o.Baseline = core.IntN(r, 5) == 0
+	return o
+}
+
+// RandomMixedObservation draws from RandomObservation and
+// RandomAuthObservation (ids kept distinct).
+func RandomMixedObservation(r core.Rng, i int, tenant, program string) oam.Observation {
+	if core.IntN(r, 2) == 0 {
+		return RandomObservation(r, i, tenant, program)
+	}
+	return RandomAuthObservation(r, i, tenant, program)
+}

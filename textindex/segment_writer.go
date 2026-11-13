@@ -188,7 +188,6 @@ func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
 			sumLen[f] += uint64(npos)
 			tris = appendTrigrams(tris, tb)
 		}
-		tris = sortUnique32(tris)
 		for _, t := range tris {
 			ti, ok := triIdx[t]
 			if !ok {
@@ -197,7 +196,10 @@ func encodeSegment(s Schema, docs []docFields, c *codec) ([]byte, error) {
 				triDocs = append(triDocs, nil)
 				triKeys = append(triKeys, t)
 			}
-			triDocs[ti] = append(triDocs[ti], uint32(d))
+			// Each doc is appended once per trigram (docs arrive in order).
+			if dl := triDocs[ti]; len(dl) == 0 || dl[len(dl)-1] != uint32(d) {
+				triDocs[ti] = append(dl, uint32(d))
+			}
 		}
 	}
 

@@ -166,7 +166,8 @@ func start0(start, n int) int {
 
 // DIFF-INV-16: CleanupSemantic is Apply-correct and canonical, never
 // shortens a script below the minimal distance, leaves no equality that
-// its own elimination rule would remove, and is idempotent.
+// its elimination rule would remove (other than the overlap equalities of
+// step 4), and is idempotent.
 func TestDiffInv16_SemanticCleanup(t *testing.T) {
 	r := testkit.Rng(t)
 	for range testkit.Cases() {
@@ -174,7 +175,7 @@ func TestDiffInv16_SemanticCleanup(t *testing.T) {
 		s := mustDiff(t, a, b, Options{}).Script
 		var opts CleanupOptions
 		if core.IntN(r, 2) == 0 {
-			opts.Score = func(l, rr uint32) int { return int((l*7 + rr*3) % 5) }
+			opts.Score = func(l, rr []uint32) int { return int((l[len(l)-1]*7 + rr[0]*3) % 5) }
 		}
 		c, err := CleanupSemantic(a, s, opts)
 		if err != nil {
@@ -195,7 +196,15 @@ func TestDiffInv16_SemanticCleanup(t *testing.T) {
 				continue
 			}
 			before, after := regionSize(ops[:i], true), regionSize(ops[i+1:], false)
-			if l := ops[i].Len(); l <= before && l <= after {
+			l := ops[i].Len()
+			// Step 4 keeps overlap equalities of at least half an edit
+			// between a pure deletion and a pure insertion (either order).
+			p, n := ops[i-1], ops[i+1]
+			pure := (i < 2 || ops[i-2].Kind == OpEqual) && (i+2 >= len(ops) || ops[i+2].Kind == OpEqual)
+			if pure && p.Kind != n.Kind && (l >= p.Len() || l >= n.Len()) {
+				continue
+			}
+			if l <= before && l <= after {
 				t.Fatalf("equality %d (len %d) still eliminable (%d/%d): %s", i, l, before, after, c)
 			}
 		}

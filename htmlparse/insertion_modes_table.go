@@ -100,11 +100,14 @@ func (b *treeBuilder) inTableMode(tok *Token) bool {
 			}
 		case tagForm:
 			b.parseError(ErrUnexpectedStartTag)
-			if b.form != None || b.templateOnStack() {
+			parsingTemplate := b.parsingTemplateContents()
+			if b.form != None && !parsingTemplate {
 				return false
 			}
 			id, pushed := b.insertHTML(tok)
-			b.form = id
+			if !parsingTemplate {
+				b.form = id
+			}
 			if pushed {
 				b.pop()
 			}

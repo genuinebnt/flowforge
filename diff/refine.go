@@ -13,7 +13,7 @@ type Span struct {
 }
 
 // RefineLine diffs two versions of a line at word level (SplitWords tokens,
-// Myers, then CleanupSemantic with WordScorer) and returns the changed byte
+// Myers, then CleanupSemantic with TextScorer) and returns the changed byte
 // ranges of each side, sorted and disjoint. Removing the spans from both
 // lines leaves the same text.
 func RefineLine(oldLine, newLine string) (oldSpans, newSpans []Span) {
@@ -24,7 +24,7 @@ func RefineLine(oldLine, newLine string) (oldSpans, newSpans []Span) {
 	if err != nil {
 		return nil, nil
 	}
-	s, err := CleanupSemantic(a, r.Script, CleanupOptions{Score: WordScorer(in)})
+	s, err := CleanupSemantic(a, r.Script, CleanupOptions{Score: TextScorer(in)})
 	if err != nil {
 		s = r.Script
 	}

@@ -2,6 +2,8 @@ package pg
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"maps"
 	"slices"
 	"time"
@@ -67,9 +69,20 @@ func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequ
 	}
 	o := pi.Observation
 	var out graphstore.IngestResult
-	entIDs, edgeIDs := p.EntityIDs(), p.EdgeIDs()
 	err = s.tx(ctx, pi.Tenant, txWriteDeferTenant, func(tx pgx.Tx) error {
 		out = graphstore.IngestResult{}
+		entIDs, edgeIDs := p.EntityIDs(), p.EdgeIDs()
+		// An authoritative capture may withdraw members of its source's
+		// units: read the heads first (no lock yet) so those records are
+		// locked and loaded with the rest; Apply reports
+		// ErrMissingRecords (and the transaction is retried) if another
+		// writer changed the heads in between.
+		if moreEdges, moreEnts, err := preloadHeads(ctx, tx, pi.Tenant, p); err != nil {
+			return err
+		} else if len(moreEdges)+len(moreEnts) > 0 {
+			entIDs = sortedUnion(entIDs, moreEnts)
+			edgeIDs = sortedUnion(edgeIDs, moreEdges)
+		}
 		var rawRef *string
 		if o.RawRef != "" {
 			rawRef = &o.RawRef
@@ -107,6 +120,9 @@ func (s *Store) IngestObservation(ctx context.Context, req graphstore.IngestRequ
 			return err
 		}
 		res, err := kernel.Apply(st, p, s.cfg.Scope)
+		if errors.Is(err, kernel.ErrMissingRecords) {
+			return errRetry
+		}
 		if err != nil {
 			return graphstore.Classify(err)
 		}
@@ -138,6 +154,7 @@ func changesOf(tenant, program graphstore.ID, st *kernel.State, evs []kernel.Eve
 		c := graphstore.ChangeEvent{
 			ID: ev.ID, Seq: seqs[ev.ID], TenantID: tenant.Text, ProgramID: program.Text, Type: ev.Type,
 			EntityID: ev.EntityID, EdgeID: ev.EdgeID, RunID: ev.RunID, Patch: ev.Patch, At: ev.At,
+			TagType: ev.TagType, TagName: ev.TagName, Base: ev.Base, Cause: ev.Cause, Baseline: ev.Baseline,
 		}
 		if e, ok := st.Entities[ev.EntityID]; ok && ev.EntityID != "" {
 			v := graphstore.EntityFromOAM(e.View(), false)
@@ -284,10 +301,13 @@ ON CONFLICT (` + owner + `, ptype, name) DO UPDATE SET content = EXCLUDED.conten
 	created_at = LEAST(t.created_at, EXCLUDED.created_at), last_seen = GREATEST(t.last_seen, EXCLUDED.last_seen)`
 }
 
-const insertEvents = `INSERT INTO graph.change_events (id, tenant_id, program_id, type, entity_id, edge_id, run_id, patch, at)
-SELECT u.id::uuid, $1::uuid, $2::uuid, u.type, u.entity_id::uuid, u.edge_id::uuid, u.run_id::uuid, u.patch::jsonb, u.at
-FROM unnest($3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::timestamptz[])
-	WITH ORDINALITY AS u(id, type, entity_id, edge_id, run_id, patch, at, ord)
+const insertEvents = `INSERT INTO graph.change_events (id, tenant_id, program_id, type, entity_id, edge_id, run_id, patch, at,
+	tag_type, tag_name, base, cause, baseline)
+SELECT u.id::uuid, $1::uuid, $2::uuid, u.type, u.entity_id::uuid, u.edge_id::uuid, u.run_id::uuid, u.patch::jsonb, u.at,
+	u.tag_type, u.tag_name, u.base::jsonb, u.cause, u.baseline
+FROM unnest($3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::timestamptz[],
+	$10::text[], $11::text[], $12::text[], $13::text[], $14::bool[])
+	WITH ORDINALITY AS u(id, type, entity_id, edge_id, run_id, patch, at, tag_type, tag_name, base, cause, baseline, ord)
 ORDER BY u.ord
 RETURNING id::text, seq`
 
@@ -446,10 +466,12 @@ func writeState(ctx context.Context, tx pgx.Tx, tenant, program graphstore.ID, s
 // emission order).
 func queueEvents(b *pgx.Batch, tenant, program string, evs []kernel.Event) error {
 	var (
-		ids, types        []string
-		ents, edges, runs []*string
-		patches           []*string
-		ats               []time.Time
+		ids, types                         []string
+		ents, edges, runs                  []*string
+		patches, tagTypes, tagNames, bases []*string
+		causes                             []*string
+		baselines                          []bool
+		ats                                []time.Time
 	)
 	for _, ev := range evs {
 		id, err := uuidOf(core.PrefixChange, ev.ID)
@@ -471,12 +493,86 @@ func queueEvents(b *pgx.Batch, tenant, program string, evs []kernel.Event) error
 			ps := string(pb)
 			patch = &ps
 		}
+		base, err := encodeBase(ev.Base)
+		if err != nil {
+			return graphstore.Internal("encode base", err)
+		}
 		ids, types = append(ids, id), append(types, string(ev.Type))
 		ents, edges, runs, patches = append(ents, ent), append(edges, edge), append(runs, run), append(patches, patch)
+		tagTypes, tagNames, bases = append(tagTypes, nullText(ev.TagType)), append(tagNames, nullText(ev.TagName)), append(bases, base)
+		causes, baselines = append(causes, nullText(ev.Cause)), append(baselines, ev.Baseline)
 		ats = append(ats, ev.At)
 	}
-	b.Queue(insertEvents, tenant, program, ids, types, ents, edges, runs, patches, ats)
+	b.Queue(insertEvents, tenant, program, ids, types, ents, edges, runs, patches, ats, tagTypes, tagNames, bases, causes, baselines)
 	return nil
+}
+
+func nullText(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func encodeBase(b map[string]any) (*string, error) {
+	if b == nil {
+		return nil, nil
+	}
+	j, err := json.Marshal(b)
+	if err != nil {
+		return nil, err
+	}
+	s := string(j)
+	return &s, nil
+}
+
+// errRetry asks tx to run the transaction again (heads changed between
+// the preload and the locks).
+var errRetry = errors.New("pg: authority heads changed, retry")
+
+// preloadHeads reads the stored units of an authoritative observation's
+// source (without locking) and returns the member edges and targets the
+// observation may withdraw.
+func preloadHeads(ctx context.Context, tx pgx.Tx, tenant graphstore.ID, p *kernel.Prepared) (edges, entities []string, err error) {
+	if p.Auth == nil || !p.Auth.Complete || len(p.Auth.Covered) == 0 {
+		return nil, nil, nil
+	}
+	u, err := uuidOf(core.PrefixEntity, p.SourceID())
+	if err != nil {
+		return nil, nil, graphstore.Internal("source id", err)
+	}
+	names := make([]string, len(p.Auth.Covered))
+	for i, f := range p.Auth.Covered {
+		names[i] = oam.UnitKey(p.Auth.Profile, f)
+	}
+	if _, err := tx.Exec(ctx, setTenant, tenant.UUID.String()); err != nil {
+		return nil, nil, graphstore.Internal("set tenant", err)
+	}
+	rows, err := tx.Query(ctx, `SELECT name, content FROM graph.entity_tags
+		WHERE tenant_id = $1 AND entity_id = $2::uuid AND ptype = '`+kernel.PTypeAuth+`' AND name = ANY($3)`, tenant.UUID.String(), u, names)
+	if err != nil {
+		return nil, nil, graphstore.Internal("preload heads", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		t := kernel.StoredTag{PType: kernel.PTypeAuth}
+		if err := rows.Scan(&t.Name, &t.Content); err != nil {
+			return nil, nil, graphstore.Internal("preload heads", err)
+		}
+		h, err := kernel.DecodeHead(t)
+		if err != nil {
+			return nil, nil, graphstore.Internal("decode head", err)
+		}
+		e, n := kernel.HeadTargets(h)
+		edges, entities = append(edges, e...), append(entities, n...)
+	}
+	return edges, entities, rows.Err()
+}
+
+func sortedUnion(a, b []string) []string {
+	out := append(slices.Clone(a), b...)
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // AddTag implements graphstore.Store: the tag is ingested as an

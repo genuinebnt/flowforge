@@ -1,0 +1,437 @@
+{
+ "description": "The DNS forwarder refuses the Cymru name (no DNS path for this caller): the origin AS comes from ARIN's origin-AS extension and the announced netblock from the allocation.",
+ "input": "8.8.8.8",
+ "scope": {
+  "allow": [
+   "8.8.8.8"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://data.iana.org/rdap/ipv4.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": {
+    "description": "RDAP bootstrap file for IPv4 address allocations",
+    "publication": "2026-09-20T22:00:02Z",
+    "services": [
+     [
+      [
+       "3.0.0.0/8",
+       "8.0.0.0/8",
+       "193.0.0.0/8"
+      ],
+      [
+       "https://rdap.arin.net/registry/",
+       "http://rdap.arin.net/registry/"
+      ]
+     ],
+     [
+      [
+       "194.0.0.0/7"
+      ],
+      [
+       "https://rdap.db.ripe.net/"
+      ]
+     ]
+    ],
+    "version": "1.0"
+   }
+  },
+  {
+   "url": "https://rdap.arin.net/registry/ip/8.8.8.8",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/rdap+json"
+   },
+   "body": {
+    "objectClassName": "ip network",
+    "handle": "NET-8-8-8-0-2",
+    "startAddress": "8.8.8.0",
+    "endAddress": "8.8.8.255",
+    "ipVersion": "v4",
+    "name": "GOGL",
+    "type": "DIRECT ALLOCATION",
+    "parentHandle": "NET-8-0-0-0-0",
+    "status": [
+     "active"
+    ],
+    "port43": "whois.arin.net",
+    "cidr0_cidrs": [
+     {
+      "v4prefix": "8.8.8.0",
+      "length": 24
+     }
+    ],
+    "arin_originas0_originautnums": [
+     15169
+    ],
+    "events": [
+     {
+      "eventAction": "last changed",
+      "eventDate": "2023-12-28T17:24:56-05:00"
+     },
+     {
+      "eventAction": "registration",
+      "eventDate": "2023-12-28T17:24:33-05:00"
+     }
+    ],
+    "entities": [
+     {
+      "objectClassName": "entity",
+      "handle": "GOGL",
+      "roles": [
+       "registrant"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "Google LLC"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "org"
+        ],
+        [
+         "adr",
+         {
+          "label": "1600 Amphitheatre Parkway\nMountain View\nCA\n94043\nUnited States"
+         },
+         "text",
+         [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+         ]
+        ]
+       ]
+      ],
+      "entities": [
+       {
+        "objectClassName": "entity",
+        "handle": "ABUSE5250-ARIN",
+        "roles": [
+         "abuse"
+        ],
+        "vcardArray": [
+         "vcard",
+         [
+          [
+           "version",
+           {},
+           "text",
+           "4.0"
+          ],
+          [
+           "fn",
+           {},
+           "text",
+           "Abuse"
+          ],
+          [
+           "kind",
+           {},
+           "text",
+           "group"
+          ]
+         ]
+        ]
+       }
+      ]
+     }
+    ],
+    "rdapConformance": [
+     "nro_rdap_profile_0",
+     "rdap_level_0",
+     "cidr0",
+     "arin_originas0"
+    ]
+   }
+  },
+  {
+   "url": "https://data.iana.org/rdap/asn.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": {
+    "description": "RDAP bootstrap file for Autonomous System Number allocations",
+    "publication": "2026-10-05T19:00:02Z",
+    "services": [
+     [
+      [
+       "1-1876",
+       "15000-16000"
+      ],
+      [
+       "https://rdap.arin.net/registry/",
+       "http://rdap.arin.net/registry/"
+      ]
+     ],
+     [
+      [
+       "3154-3353"
+      ],
+      [
+       "https://rdap.db.ripe.net/"
+      ]
+     ]
+    ],
+    "version": "1.0"
+   }
+  },
+  {
+   "url": "https://rdap.arin.net/registry/autnum/15169",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/rdap+json"
+   },
+   "body": {
+    "objectClassName": "autnum",
+    "handle": "AS15169",
+    "startAutnum": 15169,
+    "endAutnum": 15169,
+    "name": "GOOGLE",
+    "status": [
+     "active"
+    ],
+    "port43": "whois.arin.net",
+    "events": [
+     {
+      "eventAction": "last changed",
+      "eventDate": "2012-02-24T09:44:34-05:00"
+     },
+     {
+      "eventAction": "registration",
+      "eventDate": "2000-03-30T00:00:00-05:00"
+     }
+    ],
+    "entities": [
+     {
+      "objectClassName": "entity",
+      "handle": "GOGL",
+      "roles": [
+       "registrant"
+      ],
+      "vcardArray": [
+       "vcard",
+       [
+        [
+         "version",
+         {},
+         "text",
+         "4.0"
+        ],
+        [
+         "fn",
+         {},
+         "text",
+         "Google LLC"
+        ],
+        [
+         "kind",
+         {},
+         "text",
+         "org"
+        ],
+        [
+         "adr",
+         {
+          "label": "1600 Amphitheatre Parkway\nMountain View\nCA\n94043\nUnited States"
+         },
+         "text",
+         [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+         ]
+        ]
+       ]
+      ]
+     }
+    ],
+    "rdapConformance": [
+     "nro_rdap_profile_0",
+     "rdap_level_0",
+     "nro_rdap_profile_asn_flat_0"
+    ]
+   }
+  }
+ ],
+ "dns": [
+  {
+   "name": "8.8.8.8.origin.asn.cymru.com.",
+   "type": 16,
+   "refused": true
+  }
+ ],
+ "expect": {
+  "output": "AS15169",
+  "skipped": [
+   {
+    "target": "8.8.8.8.origin.asn.cymru.com.",
+    "reason": "cymru_unavailable"
+   }
+  ],
+  "requests": [
+   "https://data.iana.org/rdap/ipv4.json",
+   "https://rdap.arin.net/registry/ip/8.8.8.8",
+   "https://data.iana.org/rdap/asn.json",
+   "https://rdap.arin.net/registry/autnum/15169"
+  ],
+  "dials": [],
+  "dns_queries": [
+   "8.8.8.8.origin.asn.cymru.com. 16"
+  ],
+  "observations": [
+   {
+    "confidence": 0.85,
+    "edges": [
+     {
+      "from": "e2",
+      "relation": {
+       "label": "registration",
+       "type": "SimpleRelation"
+      },
+      "to": "e1"
+     },
+     {
+      "from": "e2",
+      "relation": {
+       "label": "contains",
+       "type": "SimpleRelation"
+      },
+      "to": "e0"
+     },
+     {
+      "from": "e1",
+      "relation": {
+       "label": "registrant",
+       "type": "SimpleRelation"
+      },
+      "to": "e3"
+     },
+     {
+      "from": "e4",
+      "relation": {
+       "label": "announces",
+       "type": "SimpleRelation"
+      },
+      "to": "e2"
+     },
+     {
+      "from": "e4",
+      "relation": {
+       "label": "registration_record",
+       "type": "SimpleRelation"
+      },
+      "to": "e5"
+     },
+     {
+      "from": "e5",
+      "relation": {
+       "label": "registrant",
+       "type": "SimpleRelation"
+      },
+      "to": "e3"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "address": "8.8.8.8",
+       "ip_version": "IPv4",
+       "type": "IPAddress"
+      },
+      "ref": "e0"
+     },
+     {
+      "asset": {
+       "cidr": "8.8.8.0/24",
+       "created_date": "2023-12-28T22:24:33.000Z",
+       "end_address": "8.8.8.255",
+       "handle": "NET-8-8-8-0-2",
+       "ipnet_type": "DIRECT ALLOCATION",
+       "name": "GOGL",
+       "parent_handle": "NET-8-0-0-0-0",
+       "start_address": "8.8.8.0",
+       "status": [
+        "active"
+       ],
+       "type": "IPNetRecord",
+       "updated_date": "2023-12-28T22:24:56.000Z",
+       "whois_server": "whois.arin.net"
+      },
+      "ref": "e1"
+     },
+     {
+      "asset": {
+       "cidr": "8.8.8.0/24",
+       "ip_version": "IPv4",
+       "type": "Netblock"
+      },
+      "ref": "e2"
+     },
+     {
+      "asset": {
+       "name": "Google LLC",
+       "type": "Organization",
+       "unique_id": "rdap:GOGL"
+      },
+      "ref": "e3"
+     },
+     {
+      "asset": {
+       "number": 15169,
+       "type": "AutonomousSystem"
+      },
+      "ref": "e4"
+     },
+     {
+      "asset": {
+       "created_date": "2000-03-30T05:00:00.000Z",
+       "handle": "AS15169",
+       "name": "GOOGLE",
+       "number": 15169,
+       "status": [
+        "active"
+       ],
+       "type": "AutnumRecord",
+       "updated_date": "2012-02-24T14:44:34.000Z",
+       "whois_server": "whois.arin.net"
+      },
+      "ref": "e5"
+     }
+    ],
+    "observation_id": "obs_09XFAHYHNJHSZR0KX2JEWFZMQQ",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "asn",
+     "version": "1.0.0"
+    }
+   }
+  ]
+ }
+}

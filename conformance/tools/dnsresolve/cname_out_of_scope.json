@@ -1,0 +1,117 @@
+{
+ "description": "shop.example.com is a CNAME to an out-of-scope host: the hop is skipped and its addresses never used; the CNAME edge itself is reported.",
+ "input": "shop.example.com",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "dns": [
+  {
+   "name": "shop.example.com.",
+   "type": 1,
+   "answers": [
+    {
+     "name": "shop.example.com.",
+     "type": 5,
+     "ttl": 3600,
+     "target": "shops.myshopify.com."
+    },
+    {
+     "name": "shops.myshopify.com.",
+     "type": 1,
+     "ttl": 60,
+     "ip": "23.227.38.65"
+    }
+   ]
+  },
+  {
+   "name": "shop.example.com.",
+   "type": 28,
+   "answers": [
+    {
+     "name": "shop.example.com.",
+     "type": 5,
+     "ttl": 3600,
+     "target": "shops.myshopify.com."
+    }
+   ]
+  },
+  {
+   "name": "shop.example.com.",
+   "type": 15,
+   "answers": []
+  },
+  {
+   "name": "shop.example.com.",
+   "type": 2,
+   "answers": []
+  },
+  {
+   "name": "shop.example.com.",
+   "type": 16,
+   "answers": []
+  }
+ ],
+ "expect": {
+  "output": [],
+  "skipped": [
+   {
+    "target": "shops.myshopify.com",
+    "reason": "no_matching_allow"
+   }
+  ],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [
+   "shop.example.com. 1",
+   "shop.example.com. 28",
+   "shop.example.com. 15",
+   "shop.example.com. 2",
+   "shop.example.com. 16"
+  ],
+  "observations": [
+   {
+    "confidence": 0.95,
+    "edges": [
+     {
+      "from": "e0",
+      "relation": {
+       "header": {
+        "class": 1,
+        "rr_type": 5,
+        "ttl": 3600
+       },
+       "label": "dns_record",
+       "type": "BasicDNSRelation"
+      },
+      "to": "e1"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "name": "shop.example.com",
+       "type": "FQDN"
+      },
+      "ref": "e0"
+     },
+     {
+      "asset": {
+       "name": "shops.myshopify.com",
+       "type": "FQDN"
+      },
+      "ref": "e1"
+     }
+    ],
+    "observation_id": "obs_68782YQTNDG74RGYD4S53PHW7X",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "dnsresolve",
+     "version": "2.0.0"
+    }
+   }
+  ]
+ }
+}

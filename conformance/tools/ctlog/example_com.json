@@ -1,0 +1,367 @@
+{
+ "description": "crt.sh search for example.com: duplicate rows of one certificate, a wildcard, an e-mail and an IP in name_value, a name outside the domain, mixed case; DER downloads for each id (900's download fails with 404).",
+ "input": "example.com",
+ "scope": {
+  "allow": [
+   "example.com",
+   "*.example.com"
+  ]
+ },
+ "http": [
+  {
+   "url": "https://crt.sh/?q=%25.example.com&output=json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": [
+    {
+     "issuer_ca_id": 183267,
+     "issuer_name": "O=Flowforge Fixtures, CN=Flowforge Fixture CA R1",
+     "common_name": "www.example.com",
+     "name_value": "*.dev.example.com\nexample.com\nmail.example.com\npartner.other.net\nwww.example.com",
+     "id": 15012345678,
+     "entry_timestamp": "2026-09-01T12:30:01.123",
+     "not_before": "2026-09-01T12:00:00",
+     "not_after": "2026-11-30T12:00:00",
+     "serial_number": "03a1b2c3d4e5f607",
+     "result_count": 5
+    },
+    {
+     "issuer_ca_id": 183267,
+     "issuer_name": "O=Flowforge Fixtures, CN=Flowforge Fixture CA R1",
+     "common_name": "www.example.com",
+     "name_value": "www.example.com",
+     "id": 15012345678,
+     "entry_timestamp": "2026-09-01T12:30:01.123",
+     "not_before": "2026-09-01T12:00:00",
+     "not_after": "2026-11-30T12:00:00",
+     "serial_number": "03a1b2c3d4e5f607",
+     "result_count": 5
+    },
+    {
+     "issuer_ca_id": 183267,
+     "issuer_name": "O=Flowforge Fixtures, CN=Flowforge Fixture CA R1",
+     "common_name": "example.com",
+     "name_value": "api.example.com\nexample.com\nhostmaster@example.com",
+     "id": 14800000001,
+     "entry_timestamp": "2026-03-01T00:10:00.5",
+     "not_before": "2026-03-01T00:00:00",
+     "not_after": "2026-05-30T00:00:00",
+     "serial_number": "04ff00112233",
+     "result_count": 3
+    },
+    {
+     "issuer_ca_id": 1,
+     "issuer_name": "C=US, O=Old CA, CN=Legacy",
+     "common_name": "*.EXAMPLE.com.",
+     "name_value": "*.EXAMPLE.com.\nlegacy.example.com\n192.0.2.7",
+     "id": 900,
+     "entry_timestamp": "2019-01-01T00:00:00",
+     "not_before": "2019-01-01T00:00:00",
+     "not_after": "2020-01-01T00:00:00",
+     "serial_number": "01",
+     "result_count": 3
+    }
+   ]
+  },
+  {
+   "url": "https://crt.sh/?d=15012345678",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/pkix-cert"
+   },
+   "body_text": "-----BEGIN CERTIFICATE-----\nMIIB9zCCAamgAwIBAgIIA6Gyw9Tl9gcwBQYDK2VwMD8xGzAZBgNVBAoTEkZsb3dm\nb3JnZSBGaXh0dXJlczEgMB4GA1UEAxMXRmxvd2ZvcmdlIEZpeHR1cmUgQ0EgUjEw\nHhcNMjYwOTAxMTIwMDAwWhcNMjYxMTMwMTIwMDAwWjAaMRgwFgYDVQQDEw93d3cu\nZXhhbXBsZS5jb20wKjAFBgMrZXADIQB7PYoUpMmV3hDbi9HSB7SaX68UJhYSNDbq\nzM7j8ipB9KOB5zCB5DAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUH\nAwEwDAYDVR0TAQH/BAIwADAMBgNVHQ4EBQQDBwkJMA8GA1UdIwQIMAaABAECAwQw\nXwYDVR0RBFgwVoIPd3d3LmV4YW1wbGUuY29tggtleGFtcGxlLmNvbYIRKi5kZXYu\nZXhhbXBsZS5jb22CEG1haWwuZXhhbXBsZS5jb22CEXBhcnRuZXIub3RoZXIubmV0\nMC8GA1UdHwQoMCYwJKAioCCGHmh0dHA6Ly9jcmwuZml4dHVyZS50ZXN0L3IxLmNy\nbDAFBgMrZXADQQBGspIA6GPOPlobU91E9NcOsmaGxPInXfEs9/BWg8NJUREqs7W8\nNbk9ngE8qbEoJkC/UF4M41NNJtriXmSAwo8P\n-----END CERTIFICATE-----\n"
+  },
+  {
+   "url": "https://crt.sh/?d=14800000001",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/pkix-cert"
+   },
+   "body_text": "-----BEGIN CERTIFICATE-----\nMIIB0TCCAYOgAwIBAgIGBP8AESIzMAUGAytlcDA/MRswGQYDVQQKExJGbG93Zm9y\nZ2UgRml4dHVyZXMxIDAeBgNVBAMTF0Zsb3dmb3JnZSBGaXh0dXJlIENBIFIxMB4X\nDTI2MDMwMTAwMDAwMFoXDTI2MDUzMDAwMDAwMFowFjEUMBIGA1UEAxMLZXhhbXBs\nZS5jb20wKjAFBgMrZXADIQClU7OavB4Q05CQ2kSyQJa1BtPW7jCwkk9GlzTcE5Ow\nwaOBxzCBxDAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDAYD\nVR0TAQH/BAIwADAMBgNVHQ4EBQQDMwkJMA8GA1UdIwQIMAaABAECAwQwPwYDVR0R\nBDgwNoILZXhhbXBsZS5jb22CD2FwaS5leGFtcGxlLmNvbYEWaG9zdG1hc3RlckBl\neGFtcGxlLmNvbTAvBgNVHR8EKDAmMCSgIqAghh5odHRwOi8vY3JsLmZpeHR1cmUu\ndGVzdC9yMS5jcmwwBQYDK2VwA0EA+NbAdaoNHqSknM9BZRAqy8EhCuHI9bC5xLwV\ncLNFUXio/4UGZpD98PW03bv4Ys4Z1GkscnnHDNBs3FoxhVbzDQ==\n-----END CERTIFICATE-----\n"
+  },
+  {
+   "url": "https://crt.sh/?d=900",
+   "status": 404,
+   "headers": {
+    "Content-Type": "text/html"
+   },
+   "body_text": "<html>Certificate not found</html>"
+  }
+ ],
+ "expect": {
+  "output": [
+   "api.example.com",
+   "dev.example.com",
+   "example.com",
+   "legacy.example.com",
+   "mail.example.com",
+   "www.example.com"
+  ],
+  "skipped": [
+   {
+    "target": "crt.sh certificate 900",
+    "reason": "invalid_response"
+   }
+  ],
+  "requests": [
+   "https://crt.sh/?q=%25.example.com\u0026output=json",
+   "https://crt.sh/?d=15012345678",
+   "https://crt.sh/?d=14800000001",
+   "https://crt.sh/?d=900"
+  ],
+  "dials": [],
+  "dns_queries": [],
+  "observations": [
+   {
+    "confidence": 0.9,
+    "edges": [
+     {
+      "from": "c",
+      "relation": {
+       "label": "common_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n0"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n1"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n2"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n3"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n4"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n0"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "authority_key_id": "01020304",
+       "crl_distribution_points": [
+        "http://crl.fixture.test/r1.crl"
+       ],
+       "fingerprint_sha256": "9a37c1c2c2cc1dafe456c879fd7043dcdf87cc4c641812b5201c36e6c9305802",
+       "is_ca": false,
+       "issuer_common_name": "Flowforge Fixture CA R1",
+       "key_usage": [
+        "digital_signature"
+       ],
+       "not_after": "2026-11-30T12:00:00.000Z",
+       "not_before": "2026-09-01T12:00:00.000Z",
+       "public_key_algorithm": "ed25519",
+       "serial_number": "03a1b2c3d4e5f607",
+       "signature_algorithm": "ed25519",
+       "subject_common_name": "www.example.com",
+       "subject_key_id": "070909",
+       "type": "TLSCertificate",
+       "version": "3"
+      },
+      "ref": "c"
+     },
+     {
+      "asset": {
+       "name": "www.example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n0"
+     },
+     {
+      "asset": {
+       "name": "dev.example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n1"
+     },
+     {
+      "asset": {
+       "name": "example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n2"
+     },
+     {
+      "asset": {
+       "name": "mail.example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n3"
+     },
+     {
+      "asset": {
+       "name": "partner.other.net",
+       "type": "FQDN"
+      },
+      "ref": "c.n4"
+     }
+    ],
+    "observation_id": "obs_0JRD6QPK1DGQATWG4JR4GSAW9G",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "ctlog",
+     "version": "1.0.0"
+    }
+   },
+   {
+    "confidence": 0.9,
+    "edges": [
+     {
+      "from": "c",
+      "relation": {
+       "label": "common_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n0"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n1"
+     },
+     {
+      "from": "c",
+      "relation": {
+       "label": "san_dns_name",
+       "type": "SimpleRelation"
+      },
+      "to": "c.n0"
+     }
+    ],
+    "entities": [
+     {
+      "asset": {
+       "authority_key_id": "01020304",
+       "crl_distribution_points": [
+        "http://crl.fixture.test/r1.crl"
+       ],
+       "fingerprint_sha256": "e44f3e8effb17446d8451d16a36d11dbe0c1a529a483cfa61604b62e3cfcc3df",
+       "is_ca": false,
+       "issuer_common_name": "Flowforge Fixture CA R1",
+       "key_usage": [
+        "digital_signature"
+       ],
+       "not_after": "2026-05-30T00:00:00.000Z",
+       "not_before": "2026-03-01T00:00:00.000Z",
+       "public_key_algorithm": "ed25519",
+       "serial_number": "04ff00112233",
+       "signature_algorithm": "ed25519",
+       "subject_common_name": "example.com",
+       "subject_key_id": "330909",
+       "type": "TLSCertificate",
+       "version": "3"
+      },
+      "ref": "c"
+     },
+     {
+      "asset": {
+       "name": "example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n0"
+     },
+     {
+      "asset": {
+       "name": "api.example.com",
+       "type": "FQDN"
+      },
+      "ref": "c.n1"
+     }
+    ],
+    "observation_id": "obs_1ANCJMFTHJGHVR8BWZ9EJPJRGP",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "ctlog",
+     "version": "1.0.0"
+    }
+   },
+   {
+    "confidence": 0.8,
+    "entities": [
+     {
+      "asset": {
+       "name": "api.example.com",
+       "type": "FQDN"
+      },
+      "ref": "n0"
+     },
+     {
+      "asset": {
+       "name": "dev.example.com",
+       "type": "FQDN"
+      },
+      "ref": "n1"
+     },
+     {
+      "asset": {
+       "name": "example.com",
+       "type": "FQDN"
+      },
+      "ref": "n2"
+     },
+     {
+      "asset": {
+       "name": "legacy.example.com",
+       "type": "FQDN"
+      },
+      "ref": "n3"
+     },
+     {
+      "asset": {
+       "name": "mail.example.com",
+       "type": "FQDN"
+      },
+      "ref": "n4"
+     },
+     {
+      "asset": {
+       "name": "www.example.com",
+       "type": "FQDN"
+      },
+      "ref": "n5"
+     }
+    ],
+    "observation_id": "obs_1HM3PSD2CGHSHS1HXK5KZDN0WK",
+    "observed_at": "2026-11-01T00:00:00Z",
+    "tool": {
+     "name": "ctlog",
+     "version": "1.0.0"
+    }
+   }
+  ]
+ }
+}

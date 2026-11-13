@@ -43,6 +43,15 @@ func (s *store) load(t *testing.T, tenant, prog string, entIDs, edgeIDs []string
 	return st
 }
 
+// loadFor loads what Apply needs for p, as the Postgres store does: the
+// observation's records, then the members and targets its authority may
+// withdraw (from the stored heads of its source).
+func (s *store) loadFor(t *testing.T, tenant, prog string, p *Prepared) *State {
+	st := s.load(t, tenant, prog, p.EntityIDs(), p.EdgeIDs())
+	edges, ents := p.Preload(st.Entities[p.SourceID()])
+	return s.load(t, tenant, prog, append(p.EntityIDs(), ents...), append(p.EdgeIDs(), edges...))
+}
+
 func (s *store) save(t *testing.T, st *State) {
 	for id, e := range st.Entities {
 		if !e.Dirty {
@@ -98,16 +107,18 @@ func canon(t *testing.T, v any) string {
 func flatEvents(evs []oam.ChangeEvent) []Event {
 	var out []Event
 	for _, ev := range evs {
-		out = append(out, Event{ID: ev.ID, Type: ev.Type, EntityID: ev.EntityID, EdgeID: ev.EdgeID, RunID: ev.RunID, Patch: ev.Patch, At: ev.At})
+		out = append(out, Event{ID: ev.ID, Type: ev.Type, EntityID: ev.EntityID, EdgeID: ev.EdgeID, RunID: ev.RunID, Patch: ev.Patch, At: ev.At,
+			TagType: ev.TagType, TagName: ev.TagName, Base: ev.Base, Cause: ev.Cause, Baseline: ev.Baseline})
 	}
 	return out
 }
 
-// TestGraphKernel_MatchesOAM checks that the kernel, with every record
+// TestOAMInv15_KernelMatchesOAM checks OAM-INV-15 (formerly
+// TestGraphKernel_MatchesOAM): the kernel, with every record
 // loaded from and saved to the storage encoding around each operation as
 // the Postgres store does, reproduces oam.Graph exactly: results, change
 // events (ids included) and final state.
-func TestGraphKernel_MatchesOAM(t *testing.T) {
+func TestOAMInv15_KernelMatchesOAM(t *testing.T) {
 	r := testkit.Rng(t)
 	tenant, prog := storetest.TenantID("k"), storetest.ProgramID("k")
 	scope := func(_, _ string, a oam.Asset) oam.ScopeStatus {
@@ -155,7 +166,7 @@ func TestGraphKernel_MatchesOAM(t *testing.T) {
 				}
 				continue
 			}
-			o := storetest.RandomObservation(r, core.IntN(r, n+1), tenant, prog)
+			o := storetest.RandomMixedObservation(r, core.IntN(r, n+1), tenant, prog)
 			want, werr := g.Apply(o)
 			p, err := Prepare(o)
 			if err != nil {
@@ -167,7 +178,7 @@ func TestGraphKernel_MatchesOAM(t *testing.T) {
 			if applied[o.ObservationID] {
 				continue
 			}
-			st := s.load(t, tenant, prog, p.EntityIDs(), p.EdgeIDs())
+			st := s.loadFor(t, tenant, prog, p)
 			got, err := Apply(st, p, scope)
 			if (err != nil) != (werr != nil) {
 				t.Fatalf("case %d: kernel error %v, oam error %v", c, err, werr)
@@ -203,7 +214,7 @@ func TestGraphKernel_StorageRoundTrip(t *testing.T) {
 	for range 50 {
 		st := NewState()
 		for i := range 10 {
-			p, err := Prepare(storetest.RandomObservation(r, i, tenant, prog))
+			p, err := Prepare(storetest.RandomMixedObservation(r, i, tenant, prog))
 			if err != nil {
 				continue
 			}

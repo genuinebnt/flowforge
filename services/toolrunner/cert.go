@@ -47,7 +47,7 @@ var publicKeyNames = map[x509.PublicKeyAlgorithm]string{x509.RSA: "rsa", x509.EC
 func certAsset(c *x509.Certificate) oam.TLSCertificate {
 	a := oam.TLSCertificate{
 		Version:               strconv.Itoa(c.Version),
-		SerialNumber:          c.SerialNumber.Text(16),
+		SerialNumber:          serialText(c),
 		SubjectCommonName:     c.Subject.CommonName,
 		IssuerCommonName:      c.Issuer.CommonName,
 		NotBefore:             timeText(c.NotBefore),
@@ -79,6 +79,22 @@ func certAsset(c *x509.Certificate) oam.TLSCertificate {
 		a.AuthorityKeyID = hex.EncodeToString(c.AuthorityKeyId)
 	}
 	return a
+}
+
+// serialText is the serial as lowercase hex of its big-endian octets (as
+// crt.sh shows it); negative serials (invalid, but seen) keep a sign.
+func serialText(c *x509.Certificate) string {
+	if c.SerialNumber == nil {
+		return ""
+	}
+	h := hex.EncodeToString(c.SerialNumber.Bytes())
+	if h == "" {
+		h = "00"
+	}
+	if c.SerialNumber.Sign() < 0 {
+		return "-" + h
+	}
+	return h
 }
 
 // certRecord is the prelude TlsCertificate record (tool output).

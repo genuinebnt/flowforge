@@ -1,0 +1,23 @@
+{
+ "description": "Out-of-scope IP: skipped, nothing contacted.",
+ "input": "8.8.4.4",
+ "scope": {
+  "allow": [
+   "8.8.8.8"
+  ]
+ },
+ "http": [],
+ "expect": {
+  "output": null,
+  "skipped": [
+   {
+    "target": "8.8.4.4",
+    "reason": "no_matching_allow"
+   }
+  ],
+  "requests": [],
+  "dials": [],
+  "dns_queries": [],
+  "observations": []
+ }
+}

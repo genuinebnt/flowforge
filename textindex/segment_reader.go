@@ -585,9 +585,10 @@ type storedCache struct {
 	raw   []byte
 }
 
-// storedValues returns the stored field values of doc: text fields then
-// stored-only fields (schema order), "" when absent.
-func (sg *Segment) storedValues(doc uint32, cache *storedCache) ([]string, error) {
+// storedFields returns the stored field values of doc: text fields then
+// stored-only fields (schema order), nil when absent. The slices alias the
+// cache's decompressed block and are valid until the cache moves.
+func (sg *Segment) storedFields(doc uint32, cache *storedCache, dst [][]byte) ([][]byte, error) {
 	blk, _ := slices.BinarySearchFunc(sg.stored, doc, func(e storedBlock, d uint32) int {
 		switch {
 		case e.first+e.count <= d:
@@ -600,22 +601,17 @@ func (sg *Segment) storedValues(doc uint32, cache *storedCache) ([]string, error
 	if blk >= len(sg.stored) {
 		return nil, corruptf("doc %d has no stored block", doc)
 	}
-	var raw []byte
-	if cache != nil && cache.sg == sg && cache.block == blk && cache.raw != nil {
-		raw = cache.raw
-	} else {
-		var err error
-		raw, err = sg.blockRaw(blk)
+	if cache.sg != sg || cache.block != blk || cache.raw == nil {
+		raw, err := sg.blockRaw(blk)
 		if err != nil {
 			return nil, err
 		}
-		if cache != nil {
-			*cache = storedCache{sg: sg, block: blk, raw: raw}
-		}
+		*cache = storedCache{sg: sg, block: blk, raw: raw}
 	}
 	nf := len(sg.schema.Text) + len(sg.schema.Stored)
-	out := make([]string, nf)
-	r := newRd(raw)
+	out := slices.Grow(dst[:0], nf)[:nf]
+	clear(out)
+	r := newRd(cache.raw)
 	for d := sg.stored[blk].first; d <= doc && r.ok; d++ {
 		cnt := int(r.uvarint())
 		for k := 0; k < cnt && r.ok; k++ {
@@ -623,7 +619,7 @@ func (sg *Segment) storedValues(doc uint32, cache *storedCache) ([]string, error
 			l := int(r.uvarint())
 			v := r.bytes(l)
 			if d == doc && f < nf {
-				out[f] = string(v)
+				out[f] = v
 			}
 		}
 	}
@@ -635,9 +631,16 @@ func (sg *Segment) storedValues(doc uint32, cache *storedCache) ([]string, error
 
 // docFieldsAt reconstructs the normalized document at local doc.
 func (sg *Segment) docFieldsAt(doc uint32, cache *storedCache) (docFields, error) {
-	vals, err := sg.storedValues(doc, cache)
+	if cache == nil {
+		cache = &storedCache{}
+	}
+	raw, err := sg.storedFields(doc, cache, nil)
 	if err != nil {
 		return docFields{}, err
+	}
+	vals := make([]string, len(raw))
+	for i, v := range raw {
+		vals[i] = string(v)
 	}
 	s := sg.schema
 	nt := len(s.Text)

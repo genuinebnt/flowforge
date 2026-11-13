@@ -1,0 +1,34 @@
+{
+ "description": "The port is closed: no certificate (null), nothing emitted.",
+ "input": [
+  "app.example.com",
+  8443
+ ],
+ "scope": {
+  "allow": [
+   "*.example.com"
+  ],
+  "pins": {
+   "app.example.com": [
+    "93.184.216.40"
+   ]
+  }
+ },
+ "tcp": [
+  {
+   "host": "app.example.com",
+   "port": 8443,
+   "refused": "connect_failed"
+  }
+ ],
+ "expect": {
+  "output": null,
+  "skipped": [],
+  "requests": [],
+  "dials": [
+   "app.example.com:8443"
+  ],
+  "dns_queries": [],
+  "observations": []
+ }
+}

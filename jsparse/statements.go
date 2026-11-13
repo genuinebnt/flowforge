@@ -57,8 +57,8 @@ func (p *parser) parseStatementList(end TokenKind, topLevel bool) {
 		if p.at(end) || p.at(TEOF) {
 			return
 		}
-		if p.tok.Start <= last && p.tok.Start == p.haltTok.Start && p.opts.Tolerant {
-			// No progress since the last item: drop one token.
+		if p.tok.Start == last {
+			// No progress since the last item (tolerant mode): drop a token.
 			p.next()
 			continue
 		}
@@ -118,11 +118,8 @@ func (p *parser) isLetDeclaration() bool {
 	case TLBracket, TLBrace:
 		return true
 	case TIdentifier:
-		if pk.Kw.isReserved() && pk.Kw != KwYield && pk.Kw != KwAwait {
-			// `let in x`, `let instanceof y`: let is an identifier.
-			return pk.Flags&FlagEscaped != 0 && !p.strict() && false
-		}
-		return true
+		// `let in x`, `let instanceof y`: let is an identifier.
+		return !pk.Kw.isReserved() || pk.Kw == KwYield || pk.Kw == KwAwait
 	}
 	return false
 }
@@ -704,7 +701,7 @@ func (p *parser) parseLabelled() NodeID {
 	if p.findLabel(t.Value) != nil {
 		p.early(CodeDuplicateLabel, t.Span(), "label '"+t.Value+"' has already been declared")
 	}
-	label := p.ident(t.Value, t.Span())
+	labelID := p.ident(t.Value, t.Span())
 	p.next()
 	p.expect(TColon)
 	c := p.cur()
@@ -726,6 +723,6 @@ func (p *parser) parseLabelled() NodeID {
 	c.labels = c.labels[:len(c.labels)-1]
 	id := p.newNode(KLabeledStatement, start)
 	n := p.nd(id)
-	n.A, n.B = label, body
+	n.A, n.B = labelID, body
 	return p.done(id)
 }

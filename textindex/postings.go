@@ -1,6 +1,9 @@
 package textindex
 
-import "math"
+import (
+	"encoding/binary"
+	"math"
+)
 
 // noMore is the doc id of an exhausted iterator.
 const noMore = math.MaxUint32
@@ -93,23 +96,30 @@ func (it *postIter) nextDoc() uint32 {
 }
 
 func (it *postIter) skipEntry(k int) (last uint32, nextPost, nextPos int, ok bool) {
-	r := rd{b: it.data, off: it.skipOff + k*it.skipSize, ok: true}
-	last = r.u32()
-	nextPost = int(r.u32())
-	if it.withTF {
-		nextPos = int(r.u32())
+	off := it.skipOff + k*it.skipSize
+	if off < 0 || off+it.skipSize > len(it.data) {
+		return 0, 0, 0, false
 	}
-	return last, nextPost, nextPos, r.ok
+	e := it.data[off : off+it.skipSize]
+	last = binary.LittleEndian.Uint32(e)
+	nextPost = int(binary.LittleEndian.Uint32(e[4:]))
+	if it.withTF {
+		nextPos = int(binary.LittleEndian.Uint32(e[8:]))
+	}
+	return last, nextPost, nextPos, true
 }
 
 func (it *postIter) advance(target uint32) uint32 {
 	if it.i >= 0 && (it.doc >= target) {
 		return it.doc
 	}
-	if it.nskip > 0 {
-		cur := max(it.i, 0) / postingsBlock
-		// smallest block k >= cur whose last doc >= target (nskip = last block)
-		lo, hi := cur, it.nskip
+	if cur := max(it.i, 0) / postingsBlock; cur < it.nskip {
+		// Within the current block? Then a linear scan is cheapest.
+		if last, _, _, ok := it.skipEntry(cur); !ok || last >= target {
+			goto scan
+		}
+		// smallest block k > cur whose last doc >= target (nskip = last block)
+		lo, hi := cur+1, it.nskip
 		for lo < hi {
 			mid := int(uint(lo+hi) >> 1)
 			last, _, _, ok := it.skipEntry(mid)
@@ -135,6 +145,7 @@ func (it *postIter) advance(target uint32) uint32 {
 			it.posRead = true
 		}
 	}
+scan:
 	for it.nextDoc() < target {
 	}
 	return it.doc

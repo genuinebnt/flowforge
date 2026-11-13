@@ -297,14 +297,15 @@ type nodeState struct {
 }
 
 type segExec struct {
-	v       *segView
-	p       *plan
-	st      *stats
-	ns      []nodeState
-	cache   storedCache
-	scratch []byte
-	timeF   int
-	err     error
+	v        *segView
+	p        *plan
+	st       *stats
+	ns       []nodeState
+	cache    storedCache
+	fieldBuf [][]byte
+	scratch  []byte
+	timeF    int
+	err      error
 }
 
 func newSegExec(v *segView, p *plan, st *stats, timeF int) *segExec {
@@ -505,13 +506,14 @@ func (e *segExec) eval(id int32, doc uint32) (bool, float64) {
 		if s.tri != nil && s.tri.advance(doc) != doc {
 			return false, 0
 		}
-		vals, err := sg.storedValues(doc, &e.cache)
+		vals, err := sg.storedFields(doc, &e.cache, e.fieldBuf)
 		if err != nil {
 			e.err = err
 			return false, 0
 		}
+		e.fieldBuf = vals
 		for _, f := range n.fields {
-			if v := vals[f]; v != "" && n.re.MatchString(v) {
+			if v := vals[f]; len(v) > 0 && n.re.Match(v) {
 				return true, 0
 			}
 		}

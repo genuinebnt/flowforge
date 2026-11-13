@@ -282,6 +282,16 @@ func (d *Decoder) fail(code ErrorCode, at int) {
 	d.err = &SyntaxError{Code: code, Offset: at, Line: line, Column: col}
 }
 
+// failAt records code at i unless the character at i is itself invalid
+// (that error wins) or cut by the end of input (an EOF condition).
+func (d *Decoder) failAt(code ErrorCode, i int) {
+	if _, w := d.char(i); w > 0 {
+		d.fail(code, i)
+	} else if w == 0 {
+		d.eof()
+	}
+}
+
 // eof records the error for running out of input in the current state.
 func (d *Decoder) eof() {
 	if d.truncated {
@@ -535,11 +545,7 @@ func (d *Decoder) misc() bool {
 		d.st = stateMarkup
 		return false
 	}
-	if _, w := d.char(i); w > 0 {
-		d.fail(ErrTextOutsideRoot, i)
-	} else if w == 0 {
-		d.eof()
-	}
+	d.failAt(ErrTextOutsideRoot, i)
 	return false
 }
 
@@ -600,9 +606,7 @@ func (d *Decoder) matchKeyword(kw string, code ErrorCode) bool {
 			return false
 		}
 		if d.src[j] != kw[k] {
-			if _, w := d.char(j); w > 0 {
-				d.fail(code, j)
-			}
+			d.failAt(code, j)
 			return false
 		}
 	}
@@ -639,11 +643,7 @@ func (d *Decoder) bang() {
 			d.st = stateDoctype
 		}
 	default:
-		if _, w := d.char(i); w > 0 {
-			d.fail(ErrUnexpectedChar, i)
-		} else if w == 0 {
-			d.eof()
-		}
+		d.failAt(ErrUnexpectedChar, i)
 	}
 }
 
@@ -786,9 +786,7 @@ func (d *Decoder) pi() (Event, bool) {
 			}
 			if i == end {
 				// "<?target?" must be followed by ">".
-				if _, w := d.char(i + 1); w > 0 {
-					d.fail(ErrUnexpectedChar, i+1)
-				}
+				d.failAt(ErrUnexpectedChar, i+1)
 				return Event{}, false
 			}
 		}
@@ -1032,9 +1030,7 @@ func (d *Decoder) doctypedecl() (Event, bool) {
 		return Event{}, false
 	}
 	if !isSpace(d.src[i]) {
-		if _, w := d.char(i); w > 0 {
-			d.fail(ErrUnexpectedChar, i)
-		}
+		d.failAt(ErrUnexpectedChar, i)
 		return Event{}, false
 	}
 	i = d.skipSpace(i)
@@ -1067,9 +1063,7 @@ func (d *Decoder) doctypedecl() (Event, bool) {
 	case j == end:
 		d.fail(ErrUnexpectedChar, j)
 	default:
-		if _, w := d.char(j); w > 0 {
-			d.fail(ErrDTDExternalID, j)
-		}
+		d.failAt(ErrDTDExternalID, j)
 	}
 	return Event{}, false
 }
@@ -1112,9 +1106,7 @@ func (d *Decoder) stag() (Event, bool) {
 					return Event{}, false
 				}
 				if d.src[i+1] != '>' {
-					if _, w := d.char(i + 1); w > 0 {
-						d.fail(ErrUnexpectedChar, i+1)
-					}
+					d.failAt(ErrUnexpectedChar, i+1)
 					return Event{}, false
 				}
 				i++
@@ -1173,9 +1165,7 @@ func (d *Decoder) attribute(i int) bool {
 		return false
 	}
 	if d.src[j] != '=' {
-		if _, w := d.char(j); w > 0 {
-			d.fail(ErrUnexpectedChar, j)
-		}
+		d.failAt(ErrUnexpectedChar, j)
 		return false
 	}
 	j = d.skipSpace(j + 1)
@@ -1185,9 +1175,7 @@ func (d *Decoder) attribute(i int) bool {
 	}
 	quote := d.src[j]
 	if quote != '"' && quote != '\'' {
-		if _, w := d.char(j); w > 0 {
-			d.fail(ErrUnexpectedChar, j)
-		}
+		d.failAt(ErrUnexpectedChar, j)
 		return false
 	}
 	j++
@@ -1366,9 +1354,7 @@ func (d *Decoder) etag() (Event, bool) {
 		c := d.src[j]
 		if k < len(want) {
 			if c != want[k] {
-				if _, w := d.char(j); w > 0 {
-					d.fail(ErrMismatchedEndTag, j)
-				}
+				d.failAt(ErrMismatchedEndTag, j)
 				return Event{}, false
 			}
 			continue
@@ -1380,9 +1366,7 @@ func (d *Decoder) etag() (Event, bool) {
 				return Event{}, false
 			}
 			if d.src[j] != '>' {
-				if _, w := d.char(j); w > 0 {
-					d.fail(ErrUnexpectedChar, j)
-				}
+				d.failAt(ErrUnexpectedChar, j)
 				return Event{}, false
 			}
 			d.pos = j + 1
@@ -1393,9 +1377,7 @@ func (d *Decoder) etag() (Event, bool) {
 			}
 			return ev, true
 		}
-		if _, w := d.char(j); w > 0 {
-			d.fail(ErrMismatchedEndTag, j)
-		}
+		d.failAt(ErrMismatchedEndTag, j)
 		return Event{}, false
 	}
 }
@@ -1506,9 +1488,7 @@ func (d *Decoder) reference(i int) (int, bool) {
 				continue
 			}
 			if c != ';' || digits == 0 {
-				if _, w := d.char(j); w > 0 {
-					d.fail(ErrInvalidReference, j)
-				}
+				d.failAt(ErrInvalidReference, j)
 				return 0, false
 			}
 			if !isXMLChar(rune(v)) {

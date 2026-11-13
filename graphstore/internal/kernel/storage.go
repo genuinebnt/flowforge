@@ -24,9 +24,186 @@ const (
 	// PTypeRun (name = tool) holds a tool's latest sighting and its
 	// covering-run miss counter.
 	PTypeRun = "ff:run"
+	// PTypeLive (name "") holds the liveness bookkeeping of oam's
+	// authoritative staleness: classic staleness, the profiles holding an
+	// edge, the authoritative references of an entity and the support of
+	// every tag (V2 §3.4). A row without it (written before 0015) loads
+	// as classic: classic_stale = (state = 'stale'), every tag classic.
+	PTypeLive = "ff:live"
+	// PTypeAuth (name = oam.UnitKey(profile, family)) holds one authority
+	// unit of the entity as a source.
+	PTypeAuth = "ff:auth"
 	// HiddenPrefix prefixes every hidden tag type.
 	HiddenPrefix = "ff:"
 )
+
+type tagLiveJSON struct {
+	Classic bool     `json:"classic"`
+	AuthIn  []string `json:"auth_in,omitempty"`
+}
+
+type liveJSON struct {
+	ClassicStale bool                              `json:"classic_stale"`
+	AuthIn       []string                          `json:"auth_in,omitempty"`
+	AuthRefs     int                               `json:"auth_refs,omitempty"`
+	Tags         map[string]map[string]tagLiveJSON `json:"tags,omitempty"`
+}
+
+type headJSON struct {
+	Complete *stampJSON           `json:"complete,omitempty"`
+	Members  []string             `json:"members"`
+	Partial  map[string]stampJSON `json:"partial,omitempty"`
+	Targets  map[string]string    `json:"targets,omitempty"`
+}
+
+// LiveTag returns the stored liveness row of r.
+func (r *Record) LiveTag() (StoredTag, error) {
+	lj := liveJSON{ClassicStale: r.ClassicStale, AuthIn: r.AuthIn, AuthRefs: r.AuthRefs}
+	for k, t := range r.Tags {
+		if t.Classic && len(t.AuthIn) == 0 {
+			continue
+		}
+		if lj.Tags == nil {
+			lj.Tags = map[string]map[string]tagLiveJSON{}
+		}
+		if lj.Tags[k.PType] == nil {
+			lj.Tags[k.PType] = map[string]tagLiveJSON{}
+		}
+		lj.Tags[k.PType][k.Name] = tagLiveJSON{Classic: t.Classic, AuthIn: t.AuthIn}
+	}
+	b, err := json.Marshal(lj)
+	if err != nil {
+		return StoredTag{}, fmt.Errorf("kernel: encode live: %w", err)
+	}
+	return StoredTag{PType: PTypeLive, Content: b, CreatedAt: r.First.Stamp.At, LastSeen: r.Last.Stamp.At}, nil
+}
+
+// MergedLiveTag returns the liveness row of a record loaded without its
+// tags (a covering run): the record-level fields from r, the tag entries
+// from LiveRaw.
+func (r *Record) MergedLiveTag() (StoredTag, error) {
+	var lj liveJSON
+	if len(r.LiveRaw) > 0 {
+		if err := json.Unmarshal(r.LiveRaw, &lj); err != nil {
+			return StoredTag{}, fmt.Errorf("kernel: decode live: %w", err)
+		}
+	}
+	lj.ClassicStale, lj.AuthIn, lj.AuthRefs = r.ClassicStale, r.AuthIn, r.AuthRefs
+	b, err := json.Marshal(lj)
+	if err != nil {
+		return StoredTag{}, fmt.Errorf("kernel: encode live: %w", err)
+	}
+	return StoredTag{PType: PTypeLive, Content: b, CreatedAt: r.First.Stamp.At, LastSeen: r.Last.Stamp.At}, nil
+}
+
+// headTags returns the stored rows of an entity's authority units.
+func (e *Entity) headTags() ([]StoredTag, error) {
+	var out []StoredTag
+	for _, k := range slices.Sorted(maps.Keys(e.Heads)) {
+		h := e.Heads[k]
+		hj := headJSON{Members: slices.Sorted(maps.Keys(h.Members)), Targets: h.Targets}
+		if hj.Members == nil {
+			hj.Members = []string{}
+		}
+		if h.HasComplete {
+			c := encStamp(h.Complete)
+			hj.Complete = &c
+		}
+		if len(h.Partial) > 0 {
+			hj.Partial = encStamps(h.Partial)
+		}
+		b, err := json.Marshal(hj)
+		if err != nil {
+			return nil, fmt.Errorf("kernel: encode head: %w", err)
+		}
+		out = append(out, StoredTag{PType: PTypeAuth, Name: k, Content: b, CreatedAt: e.First.Stamp.At, LastSeen: e.Last.Stamp.At})
+	}
+	return out, nil
+}
+
+// DecodeHead decodes a PTypeAuth row.
+func DecodeHead(t StoredTag) (*Head, error) {
+	var hj headJSON
+	if err := json.Unmarshal(t.Content, &hj); err != nil {
+		return nil, fmt.Errorf("kernel: decode head: %w", err)
+	}
+	h := &Head{AuthUnit: *oam.NewAuthUnit(), Targets: hj.Targets}
+	if h.Targets == nil {
+		h.Targets = map[string]string{}
+	}
+	if hj.Complete != nil {
+		s, err := hj.Complete.stamp()
+		if err != nil {
+			return nil, err
+		}
+		h.HasComplete, h.Complete = true, s
+	}
+	for _, m := range hj.Members {
+		h.Members[m] = true
+	}
+	ps, err := decStamps(hj.Partial)
+	if err != nil {
+		return nil, err
+	}
+	h.Partial = ps
+	return h, nil
+}
+
+// HeadTargets lists every edge member and target of a decoded head (for
+// preloading before locks).
+func HeadTargets(h *Head) (edges, entities []string) {
+	for m := range h.Effective() {
+		if len(m) > 2 && m[:2] == "t:" {
+			continue
+		}
+		edges = append(edges, m)
+		if to := h.Targets[m]; to != "" {
+			entities = append(entities, to)
+		}
+	}
+	return edges, entities
+}
+
+// PublicTagRows returns the stored rows that are visible tags (hidden
+// rows and withdrawn tags dropped), using the row set's ff:live row.
+func PublicTagRows(stored []StoredTag) ([]StoredTag, error) {
+	var lj liveJSON
+	for _, t := range stored {
+		if t.PType == PTypeLive {
+			if err := json.Unmarshal(t.Content, &lj); err != nil {
+				return nil, fmt.Errorf("kernel: decode live: %w", err)
+			}
+		}
+	}
+	var out []StoredTag
+	for _, t := range stored {
+		if len(t.PType) >= len(HiddenPrefix) && t.PType[:len(HiddenPrefix)] == HiddenPrefix {
+			continue
+		}
+		if tl, ok := lj.Tags[t.PType][t.Name]; ok && !tl.Classic && len(tl.AuthIn) == 0 {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+// DecodeLive applies a PTypeLive row to r (state must be loaded).
+func (r *Record) DecodeLive(t StoredTag) error {
+	var lj liveJSON
+	if err := json.Unmarshal(t.Content, &lj); err != nil {
+		return fmt.Errorf("kernel: decode live: %w", err)
+	}
+	r.ClassicStale, r.AuthIn, r.AuthRefs = lj.ClassicStale, lj.AuthIn, lj.AuthRefs
+	for p, names := range lj.Tags {
+		for n, tl := range names {
+			if ts, ok := r.Tags[TagKey{p, n}]; ok {
+				ts.Classic, ts.AuthIn = tl.Classic, tl.AuthIn
+			}
+		}
+	}
+	return nil
+}
 
 // StoredTag is one tag row.
 type StoredTag struct {
@@ -153,6 +330,16 @@ func DecodePatch(b []byte) ([]oam.PatchOp, error) {
 	return ops, nil
 }
 
+// DecodeContentChange decodes the stored patch of a content_changed
+// event (an object, V2 §3.4).
+func DecodeContentChange(b []byte) (*oam.ContentChangePatch, error) {
+	var p oam.ContentChangePatch
+	if err := json.Unmarshal(b, &p); err != nil {
+		return nil, fmt.Errorf("kernel: decode content change: %w", err)
+	}
+	return &p, nil
+}
+
 // EncodePatch encodes a patch for storage (nil for no patch).
 func EncodePatch(ops []oam.PatchOp) ([]byte, error) {
 	if len(ops) == 0 {
@@ -209,7 +396,25 @@ func (r *Record) StoredTags() ([]StoredTag, error) {
 	if err := add(PTypeMeta, "", meta, r.First.Stamp.At, r.Last.Stamp.At); err != nil {
 		return nil, err
 	}
-	return out, nil
+	live, err := r.LiveTag()
+	if err != nil {
+		return nil, err
+	}
+	return append(out, live), nil
+}
+
+// StoredTags returns every tag row of the entity: the record's rows plus
+// its authority units.
+func (e *Entity) StoredTags() ([]StoredTag, error) {
+	out, err := e.Record.StoredTags()
+	if err != nil {
+		return nil, err
+	}
+	heads, err := e.headTags()
+	if err != nil {
+		return nil, err
+	}
+	return append(out, heads...), nil
 }
 
 // RunTag returns the stored run row of one tool (for covering-run
@@ -264,10 +469,19 @@ func (e *Edge) Row() (EdgeRow, error) {
 
 // LoadEntity rebuilds an entity record from its row and tag rows.
 func LoadEntity(tenant, program string, row EntityRow, tags []StoredTag) (*Entity, error) {
-	e := &Entity{AssetType: row.AssetType, Key: row.Key, Scope: row.Scope}
+	e := &Entity{AssetType: row.AssetType, Key: row.Key, Scope: row.Scope, Heads: map[string]*Head{}}
 	e.ID, e.Tenant, e.Program, e.State = row.ID, tenant, program, row.State
 	if err := e.load(row.Content, tags, row.CreatedAt, row.LastSeen, row.FirstSeenRun, row.LastSeenRun); err != nil {
 		return nil, fmt.Errorf("entity %s: %w", row.ID, err)
+	}
+	for _, t := range tags {
+		if t.PType == PTypeAuth {
+			h, err := DecodeHead(t)
+			if err != nil {
+				return nil, fmt.Errorf("entity %s: %w", row.ID, err)
+			}
+			e.Heads[t.Name] = h
+		}
 	}
 	return e, nil
 }
@@ -294,8 +508,12 @@ func (r *Record) load(content []byte, tags []StoredTag, created, last time.Time,
 	r.Last = Sighting{Stamp: oam.Stamp{At: last}, Run: lastRun}
 	r.Sources, r.Tags, r.Runs = map[string]*Source{}, map[TagKey]*TagState{}, map[string]*RunState{}
 	var meta metaJSON
+	var live *StoredTag
 	for _, t := range tags {
 		switch t.PType {
+		case PTypeAuth:
+		case PTypeLive:
+			live = &t
 		case PTypeMeta:
 			if err := json.Unmarshal(t.Content, &meta); err != nil {
 				return fmt.Errorf("kernel: decode meta: %w", err)
@@ -347,7 +565,14 @@ func (r *Record) load(content []byte, tags []StoredTag, created, last time.Time,
 			r.Content.Stamps[k] = oam.Stamp{}
 		}
 	}
-	return nil
+	for _, ts := range r.Tags {
+		ts.Classic = true
+	}
+	if live == nil {
+		r.ClassicStale = r.State == oam.StateStale
+		return nil
+	}
+	return r.DecodeLive(*live)
 }
 
 // DecodeRunTag decodes a PTypeRun tag row.

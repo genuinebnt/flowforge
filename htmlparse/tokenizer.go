@@ -212,7 +212,7 @@ type Tokenizer struct {
 	allowCDATA   bool
 	maxAttrs     int
 
-	queue [2]Token
+	queue [4]Token
 	qhead int
 	qlen  int
 	cur   Token

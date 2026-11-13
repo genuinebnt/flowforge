@@ -195,8 +195,13 @@ func (p *parser) strictParamChecks(info *fnInfo) {
 			p.early(CodeReservedWord, b.span, "reserved word in strict mode")
 		}
 	}
-	if t := info.nameTok; t != nil && (t.Value == "eval" || t.Value == "arguments") {
-		p.early(CodeStrictEvalArguments, t.Span(), "cannot bind '"+t.Value+"' in strict mode")
+	if t := info.nameTok; t != nil {
+		switch {
+		case t.Value == "eval" || t.Value == "arguments":
+			p.early(CodeStrictEvalArguments, t.Span(), "cannot bind '"+t.Value+"' in strict mode")
+		case t.Kw.isStrictReserved() || t.Kw == KwYield:
+			p.early(CodeReservedWord, t.Span(), "reserved word in strict mode")
+		}
 	}
 }
 

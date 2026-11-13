@@ -495,6 +495,9 @@ func (p *parser) parseNew() NodeID {
 		callee = p.parseNew()
 	case p.isKw(KwSuper):
 		callee = p.parseSuper()
+		if p.at(TLParen) {
+			p.syntaxError(CodeUnexpectedToken, "super() cannot be used with new")
+		}
 	case p.isKw(KwImport):
 		callee = p.parseImportExpr()
 		if p.nd(callee).Kind == KImportExpression {

@@ -1,8 +1,32 @@
 {
- "description": "Covering-run staleness (spec 5.7) is unchanged for classic support and never stales a record a complete authoritative reading holds; once the authority withdraws it the record is stale at once. The source entity's own classic support follows the covering runs of the tools that ran them (the extractor ran none, so the crawler's miss makes the page stale until the next capture).",
+ "description": "Covering-run staleness (spec 5.7) is unchanged for classic support and never stales a record a complete authoritative reading holds (q stays active after the crawler's covering run misses it); once the authority withdraws it the record is stale at once. Each operation makes at most one entity and one edge stale so the event order does not depend on derived ids.",
  "stale_after_runs": 1,
  "order_dependent": true,
  "steps": [
+  {
+   "observation": {
+    "observation_id": "k0",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-k0",
+    "tool": {
+     "name": "crawl",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:02:30Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": []
+   }
+  },
   {
    "observation": {
     "observation_id": "k1",
@@ -110,7 +134,7 @@
    "complete_run": {
     "tenant_id": "t",
     "program_id": "p",
-    "run_id": "r-cover",
+    "run_id": "r-k0",
     "tool": "crawl",
     "completed_at": "2026-11-12T11:00:00Z"
    }
@@ -211,20 +235,12 @@
     "entity": "url:https://acme.com/r"
    },
    {
-    "type": "entity_stale",
-    "entity": "url:https://acme.com/"
-   },
-   {
     "type": "edge_removed",
     "edge": {
      "from": "url:https://acme.com/",
      "label": "links_to",
      "to": "url:https://acme.com/r"
     }
-   },
-   {
-    "type": "entity_reactivated",
-    "entity": "url:https://acme.com/"
    },
    {
     "type": "edge_removed",

@@ -66,6 +66,10 @@ type Record struct {
 	AuthRefs     int
 	// Dirty marks a record the operation changed, to be written back.
 	Dirty bool
+	// LiveRaw is the stored liveness row as loaded by a partial load (a
+	// covering run, which loads no tags); MergedLiveTag keeps its tag
+	// entries.
+	LiveRaw []byte
 }
 
 // Head is one authority unit of a source entity: oam's AuthUnit plus the

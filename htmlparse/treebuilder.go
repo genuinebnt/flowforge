@@ -106,6 +106,8 @@ type treeBuilder struct {
 	maxDepth    int
 	errs        []ParseError
 	metaCharset string // encoding declared by the first <meta charset> in head
+
+	sawSelectedContent bool // an HTML selectedcontent element was created
 }
 
 func newTreeBuilder(doc *Document, tz *Tokenizer, opts Options) *treeBuilder {
@@ -131,6 +133,10 @@ func (b *treeBuilder) run() {
 	for id, buf := range b.textBuf {
 		// Each entry writes only its own node, so map order is irrelevant.
 		b.doc.Nodes[id].Data = string(buf)
+	}
+	b.textBuf = nil
+	if b.sawSelectedContent {
+		b.mirrorSelectedContent()
 	}
 }
 
@@ -386,6 +392,12 @@ func (b *treeBuilder) templateOnStack() bool {
 		}
 	}
 	return false
+}
+
+// parsingTemplateContents: a template element is on the stack, or the
+// fragment context element is a template.
+func (b *treeBuilder) parsingTemplateContents() bool {
+	return b.templateOnStack() || (b.fragment && b.ctx.is(tagTemplate))
 }
 
 type scopeKind uint8
@@ -762,6 +774,9 @@ func (b *treeBuilder) insertElement(tok *Token, ns Namespace) (id NodeID, pushed
 	}
 	id = b.createElement(name, tag, ns, tok.Attrs, tok.Span)
 	e := stackEntry{id: id, tag: tag, ns: ns}
+	if tag == tagSelectedcontent && ns == HTMLNamespace {
+		b.sawSelectedContent = true
+	}
 	if ns == MathMLNamespace && tag == tagAnnotationXml {
 		for _, a := range tok.Attrs {
 			if a.Namespace == NoNamespace && a.Name == "encoding" &&

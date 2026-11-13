@@ -55,6 +55,9 @@ type Options struct {
 	// replaced). For Patience and Histogram it caps their Myers fallback
 	// ranges the same way. Zero means unlimited; negative is invalid.
 	MaxEditDistance int
+	// GitCompact applies CompactGit (git's change compaction without the
+	// indent heuristic) to the result, as git does after every algorithm.
+	GitCompact bool
 }
 
 // Result is the outcome of Diff.
@@ -69,6 +72,19 @@ type Result struct {
 
 // Diff computes an edit script from a to b.
 func Diff(a, b []uint32, opts Options) (Result, error) {
+	r, err := diffRaw(a, b, opts)
+	if err != nil || !opts.GitCompact {
+		return r, err
+	}
+	s, err := CompactGit(a, b, r.Script)
+	if err != nil {
+		return Result{}, err
+	}
+	r.Script = s
+	return r, nil
+}
+
+func diffRaw(a, b []uint32, opts Options) (Result, error) {
 	if opts.MaxEditDistance < 0 {
 		return Result{}, fmt.Errorf("%w: negative MaxEditDistance %d", ErrInvalidOptions, opts.MaxEditDistance)
 	}
