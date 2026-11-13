@@ -10,7 +10,9 @@ import (
 // codes and HTTP statuses (spec 11.8); modules never do.
 type Kind int
 
-// Error kinds, mirroring the gRPC codes used in spec 11.8.
+// Error kinds, mirroring the gRPC codes used in spec 11.8. KindUnknown is
+// the zero value and also what KindOf reports for errors that are not an
+// *Error; services map it to INTERNAL.
 const (
 	KindUnknown Kind = iota
 	KindInvalidArgument
@@ -32,14 +34,18 @@ var kindNames = [...]string{
 	"resource_exhausted", "unavailable", "deadline_exceeded", "internal",
 }
 
+// String returns the lower snake case kind name ("not_found", ...), or
+// "kind(N)" for a value outside the enum.
 func (k Kind) String() string {
-	if int(k) < len(kindNames) {
+	if k >= 0 && int(k) < len(kindNames) {
 		return kindNames[k]
 	}
 	return fmt.Sprintf("kind(%d)", int(k))
 }
 
-// Stable error reason codes (spec 11.8).
+// Stable error reason codes (spec 11.8, 12.2). They appear verbatim in
+// google.rpc.ErrorInfo.reason and, lower-cased, as the REST error "code";
+// clients match on them, so values never change once published.
 const (
 	ReasonValidationFailed       = "VALIDATION_FAILED"
 	ReasonInvalidTarget          = "INVALID_TARGET"
@@ -69,31 +75,37 @@ const (
 	ReasonInternal               = "INTERNAL"
 )
 
-// Error is the structured error that crosses service boundaries. Modules
-// define their own sentinel errors; services wrap them in an *Error with a
-// kind and reason before mapping to the wire.
+// Error is the structured error that crosses service boundaries (spec
+// 11.8). Modules define their own sentinel errors; services wrap them in an
+// *Error with a kind and reason before mapping to the wire.
 type Error struct {
 	Kind    Kind
 	Reason  string            // stable reason code, e.g. SCOPE_DENIED
 	Message string            // human readable
 	Meta    map[string]string // free-form details (ErrorInfo metadata)
 	Details []any             // structured details, e.g. diagnostics
-	// RetryAfter is set for RESOURCE_EXHAUSTED errors.
+	// RetryAfter is the retry hint for RESOURCE_EXHAUSTED errors, sent as
+	// google.rpc.RetryInfo; zero means "use the service default". Other
+	// kinds ignore it on the gRPC path.
 	RetryAfter time.Duration
 	// Err is the wrapped cause, if any.
 	Err error
 }
 
-// Errorf builds an *Error.
+// Errorf builds an *Error whose Message is fmt.Sprintf(format, args...).
+// It wraps nothing, even when args contain an error (use Wrap for that).
 func Errorf(kind Kind, reason, format string, args ...any) *Error {
 	return &Error{Kind: kind, Reason: reason, Message: fmt.Sprintf(format, args...)}
 }
 
-// Wrap builds an *Error around cause.
+// Wrap builds an *Error around cause, using cause's text as the Message
+// and keeping cause reachable through errors.Is/As. cause must be non-nil.
 func Wrap(cause error, kind Kind, reason string) *Error {
 	return &Error{Kind: kind, Reason: reason, Message: cause.Error(), Err: cause}
 }
 
+// Error returns "REASON: message", or just the reason when Message is
+// empty.
 func (e *Error) Error() string {
 	if e.Message == "" {
 		return e.Reason
@@ -106,7 +118,8 @@ func (e *Error) Unwrap() error { return e.Err }
 
 // Is reports whether target is an *Error with the same kind and, if the
 // target names one, the same reason. This lets callers write
-// errors.Is(err, core.ErrNotFound).
+// errors.Is(err, core.ErrNotFound) for any NOT_FOUND error whatever its
+// reason; Meta, Message and the wrapped cause are not compared.
 func (e *Error) Is(target error) bool {
 	t, ok := target.(*Error)
 	if !ok {
@@ -115,7 +128,9 @@ func (e *Error) Is(target error) bool {
 	return t.Kind == e.Kind && (t.Reason == "" || t.Reason == e.Reason)
 }
 
-// Sentinel errors for errors.Is checks on the common kinds.
+// Sentinel errors for errors.Is checks on the common kinds. They carry no
+// reason, so each matches every *Error of its kind (see Error.Is). They
+// are compared by kind, never by pointer, and must not be mutated.
 var (
 	ErrInvalidArgument  = &Error{Kind: KindInvalidArgument}
 	ErrUnauthenticated  = &Error{Kind: KindUnauthenticated}
@@ -129,7 +144,8 @@ var (
 	ErrInternal         = &Error{Kind: KindInternal}
 )
 
-// KindOf returns the kind of err, or KindUnknown when err carries none.
+// KindOf returns the kind of the first *Error in err's chain, or
+// KindUnknown when there is none (including err == nil).
 func KindOf(err error) Kind {
 	var e *Error
 	if errors.As(err, &e) {

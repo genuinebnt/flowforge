@@ -34,6 +34,16 @@ func EdgeID(tenantID, programID, fromID, toID, relType, label, discriminator str
 	return core.PublicID(core.PrefixEdge, EdgeUUID(tenantID, programID, fromID, toID, relType, label, discriminator))
 }
 
+// derivedUUID hashes domain and parts, each written as uvarint(len) ||
+// bytes, takes the first 16 bytes of the SHA-256 and sets the version 8
+// and variant bits. The length prefix keeps ("ab","c") and ("a","bc")
+// apart.
+//
+// PORT: binary.PutUvarint is unsigned LEB128 (7 bits per byte, low group
+// first, high bit = continuation), the same as the leb128 crate's
+// write::unsigned. Lengths are byte lengths of the UTF-8 text. Any
+// deviation makes the two implementations write different graph rows
+// (docs/PORTING_RUST.md 4.1).
 func derivedUUID(domain string, parts ...string) core.UUID {
 	h := sha256.New()
 	var n [binary.MaxVarintLen64]byte

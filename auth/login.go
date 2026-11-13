@@ -147,13 +147,25 @@ func NewLoginService(cfg LoginConfig) (*LoginService, error) {
 
 // NormalizeEmail lower-cases and trims an email address, matching the
 // citext comparison of identity.users.email.
+//
+// PORT: strings.TrimSpace trims Unicode White_Space and strings.ToLower
+// maps each rune with Unicode simple case mapping (U+0130 becomes "i");
+// Rust's str::to_lowercase uses full mappings (U+0130 becomes "i\u0307")
+// and context-sensitive final sigma, so map per char with the simple
+// mapping to get the same account keys.
 func NormalizeEmail(email string) string { return strings.ToLower(strings.TrimSpace(email)) }
 
 // IPThrottleKey is the limiter key rl:auth:ip:<ip>:<endpoint> (spec 14.3).
+// Unlike limiter.AuthIPKey (which auth may not import, both being layer
+// 1) it does not escape ':' in the components, so for an IPv6 client the
+// login key and the signup key built by limiter.AuthIPKey spell the
+// address differently. Each key is self-consistent; a port must reproduce
+// both spellings exactly if it shares the limiter store.
 func IPThrottleKey(ip, endpoint string) string { return "rl:auth:ip:" + ip + ":" + endpoint }
 
 // AccountThrottleKey is the limiter key rl:auth:acct:<sha256 email> (spec
-// 14.3); the email is normalized and only its hash appears in the key.
+// 14.3); the email is normalized and only its lowercase hex SHA-256
+// appears in the key. It equals limiter.AuthAccountKey for every input.
 func AccountThrottleKey(email string) string {
 	sum := sha256.Sum256([]byte(NormalizeEmail(email)))
 	return "rl:auth:acct:" + hex.EncodeToString(sum[:])

@@ -52,7 +52,7 @@ func readEntities(ctx context.Context, q querier, tenant graphstore.ID, program 
 	return out, nil
 }
 
-// withTags fills tags and covering-run counters into entities.
+// withEntityTags fills tags and covering-run counters into entities.
 func withEntityTags(ctx context.Context, q querier, tenant graphstore.ID, ents []graphstore.Entity) error {
 	ids := make([]string, len(ents))
 	for i, e := range ents {

@@ -16,6 +16,10 @@ import (
 //
 // Key: <lowercased type>:<sha256 of the canonical JSON of Content>. Product
 // deliberately has no name-based key in v0.1 (see OPEN_QUESTIONS.md).
+//
+// PORT: numbers in Content keep their source digits (json.Number through
+// core.CanonicalJSON), so {"n": 1.0} and {"n": 1} are different assets.
+// Keep number text verbatim in Rust (serde_json arbitrary_precision).
 type Opaque struct {
 	Type    string
 	Content map[string]any // every field except "type"
@@ -38,8 +42,8 @@ func (a Opaque) Key() (string, error) {
 }
 
 // Normalize implements Asset: Content is deep-copied into JSON-native
-// values. A modeled type name (in any letter case), a bad type name or a "type" key inside
-// Content is an error.
+// values. A modeled type name (in any letter case), a bad type name or a
+// "type" key inside Content is an error.
 func (a Opaque) Normalize() (Asset, error) { return a.normalized() }
 
 func (a Opaque) normalized() (Opaque, error) {

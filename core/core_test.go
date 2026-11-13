@@ -114,3 +114,14 @@ func TestCore007SplitMixDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// A Kind outside the enum must format as "kind(N)", including negative
+// values, which used to index kindNames out of range and panic.
+func TestRegress_KindStringNegative(t *testing.T) {
+	if got := core.Kind(-1).String(); got != "kind(-1)" {
+		t.Fatalf("Kind(-1).String() = %q, want kind(-1)", got)
+	}
+	if got := core.Kind(99).String(); got != "kind(99)" {
+		t.Fatalf("Kind(99).String() = %q, want kind(99)", got)
+	}
+}

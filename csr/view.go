@@ -5,6 +5,10 @@ package csr
 // memory-mapped snapshot is used in place, without copying 0.2 GB of
 // arrays on open (spec 21.1, "mmap-friendly"). Every view falls back to a
 // portable copy when the host is big endian or the bytes are misaligned.
+//
+// PORT: in Rust use bytemuck or zerocopy casts over a memmap2 mapping,
+// only after the checksum and validation pass, and run Miri on small
+// inputs (spec 24.6, docs/PORTING_RUST.md 5.5).
 
 import (
 	"encoding/binary"

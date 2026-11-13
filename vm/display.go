@@ -12,6 +12,15 @@ import (
 // Display renders the display form used by INTERP and to_string, without
 // module type names (user types render as T<id>). The VM itself renders
 // with the module's names.
+//
+// PORT: display strings flow into effect arguments (alert messages, log
+// lines), so they are part of the args-hash contract
+// (docs/PORTING_RUST.md 5.13). Strings are raw at top level and
+// strconv.Quote'd inside collections: Go escaping (\a \b \f \n \r \t \v,
+// \xNN for invalid bytes, \uNNNN and \UNNNNNNNN for runes that are not
+// unicode.IsPrint), unlike Rust's {:?} (\u{...}). Durations use
+// time.Duration.String, times RFC3339Nano in UTC with trailing fractional
+// zeros trimmed, floats FormatFloat. Port each algorithm exactly.
 func Display(v Value) string {
 	d := displayer{max: math.MaxInt}
 	d.value(v, true)
@@ -56,7 +65,11 @@ func (d *displayer) layout(t bytecode.TypeID) *bytecode.TypeLayout {
 	return nil
 }
 
-// FormatFloat renders a float so that it always reads as a float.
+// FormatFloat renders a float so that it always reads as a float:
+// strconv.FormatFloat(f, 'g', -1, 64), the shortest round-trip digits in
+// exponent form when the decimal exponent is below -4 or at least 6
+// ("1e+06", "1.234567e+06", "1e-05"; but "100000" and "0.0001"), plus ".0"
+// when the result has no '.', 'e' or 'n' ("2" becomes "2.0").
 func FormatFloat(f float64) string {
 	s := strconv.FormatFloat(f, 'g', -1, 64)
 	if !strings.ContainsAny(s, ".eEn") {
@@ -65,7 +78,9 @@ func FormatFloat(f float64) string {
 	return s
 }
 
-// FormatTime renders Unix nanoseconds as RFC 3339 UTC with nanoseconds.
+// FormatTime renders Unix nanoseconds as RFC 3339 UTC with up to nine
+// fractional digits, trailing zeros trimmed (time.RFC3339Nano):
+// "1970-01-01T00:00:01.5Z", "1970-01-01T00:00:00Z".
 func FormatTime(ns int64) string {
 	return time.Unix(0, ns).UTC().Format(time.RFC3339Nano)
 }

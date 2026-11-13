@@ -10,6 +10,15 @@ import (
 // the conformance goldens (conformance/dsl/README.md documents the
 // schema). It contains structure only: no spans and no checker
 // annotations, so two trees are equal exactly when their ASTJSON is.
+//
+// PORT: port this printer exactly or the parse goldens are useless
+// (docs/PORTING_RUST.md 5.11). Numbers are emitted as JSON strings:
+// ints and duration nanoseconds in decimal, floats with
+// strconv.FormatFloat(f, 'g', -1, 64), the shortest round-trip digits in
+// exponent form when the decimal exponent is below -4 or at least 6
+// ("1e+06", "1.23456789e+08", "1e-05", "0.0001"), with a sign and at least
+// two exponent digits. Rust's {} and {:e} formats differ; write the
+// algorithm out.
 func ASTJSON(f *File) ([]byte, error) { return core.CanonicalJSON(ASTValue(f)) }
 
 // ASTValue returns the canonical AST as plain JSON data (maps, slices,

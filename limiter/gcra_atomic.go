@@ -41,6 +41,14 @@ const (
 //     can land in a deleted cell.
 //
 // Its decisions are identical to GCRA's for the same sequence of calls.
+//
+// PORT: Go's sync/atomic operations are sequentially consistent; SeqCst is
+// the safe translation (Acquire/Release on the CAS also works for this
+// protocol). runtime.Gosched in the spin loops maps to
+// std::hint::spin_loop or thread::yield_now. Go has no loom, so lim_009 is
+// a -race stress test here (race_test.go); the Rust port should model
+// this with loom and 2-3 threads as spec 25.3 asks (docs/PORTING_RUST.md
+// 5.4).
 type AtomicGCRA struct {
 	rules  *Rules
 	shards [gcraShards]gcraShard
@@ -65,7 +73,8 @@ func (g *AtomicGCRA) Configure(pattern string, p Params) error {
 	return g.rules.Configure(pattern, p)
 }
 
-// shardOf hashes key with FNV-1a.
+// shardOf hashes key with 64-bit FNV-1a and keeps the low bits. The shard
+// choice is in-process only, not a cross-language contract.
 func shardOf(key string) int {
 	h := uint64(14695981039346656037)
 	for i := 0; i < len(key); i++ {

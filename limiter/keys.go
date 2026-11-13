@@ -12,6 +12,9 @@ import (
 // yield distinct keys, even for IPv6 addresses or identifiers that
 // contain colons. Components are otherwise used as given: callers pass
 // normalized values (for example netnorm.RegistrableDomain of a host).
+//
+// PORT: these keys name state in the shared Redis (docs/PORTING_RUST.md
+// 6), so a Rust service must build byte-identical keys, escaping included.
 
 // GlobalKey returns rl:g:<class>, the platform-wide limit of a class.
 func GlobalKey(class string) string { return join("rl:g", class) }
@@ -24,6 +27,9 @@ func ProgramKey(programID string) string { return join("rl:p", programID) }
 
 // HostKey returns rl:h:<program_id>:<target>, where target is the
 // registrable domain or IP address being contacted. target is lowercased.
+//
+// PORT: strings.ToLower applies Unicode simple case mapping; targets are
+// ASCII after netnorm, where it equals to_ascii_lowercase.
 func HostKey(programID, target string) string {
 	return join("rl:h", programID, strings.ToLower(target))
 }
@@ -37,6 +43,13 @@ func AuthIPKey(ip, endpoint string) string { return join("rl:auth:ip", ip, endpo
 // AuthAccountKey returns rl:auth:acct:<sha256 email>, where the hash is the
 // lowercase hex SHA-256 of the trimmed, lowercased email address. Hashing
 // keeps addresses out of the limiter store.
+//
+// PORT: strings.TrimSpace trims Unicode White_Space and strings.ToLower
+// uses per-rune simple case mapping (U+0130 becomes "i"), while Rust's
+// str::to_lowercase applies full mappings (U+0130 becomes "i\u0307") and
+// changes final sigma. Reproduce Go's per-char mapping
+// (char::to_lowercase taking only the simple mapping) so both services
+// throttle the same account key.
 func AuthAccountKey(email string) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
 	return "rl:auth:acct:" + hex.EncodeToString(sum[:])

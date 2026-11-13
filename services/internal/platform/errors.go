@@ -55,6 +55,11 @@ var defaultReasons = map[codes.Code]string{
 // carries a google.rpc.RetryInfo. Context errors map to DEADLINE_EXCEEDED
 // and CANCELLED. Anything else is INTERNAL and reveals only the request id.
 // Errors that already are gRPC statuses pass through unchanged.
+//
+// PORT: the ErrorInfo reason and domain, the request_id metadata key and
+// RetryInfo on every RESOURCE_EXHAUSTED are what clients of either
+// implementation match on (docs/PORTING_RUST.md 5.17); map tonic::Status
+// the same way.
 func ToStatus(err error, domain, requestID string) error {
 	if err == nil {
 		return nil

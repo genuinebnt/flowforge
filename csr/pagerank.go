@@ -30,7 +30,7 @@ type PageRankOptions struct {
 	Workers int
 }
 
-// PageRankResult holds the scores, which sum to 1.
+// PageRankResult holds the scores, which sum to 1 up to float rounding.
 type PageRankResult struct {
 	Scores     []float64
 	Iterations int
@@ -44,7 +44,12 @@ type PageRankResult struct {
 // its in-neighbours, so a parallel loop over node ranges needs no atomics.
 // The mass of dangling nodes (no out-edges) is redistributed uniformly.
 // Parallel edges count with multiplicity. The result is deterministic and
-// independent of Workers.
+// independent of Workers. Errors wrap ErrInvalidInput.
+//
+// PORT: the Go result is bit-reproducible because every sum has a fixed
+// order (in-edges in transpose order, chunk partials in chunk order), but
+// a port need not match bits: conformance compares scores with absolute
+// tolerance 1e-5 plus rank order (docs/PORTING_RUST.md 5.5).
 func PageRank(g *Graph, opts PageRankOptions) (PageRankResult, error) {
 	d, tol, maxIt, workers := opts.Damping, opts.Tolerance, opts.MaxIterations, opts.Workers
 	if d == 0 {

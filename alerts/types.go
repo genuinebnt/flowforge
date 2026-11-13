@@ -125,7 +125,13 @@ func (v value) num() float64 {
 
 // export converts a scalar value into a JSON-friendly Go value: strings,
 // int64, float64 (non-finite floats as strings), bools, RFC 3339 times and
-// Go duration strings. Absent values export as nil.
+// Go duration strings. Absent values export as nil. Exported values feed
+// DedupeKey, so their text is part of the dedupe-key contract.
+//
+// PORT: three Go formats to reproduce exactly: time.Duration.String
+// ("1h30m0s", "250ms", "1.5µs" with U+00B5, "0s"), RFC3339Nano in UTC with
+// trailing fractional zeros trimmed, and FormatFloat(f, 'g', -1, 64) for
+// non-finite floats ("+Inf", "-Inf", "NaN").
 func (v value) export() any {
 	switch v.k {
 	case kBool:

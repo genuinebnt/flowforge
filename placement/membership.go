@@ -11,6 +11,7 @@ import (
 // Membership reports the workers currently considered live. Live returns a
 // fresh slice sorted by id, which the caller may keep or modify.
 type Membership interface {
+	// Live returns the live workers, distinct and sorted ascending.
 	Live() []WorkerID
 }
 
@@ -33,7 +34,8 @@ const (
 
 // HeartbeatMembership tracks worker heartbeats against the monotonic
 // reading of an injected clock. A worker is live while less than the
-// liveness window has elapsed since its last heartbeat. Sending heartbeats
+// liveness window has elapsed since its last heartbeat, so it is dead at
+// exactly 15 s with the default (docs/PORTING_RUST.md 5.6). Sending heartbeats
 // every HeartbeatInterval is the caller's job. It is safe for concurrent
 // use.
 type HeartbeatMembership struct {

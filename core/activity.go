@@ -4,7 +4,9 @@ import "fmt"
 
 // ActivityClass orders how intrusive an action is: passive < active <
 // intrusive (spec 2.2, 4.1). ClassNone is used for workflows that perform
-// no target-facing effect at all.
+// no target-facing effect at all. The numeric order is the policy order:
+// a program allows class c when c <= its max class, so the constants must
+// keep their relative values.
 type ActivityClass int
 
 // Activity classes, in increasing order.
@@ -17,6 +19,8 @@ const (
 
 var classNames = [...]string{"none", "passive", "active", "intrusive"}
 
+// String returns the lower snake case name used in JSON, SQL and the DSL
+// ("none", "passive", ...), or "class(N)" for a value outside the enum.
 func (c ActivityClass) String() string {
 	if c >= 0 && int(c) < len(classNames) {
 		return classNames[c]
@@ -24,7 +28,8 @@ func (c ActivityClass) String() string {
 	return fmt.Sprintf("class(%d)", int(c))
 }
 
-// ParseActivityClass parses the lower snake case name of a class.
+// ParseActivityClass parses the lower snake case name of a class. Matching
+// is exact and case-sensitive; any other text is an error.
 func ParseActivityClass(s string) (ActivityClass, error) {
 	for i, n := range classNames {
 		if n == s {

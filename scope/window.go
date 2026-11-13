@@ -5,7 +5,7 @@ import (
 	"time"
 
 	// The zone database is embedded so window evaluation does not depend
-	// on the host's tzdata.
+	// on the host's tzdata (docs/PORTING_RUST.md 5.1).
 	_ "time/tzdata"
 )
 
@@ -84,6 +84,12 @@ func isDigits(s string) bool {
 
 // contains reports whether instant now falls inside w, using wall-clock
 // time in w's zone (so DST shifts move the window with local time).
+// Seconds are ignored: only the local hour and minute are compared.
+//
+// PORT: the instant is converted to local time with the embedded tzdata
+// (time.In); a skipped DST hour simply never occurs and both passes of a
+// repeated hour get the same answer. chrono-tz's with_timezone behaves the same
+// way; pin the tz database version in both implementations.
 func (w *window) contains(now time.Time) bool {
 	lt := now.In(w.loc)
 	wd := lt.Weekday()

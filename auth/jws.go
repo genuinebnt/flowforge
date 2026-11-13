@@ -68,6 +68,11 @@ func parseCompact(token string) (compact, error) {
 // other JOSE parsers do not; to leave no room for disagreement it rejects
 // member names that are equal ignoring case, a member that spells one of
 // the known names with different case, and trailing data.
+//
+// PORT: the duplicate check folds with strings.ToLower and the spelling
+// check with strings.EqualFold (Unicode simple folding, so "ſub" with
+// U+017F is a misspelling of "sub"). serde keeps the last duplicate of a
+// map key; decode into structs and reproduce these checks explicitly.
 func decodeObject(b []byte, v any, known ...string) error {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	tok, err := dec.Token()

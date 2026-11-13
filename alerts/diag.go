@@ -128,6 +128,8 @@ func newDiagSink(file, src string) *diagSink {
 	return &diagSink{file: file, src: src, lines: lines}
 }
 
+// pos converts a byte offset to a 1-based line and column. Columns count
+// code points when the line prefix is valid UTF-8 and bytes otherwise.
 func (s *diagSink) pos(off int) Position {
 	off = max(0, min(off, len(s.src)))
 	line := sort.Search(len(s.lines), func(i int) bool { return s.lines[i] > off }) - 1

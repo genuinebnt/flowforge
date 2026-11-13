@@ -19,7 +19,10 @@ type ProgramPolicy struct {
 	ProgramID    core.UUID
 	ScopeVersion int32
 	MaxClass     core.ActivityClass
-	Prohibited   []string
+	// Prohibited is the program's activity.prohibited list, passed along
+	// for completeness; the v1 compiler adapters ignore it (only MaxClass
+	// is checked), so nothing enforces it yet.
+	Prohibited []string
 }
 
 // CompileRequest is the input of Compiler.Check and Compiler.Compile.
@@ -242,7 +245,12 @@ type ToolSpec struct {
 }
 
 // ComputeSHA256 returns the canonical hash of the spec (SHA-256 of its
-// canonical JSON without the hash itself).
+// canonical JSON without the hash itself, which has the json:"-" tag).
+//
+// PORT: the hash covers core.CanonicalJSON of the struct as encoding/json
+// sees it (field names from the json tags, omitempty, nil slices as
+// null), so a Rust registry must serialize the same members to get the
+// same pinned hash.
 func (s ToolSpec) ComputeSHA256() [32]byte {
 	b, err := core.CanonicalJSON(s)
 	if err != nil {
@@ -298,6 +306,7 @@ type ToolError struct {
 	Retryable bool   `json:"retryable"`
 }
 
+// Error returns "<code>: <message>".
 func (e *ToolError) Error() string { return e.Code + ": " + e.Message }
 
 // ToolExecutor is the port to the tool runner (spec 6.3, 11.5). Errors

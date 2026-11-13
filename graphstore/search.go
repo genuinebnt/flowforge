@@ -19,9 +19,15 @@ var searchSkip = map[string]bool{"raw": true, "password": true, "username": true
 
 // SearchText returns the lower-cased display text indexed for an entity
 // (graph.entities.search_text, spec 10.5, 10.7): its top-level string and
-// number content values in field order (names, addresses, URLs, banners,
-// titles), de-duplicated, space-separated and capped at MaxSearchText
-// bytes. Hash-like keys and nested values are not indexed.
+// number content values (names, addresses, URLs, banners, titles) in
+// sorted field-name order, trimmed, de-duplicated, space-separated and
+// cut at MaxSearchText bytes on a UTF-8 boundary. The searchSkip fields,
+// booleans and nested values are not indexed.
+//
+// PORT: the map is iterated in sorted key order because Go's order is
+// random; strings.ToLower and TrimSpace are per-rune Unicode simple
+// mappings (not Rust's full to_lowercase); numbers keep their json.Number
+// text.
 func SearchText(content map[string]any) string {
 	var parts []string
 	seen := map[string]bool{}
@@ -64,7 +70,13 @@ func NormalizeQuery(q string) string { return strings.ToLower(strings.TrimSpace(
 // Trigrams returns the sorted trigram set of s exactly as pg_trgm's
 // show_trgm extracts it: s is lower-cased and split into words of letters
 // and digits; each word is padded with two spaces in front and one behind
-// and contributes every run of three consecutive characters.
+// and contributes every run of three consecutive characters (runes, not
+// bytes).
+//
+// PORT: "letter or digit" is Go's unicode.IsLetter/IsDigit; pg_trgm uses
+// the database locale's iswalnum, so non-ASCII text can split differently
+// in Postgres than here, and Rust's char::is_alphanumeric differs from
+// both. Mem and the Postgres store agree on ASCII text.
 func Trigrams(s string) []string {
 	set := map[string]struct{}{}
 	word := make([]rune, 0, 32)

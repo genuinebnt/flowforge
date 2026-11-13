@@ -30,6 +30,16 @@ import (
 //	ScopeProof    [17, target, decision_id]
 //
 // EncodeArgs encodes an argument list as a CBOR array of such trees.
+//
+// PORT: these bytes are hashed into args_hash, so a Rust VM must produce
+// them exactly (docs/PORTING_RUST.md 4.4, 5.13). fxamacker's
+// CoreDetEncOptions means: shortest integer heads (negative ints as major
+// type 1), definite lengths, and floats in the shortest of float16,
+// float32 and float64 that represents the value exactly (-0.0 becomes the
+// float16 0xf98000). The kind, stream flag, type id, variant and function
+// index are unsigned ints. Maps are flat arrays in insertion order, so no
+// CBOR map-key sorting is involved. Write the tree with an explicit
+// canonical writer rather than relying on ciborium's serde defaults.
 
 var (
 	encMode = mustEncMode()

@@ -22,6 +22,11 @@ import (
 //
 // All integers are little endian. Offsets in the table are absolute file
 // offsets; lengths exclude padding.
+//
+// PORT: this is a cross-language contract: csr_009 compares the SHA-256
+// of Go- and Rust-built files (docs/PORTING_RUST.md 4.4). created_at is
+// time.UnixMilli (floor to milliseconds), float32 confidences are their
+// IEEE-754 bits, and CRC32C is crc32.Castagnoli (the crc32c crate).
 const (
 	// FormatVersion is the only snapshot version this package reads and
 	// writes.
@@ -259,8 +264,10 @@ func (g *Graph) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Digest returns the sha256 footer of the snapshot file, which identifies
-// the graph content (spec 21.2).
+// Digest returns the sha256 footer of the snapshot file (spec 21.1). It
+// identifies the whole file: the graph content and Meta (tenant, program,
+// watermark, created_at, flags), so equal graphs with different metadata
+// have different digests.
 func (g *Graph) Digest() ([sha256.Size]byte, error) {
 	var d [sha256.Size]byte
 	var tail tailWriter

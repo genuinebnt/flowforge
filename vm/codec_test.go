@@ -332,3 +332,27 @@ func TestVM_ScopeAllowsAndCancel(t *testing.T) {
 		t.Fatal("resumed a cancelled VM")
 	}
 }
+
+// A Time outside the int64-nanosecond range (before 1677 or after 2262)
+// used to decode through time.Time.UnixNano, whose result is undefined
+// there (it wrapped to an unrelated instant). FromJSON now rejects it.
+func TestRegress_VMFromJSONTimeOutOfRange(t *testing.T) {
+	b := newBuilder()
+	f := b.Func("main", 0, 0)
+	b.SetEntry(f.Index())
+	f.Op(bc.OpUnit)
+	f.Op(bc.OpRet)
+	m := build(t, b).Module()
+	ty, err := vm.ParseType(m, "Time")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{`"3000-01-01T00:00:00Z"`, `"1000-01-01T00:00:00Z"`} {
+		if v, err := vm.FromJSON(m, ty, []byte(s)); err == nil {
+			t.Errorf("FromJSON(Time, %s) = %s, want an error", s, v)
+		}
+	}
+	if v, err := vm.FromJSON(m, ty, []byte(`"2262-04-11T23:47:16.854775807Z"`)); err != nil || !vm.Equal(v, vm.Time(math.MaxInt64)) {
+		t.Errorf("largest representable time: %s, %v", v, err)
+	}
+}

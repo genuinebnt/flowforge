@@ -239,6 +239,8 @@ type Violation struct {
 	Msg string `json:"msg"`
 }
 
+// String returns "<inv> run <run>: <msg>", or "<inv>: <msg>" for a
+// violation not tied to one run.
 func (v Violation) String() string {
 	if v.Run != "" {
 		return fmt.Sprintf("%s run %s: %s", v.Inv, v.Run, v.Msg)

@@ -47,7 +47,9 @@ func absInt(a int64) uint64 {
 }
 
 // intArith applies a checked integer instruction to Int, Duration and Time
-// operands. Allowed combinations: Int op Int -> Int; Duration +- Duration ->
+// operands (spec 8.4: overflow is arith_overflow, a zero divisor
+// div_zero; division truncates toward zero and % takes the dividend's
+// sign). Allowed combinations: Int op Int -> Int; Duration +- Duration ->
 // Duration; Time + Duration, Duration + Time, Time - Duration -> Time;
 // Time - Time -> Duration; Duration * Int, Int * Duration -> Duration;
 // Duration / Int, Duration % Int -> Duration; Duration / Duration -> Int.
@@ -95,6 +97,8 @@ func intArith(op bytecode.Opcode, a, b Value) (Value, *fault) {
 		if y == 0 {
 			return Value{}, errDivZero
 		}
+		// x % -1 is 0 for every x. Spelling it out keeps MinInt64 % -1
+		// well defined. PORT: Rust's % panics on that overflow.
 		if y == -1 {
 			r = 0
 		} else {

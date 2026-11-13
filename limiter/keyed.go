@@ -37,12 +37,12 @@ func newKeyed[S any, A algorithm[S]](rules []Rule) (*keyed[S, A], error) {
 	return &keyed[S, A]{rules: r, state: map[string]*S{}}, nil
 }
 
-// slot returns the state for key, creating it. Callers hold k.mu.
 // Configure implements Limiter.
 func (k *keyed[S, A]) Configure(pattern string, p Params) error {
 	return k.rules.Configure(pattern, p)
 }
 
+// slot returns the state for key, creating it. Callers hold k.mu.
 func (k *keyed[S, A]) slot(key string) *S {
 	s := k.state[key]
 	if s == nil {

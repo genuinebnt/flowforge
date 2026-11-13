@@ -21,6 +21,11 @@ var sqlFS embed.FS
 
 // lockKey is the pg_advisory_xact_lock key that serializes migrators
 // ("flowforg" in ASCII).
+//
+// PORT: a Rust migrator sharing the database must take the same lock key
+// and keep public.schema_migrations in this format (version, name,
+// SHA-256 checksum of the file bytes, applied/skipped status), not its
+// own table such as sqlx's _sqlx_migrations (docs/PORTING_RUST.md 6).
 const lockKey int64 = 0x666c6f77666f7267
 
 // Errors returned by the runner.
@@ -207,7 +212,8 @@ var ErrRoleProblems = errors.New("migrations: service database roles are over-pr
 // security with the tenant, parent and role-scoped policies on every
 // tenant-scoped table and partition, grants each role its own schema only,
 // revokes PUBLIC, and removes the roles from cloudsqlsuperuser where that
-// role exists. Idempotent; cmd/migrate calls it after every Apply.
+// role exists. Idempotent; Deploy (cmd/migrate) calls it after every
+// apply, and ApplyReport calls it when a file after 0018 was applied.
 func SyncRoles(ctx context.Context, db Beginner) error {
 	if err := inTx(ctx, db, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `SELECT public.ff_sync_roles()`)
@@ -277,8 +283,8 @@ func applyOne(ctx context.Context, tx pgx.Tx, m Migration) (Result, error) {
 			return res, err
 		}
 	}
-	// Exec without arguments uses the simple protocol, which accepts a
-	// multi-statement script.
+	// Exec without arguments uses pgx's simple protocol, which accepts a
+	// multi-statement script (the extended protocol takes one statement).
 	if _, err := tx.Exec(ctx, m.SQL); err != nil {
 		return res, err
 	}

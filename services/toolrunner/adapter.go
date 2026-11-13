@@ -74,6 +74,7 @@ type ToolError struct {
 	Retryable bool
 }
 
+// Error returns "<code>: <message>".
 func (e *ToolError) Error() string { return e.Code + ": " + e.Message }
 
 // Errorf returns a *ToolError.

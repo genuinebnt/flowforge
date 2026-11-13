@@ -39,8 +39,15 @@ func FNV1a64(s string) uint64 {
 	return h
 }
 
-// Tokens lower-cases text (Unicode simple folding to lower case) and splits
-// it into maximal runs of letters and digits.
+// Tokens lower-cases text (strings.ToLower: per-rune Unicode simple case
+// mapping) and splits it into maximal runs of letters and digits.
+//
+// PORT: "letter" is unicode.IsLetter (general category L) and "digit" is
+// unicode.IsDigit (category Nd) from Go's Unicode tables. Rust's
+// char::is_alphabetic (the broader Alphabetic property) and
+// char::is_numeric (all of N) differ, as does str::to_lowercase (full
+// mappings); use the general categories and simple mappings, and pin the
+// Unicode version, or SimHash values will not agree bit for bit.
 func Tokens(text string) []string {
 	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)

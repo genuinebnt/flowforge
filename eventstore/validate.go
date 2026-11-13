@@ -23,6 +23,10 @@ const MaxSeq = math.MaxInt64
 // normalized copies: RunID and Seq assigned (head+1, head+2, ...), At in
 // UTC truncated to microseconds (zero stays zero for the store to fill),
 // Payload in canonical JSON ({} for nil).
+//
+// PORT: the microsecond truncation matches Postgres timestamptz, so both
+// stores return the same At; truncate toward the past (time.Truncate), not
+// to the nearest microsecond.
 func PrepareEvents(run RunID, head uint64, events []Event) ([]Event, error) {
 	if head > MaxSeq-uint64(len(events)) {
 		return nil, fmt.Errorf("%w: seq overflow", ErrInvalid)

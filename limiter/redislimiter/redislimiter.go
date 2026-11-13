@@ -14,6 +14,12 @@ import (
 // ARGV holds T_ms, tau_ms and cost for each key. It returns {1, 0} when
 // every key allows (and then writes every new TAT) or {0, worst_ms} when
 // any key denies (and then writes nothing).
+//
+// PORT: a Rust limiter sharing this Redis must send this exact text (the
+// script SHA is derived from it) with the same ARGV layout and the same
+// millisecond rounding as msParams (docs/PORTING_RUST.md 4.4). Redis Lua
+// numbers are doubles and SET stores them as "%.14g" text, which is exact
+// for millisecond TATs below 1e14 (about the year 5138).
 const Script = `-- KEYS: one or more limiter keys; ARGV: per key: T_ms, tau_ms, cost  (GCRA, atomic across keys)
 local now = redis.call('TIME'); now = now[1] * 1000 + math.floor(now[2] / 1000)
 local worst = 0
@@ -69,7 +75,9 @@ func New(client redis.Scripter, opts Options, rules ...limiter.Rule) (*Limiter, 
 	}
 	src := Script
 	if opts.CallerClock {
-		// Take the clock from the last ARGV element (milliseconds).
+		// Take the clock from the last ARGV element (milliseconds). Only
+		// the clock line changes, so tests compare the production script
+		// against an exact timeline (lim_010; keep the same trick in Rust).
 		src = strings.Replace(Script, timeLine, "local now = tonumber(ARGV[#ARGV])", 1)
 	}
 	return &Limiter{client: client, rules: r, script: redis.NewScript(src), caller: opts.CallerClock}, nil
@@ -86,7 +94,9 @@ func (l *Limiter) Acquire(ctx context.Context, key string, cost int, now time.Du
 	return l.AcquireAll(ctx, []limiter.Request{{Key: key, Cost: cost}}, now)
 }
 
-// msParams returns T and tau in whole milliseconds, T rounded up.
+// msParams returns T and tau in whole milliseconds, T rounded up so the
+// millisecond script never admits more than the configured rate; tau is
+// (Burst-1) times the rounded T.
 func msParams(p limiter.Params) (t, tau int64) {
 	t = int64((p.EmissionInterval() + time.Millisecond - 1) / time.Millisecond)
 	return t, int64(p.Burst-1) * t

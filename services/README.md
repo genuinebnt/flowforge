@@ -89,7 +89,8 @@ works end to end; to call a service directly in tests, use
 
 The per-service binaries (`cmd/scope`, `cmd/engine`, `cmd/tool-runner`,
 `cmd/egress-proxy`, `cmd/graph`, `cmd/similarity`, `cmd/notifier`) are what
-`deploy/Dockerfile` builds; `cmd/migrate` applies `migrations.Apply`.
+`deploy/Dockerfile` builds; `cmd/migrate` runs `migrations.Deploy` (apply,
+sync roles, check role privileges).
 
 ### Gateway integration (`devstack`)
 

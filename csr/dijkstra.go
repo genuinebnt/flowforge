@@ -95,7 +95,12 @@ func ShortestPath(g *Graph, from, to uint32, opts PathOptions) (Path, bool, erro
 	return p, true, nil
 }
 
-// edgeCost returns -ln(c) for c in (0, 1], never negative.
+// edgeCost returns -ln(c) for c in (0, 1], never negative (c = 1 gives
+// -0, which compares equal to 0).
+//
+// PORT: Go's math.Log and Rust's f64::ln (libm) can differ in the last
+// bit, so a port may break ties between equally likely paths differently;
+// compare path costs with a tolerance, not exact bits.
 func edgeCost(c float32) float64 {
 	x := -math.Log(float64(c))
 	if x < 0 {

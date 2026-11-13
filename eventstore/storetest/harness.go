@@ -25,7 +25,10 @@ type Harness struct {
 	Now func(ctx context.Context) (time.Time, error)
 
 	// Elapse makes d of store time pass for every run: leases and wake
-	// times that were d in the future become due.
+	// times that were d in the future become due. MemStore advances its
+	// fake clock; Postgres, whose clock is now(), shifts the stored lease
+	// and wake timestamps back by d instead, so no test sleeps. PORT: keep
+	// this trick in a Rust run_suite (docs/PORTING_RUST.md 5.10).
 	Elapse func(ctx context.Context, d time.Duration) error
 
 	// WorkflowVersion is used as RunSpec.WorkflowVersion. Postgres needs

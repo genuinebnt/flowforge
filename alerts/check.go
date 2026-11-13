@@ -219,6 +219,12 @@ func (c *checker) compileRegex(lit *litExpr) *regexp.Regexp {
 		c.diag.add(CodeInvalidRegex, lit.sp, "invalid pattern", "invalid regular expression: %v", err)
 		return nil
 	}
+	// PORT: MaxPatternInst counts instructions of Go's regexp/syntax
+	// program, which has no Rust equivalent; a port needs its own
+	// complexity bound (regex::RegexBuilder::size_limit), so patterns near
+	// the limit may be accepted by one implementation only. Also note that
+	// RE2's \d, \w, \s and \b are ASCII-only while the regex crate's are
+	// Unicode by default: compile with (?-u) classes or ASCII ranges.
 	if len(prog.Inst) > MaxPatternInst {
 		c.diag.add(CodeRegexTooLarge, lit.sp, "pattern too complex", "regular expression compiles to %d instructions; the limit is %d", len(prog.Inst), MaxPatternInst)
 		return nil

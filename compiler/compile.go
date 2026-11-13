@@ -9,7 +9,9 @@ import (
 	"github.com/genuinebnt/flowforge/dsl"
 )
 
-// Version is the default compiler version recorded in META.
+// Version is the default compiler version recorded in META. It is part of
+// the encoded module, so a different compiler (or version) gives a
+// different module hash for the same source.
 const Version = "flowforge-go-compiler 0.1.0"
 
 // Tool is one entry of the tool registry the program is compiled against.
@@ -171,7 +173,12 @@ func selectWorkflow(prog *dsl.Program, name, file string) (*dsl.WorkflowDecl, *d
 }
 
 // ToolSpecSHA256 derives a registry hash for a tool spec that does not
-// carry one: SHA-256 of "name\x00signature\x00effect,effect".
+// carry one: SHA-256 of "name\x00signature\x00effect,effect", with the
+// effects in the given order (not sorted).
+//
+// PORT: the hash lands in the module's TOOLS table and so in the module
+// hash; a Rust compiler compiling against the same registry must derive
+// it the same way.
 func ToolSpecSHA256(s dsl.ToolSpec) [32]byte {
 	h := sha256.New()
 	h.Write([]byte(s.Name))

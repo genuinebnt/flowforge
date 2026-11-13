@@ -83,6 +83,12 @@ func DistanceScalar(m Metric, a, b []float32) float32 {
 
 // DotScalar is the reference inner product: one accumulator, in index
 // order. It is deliberately naive.
+//
+// PORT: the Go compiler may fuse s += a*b into one FMA on arm64 (and on
+// amd64 with GOAMD64=v3), here and in the unrolled kernels, so even the
+// scalar results can differ in the last bits between platforms. Compare
+// kernels with the vec_001 relative tolerance (1e-4), never bit for bit;
+// a Rust port is free to use std::arch or std::simd kernels.
 func DotScalar(a, b []float32) float32 {
 	var s float32
 	for i := range a {

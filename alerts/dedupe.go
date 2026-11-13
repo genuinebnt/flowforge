@@ -16,6 +16,11 @@ import (
 // rule_id, a NUL byte, then the canonical JSON array of the values (times
 // as RFC 3339 strings, durations as Go duration strings, absent values as
 // null). A rule without group_by therefore has one key.
+//
+// PORT: the bytes are a cross-language contract (docs/PORTING_RUST.md 4.4).
+// They are core.CanonicalJSON's: no HTML escaping, U+2028/U+2029 escaped,
+// invalid UTF-8 replaced by U+FFFD, int64 in decimal, floats in Go's
+// encoding/json form.
 func DedupeKey(ruleID string, values []any) string {
 	buf := make([]byte, 0, len(ruleID)+64)
 	buf = append(buf, ruleID...)
@@ -161,8 +166,8 @@ func (t *Throttle) Suppressed(key string) int {
 	return 0
 }
 
-// Prune forgets windows that ended before now and reports how many it
-// removed. Counts of suppressed matches in those windows are dropped.
+// Prune forgets windows that ended at or before now and reports how many
+// it removed. Counts of suppressed matches in those windows are dropped.
 func (t *Throttle) Prune(now time.Time) int {
 	n := 0
 	for k, st := range t.keys {

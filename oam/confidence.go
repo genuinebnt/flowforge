@@ -51,6 +51,10 @@ func (s Sources) Confidence() float64 {
 	if len(s) == 0 {
 		return 0
 	}
+	// PORT: float multiplication is not associative, so the product is
+	// taken in sorted key order rather than Go's random map order; Rust
+	// must use the same order (a BTreeMap gives it). math.Round rounds half
+	// away from zero, like f64::round.
 	prod := 1.0
 	for _, k := range slices.Sorted(maps.Keys(s)) {
 		prod *= 1 - s[k]
