@@ -199,3 +199,13 @@ tests = { prefix = "ChunkInv", required = ["01", "02", "03", "04", "05", "06", "
 conformance = ["chunkstore"]
 fuzz = ["FuzzChunker", "FuzzPackDecode", "FuzzIndexDecode", "FuzzManifestDecode"]
 bench = ["BenchmarkChunk", "BenchmarkPut"]
+
+[module.textindex]
+layer = 1
+spec = ["V2_DESIGN 7"]
+dir = "textindex"
+depends = ["core"]
+tests = { prefix = "TIdxInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18"] }
+conformance = ["textindex/analyzer", "textindex/query_parse", "textindex/trigram_query", "textindex/search", "textindex/ranking"]
+fuzz = ["FuzzQueryParse", "FuzzSegmentOpen", "FuzzAnalyzer", "FuzzIndexOps"]
+bench = ["BenchmarkTIdxAlgo"]

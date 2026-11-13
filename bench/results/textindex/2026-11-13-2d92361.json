@@ -1,0 +1,322 @@
+{
+  "module": "textindex",
+  "date": "2026-11-13",
+  "commit": "2d92361",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkTIdxAlgo/codec/plain",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "B/posting": 4.816,
+        "allocs/op": 0,
+        "and-ns": 1143024,
+        "decode-ns/posting": 31.8,
+        "ns/op": 37299948
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/codec/varint",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "B/posting": 1.352,
+        "allocs/op": 0,
+        "and-ns": 619234,
+        "decode-ns/posting": 14.67,
+        "ns/op": 17204806
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/codec/groupvarint",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "B/posting": 1.651,
+        "allocs/op": 0,
+        "and-ns": 450656,
+        "decode-ns/posting": 15,
+        "ns/op": 17590333
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/skip/1:1",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3208,
+        "allocs/op": 10,
+        "matches/op": 50086,
+        "ns/op": 2992808
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/skip/1:10",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3208,
+        "allocs/op": 10,
+        "matches/op": 4954,
+        "ns/op": 1157692
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/skip/1:100",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3416,
+        "allocs/op": 12,
+        "matches/op": 484,
+        "ns/op": 644763
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/skip/1:1000",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3208,
+        "allocs/op": 11,
+        "matches/op": 49,
+        "ns/op": 108479
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/gallop/1:1",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3939352,
+        "allocs/op": 60,
+        "matches/op": 50086,
+        "ns/op": 4943709
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/gallop/1:10",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2112536,
+        "allocs/op": 51,
+        "matches/op": 4954,
+        "ns/op": 1532946
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/gallop/1:100",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1984280,
+        "allocs/op": 45,
+        "matches/op": 484,
+        "ns/op": 1602840
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/gallop/1:1000",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1972392,
+        "allocs/op": 42,
+        "matches/op": 49,
+        "ns/op": 1664321
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/linear/1:1",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3939144,
+        "allocs/op": 58,
+        "matches/op": 50086,
+        "ns/op": 4675666
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/linear/1:10",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2112536,
+        "allocs/op": 51,
+        "matches/op": 4954,
+        "ns/op": 1649712
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/linear/1:100",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1984280,
+        "allocs/op": 45,
+        "matches/op": 484,
+        "ns/op": 1802831
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/intersect/linear/1:1000",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1972168,
+        "allocs/op": 40,
+        "matches/op": 49,
+        "ns/op": 1704457
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/rank/bm25",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 8088,
+        "MRR": 0.9474,
+        "P@1": 0.8947,
+        "allocs/op": 53,
+        "matches/op": 70099,
+        "ns/op": 2794407,
+        "p50-ns": 2793350,
+        "p99-ns": 2793350
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/rank/tfidf",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 8088,
+        "MRR": 0.9474,
+        "P@1": 0.8947,
+        "allocs/op": 53,
+        "matches/op": 70099,
+        "ns/op": 3501822,
+        "p50-ns": 3500650,
+        "p99-ns": 3500650
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/regex/trigram",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 36931520,
+        "allocs/op": 6367,
+        "matches/op": 22059,
+        "ns/op": 119450386,
+        "p50-ns": 119448524,
+        "p99-ns": 119448524
+      }
+    },
+    {
+      "bench_id": "BenchmarkTIdxAlgo/regex/fullscan",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 37511816,
+        "allocs/op": 6443,
+        "matches/op": 22059,
+        "ns/op": 142283034,
+        "p50-ns": 142280701,
+        "p99-ns": 142280701
+      }
+    },
+    {
+      "bench_id": "BenchmarkIndexing",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4956632832,
+        "allocs/op": 12416155,
+        "docs/s": 10480,
+        "index-B/doc": 770.3,
+        "index/raw": 2.208,
+        "ns/op": 9542399946,
+        "raw-B/doc": 348.9,
+        "segments": 1
+      }
+    },
+    {
+      "bench_id": "BenchmarkQuery_Term",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 8088,
+        "allocs/op": 53,
+        "matches/op": 70099,
+        "ns/op": 2841595,
+        "p50-ns": 2840494,
+        "p99-ns": 2840494
+      }
+    },
+    {
+      "bench_id": "BenchmarkQuery_Phrase",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 9816,
+        "allocs/op": 75,
+        "matches/op": 53739,
+        "ns/op": 6412028,
+        "p50-ns": 6410374,
+        "p99-ns": 6410374
+      }
+    },
+    {
+      "bench_id": "BenchmarkQuery_Regex",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 36931520,
+        "allocs/op": 6367,
+        "matches/op": 22059,
+        "ns/op": 111267740,
+        "p50-ns": 111266131,
+        "p99-ns": 111266131
+      }
+    },
+    {
+      "bench_id": "BenchmarkQuery_Filtered",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1608712,
+        "allocs/op": 137,
+        "matches/op": 1156,
+        "ns/op": 2786948,
+        "p50-ns": 2786305,
+        "p99-ns": 2786305
+      }
+    },
+    {
+      "bench_id": "BenchmarkMerge",
+      "package": "github.com/genuinebnt/flowforge/textindex",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2063626384,
+        "allocs/op": 4366744,
+        "docs/s": 22012,
+        "ns/op": 4088658139
+      }
+    }
+  ]
+}
