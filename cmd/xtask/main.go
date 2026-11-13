@@ -6,6 +6,7 @@
 //	go run ./cmd/xtask bench-module [-benchtime 1s] <name>
 //	go run ./cmd/xtask bench-compare <baseline.json> <new.json>
 //	go run ./cmd/xtask fuzz-smoke [-fuzztime 60s] [name...]
+//	go run ./cmd/xtask usage [-by identifier|consumer] [-tests] [-md] <name or dir>
 //	go run ./cmd/xtask sim [--profile chaos|all] [--seeds 200] [--seed N] [--workload mixed|all]
 //
 // Module definitions come from modules.toml at the repository root.
@@ -28,7 +29,7 @@ func main() {
 }
 
 func usage() error {
-	return errors.New("usage: xtask list | verify-module <name> | test-module <name> | bench-module [-benchtime d] <name> | bench-compare <a.json> <b.json> | fuzz-smoke [-fuzztime d] [name...] | sim [--profile p] [--seeds n] [--seed n] [--workload w]")
+	return errors.New("usage: xtask list | verify-module <name> | test-module <name> | bench-module [-benchtime d] <name> | bench-compare <a.json> <b.json> | fuzz-smoke [-fuzztime d] [name...] | usage [-by identifier|consumer] [-tests] [-md] <name or dir> | sim [--profile p] [--seeds n] [--seed n] [--workload w]")
 }
 
 func run(args []string) error {
@@ -91,6 +92,8 @@ func run(args []string) error {
 			return err
 		}
 		return benchModule(mod, *benchtime)
+	case "usage":
+		return usageCommand(man, rest)
 	case "fuzz-smoke":
 		fs := flag.NewFlagSet("fuzz-smoke", flag.ContinueOnError)
 		fuzztime := fs.String("fuzztime", "60s", "go test -fuzztime value per target")
