@@ -1,0 +1,124 @@
+{
+ "comment": "jsparse extraction helpers: StringLiterals call context. Each string lists value, kind (string|template|tagged), callee, receiver, arg, key.",
+ "cases": [
+  {
+   "name": "fetch-axios-ajax-xhr",
+   "module": false,
+   "source": "fetch('/api/users', {method: 'POST'});\naxios.get(`/api/items/${id}`);\n$.ajax({url: '/legacy', type: 'GET'});\nvar xhr = new XMLHttpRequest(); xhr.open('GET', '/x' + q);\nwindow['fetch']('/w');\n",
+   "strings": [
+    {
+     "value": "/api/users",
+     "kind": "string",
+     "callee": "fetch",
+     "receiver": "fetch",
+     "arg": 0,
+     "key": ""
+    },
+    {
+     "value": "POST",
+     "kind": "string",
+     "callee": "fetch",
+     "receiver": "fetch",
+     "arg": 1,
+     "key": "method"
+    },
+    {
+     "value": "/api/items/${}",
+     "kind": "template",
+     "callee": "axios.get",
+     "receiver": "axios.get",
+     "arg": 0,
+     "key": ""
+    },
+    {
+     "value": "/legacy",
+     "kind": "string",
+     "callee": "$.ajax",
+     "receiver": "$.ajax",
+     "arg": 0,
+     "key": "url"
+    },
+    {
+     "value": "GET",
+     "kind": "string",
+     "callee": "$.ajax",
+     "receiver": "$.ajax",
+     "arg": 0,
+     "key": "type"
+    },
+    {
+     "value": "GET",
+     "kind": "string",
+     "callee": "xhr.open",
+     "receiver": "XMLHttpRequest.open",
+     "arg": 0,
+     "key": ""
+    },
+    {
+     "value": "/x",
+     "kind": "string",
+     "callee": "xhr.open",
+     "receiver": "XMLHttpRequest.open",
+     "arg": 1,
+     "key": ""
+    },
+    {
+     "value": "/w",
+     "kind": "string",
+     "callee": "window.fetch",
+     "receiver": "window.fetch",
+     "arg": 0,
+     "key": ""
+    }
+   ],
+   "comment": "arg is the index of the argument that contains the literal, directly or nested"
+  },
+  {
+   "name": "keys-and-specifiers-are-not-strings",
+   "module": true,
+   "source": "import a from './a.js';\nexport { b } from \"./b.js\";\nconst o = {'k': 'v', [\"c\"]: 1};\nclient.post`/graphql`;\nnew Request(\"/r\", {cache: 'no-store'}).then(x => x)\n",
+   "strings": [
+    {
+     "value": "v",
+     "kind": "string",
+     "callee": "",
+     "receiver": "",
+     "arg": -1,
+     "key": "k"
+    },
+    {
+     "value": "c",
+     "kind": "string",
+     "callee": "",
+     "receiver": "",
+     "arg": -1,
+     "key": ""
+    },
+    {
+     "value": "/graphql",
+     "kind": "tagged",
+     "callee": "client.post",
+     "receiver": "client.post",
+     "arg": -1,
+     "key": ""
+    },
+    {
+     "value": "/r",
+     "kind": "string",
+     "callee": "Request",
+     "receiver": "Request",
+     "arg": 0,
+     "key": ""
+    },
+    {
+     "value": "no-store",
+     "kind": "string",
+     "callee": "Request",
+     "receiver": "Request",
+     "arg": 1,
+     "key": "cache"
+    }
+   ]
+  }
+ ]
+}

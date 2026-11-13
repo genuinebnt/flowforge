@@ -321,14 +321,15 @@
   },
   {
    "id": "passive_resolve_outside",
-   "target": "outside.example",
+   "target": "nowhere.example",
    "class": "passive",
    "resolve": true,
    "expect": {
     "result": "deny",
     "reason": "no_matching_allow",
     "pinned_ips": []
-   }
+   },
+   "note": "passive resolution happens only after an allow matched: an out-of-scope name is never looked up, even when it would not resolve"
   }
  ]
 }

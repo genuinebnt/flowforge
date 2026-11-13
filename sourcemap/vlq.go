@@ -177,7 +177,7 @@ func (ds *decodeState) apply(f []int64, nSources, nNames, at int) (Mapping, *Err
 
 // AppendVLQ appends the Base64 VLQ encoding of v (ECMA-426 §"Base64 VLQ":
 // sign in the lowest bit of the first digit, 5 bits per digit, low digits
-// first, bit 6 marks continuation). The encoding is minimal.
+// first, the 0x20 bit marks continuation). The encoding is minimal.
 func AppendVLQ(b []byte, v int32) []byte {
 	x := int64(v) << 1
 	if v < 0 {

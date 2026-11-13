@@ -10,32 +10,32 @@ type TokenKind uint8
 // comments without producing a token (§4.3.2); this tokenizer keeps them so
 // token spans tile the input. The parser skips them.
 const (
-	TokenInvalid    TokenKind = iota
-	TokenIdent                // <ident-token>
-	TokenFunction             // <function-token>; Value is the name without "("
-	TokenAtKeyword            // <at-keyword-token>; Value is the name without "@"
-	TokenHash                 // <hash-token>; FlagHashID marks type "id"
-	TokenString               // <string-token>; Value is the decoded content
-	TokenBadString            // <bad-string-token>
-	TokenURL                  // <url-token>; Value is the decoded URL
-	TokenBadURL               // <bad-url-token>
-	TokenDelim                // <delim-token>; Value is the one code point
-	TokenNumber               // <number-token>; FlagInteger marks type "integer"
-	TokenPercentage           // <percentage-token>
-	TokenDimension            // <dimension-token>; Value is the unit
-	TokenWhitespace           // <whitespace-token>
-	TokenCDO                  // <CDO-token> "<!--"
-	TokenCDC                  // <CDC-token> "-->"
-	TokenColon                // <colon-token>
-	TokenSemicolon            // <semicolon-token>
-	TokenComma                // <comma-token>
-	TokenOpenSquare           // <[-token>
-	TokenCloseSquare          // <]-token>
-	TokenOpenParen            // <(-token>
-	TokenCloseParen           // <)-token>
-	TokenOpenCurly            // <{-token>
-	TokenCloseCurly           // <}-token>
-	TokenComment              // trivia: /* ... */
+	TokenInvalid     TokenKind = iota
+	TokenIdent                 // <ident-token>
+	TokenFunction              // <function-token>; Value is the name without "("
+	TokenAtKeyword             // <at-keyword-token>; Value is the name without "@"
+	TokenHash                  // <hash-token>; FlagHashID marks type "id"
+	TokenString                // <string-token>; Value is the decoded content
+	TokenBadString             // <bad-string-token>
+	TokenURL                   // <url-token>; Value is the decoded URL
+	TokenBadURL                // <bad-url-token>
+	TokenDelim                 // <delim-token>; Value is the one code point
+	TokenNumber                // <number-token>; FlagInteger marks type "integer"
+	TokenPercentage            // <percentage-token>
+	TokenDimension             // <dimension-token>; Value is the unit
+	TokenWhitespace            // <whitespace-token>
+	TokenCDO                   // <CDO-token> "<!--"
+	TokenCDC                   // <CDC-token> "-->"
+	TokenColon                 // <colon-token>
+	TokenSemicolon             // <semicolon-token>
+	TokenComma                 // <comma-token>
+	TokenOpenSquare            // <[-token>
+	TokenCloseSquare           // <]-token>
+	TokenOpenParen             // <(-token>
+	TokenCloseParen            // <)-token>
+	TokenOpenCurly             // <{-token>
+	TokenCloseCurly            // <}-token>
+	TokenComment               // trivia: /* ... */
 
 	// Legacy tokens of the CSS Syntax 3 2014 Candidate Recommendation,
 	// produced only with Options.LegacyTokens (see OPEN_QUESTIONS.md).

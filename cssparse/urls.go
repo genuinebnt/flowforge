@@ -209,6 +209,7 @@ walk:
 			push(n.FirstChild, f.ctx, false)
 		}
 	}
+	// PORT: stable sort by start offset (refs never share a start).
 	sort.SliceStable(refs, func(i, j int) bool { return refs[i].Start < refs[j].Start })
 	return URLResult{Refs: refs, Grade: gradeOf(diags), Diags: diags}
 }

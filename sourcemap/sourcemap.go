@@ -250,8 +250,9 @@ func Parse(data []byte, opts Options) (*Map, error) {
 
 func decodeJSON(data []byte, v *rawMap) *Error {
 	// PORT: encoding/json is the JSON layer (serde_json in Rust). Unknown
-	// fields are ignored, as ECMA-426 requires; for duplicate keys the last
-	// one wins in both libraries.
+	// fields are ignored, as ECMA-426 requires. For a duplicate key
+	// encoding/json keeps the last value while serde's derive rejects the
+	// document; the port must keep the last value (OPEN_QUESTIONS 8).
 	if err := json.Unmarshal(data, v); err != nil {
 		var te *json.UnmarshalTypeError
 		if errors.As(err, &te) {

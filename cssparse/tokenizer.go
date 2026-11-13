@@ -156,6 +156,9 @@ func (t *tokenizer) cpAt(i int) (rune, int) {
 		}
 		return rune(b), 1
 	}
+	// PORT: Go decodes an invalid or surrogate sequence as U+FFFD with
+	// width 1; the Rust port must consume one byte per invalid byte the
+	// same way so spans and values agree.
 	return utf8.DecodeRuneInString(t.src[i:])
 }
 

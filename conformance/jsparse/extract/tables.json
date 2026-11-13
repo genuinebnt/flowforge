@@ -1,0 +1,25 @@
+{
+  "comment": "jsparse extraction helpers: LiteralTables(minEntries=3, maxEntries=100).",
+  "cases": [
+    {
+      "name": "router-config",
+      "module": false,
+      "source": "const routes = [{path: '/', component: Home}, {path: '/users/:id', component: () => import('./User.vue'), children: [{path: 'edit', name: 'edit'}]}];\nrouter.add({\"/a\": handlerA, \"/b\": handlerB, \"/c\": function(){}});\nvar small = {a: 1};\n",
+      "tables": [
+        {"context": "routes", "entries": [
+          {"path": "[0].path", "kind": "string", "value": "/"},
+          {"path": "[0].component", "kind": "identifier", "value": "Home"},
+          {"path": "[1].path", "kind": "string", "value": "/users/:id"},
+          {"path": "[1].component", "kind": "function", "value": ""},
+          {"path": "[1].children[0].path", "kind": "string", "value": "edit"},
+          {"path": "[1].children[0].name", "kind": "string", "value": "edit"}
+        ]},
+        {"context": "router.add#arg0", "entries": [
+          {"path": "./a", "kind": "identifier", "value": "handlerA"},
+          {"path": "./b", "kind": "identifier", "value": "handlerB"},
+          {"path": "./c", "kind": "function", "value": ""}
+        ]}
+      ]
+    }
+  ]
+}

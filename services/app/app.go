@@ -104,7 +104,12 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		}
 		return wire.ToolRunner(env, wire.ToolRunnerOptions{ScopeAddr: cfg.ScopeAddr, EgressProxy: cfg.EgressProxy})
 	case "egress-proxy":
-		c, _, err := wire.EgressProxy(env, wire.EgressOptions{ScopeAddr: cfg.ScopeAddr})
+		o, err := wire.EgressConfigFromEnv(getenv)
+		if err != nil {
+			return nil, err
+		}
+		o.ScopeAddr = cfg.ScopeAddr
+		c, _, err := wire.EgressProxy(env, o)
 		return c, err
 	case "graph":
 		c, _, err := wire.Graph(env, wire.GraphOptions{ScopeAddr: cfg.ScopeAddr})

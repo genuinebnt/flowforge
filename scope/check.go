@@ -45,12 +45,13 @@ type Request struct {
 //  4. class above activity.max_class -> deny(class_exceeds_program)
 //  5. non-passive outside every window -> deny(outside_window)
 //  6. a deny rule matches -> deny(explicit_deny, rule)
-//  7. name target, non-passive (unless SkipResolution) or passive with
-//     ResolvePassive: resolve once; resolution fails ->
-//     deny(resolution_failed); an address in a deny cidr ->
-//     deny(resolved_ip_denied, rule)
-//  8. an allow rule matches -> allow(rule, pinned addresses)
-//  9. otherwise deny(no_matching_allow)
+//  7. non-passive name target (unless SkipResolution): resolve once;
+//     resolution fails -> deny(resolution_failed); an address in a deny
+//     cidr -> deny(resolved_ip_denied, rule)
+//  8. no allow rule matches -> deny(no_matching_allow)
+//  9. passive name target with ResolvePassive (D3): step 7 now, after the
+//     allow matched, so passive work never looks up out-of-scope names
+//  10. allow(rule, pinned addresses)
 //
 // When several rules match, the first in document order is reported.
 // Check never fails: every problem, including an unreachable resolver,
@@ -86,22 +87,32 @@ func (p *Policy) Check(ctx context.Context, req Request) Decision {
 		return deny(ReasonExplicitDeny, idx)
 	}
 	var pinned []netip.Addr
-	resolve := (active && !req.SkipResolution) || (!active && req.ResolvePassive)
-	if resolve && t.IsName() {
+	resolve := func() (Decision, bool) {
 		ips, err := resolveOnce(ctx, p.resolver, t.Name())
 		if err != nil {
-			return deny(ReasonResolutionFailed, noRule)
+			return deny(ReasonResolutionFailed, noRule), false
 		}
 		for _, ip := range ips {
 			if idx := p.firstDenyCIDR(ip); idx != noRule {
-				return deny(ReasonResolvedIPDenied, idx)
+				return deny(ReasonResolvedIPDenied, idx), false
 			}
 		}
 		pinned = ips
+		return Decision{}, true
+	}
+	if active && t.IsName() && !req.SkipResolution {
+		if d, ok := resolve(); !ok {
+			return d
+		}
 	}
 	idx := p.first(&t, EffectAllow)
 	if idx == noRule {
 		return deny(ReasonNoMatchingAllow, noRule)
+	}
+	if !active && req.ResolvePassive && t.IsName() {
+		if d, ok := resolve(); !ok {
+			return d
+		}
 	}
 	d.Result, d.Reason, d.RuleID = ResultAllow, ReasonAllow, p.rules[idx].id
 	if pinned != nil {

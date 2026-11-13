@@ -232,8 +232,9 @@ func (d *Document) writeNode(b *strings.Builder, root NodeID, withComments bool)
 
 func isNSDecl(a *Attr) bool { return a.Name.Space == XMLNSNamespace }
 
-// attrLess orders namespace declarations first (default, then by prefix
-// local name), then other attributes by (namespace URI, local name).
+// attrLess orders namespace declarations first (the default declaration,
+// then by declared prefix), then other attributes by (namespace URI, local
+// name), as C14N 1.0 §2.2 does.
 func attrLess(a, b *Attr) bool {
 	an, bn := isNSDecl(a), isNSDecl(b)
 	if an != bn {

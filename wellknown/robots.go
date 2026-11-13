@@ -42,15 +42,15 @@ type Group struct {
 type RobotsCode uint8
 
 const (
-	RobotsNone             RobotsCode = iota
-	RobotsInvalidLine                 // no ":" separator: ignored
-	RobotsUnknownKey                  // a key other than user-agent, allow, disallow, sitemap, crawl-delay: ignored
-	RobotsRuleOutsideGroup            // allow/disallow before any user-agent: ignored (§2.2.2)
-	RobotsInvalidUserAgent            // user-agent value without a product token: ignored
-	RobotsInvalidPattern              // a pattern not starting with "/" or "*": kept, it matches no path
-	RobotsInvalidCrawlDelay           // crawl-delay that is not a non-negative number: ignored
-	RobotsInputTooLarge               // content past MaxBytes was ignored
-	RobotsLimitExceeded               // rules or sitemaps past MaxItems were ignored
+	RobotsNone              RobotsCode = iota
+	RobotsInvalidLine                  // no ":" separator: ignored
+	RobotsUnknownKey                   // a key other than user-agent, allow, disallow, sitemap, crawl-delay: ignored
+	RobotsRuleOutsideGroup             // allow/disallow before any user-agent: ignored (§2.2.2)
+	RobotsInvalidUserAgent             // user-agent value without a product token: ignored
+	RobotsInvalidPattern               // a pattern not starting with "/" or "*": kept, it matches no path
+	RobotsInvalidCrawlDelay            // crawl-delay that is not a non-negative number: ignored
+	RobotsInputTooLarge                // content past MaxBytes was ignored
+	RobotsLimitExceeded                // rules or sitemaps past MaxItems were ignored
 )
 
 var robotsCodeNames = [...]string{
@@ -76,8 +76,8 @@ type RobotsDiag struct {
 // Robots is a parsed robots.txt.
 type Robots struct {
 	Groups []Group
-	// Sitemaps lists sitemap URLs in file order (§2.3.5: independent of
-	// groups).
+	// Sitemaps lists sitemap URLs in file order (§2.2.4: other records
+	// are not part of any group).
 	Sitemaps []string
 	Diags    []RobotsDiag
 	Grade    Grade

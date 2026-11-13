@@ -10,9 +10,10 @@ import (
 // text), dropping comments, following CSS Syntax 3 §9 "Serialization": an
 // empty comment is inserted between two tokens that would otherwise
 // re-tokenize differently. Re-tokenizing the output gives the same kinds,
-// values and flags (CSS-INV-03), except that bad-string and bad-url
-// tokens lose nothing (they carry no value) and unterminated strings and
-// urls come back terminated.
+// values and flags (CSS-INV-03); unterminated strings and urls come back
+// terminated. A bad-string is written as a quote and a newline, so its
+// newline re-tokenizes as an extra whitespace token: CSS-INV-03 excludes
+// inputs containing one.
 func Serialize(toks []Token) []byte {
 	var b strings.Builder
 	prev := TokenInvalid

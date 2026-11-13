@@ -333,6 +333,11 @@ func (p *parser) newNode(k Kind, start int32) NodeID {
 // done sets the end of id to the end of the last consumed token.
 func (p *parser) done(id NodeID) NodeID {
 	end := p.prevEnd
+	if p.halted && end < p.tok.Start {
+		// Placeholders made after a halt sit at the halt position; the
+		// enclosing nodes must still contain them (JS-INV-06).
+		end = p.tok.Start
+	}
 	if end < p.nodes[id].Span.Start {
 		end = p.nodes[id].Span.Start
 	}
@@ -365,6 +370,10 @@ func (p *parser) listOf(ids ...NodeID) NodeList {
 func (p *parser) ids(l NodeList) []NodeID { return p.children[l.Start : l.Start+l.Len] }
 
 func (p *parser) ident(name string, span Span) NodeID {
+	if p.halted {
+		// After a halt the span's token may never have been consumed.
+		span = Span{p.tok.Start, p.tok.Start}
+	}
 	id := p.newNode(KIdentifier, span.Start)
 	n := p.nd(id)
 	n.Span.End = span.End

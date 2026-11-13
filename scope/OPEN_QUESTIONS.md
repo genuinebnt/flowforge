@@ -104,8 +104,10 @@ brackets).
     name targets, but DNS resolution and TLS handshakes are passive and
     still connect only to pinned addresses. `Request.ResolvePassive` (set by
     the scope service from `CheckRequest.resolve = true`) makes a passive
-    check of a name resolve once at step 7 like an active one: resolved
-    addresses in a deny cidr deny (`resolved_ip_denied`), a failure denies
+    check of a name resolve once like an active one, but only after an allow
+    rule matched (passive work never looks up out-of-scope names, so an
+    out-of-scope name stays `no_matching_allow`): resolved addresses in a
+    deny cidr deny (`resolved_ip_denied`), a failure denies
     (`resolution_failed`, only because resolution was requested), and the
     allow pins the answer. Windows still do not apply to passive work. The
     engine's own passive checks do not request resolution (a passive name

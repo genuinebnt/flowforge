@@ -127,7 +127,8 @@ func (l *Lexer) Next(goal Goal) Token {
 				l.pos++
 			}
 			if !closed {
-				l.addTrivia(TBlockComment, start)
+				// The error token covers the comment; it is not trivia too.
+				l.comments = append(l.comments, Comment{Kind: TBlockComment, Span: Span{int32(start), int32(l.pos)}})
 				return l.finish(Token{Kind: TInvalid, Start: int32(start), End: int32(l.pos), Err: CodeUnterminatedComment, ErrAt: int32(start)}, goal)
 			}
 			l.addTrivia(TBlockComment, start)

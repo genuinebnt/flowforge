@@ -3,7 +3,10 @@ package wire
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -193,6 +196,29 @@ type EgressOptions struct {
 	// Decisions is the decision log (in process: the scope service's
 	// repository; standalone: the scope schema through env.DB).
 	Decisions egressproxy.Decisions
+	// Recorder records intel_source decisions (default: the scope schema
+	// through env.DB when Decisions is not given; else none).
+	Recorder egressproxy.Recorder
+
+	// Ports is the port policy for host-level decisions (nil: 80, 443).
+	Ports *egressproxy.PortPolicy
+	// Intel is the intelligence-source allowlist (nil: none);
+	// IntelResolver resolves sources without pinned addresses (default
+	// the system resolver).
+	Intel         []egressproxy.IntelSource
+	IntelResolver scope.Resolver
+	// SOCKSListen and DNSListen are the listen addresses of the SOCKS5
+	// listener and the DNS forwarder (UDP and TCP); "" disables them.
+	// SOCKSAdvertise and DNSAdvertise are the addresses tickets carry
+	// (default: the listener's address, an unspecified host replaced by
+	// 127.0.0.1, the sandbox-sidecar case).
+	SOCKSListen, DNSListen       string
+	SOCKSAdvertise, DNSAdvertise string
+	// Upstream answers forwarded DNS queries (default the system resolver).
+	Upstream egressproxy.Upstream
+	// RedisAddr, when set, keeps the per-target limiter in Redis so every
+	// replica shares it (Redis TIME is the clock).
+	RedisAddr, RedisAuth string
 }
 
 // EgressProxy builds the egress proxy (a plain HTTP proxy, not gRPC).
@@ -207,8 +233,63 @@ func EgressProxy(env *Env, o EgressOptions) (*Component, *egressproxy.Proxy, err
 		}
 		o.Decisions = scopesvc.DecisionLog{Repo: &scopesvc.PgRepo{DB: env.DB}}
 	}
+	if o.Recorder == nil && env.DB != nil {
+		o.Recorder = &scopesvc.PgRepo{DB: env.DB}
+	}
 	p := &egressproxy.Proxy{Decisions: o.Decisions, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "egress-proxy"),
-		Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics}
+		Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics, Recorder: o.Recorder, Ports: o.Ports, Intel: o.Intel,
+		IntelResolver: o.IntelResolver, Upstream: o.Upstream}
+	if p.IntelResolver == nil {
+		p.IntelResolver = scopesvc.NetResolver{}
+	}
+	if p.Upstream == nil {
+		p.Upstream = egressproxy.NetUpstream{}
+	}
+	closers := []func(){func() { conn.Close() }}
+	closeAll := func() {
+		for _, c := range closers {
+			c()
+		}
+	}
+	if o.RedisAddr != "" {
+		rc := redis.NewClient(&redis.Options{Addr: o.RedisAddr, Password: o.RedisAuth})
+		rl, err := redislimiter.New(rc, redislimiter.Options{})
+		if err != nil {
+			closeAll()
+			return nil, nil, err
+		}
+		closers = append(closers, func() { rc.Close() })
+		p.Limiter = egressproxy.ContextLimiter{L: rl}
+	}
+	var runs []func(context.Context) error
+	if o.SOCKSListen != "" {
+		l, err := net.Listen("tcp", o.SOCKSListen)
+		if err != nil {
+			closeAll()
+			return nil, nil, fmt.Errorf("egress proxy: SOCKS5 listener: %w", err)
+		}
+		closers = append(closers, func() { l.Close() })
+		p.SOCKSAddr = advertise(o.SOCKSAdvertise, l.Addr())
+		runs = append(runs, func(ctx context.Context) error { return p.ServeSOCKS(ctx, l) })
+	}
+	if o.DNSListen != "" {
+		l, err := net.Listen("tcp", o.DNSListen)
+		if err != nil {
+			closeAll()
+			return nil, nil, fmt.Errorf("egress proxy: DNS listener: %w", err)
+		}
+		closers = append(closers, func() { l.Close() })
+		// UDP on the port the TCP listener got (DNSListen may say port 0).
+		pc, err := net.ListenPacket("udp", l.Addr().String())
+		if err != nil {
+			closeAll()
+			return nil, nil, fmt.Errorf("egress proxy: DNS UDP listener: %w", err)
+		}
+		closers = append(closers, func() { pc.Close() })
+		p.DNSAddr = advertise(o.DNSAdvertise, l.Addr())
+		runs = append(runs, func(ctx context.Context) error { return p.ServeDNSTCP(ctx, l) },
+			func(ctx context.Context) error { return p.ServeDNSUDP(ctx, pc) })
+	}
 	health := platform.NewHealth()
 	admin := health.Mux(env.Metrics.Registry)
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +299,23 @@ func EgressProxy(env *Env, o EgressOptions) (*Component, *egressproxy.Proxy, err
 		}
 		p.ServeHTTP(w, r)
 	})
-	return &Component{Handler: h, Close: func() { conn.Close() }}, p, nil
+	return &Component{Handler: h, Run: runs, Close: closeAll}, p, nil
+}
+
+// advertise returns adv, or addr with an unspecified host replaced by
+// 127.0.0.1.
+func advertise(adv string, addr net.Addr) string {
+	if adv != "" {
+		return adv
+	}
+	host, port, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return addr.String()
+	}
+	if ip, err := netip.ParseAddr(host); err == nil && ip.IsUnspecified() {
+		host = "127.0.0.1"
+	}
+	return net.JoinHostPort(host, port)
 }
 
 // GraphOptions configure the graph service.

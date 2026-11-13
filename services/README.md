@@ -125,11 +125,12 @@ Background work uses `platform.AsService(ctx, tenant, "engine")` (actor
 | `FF_LISTEN_ADDR` / `PORT` | all | listen address (default `:8080`) |
 | `FF_LOG_LEVEL` | all | debug, info, warn, error |
 | `FF_DB_DSN` | scope, engine, graph, notifier, egress-proxy | Postgres; unset means in-memory stores |
-| `FF_REDIS_ADDR`, `FF_REDIS_AUTH` | engine | distributed limiter (else in-process GCRA) |
+| `FF_REDIS_ADDR`, `FF_REDIS_AUTH` | engine, egress-proxy | distributed limiter (else in-process GCRA; the proxy's per-target limit) |
 | `FF_JWKS_URL`, `FF_JWT_ISSUER`, `FF_JWT_AUDIENCE` | all | verification keys (`https://`, `http://` or `file://`) |
 | `FF_SIGNING_KID`, `FF_SIGNING_KEY` | all callers | this service's internal-token key (32-byte Ed25519 seed, hex or base64) |
 | `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_NOTIFIER_ADDR`, `FF_SIMILARITY_ADDR` | callers | service addresses |
 | `FF_EGRESS_PROXY` | tool-runner | `http://host:port` of the egress proxy (required in prod) |
+| `FF_EGRESS_PORTS`, `FF_EGRESS_INTEL`, `FF_EGRESS_SOCKS_LISTEN`, `FF_EGRESS_SOCKS_ADVERTISE`, `FF_EGRESS_DNS_LISTEN`, `FF_EGRESS_DNS_ADVERTISE`, `FF_EGRESS_DNS_UPSTREAM` | egress-proxy | port policy, intel allowlist, SOCKS5 and DNS listeners (services/egressproxy/README.md) |
 | `FF_ENGINE_WORKERS`, `FF_FUEL_DEFAULT` | engine | worker count, VM fuel |
 | `FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX` | publishers, consumers | reserved for the Pub/Sub adapter (not implemented) |
 
@@ -203,14 +204,12 @@ sources. Tool adapters run against recorded fixtures in
   (`sm://`) references are not resolvable yet (`env://` and `file://` are).
 * **Egress proxy** reads the scope decision log directly (in process, or
   the scope schema in Postgres); HTTPS is tunnelled, so redirects inside
-  TLS are re-checked by the tool runner's client only. Standalone
-  (`cmd/egress-proxy`) it runs without the SOCKS5 and DNS listeners, the
-  intel allowlist and the wide port policy (only the dev stack wires them).
-  Tickets and per-target limiter state are per replica.
+  TLS are re-checked by the tool runner's client only. Tickets and the
+  concurrency cap are per replica; the per-target rate is shared through
+  Redis when `FF_REDIS_ADDR` is set.
 * **Tool runner**: tools run in-process (no sandbox); `dnsresolve` falls
   back to the runner's resolver when the proxy has no DNS forwarder;
-  `tlscert` needs a pinned passive decision, which the scope service does
-  not issue yet (its tunnels are refused, fail closed); the proto
+  the proto
   ToolSpec carries no retry policy, so every tool gets
   `convert.DefaultToolRetry`; httpprobe returns the prelude `Service`
   record (URL, status, title and products go to the graph).

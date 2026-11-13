@@ -28,7 +28,7 @@
       {"agent": "foobot", "path": "/example/page/other.gif", "allowed": true}
      ]},
     {"name": "allow wins a tie", "robots": "user-agent: a\nallow: /p\ndisallow: /p\n", "checks": [{"agent": "a", "path": "/page", "allowed": true}]},
-    {"name": "wildcard counts toward length", "robots": "User-agent: a\nDisallow: /*.php\nAllow: /x.php\n",
+    {"name": "wildcard counts toward length", "robots": "User-agent: a\nDisallow: /*x.php\nAllow: /x.php\n",
      "checks": [{"agent": "a", "path": "/x.php", "allowed": false}, {"agent": "a", "path": "/y/x.php", "allowed": false}, {"agent": "a", "path": "/x.html", "allowed": true}]},
     {"name": "dollar anchors only at the end", "robots": "User-agent: *\nDisallow: /a$\nDisallow: /b$c\n",
      "checks": [{"agent": "x", "path": "/a", "allowed": false}, {"agent": "x", "path": "/ab", "allowed": true}, {"agent": "x", "path": "/b$c/d", "allowed": false}, {"agent": "x", "path": "/bc", "allowed": true}]},

@@ -211,7 +211,10 @@ func NewDecoder(src []byte, opts Options) *Decoder {
 }
 
 // transcodeUTF16 converts BOM-prefixed UTF-16 to UTF-8 (without the BOM).
-// It returns the index of the first bad code unit pair, or -1.
+// It returns the source byte offset of the first unpaired surrogate, or
+// -1; a high surrogate cut by the end is dropped (an EOF condition). On a
+// bad surrogate the caller reports invalid_utf8 at the end of the UTF-8
+// produced so far.
 func transcodeUTF16(src []byte) ([]byte, int) {
 	be := src[0] == 0xFE
 	units := make([]uint16, 0, len(src)/2)
@@ -943,8 +946,8 @@ func lowerByte(c byte) byte {
 	return c
 }
 
-// declValueByte checks byte c at offset j extending pseudo-attribute value
-// prefix so far.
+// declValueByte checks byte c at offset j, which extends the value prefix
+// read so far, so an impossible value is reported at its first wrong byte.
 func (d *Decoder) declValueByte(name string, prefix []byte, c byte, j int) bool {
 	k := len(prefix)
 	switch name {
@@ -994,8 +997,8 @@ func asciiPrefixFold(prefix []byte, s string) bool {
 	return true
 }
 
-// declValueDone checks a complete pseudo-attribute value at the closing
-// quote q (offset j).
+// declValueDone checks a complete pseudo-attribute value v at its closing
+// quote (offset j).
 func (d *Decoder) declValueDone(name, v string, j int) bool {
 	ok := true
 	code := ErrInvalidXMLDecl

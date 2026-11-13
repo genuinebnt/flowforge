@@ -69,7 +69,9 @@ func (g *progGen) tok(s string) {
 		case 0:
 			g.b = append(g.b, ' ')
 		case 1:
-			g.b = append(g.b, "/*c*/"...)
+			if g.b[len(g.b)-1] != '/' { // `/` + `/*` would open a line comment
+				g.b = append(g.b, "/*c*/"...)
+			}
 		case 2:
 			g.b = append(g.b, '\t')
 		}
@@ -81,7 +83,7 @@ func (g *progGen) tok(s string) {
 // brk may insert a line break (only called where one is harmless).
 func (g *progGen) brk() {
 	if g.newlines && g.chance(4) {
-		if g.chance(5) {
+		if g.chance(5) && (len(g.b) == 0 || g.b[len(g.b)-1] != '/') {
 			g.b = append(g.b, "//line\n"...)
 		} else {
 			g.b = append(g.b, '\n')

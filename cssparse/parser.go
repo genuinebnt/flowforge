@@ -247,7 +247,10 @@ func (p *parser) openNode(i int32) NodeID {
 // consumeComponentValue is §5.4.7 "Consume a component value", with
 // §5.4.8 "consume a simple block" and §5.4.9 "consume a function" done
 // iteratively over an explicit stack so nesting cannot overflow the call
-// stack (a Rust port must not recurse either). The next token must exist.
+// stack. The next token must exist.
+//
+// PORT: keep it iterative; a recursive Rust version would overflow the
+// thread stack on deep input long before MaxDepth matters.
 func (p *parser) consumeComponentValue() NodeID {
 	i := p.peek()
 	p.pos++
@@ -467,9 +470,13 @@ func (p *parser) preservedKind(id NodeID) TokenKind {
 }
 
 // declarationFrom is §5.4.6 "Consume a declaration" over the component
-// values ids (ids[0] is the name ident). With ed, the current ED's rule
-// that a {} block must be a non-custom property's whole value applies,
-// and failure returns NoNode instead of an error node.
+// values ids (ids[0] is the name ident): whitespace before the colon is
+// skipped, the last two non-whitespace values "!" "important" set the flag
+// and are removed (step 6), and, as the vendored suite expects, whitespace
+// after the colon and at the end stays in the value (OPEN_QUESTIONS 1).
+// With ed, the current ED's rule that a {} block must be a non-custom
+// property's whole value applies, and failure returns NoNode instead of
+// an error node.
 func (p *parser) declarationFrom(ids []NodeID, ed bool) NodeID {
 	fail := func() NodeID {
 		if ed {

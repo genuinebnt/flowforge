@@ -42,7 +42,6 @@ func padding(n int) []byte {
 // TestWKConformanceRobots runs conformance/wellknown/robots.json.
 func TestWKConformanceRobots(t *testing.T) {
 	var f robotsFile
-	testkit.LoadCases[robotsFile](t, "wellknown") // the suite must exist and decode
 	if err := unmarshal(testkit.ReadFile(t, "wellknown", "robots.json"), &f); err != nil {
 		t.Fatal(err)
 	}

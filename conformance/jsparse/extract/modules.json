@@ -1,0 +1,33 @@
+{
+  "comment": "jsparse extraction helpers: ModuleRefs and SourceMappingURL.",
+  "cases": [
+    {
+      "name": "static-and-dynamic",
+      "module": true,
+      "source": "import x from './x.js';\nimport './side.css';\nexport * from 'lib';\nconst m = import('./chunk-' + n + '.js');\nimport(`./locale/${lang}.json`, { with: { type: 'json' } });\nimport('./lazy.js');\n//# sourceMappingURL=app.js.map\n",
+      "modules": [
+        {"specifier": "./x.js", "dynamic": false, "literal": true},
+        {"specifier": "./side.css", "dynamic": false, "literal": true},
+        {"specifier": "lib", "dynamic": false, "literal": true},
+        {"specifier": "", "dynamic": true, "literal": false},
+        {"specifier": "./locale/${}.json", "dynamic": true, "literal": true},
+        {"specifier": "./lazy.js", "dynamic": true, "literal": true}
+      ],
+      "sourceMappingURL": "app.js.map"
+    },
+    {
+      "name": "map-comment-must-be-last",
+      "module": false,
+      "source": "//# sourceMappingURL=early.map\nvar a = 1;\n/*# sourceMappingURL=data:application/json;base64,e30= */\n",
+      "modules": [],
+      "sourceMappingURL": "data:application/json;base64,e30="
+    },
+    {
+      "name": "map-comment-followed-by-code",
+      "module": false,
+      "source": "var a = 1;\n//@ sourceMappingURL=old.map\nfoo();\n",
+      "modules": [],
+      "sourceMappingURL": ""
+    }
+  ]
+}

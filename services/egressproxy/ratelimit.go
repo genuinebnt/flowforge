@@ -124,3 +124,45 @@ func setRetry(h http.Header, d time.Duration) {
 	h.Set("Retry-After", strconv.FormatInt(int64((d+time.Second-1)/time.Second), 10))
 	h.Set(HeaderRetryAfterMs, strconv.FormatInt(max(1, d.Milliseconds()), 10))
 }
+
+// SharedLimiter is a limiter.ContextLimiter that can be configured, such
+// as redislimiter.Limiter (GCRA in Redis, shared by every proxy replica).
+type SharedLimiter interface {
+	limiter.ContextLimiter
+	Configure(pattern string, p limiter.Params) error
+}
+
+// ContextLimiter adapts a SharedLimiter to limiter.Limiter for the proxy.
+// Each call gets Timeout (default 200 ms); a store failure is an error,
+// which the proxy treats as a refusal (fail closed).
+type ContextLimiter struct {
+	L       SharedLimiter
+	Timeout time.Duration
+}
+
+func (c ContextLimiter) ctx() (context.Context, context.CancelFunc) {
+	t := c.Timeout
+	if t <= 0 {
+		t = 200 * time.Millisecond
+	}
+	return context.WithTimeout(context.Background(), t)
+}
+
+// Acquire implements limiter.Limiter.
+func (c ContextLimiter) Acquire(key string, cost int, now time.Duration) (limiter.Result, error) {
+	ctx, cancel := c.ctx()
+	defer cancel()
+	return c.L.Acquire(ctx, key, cost, now)
+}
+
+// AcquireAll implements limiter.Limiter.
+func (c ContextLimiter) AcquireAll(reqs []limiter.Request, now time.Duration) (limiter.Result, error) {
+	ctx, cancel := c.ctx()
+	defer cancel()
+	return c.L.AcquireAll(ctx, reqs, now)
+}
+
+// Configure implements limiter.Limiter.
+func (c ContextLimiter) Configure(pattern string, p limiter.Params) error {
+	return c.L.Configure(pattern, p)
+}

@@ -878,7 +878,6 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 		return p.parseArrowFromParams(start, p.listOf(param), true, start, false)
 	case pk.Kind == TLParen && !pkNewline:
 		p.checkIdentifierReference(&asyncTok)
-		callee := p.ident("async", asyncTok.Span())
 		p.next()
 		c := p.cur()
 		argsStart := p.start()
@@ -899,6 +898,9 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 			return p.parseArrowFromParams(start, args, true, argsStart, true)
 		}
 		p.flushCover(argsStart)
+		// The callee node is created only now so that an async arrow leaves
+		// no orphan in the arena (JS-INV-06).
+		callee := p.ident("async", asyncTok.Span())
 		return p.call(start, callee, args, false)
 	}
 	tok := p.tok

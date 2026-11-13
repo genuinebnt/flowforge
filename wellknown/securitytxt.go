@@ -39,7 +39,7 @@ const (
 	SecurityInvalidURI                         // a URI-valued field that is not an absolute URI (error)
 	SecurityInsecureURI                        // a web URI that is not https:// (error)
 	SecurityInvalidLine                        // a line that is neither a field, a comment nor blank (error)
-	SecurityInvalidUTF8                        // §4: the file must be UTF-8 (error; the line is skipped)
+	SecurityInvalidUTF8                        // the file must be UTF-8 text (error; the line is skipped)
 	SecurityUnterminatedSignature              // a signed message without a complete signature block (warning)
 	SecurityContentAfterSignature              // lines after the signature are not signed (warning; ignored)
 	SecurityInputTooLarge                      // content past MaxBytes was ignored

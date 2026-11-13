@@ -1,11 +1,3 @@
-// Package sitemap reads sitemaps (sitemaps.org protocol 0.9): <urlset>
-// and <sitemapindex> documents, optionally gzip-compressed, and plain-text
-// sitemaps. It streams over the xmlparse decoder, so it inherits its
-// XXE-safe, DTD-free reading, and it bounds both the decompressed size
-// and the number of entries (zip-bomb and amplification safe).
-//
-// It lives inside the xmlparse unit because layer-1 packages may not
-// import each other; wellknown handles robots.txt and security.txt.
 package sitemap
 
 import (
@@ -128,20 +120,20 @@ type Entry struct {
 type Code uint8
 
 const (
-	CodeNone             Code = iota
-	CodeXMLError              // the XML was not well-formed or was refused (see Sitemap.XMLErr)
-	CodeGzipInvalid           // gzip header or stream corrupt
-	CodeNotSitemap            // root is neither urlset nor sitemapindex
-	CodeMissingNamespace      // root has no namespace (accepted unless RequireNamespace)
-	CodeMissingLoc            // entry without <loc>: dropped
-	CodeInvalidLoc            // <loc> not an absolute http(s) URL or too long: entry dropped
-	CodeInvalidLastMod        // <lastmod> not a W3C Datetime: field ignored
-	CodeInvalidChangeFreq     // unknown <changefreq>: field ignored
-	CodeInvalidPriority       // <priority> not a number in [0, 1]: field ignored
-	CodeDuplicateField        // a field repeated in one entry: the first is kept
-	CodeLimitExceeded         // more entries than MaxEntries: the rest were not read
-	CodeInputTooLarge         // (decompressed) input over MaxBytes: the rest was not read
-	CodeInvalidUTF8           // a text sitemap line that is not UTF-8: skipped
+	CodeNone              Code = iota
+	CodeXMLError               // the XML was not well-formed or was refused (see Sitemap.XMLErr)
+	CodeGzipInvalid            // gzip header or stream corrupt
+	CodeNotSitemap             // root is neither urlset nor sitemapindex
+	CodeMissingNamespace       // root has no namespace (accepted unless RequireNamespace)
+	CodeMissingLoc             // entry without <loc>: dropped
+	CodeInvalidLoc             // <loc> not an absolute http(s) URL or too long: entry dropped
+	CodeInvalidLastMod         // <lastmod> not a W3C Datetime: field ignored
+	CodeInvalidChangeFreq      // unknown <changefreq>: field ignored
+	CodeInvalidPriority        // <priority> not a number in [0, 1]: field ignored
+	CodeDuplicateField         // a field repeated in one entry: the first is kept
+	CodeLimitExceeded          // more entries than MaxEntries: the rest were not read
+	CodeInputTooLarge          // (decompressed) input over MaxBytes: the rest was not read
+	CodeInvalidUTF8            // a text sitemap line that is not UTF-8: skipped
 )
 
 var codeNames = [...]string{

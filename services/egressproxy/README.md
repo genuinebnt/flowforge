@@ -89,14 +89,28 @@ and 429 on plain HTTP; intel sources reachable only by passive decisions,
 recorded as `intel_source`, with `ctlog` end to end; `tlscert` through a
 tunnel.
 
+## Standalone configuration (`cmd/egress-proxy`)
+
+Besides the common variables (services/README.md), `wire.EgressConfigFromEnv`
+reads:
+
+| Variable | Meaning |
+|----------|---------|
+| `FF_EGRESS_PORTS` | port policy for host-level decisions, e.g. `80,443,8000-8099` (default `80,443`) |
+| `FF_EGRESS_INTEL` | intel allowlist: `none` (default), `default` (`DefaultIntelSources()`), and/or entries `host[:port...][=ip]`, `*.host` for a zone with its subdomains |
+| `FF_EGRESS_SOCKS_LISTEN` / `FF_EGRESS_SOCKS_ADVERTISE` | SOCKS5 listen address (empty: off) and the address tickets carry (default the listener, `0.0.0.0` as `127.0.0.1`) |
+| `FF_EGRESS_DNS_LISTEN` / `FF_EGRESS_DNS_ADVERTISE` | DNS forwarder (UDP and TCP on one port) and its advertised address |
+| `FF_EGRESS_DNS_UPSTREAM` | recursive resolver `host:port` (default: the system resolver) |
+| `FF_REDIS_ADDR`, `FF_REDIS_AUTH` | keep the per-target GCRA in Redis (Redis TIME as the clock), shared by every replica |
+
+With `FF_DB_DSN` the proxy reads decisions from, and records `intel_source`
+decisions into, the scope schema.
+
 ## Limitations
 
-* Standalone (`cmd/egress-proxy`, wired in `services/internal/wire`) the
-  proxy has the default port policy, no intel allowlist and no SOCKS5 or DNS
-  listener; the dev stack configures all of them.
-* The scope service pins addresses only for non-passive checks, so a
-  passive decision (tlscert under D3) has no pins and its tunnels are
-  refused (`no_pinned_ips`) until the scope check pins on request.
-* Tickets and limiter state are per replica (no shared store).
+* Tickets are per replica (in memory): a client must send its SOCKS5 and
+  DNS traffic to the replica that issued the ticket. The per-target rate is
+  shared only with `FF_REDIS_ADDR`; the concurrency cap is always per
+  replica.
 * HTTPS is tunnelled: redirects inside TLS are re-checked by the tool
   runner's client only.

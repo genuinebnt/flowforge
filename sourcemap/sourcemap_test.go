@@ -49,14 +49,14 @@ type mapsFile struct {
 			MaxInputBytes int `json:"max_input_bytes"`
 			MaxSources    int `json:"max_sources"`
 		} `json:"options"`
-		Error        string    `json:"error"`
-		Grade        string    `json:"grade"`
-		MapURL       string    `json:"map_url"`
-		Resolved     []string  `json:"resolved"`
-		Contents     []*string `json:"contents"`
-		Ignored      []bool    `json:"ignored"`
-		MappingCount *int      `json:"mapping_count"`
-		SourceCount  *int      `json:"source_count"`
+		Error        string       `json:"error"`
+		Grade        string       `json:"grade"`
+		MapURL       string       `json:"map_url"`
+		Resolved     []string     `json:"resolved"`
+		Contents     []*string    `json:"contents"`
+		Ignored      []bool       `json:"ignored"`
+		MappingCount *int         `json:"mapping_count"`
+		SourceCount  *int         `json:"source_count"`
 		Lookups      []lookupCase `json:"lookups"`
 	} `json:"cases"`
 }
