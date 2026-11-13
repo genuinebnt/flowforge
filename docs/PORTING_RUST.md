@@ -666,7 +666,41 @@ harness (spec 19, 25.6):
 
 ---
 
-## 9. Suggested order
+## 9. Knowing what callers need before porting them
+
+Porting bottom-up means porting `core` before any of the code that uses
+it. Three sources tell you what that code will need, in this order:
+
+1. **The contract:** the spec section the package implements, its
+   `doc.go`, and its conformance data. Port the behaviour these define,
+   not the uses you happen to know about.
+2. **The uses, from the type checker:**
+
+   ```sh
+   go run ./cmd/xtask usage core                     # each exported name: who uses it, where
+   go run ./cmd/xtask usage -by consumer core        # each using package: what it needs, in layer order
+   go run ./cmd/xtask usage -tests -md core > /tmp/core-usage.md
+   ```
+
+   The argument is a module name from `modules.toml` or a package
+   directory (`core/netnorm`). The report comes from `go/types`, so it
+   counts method calls through interfaces, struct fields and aliased
+   imports, which a grep misses. Each name shows how many packages use it,
+   their layers, and example `file:line` sites to read for intent.
+3. **The leftovers:** the report ends with two lists.
+   * *Called implicitly:* methods with no call site that something still
+     calls, either an interface in the same package (`SystemClock.Now`
+     through `Clock.Now`) or the standard library (`Error.Error`,
+     `UUID.MarshalText`, `UUID.Scan`). Port these as trait impls
+     (`Display`, `std::error::Error`, `Serialize`, `FromSql`/`ToSql`).
+   * *Not used outside the package:* candidates to postpone, unless the
+     package's own tests or conformance data need them.
+
+Port the top of the by-identifier list first; it is what most of the
+module depends on. Before starting a crate, run `-by consumer` on each
+package it depends on, to get its exact needs.
+
+## 10. Suggested order
 
 Follow spec 24.7, which is also the order the Go reference was built in:
 
