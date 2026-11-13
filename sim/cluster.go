@@ -91,10 +91,10 @@ type cluster struct {
 	lim    simLimiter
 	// edge is the network edge's per-target limiter (the egress proxy's
 	// GCRA, V2_DESIGN §9): its own state, at the same per-target rate.
-	edge *limiter.GCRA
-	graph  *graphstore.Mem
-	notif  *alerts.Processor
-	api    *engine.Engine
+	edge  *limiter.GCRA
+	graph *graphstore.Mem
+	notif *alerts.Processor
+	api   *engine.Engine
 
 	op            uint64
 	workers       []*simWorker
