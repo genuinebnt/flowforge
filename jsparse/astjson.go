@@ -24,6 +24,9 @@ type field struct {
 	kind fieldKind
 	slot uint8
 	flag NodeFlags
+	// ifB emits the field only when slot B is present (acorn writes
+	// ExportNamedDeclaration.attributes only for re-exports).
+	ifB bool
 }
 
 func nd(name string, s uint8) field          { return field{name: name, kind: fNode, slot: s} }
@@ -115,7 +118,7 @@ var schemas = [kindCount][]field{
 	KImportDefaultSpecifier:   {nd("local", 0)},
 	KImportNamespaceSpecifier: {nd("local", 0)},
 	KImportAttribute:          {nd("key", 0), nd("value", 1)},
-	KExportNamedDeclaration:   {nd("declaration", 0), ls("specifiers", 0), nd("source", 1), ls("attributes", 1)},
+	KExportNamedDeclaration:   {nd("declaration", 0), ls("specifiers", 0), nd("source", 1), field{name: "attributes", kind: fList, slot: 1, ifB: true}},
 	KExportSpecifier:          {nd("local", 0), nd("exported", 1)},
 	KExportDefaultDeclaration: {nd("declaration", 0)},
 	KExportAllDeclaration:     {nd("exported", 0), nd("source", 1), ls("attributes", 1)},
@@ -264,6 +267,9 @@ func (w *jsonWriter) node(id NodeID) {
 			w.buf = appendJSONString(w.buf, w.p.SourceType.String())
 		default:
 			f := schema[k.f]
+			if f.ifB && n.B == NoNode {
+				continue
+			}
 			sep(k.name)
 			switch f.kind {
 			case fNode:

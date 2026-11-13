@@ -119,7 +119,7 @@ func (d *jsonDiffer) array(path string, a, b Value) {
 	for i, v := range b.Items {
 		ib[i] = d.h.id(v)
 	}
-	res, err := Diff(ia, ib, Options{Algorithm: Myers, MaxEditDistance: max(d.opts.MaxArrayEditDistance, 0)})
+	res, err := Diff(ia, ib, Options{Algorithm: MyersLinearSpace, MaxEditDistance: max(d.opts.MaxArrayEditDistance, 0)})
 	if err != nil || res.Capped {
 		d.ops = append(d.ops, PatchOp{Op: PatchReplace, Path: path, Value: cloneValue(b)})
 		return

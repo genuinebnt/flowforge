@@ -218,6 +218,11 @@ func (r *mergeRun) ingest(raw json.RawMessage) error {
 	for i := range o.Tags {
 		o.Tags[i].Target = mapID(o.Tags[i].Target)
 	}
+	if o.Authority != nil {
+		a := *o.Authority
+		a.Source = mapID(a.Source)
+		o.Authority = &a
+	}
 	req := graphstore.IngestRequest{TenantID: r.e.tenant, ProgramID: r.e.prog, RunID: run, Observation: o}
 	res, err := r.e.s.IngestObservation(r.e.ctx, req)
 	if err != nil {

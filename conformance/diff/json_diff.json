@@ -1,0 +1,359 @@
+{
+ "description": "JSONDiff(a, b) expected RFC 6902 patches (MarshalPatch encoding: members op, path, value). Objects: keys in bytewise order, a-only removed, b-only added, common recursed. Arrays: Myers over hash-consed element ids; in a change region the i-th deleted and inserted elements pair up (recursed when both objects or both arrays, else replaced), surplus removed or added at the running index. Applying the patch to a must give a value structurally equal to b.",
+ "id": "diff_json_diff_001",
+ "json_diff": [
+  {
+   "name": "equal",
+   "a": {
+    "a": 1,
+    "b": [
+     1,
+     2
+    ]
+   },
+   "b": {
+    "b": [
+     1,
+     2
+    ],
+    "a": 1
+   },
+   "patch": []
+  },
+  {
+   "name": "numeric_equal",
+   "a": {
+    "n": 1.0
+   },
+   "b": {
+    "n": 1
+   },
+   "patch": []
+  },
+  {
+   "name": "scalar_replace",
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 2
+   },
+   "patch": [
+    {
+     "op": "replace",
+     "path": "/a",
+     "value": 2
+    }
+   ]
+  },
+  {
+   "name": "kind_change",
+   "a": {
+    "a": [
+     1
+    ]
+   },
+   "b": {
+    "a": {
+     "0": 1
+    }
+   },
+   "patch": [
+    {
+     "op": "replace",
+     "path": "/a",
+     "value": {
+      "0": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "root_scalar",
+   "a": 1,
+   "b": "one",
+   "patch": [
+    {
+     "op": "replace",
+     "path": "",
+     "value": "one"
+    }
+   ]
+  },
+  {
+   "name": "object_add_remove",
+   "a": {
+    "keep": true,
+    "old": 1
+   },
+   "b": {
+    "keep": true,
+    "new": 2
+   },
+   "patch": [
+    {
+     "op": "add",
+     "path": "/new",
+     "value": 2
+    },
+    {
+     "op": "remove",
+     "path": "/old"
+    }
+   ]
+  },
+  {
+   "name": "escaped_keys",
+   "a": {
+    "a/b": 1,
+    "m~n": 2
+   },
+   "b": {
+    "a/b": 3,
+    "m~n": 2,
+    "": 0
+   },
+   "patch": [
+    {
+     "op": "add",
+     "path": "/",
+     "value": 0
+    },
+    {
+     "op": "replace",
+     "path": "/a~1b",
+     "value": 3
+    }
+   ]
+  },
+  {
+   "name": "array_insert_middle",
+   "a": [
+    1,
+    2,
+    4
+   ],
+   "b": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "patch": [
+    {
+     "op": "add",
+     "path": "/2",
+     "value": 3
+    }
+   ]
+  },
+  {
+   "name": "array_delete_two",
+   "a": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "b": [
+    1,
+    4,
+    5
+   ],
+   "patch": [
+    {
+     "op": "remove",
+     "path": "/1"
+    },
+    {
+     "op": "remove",
+     "path": "/1"
+    }
+   ]
+  },
+  {
+   "name": "array_replace_pairs",
+   "a": [
+    1,
+    2,
+    3
+   ],
+   "b": [
+    1,
+    "two",
+    3
+   ],
+   "patch": [
+    {
+     "op": "replace",
+     "path": "/1",
+     "value": "two"
+    }
+   ]
+  },
+  {
+   "name": "array_recurse_objects",
+   "a": [
+    {
+     "id": 1,
+     "v": "a"
+    },
+    {
+     "id": 2,
+     "v": "b"
+    }
+   ],
+   "b": [
+    {
+     "id": 1,
+     "v": "a"
+    },
+    {
+     "id": 2,
+     "v": "B"
+    }
+   ],
+   "patch": [
+    {
+     "op": "replace",
+     "path": "/1/v",
+     "value": "B"
+    }
+   ]
+  },
+  {
+   "name": "array_surplus_inserts",
+   "a": [
+    "x"
+   ],
+   "b": [
+    "a",
+    "b",
+    "c"
+   ],
+   "patch": [
+    {
+     "op": "replace",
+     "path": "/0",
+     "value": "a"
+    },
+    {
+     "op": "add",
+     "path": "/1",
+     "value": "b"
+    },
+    {
+     "op": "add",
+     "path": "/2",
+     "value": "c"
+    }
+   ]
+  },
+  {
+   "name": "array_to_empty",
+   "a": [
+    1,
+    2,
+    3
+   ],
+   "b": [],
+   "patch": [
+    {
+     "op": "remove",
+     "path": "/0"
+    },
+    {
+     "op": "remove",
+     "path": "/0"
+    },
+    {
+     "op": "remove",
+     "path": "/0"
+    }
+   ]
+  },
+  {
+   "name": "nested",
+   "a": {
+    "servers": [
+     {
+      "host": "a",
+      "ports": [
+       80,
+       443
+      ]
+     },
+     {
+      "host": "b",
+      "ports": [
+       22
+      ]
+     }
+    ],
+    "v": 1
+   },
+   "b": {
+    "servers": [
+     {
+      "host": "a",
+      "ports": [
+       443
+      ]
+     },
+     {
+      "host": "c",
+      "ports": [
+       22
+      ]
+     },
+     {
+      "host": "d",
+      "ports": []
+     }
+    ],
+    "v": 2
+   },
+   "patch": [
+    {
+     "op": "remove",
+     "path": "/servers/0/ports/0"
+    },
+    {
+     "op": "replace",
+     "path": "/servers/1/host",
+     "value": "c"
+    },
+    {
+     "op": "add",
+     "path": "/servers/2",
+     "value": {
+      "host": "d",
+      "ports": []
+     }
+    },
+    {
+     "op": "replace",
+     "path": "/v",
+     "value": 2
+    }
+   ]
+  },
+  {
+   "name": "unicode",
+   "a": {
+    "s": "café"
+   },
+   "b": {
+    "s": "café"
+   },
+   "patch": [
+    {
+     "op": "replace",
+     "path": "/s",
+     "value": "café"
+    }
+   ]
+  }
+ ]
+}

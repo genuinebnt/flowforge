@@ -13,7 +13,7 @@ import (
 
 // events is the AsOf EventSource over graph.change_events inside a read
 // transaction (served by the change_events_entity_seq / _edge_seq
-// indexes of migration 0015).
+// indexes of migration 0030).
 type events struct {
 	q      querier
 	tenant graphstore.ID

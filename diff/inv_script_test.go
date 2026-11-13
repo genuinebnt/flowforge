@@ -24,14 +24,14 @@ func TestDiffInv01_ApplyCorrect(t *testing.T) {
 	}
 }
 
-// DIFF-INV-02: Myers and MyersGreedy are minimal: their distance equals the
+// DIFF-INV-02: Myers and Myers are minimal: their distance equals the
 // brute-force n + m - 2*LCS on random small inputs.
 func TestDiffInv02_MyersMinimal(t *testing.T) {
 	r := testkit.Rng(t)
 	for range 2 * testkit.Cases() {
 		a, b := randPair(r, 30)
 		want := lcsDistance(a, b)
-		for _, alg := range []Algorithm{Myers, MyersGreedy} {
+		for _, alg := range []Algorithm{MyersLinearSpace, Myers} {
 			if got := mustDiff(t, a, b, Options{Algorithm: alg}).Script.Distance(); got != want {
 				t.Fatalf("%s distance %d, brute force %d (a=%v b=%v)", alg, got, want, a, b)
 			}
@@ -45,7 +45,7 @@ func TestDiffInv03_HeuristicsBoundedByMyers(t *testing.T) {
 	r := testkit.Rng(t)
 	for range testkit.Cases() {
 		a, b := randPair(r, 60)
-		m := mustDiff(t, a, b, Options{Algorithm: Myers}).Script.Distance()
+		m := mustDiff(t, a, b, Options{Algorithm: MyersLinearSpace}).Script.Distance()
 		for _, alg := range []Algorithm{Patience, Histogram} {
 			res := mustDiff(t, a, b, Options{Algorithm: alg})
 			if d := res.Script.Distance(); d < m {

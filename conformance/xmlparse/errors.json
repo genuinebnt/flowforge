@@ -38,7 +38,7 @@
     {"name": "space after lt", "input": "< a/>", "error": "unexpected_char", "offset": 1},
     {"name": "invalid name char", "input": "<a$/>", "error": "unexpected_char", "offset": 2},
     {"name": "control character in text", "input": "<a>\u0001</a>", "error": "invalid_char", "offset": 3},
-    {"name": "U+FFFE in text at its last byte", "input_hex": "3c613eefbfbe3c2f613e", "error": "invalid_char", "offset": 5},
+    {"name": "U+FFFE in text at its first byte", "input_hex": "3c613eefbfbe3c2f613e", "error": "invalid_char", "offset": 3},
     {"name": "invalid UTF-8 lead byte", "input_hex": "3c613eff3c2f613e", "error": "invalid_utf8", "offset": 3},
     {"name": "invalid UTF-8 continuation at the bad byte", "input_hex": "3c613ee2413c2f613e", "error": "invalid_utf8", "offset": 4},
     {"name": "UTF-8 encoded surrogate at the second byte", "input_hex": "3c613eeda0803c2f613e", "error": "invalid_utf8", "offset": 4},

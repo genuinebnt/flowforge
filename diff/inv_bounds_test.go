@@ -86,8 +86,8 @@ func TestDiffInv14_LinearSpaceMemory(t *testing.T) {
 		})
 		return bytes, d
 	}
-	small, d1 := measure(10_000, Myers)
-	large, d2 := measure(40_000, Myers)
+	small, d1 := measure(10_000, MyersLinearSpace)
+	large, d2 := measure(40_000, MyersLinearSpace)
 	t.Logf("linear Myers: %d B for 2x10k tokens (D=%d), %d B for 2x40k (D=%d)", small, d1, large, d2)
 	if per := float64(large) / 80_000; per > 96 {
 		t.Errorf("linear Myers allocates %.1f B per token", per)
@@ -95,8 +95,8 @@ func TestDiffInv14_LinearSpaceMemory(t *testing.T) {
 	if ratio := float64(large) / float64(small); ratio > 5 {
 		t.Errorf("allocation grew %.2fx for 4x input", ratio)
 	}
-	g1, _ := measure(10_000, MyersGreedy)
-	g2, _ := measure(40_000, MyersGreedy)
+	g1, _ := measure(10_000, Myers)
+	g2, _ := measure(40_000, Myers)
 	t.Logf("greedy Myers: %d B, %d B", g1, g2)
 	if float64(g2)/float64(g1) < 8 {
 		t.Errorf("greedy trace should grow quadratically in D (got %.2fx)", float64(g2)/float64(g1))
@@ -114,7 +114,7 @@ func TestDiffInv15_CapsAndFallbacks(t *testing.T) {
 	for range testkit.Cases() {
 		a, b := randPair(r, 40)
 		want := lcsDistance(a, b)
-		for _, alg := range []Algorithm{Myers, MyersGreedy} {
+		for _, alg := range []Algorithm{MyersLinearSpace, Myers} {
 			unc := mustDiff(t, a, b, Options{Algorithm: alg})
 			if want > 1 {
 				c := mustDiff(t, a, b, Options{Algorithm: alg, MaxEditDistance: want - 1})

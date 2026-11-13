@@ -90,10 +90,13 @@ func (c ErrorCode) Grade() Grade {
 	return GradeFailed
 }
 
-// SyntaxError is the first error found. Offset is the index of the first
-// offending byte: the smallest k such that input[:k+1] cannot be extended
-// to a well-formed document (XML-INV-02). EOF-class errors carry
-// Offset = input length. For UTF-16 input, offsets index the transcoded
+// SyntaxError is the first error found. Offset is the first offending
+// byte, at character granularity: input[:Offset] can still be extended to
+// a well-formed document, input[:Offset+w] cannot, where w is the length
+// of the UTF-8 character starting at Offset (1 for a byte that starts no
+// valid sequence), and what follows does not change the error
+// (XML-INV-02). For invalid UTF-8 it is the first byte that makes the
+// sequence invalid. EOF-class errors carry Offset = input length. For UTF-16 input, offsets index the transcoded
 // UTF-8 buffer (Document.UTF16 is set).
 type SyntaxError struct {
 	Code   ErrorCode

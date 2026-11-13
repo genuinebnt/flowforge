@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/testkit"
@@ -408,10 +409,11 @@ func parseErr(src []byte) *SyntaxError {
 }
 
 // TestXMLInv02_FirstOffendingByte: errors land on the first offending
-// byte. Every prefix of a well-formed document is error-free or ends in
-// an EOF-class error; for a mutated document whose error is at k, the
-// prefix [:k] has no non-EOF error, and [:k+1] (alone or followed by
-// garbage) gives the same code at k.
+// byte (character granularity). Every prefix of a well-formed document is
+// error-free or ends in an EOF-class error; for a mutated document whose
+// error is at k, the prefix [:k] has no non-EOF error, and [:k+w] (w the
+// width of the character at k), alone or followed by other bytes, gives
+// the same code at k.
 func TestXMLInv02_FirstOffendingByte(t *testing.T) {
 	r := testkit.Rng(t)
 	for i := 0; i < testkit.Cases(); i++ {
@@ -436,11 +438,15 @@ func TestXMLInv02_FirstOffendingByte(t *testing.T) {
 		if p := parseErr(m[:k]); p != nil && !p.Code.EOFClass() {
 			t.Fatalf("%q: error %v at %d, but prefix [:%d] already fails with %v", m, e.Code, k, k, p)
 		}
-		p := parseErr(m[:k+1])
-		if p == nil || p.Code != e.Code || p.Offset != k {
-			t.Fatalf("%q: error %v at %d, prefix [:%d] gives %v", m, e.Code, k, k+1, p)
+		w := 1
+		if r, size := utf8.DecodeRune(m[k:]); r != utf8.RuneError || size > 1 {
+			w = size
 		}
-		g := append(append([]byte(nil), m[:k+1]...), "<x a='1'>&amp;</x>"...)
+		p := parseErr(m[:k+w])
+		if p == nil || p.Code != e.Code || p.Offset != k {
+			t.Fatalf("%q: error %v at %d, prefix [:%d] gives %v", m, e.Code, k, k+w, p)
+		}
+		g := append(append([]byte(nil), m[:k+w]...), "<x a='1'>&amp;</x>"...)
 		if q := parseErr(g); q == nil || q.Code != e.Code || q.Offset != k {
 			t.Fatalf("%q: error %v at %d not independent of what follows: %v", m, e.Code, k, q)
 		}

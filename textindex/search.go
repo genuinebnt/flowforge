@@ -557,19 +557,15 @@ func (e *segExec) eval(id int32, doc uint32) (bool, float64) {
 // terms[i] occurs at p + offsets[i].
 func phraseFreq(curs []*postIter, offsets []int) int {
 	first := curs[0].positions()
-	lists := make([][]uint32, len(curs))
-	for i, c := range curs {
-		lists[i] = c.positions()
-	}
 	n := 0
 outer:
 	for _, p := range first {
-		for i := 1; i < len(lists); i++ {
+		for i := 1; i < len(curs); i++ {
 			want := int64(p) + int64(offsets[i])
 			if want < 0 || want > int64(^uint32(0)) {
 				continue outer
 			}
-			if _, ok := slices.BinarySearch(lists[i], uint32(want)); !ok {
+			if _, ok := slices.BinarySearch(curs[i].positions(), uint32(want)); !ok {
 				continue outer
 			}
 		}

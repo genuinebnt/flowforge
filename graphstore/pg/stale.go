@@ -228,7 +228,7 @@ func loadRuns(ctx context.Context, tx pgx.Tx, tenant graphstore.ID, kind graphst
 	}
 	for _, id := range ids {
 		if r := recOf(id); !hasLive[id] {
-			r.ClassicStale = r.State == oam.StateStale // stored before 0015
+			r.ClassicStale = r.State == oam.StateStale // stored before 0030
 		}
 	}
 	return nil

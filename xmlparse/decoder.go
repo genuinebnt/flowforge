@@ -451,7 +451,7 @@ func (d *Decoder) char(i int) (rune, int) {
 		r = r<<6 | rune(c&0x3F)
 	}
 	if !isXMLChar(r) {
-		d.fail(ErrInvalidChar, i+need)
+		d.fail(ErrInvalidChar, i)
 		return 0, -1
 	}
 	return r, need + 1

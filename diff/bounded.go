@@ -135,7 +135,7 @@ func BoundedDiff(oldText, newText []byte, b Bounds) (BoundedResult, error) {
 	if size <= b.MaxInputBytes {
 		in := NewInterner()
 		a, bb := in.InternAll(SplitWords(string(oldText))), in.InternAll(SplitWords(string(newText)))
-		res, err := Diff(a, bb, Options{Algorithm: Myers, MaxEditDistance: b.MaxEditDistance})
+		res, err := Diff(a, bb, Options{Algorithm: MyersLinearSpace, MaxEditDistance: b.MaxEditDistance})
 		if err != nil {
 			return BoundedResult{}, err
 		}

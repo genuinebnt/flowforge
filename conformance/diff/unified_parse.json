@@ -1,0 +1,132 @@
+{
+ "id": "diff_unified_parse_001",
+ "description": "Unified-diff parsing and strict application: 'patch' applied to 'old' gives 'new', or parsing/applying fails when 'error' is true. Headers follow GNU/git: an omitted length means 1; an empty side names the line before it (0 at the start).",
+ "parse": [
+  {
+   "name": "add to empty file",
+   "old": "",
+   "patch": "--- a\n+++ b\n@@ -0,0 +1,2 @@\n+x\n+y\n",
+   "new": "x\ny\n"
+  },
+  {
+   "name": "delete whole file",
+   "old": "x\ny\n",
+   "patch": "@@ -1,2 +0,0 @@\n-x\n-y\n",
+   "new": ""
+  },
+  {
+   "name": "insert after line 2 with no context",
+   "old": "a\nb\nc\n",
+   "patch": "@@ -2,0 +3 @@\n+new\n",
+   "new": "a\nb\nnew\nc\n"
+  },
+  {
+   "name": "delete line 3 with no context",
+   "old": "a\nb\nc\nd\n",
+   "patch": "@@ -3 +2,0 @@\n-c\n",
+   "new": "a\nb\nd\n"
+  },
+  {
+   "name": "no newline marker on old",
+   "old": "a\nb",
+   "patch": "@@ -1,2 +1,2 @@\n a\n-b\n\\ No newline at end of file\n+b\n",
+   "new": "a\nb\n"
+  },
+  {
+   "name": "no newline marker on new after hunk end",
+   "old": "a\nb\n",
+   "patch": "@@ -2 +2 @@\n-b\n+c\n\\ No newline at end of file\n",
+   "new": "a\nc"
+  },
+  {
+   "name": "section heading after header",
+   "old": "a\nb\n",
+   "patch": "@@ -1,2 +1,2 @@ func main()\n a\n-b\n+B\n",
+   "new": "a\nB\n"
+  },
+  {
+   "name": "preamble ignored",
+   "old": "a\n",
+   "patch": "diff --git a/f b/f\nindex 1..2 100644\n--- a/f\n+++ b/f\n@@ -1 +1 @@\n-a\n+b\n",
+   "new": "b\n"
+  },
+  {
+   "name": "two hunks",
+   "old": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
+   "patch": "@@ -1 +1 @@\n-1\n+one\n@@ -9 +9 @@\n-9\n+nine\n",
+   "new": "one\n2\n3\n4\n5\n6\n7\n8\nnine\n"
+  },
+  {
+   "name": "context mismatch",
+   "old": "a\nb\n",
+   "patch": "@@ -1,2 +1,2 @@\n x\n-b\n+c\n",
+   "error": true
+  },
+  {
+   "name": "wrong start line",
+   "old": "a\nb\nc\n",
+   "patch": "@@ -1 +1 @@\n-b\n+B\n",
+   "error": true
+  },
+  {
+   "name": "overlapping hunks",
+   "old": "a\nb\nc\n",
+   "patch": "@@ -1,2 +1,2 @@\n a\n-b\n+B\n@@ -2 +2 @@\n-b\n+X\n",
+   "error": true
+  },
+  {
+   "name": "truncated hunk",
+   "old": "a\nb\n",
+   "patch": "@@ -1,2 +1,2 @@\n a\n",
+   "error": true
+  },
+  {
+   "name": "hunk longer than header",
+   "old": "a\n",
+   "patch": "@@ -1 +1 @@\n-a\n+b\n+c\n",
+   "error": true
+  },
+  {
+   "name": "bad prefix",
+   "old": "a\n",
+   "patch": "@@ -1 +1 @@\n*a\n",
+   "error": true
+  },
+  {
+   "name": "bad header",
+   "old": "a\n",
+   "patch": "@@ -x +1 @@\n-a\n+b\n",
+   "error": true
+  },
+  {
+   "name": "line zero with length",
+   "old": "a\n",
+   "patch": "@@ -0,1 +1 @@\n-a\n+b\n",
+   "error": true
+  },
+  {
+   "name": "missing +++",
+   "old": "a\n",
+   "patch": "--- a\n@@ -1 +1 @@\n-a\n+b\n",
+   "error": true
+  },
+  {
+   "name": "misplaced no-newline marker",
+   "old": "a\n",
+   "patch": "\\ No newline at end of file\n@@ -1 +1 @@\n-a\n+b\n",
+   "error": true
+  },
+  {
+   "name": "empty body line",
+   "old": "a\n\nb\n",
+   "patch": "@@ -1,3 +1,3 @@\n a\n\n-b\n+c\n",
+   "error": true
+  },
+  {
+   "name": "missing final newline in patch text",
+   "old": "a\n",
+   "patch": "@@ -1 +1 @@\n-a\n+b",
+   "error": true
+  }
+ ]
+}

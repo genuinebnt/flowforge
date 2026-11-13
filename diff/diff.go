@@ -11,20 +11,20 @@ const (
 	// Myers is linear-space Myers (middle-snake divide and conquer): a
 	// shortest edit script in O((N+M)D) time and O(N+M) memory.
 	Myers Algorithm = iota + 1
-	// MyersGreedy is the basic greedy forward Myers algorithm with a full
+	// Myers is the basic greedy forward Myers algorithm with a full
 	// backtrack trace: shortest, O((N+M)D) time, O(D^2) memory. It is the
 	// reference for Myers; prefer Myers for large inputs.
-	MyersGreedy
+	Myers
 	// Patience is git's patience diff (unique-line anchors).
 	Patience
 	// Histogram is git's histogram diff (low-occurrence anchors).
 	Histogram
 )
 
-var algorithmNames = [...]string{Myers: "myers", MyersGreedy: "myers-greedy", Patience: "patience", Histogram: "histogram"}
+var algorithmNames = [...]string{MyersLinearSpace: "myers", Myers: "myers-greedy", Patience: "patience", Histogram: "histogram"}
 
 // Algorithms lists every algorithm, in a fixed order.
-func Algorithms() []Algorithm { return []Algorithm{Myers, MyersGreedy, Patience, Histogram} }
+func Algorithms() []Algorithm { return []Algorithm{MyersLinearSpace, Myers, Patience, Histogram} }
 
 // String returns the algorithm's stable name ("myers", "myers-greedy",
 // "patience", "histogram").
@@ -93,7 +93,7 @@ func diffRaw(a, b []uint32, opts Options) (Result, error) {
 		limit = opts.MaxEditDistance
 	}
 	switch opts.Algorithm {
-	case 0, Myers:
+	case 0, MyersLinearSpace:
 		var bld builder
 		l := newLinear(&bld, a, b)
 		if !l.run(0, len(a), 0, len(b), limit) {
@@ -102,7 +102,7 @@ func diffRaw(a, b []uint32, opts Options) (Result, error) {
 			return Result{Script: bld.finish(a, b), Capped: true}, nil
 		}
 		return Result{Script: bld.finish(a, b)}, nil
-	case MyersGreedy:
+	case Myers:
 		var bld builder
 		if !myersGreedy(&bld, a, b, 0, len(a), 0, len(b), limit) {
 			bld = builder{}

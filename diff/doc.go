@@ -7,7 +7,7 @@
 //
 //   - Myers: linear-space O(ND) Myers (middle-snake divide and conquer),
 //     shortest edit script, optional edit-distance cap with a Capped result.
-//   - MyersGreedy: the basic greedy forward algorithm, the reference.
+//   - Myers: the basic greedy forward algorithm, the reference.
 //   - Patience and Histogram: git's xpatience.c and xhistogram.c, falling
 //     back to Myers where git falls back to its classic diff.
 //

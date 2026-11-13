@@ -1,0 +1,254 @@
+{
+ "id": "diff_tree_001",
+ "description": "Ordered labelled tree edit distance in bracket notation ({label children}); expected distances computed by an independent exhaustive search over all Tai mappings (Python), unit costs unless 'costs' is given. zhang_shasha_paper is the example of Zhang & Shasha 1989 (distance 2).",
+ "trees": [
+  {
+   "name": "zhang_shasha_paper",
+   "a": "{f{d{a}{c{b}}}{e}}",
+   "b": "{f{c{d{a}{b}}}{e}}",
+   "distance": 2
+  },
+  {
+   "name": "empty_both",
+   "a": "",
+   "b": "",
+   "distance": 0
+  },
+  {
+   "name": "empty_old",
+   "a": "",
+   "b": "{a{b}{c}}",
+   "distance": 3
+  },
+  {
+   "name": "empty_new",
+   "a": "{a{b}}",
+   "b": "",
+   "distance": 2
+  },
+  {
+   "name": "relabel_root",
+   "a": "{a}",
+   "b": "{b}",
+   "distance": 1
+  },
+  {
+   "name": "insert_middle_level",
+   "a": "{a{b}{c}}",
+   "b": "{a{x{b}{c}}}",
+   "distance": 1
+  },
+  {
+   "name": "delete_inner_keeps_children",
+   "a": "{html{body{div{p}{p}}}}",
+   "b": "{html{body{p}{p}}}",
+   "distance": 1
+  },
+  {
+   "name": "swap_siblings",
+   "a": "{r{a}{b}}",
+   "b": "{r{b}{a}}",
+   "distance": 2
+  },
+  {
+   "name": "dom_like",
+   "a": "{html{head{title}}{body{h1}{p}{ul{li}{li}}}}",
+   "b": "{html{head{title}{script}}{body{h1}{div{p}}{ul{li}}}}",
+   "distance": 3
+  },
+  {
+   "name": "random_00",
+   "a": "{b{c{a{b{a}}{c}}}{c}}",
+   "b": "",
+   "distance": 7
+  },
+  {
+   "name": "random_01",
+   "a": "{c{c}{b}}",
+   "b": "{b{a}}",
+   "distance": 3
+  },
+  {
+   "name": "random_02",
+   "a": "",
+   "b": "{a{c{c}}{a{a}}{c}}",
+   "distance": 6
+  },
+  {
+   "name": "random_03",
+   "a": "{b{a{c{a}}{b{a}}}}",
+   "b": "{c{c}}",
+   "distance": 5
+  },
+  {
+   "name": "random_04",
+   "a": "{a}",
+   "b": "{a{a{a{c}}{c}}{b}}",
+   "distance": 5
+  },
+  {
+   "name": "random_05",
+   "a": "{a{c{c}}{a{b}}{c{b}}}",
+   "b": "{a{a}{a}}",
+   "distance": 5
+  },
+  {
+   "name": "random_06",
+   "a": "{b{a}{a{c{b}}{a}}}",
+   "b": "{a{c{a}}}",
+   "distance": 4
+  },
+  {
+   "name": "random_07",
+   "a": "{c{a}{b{c}}}",
+   "b": "{b{c}{a{a}}{b}}",
+   "distance": 4
+  },
+  {
+   "name": "random_08",
+   "a": "{b{c{a}}{c{a}}{b}}",
+   "b": "{c{c}}",
+   "distance": 5
+  },
+  {
+   "name": "random_09",
+   "a": "{a{c{b}}{c}{b}}",
+   "b": "{a{b{c{a}}{b}{a{b}}}}",
+   "distance": 4
+  },
+  {
+   "name": "random_10",
+   "a": "{b{b}{a{c{b}}}{b}}",
+   "b": "{c{b{b}{b}}{c}}",
+   "distance": 5
+  },
+  {
+   "name": "random_11",
+   "a": "{c}",
+   "b": "{b{a}{a{b}{b{b}}{b}}}",
+   "distance": 7
+  },
+  {
+   "name": "random_12",
+   "a": "{c{c}}",
+   "b": "{b}",
+   "distance": 2
+  },
+  {
+   "name": "random_13",
+   "a": "{b}",
+   "b": "{c{b}{b{c}}{b}}",
+   "distance": 4
+  },
+  {
+   "name": "random_14",
+   "a": "{a{c{a}}}",
+   "b": "{c{a{c{b}}}}",
+   "distance": 2
+  },
+  {
+   "name": "random_15",
+   "a": "{b}",
+   "b": "{a{a{b{b}}}}",
+   "distance": 3
+  },
+  {
+   "name": "random_16",
+   "a": "",
+   "b": "{c{a}{c}}",
+   "distance": 3
+  },
+  {
+   "name": "random_17",
+   "a": "{b{c}{c}}",
+   "b": "{a{c{c}}{c{c{c}}}}",
+   "distance": 4
+  },
+  {
+   "name": "random_18",
+   "a": "{b}",
+   "b": "{a{a}}",
+   "distance": 2
+  },
+  {
+   "name": "random_19",
+   "a": "",
+   "b": "{c{b{a}{c}}{c}}",
+   "distance": 5
+  },
+  {
+   "name": "random_20",
+   "a": "{a}",
+   "b": "{b{a}{c}{a}}",
+   "distance": 3
+  },
+  {
+   "name": "random_21",
+   "a": "{c{a}{b}}",
+   "b": "{c{c}{c}{a}}",
+   "distance": 3
+  },
+  {
+   "name": "random_22",
+   "a": "{b{a}{c}{a}}",
+   "b": "{b{b}}",
+   "distance": 3
+  },
+  {
+   "name": "random_23",
+   "a": "{b{c}}",
+   "b": "{a{a}{b{a}}}",
+   "distance": 3
+  },
+  {
+   "name": "random_24",
+   "a": "{a{b{a}{a}}{b}}",
+   "b": "{b{a{a}}{b}{b}}",
+   "distance": 4
+  },
+  {
+   "name": "costs_0",
+   "a": "{b{b{a{a}{a}}}{a}}",
+   "b": "{a{a{b{b{a}}}{b}}}",
+   "costs": {
+    "insert": 1,
+    "delete": 1,
+    "relabel": 0
+   },
+   "distance": 2
+  },
+  {
+   "name": "costs_1",
+   "a": "{a{a{a{a}}{a}}{b}}",
+   "b": "{a{a{b}{a}}{a{b}}}",
+   "costs": {
+    "insert": 2,
+    "delete": 1,
+    "relabel": 1
+   },
+   "distance": 4
+  },
+  {
+   "name": "costs_2",
+   "a": "{a{a{a{a}}}{b{a}}}",
+   "b": "{b{a{a}{a}}{b}{b}}",
+   "costs": {
+    "insert": 1,
+    "delete": 3,
+    "relabel": 5
+   },
+   "distance": 12
+  },
+  {
+   "name": "costs_3",
+   "a": "{b{b}{a{b{a}}{b}}}",
+   "b": "{b{b{b{a}}{a}}{a}}",
+   "costs": {
+    "insert": 3,
+    "delete": 2,
+    "relabel": 2
+   },
+   "distance": 9
+  }
+ ]
+}

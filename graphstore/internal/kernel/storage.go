@@ -27,7 +27,7 @@ const (
 	// PTypeLive (name "") holds the liveness bookkeeping of oam's
 	// authoritative staleness: classic staleness, the profiles holding an
 	// edge, the authoritative references of an entity and the support of
-	// every tag (V2 §3.4). A row without it (written before 0015) loads
+	// every tag (V2 §3.4). A row without it (written before 0030) loads
 	// as classic: classic_stale = (state = 'stale'), every tag classic.
 	PTypeLive = "ff:live"
 	// PTypeAuth (name = oam.UnitKey(profile, family)) holds one authority

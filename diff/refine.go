@@ -20,7 +20,7 @@ func RefineLine(oldLine, newLine string) (oldSpans, newSpans []Span) {
 	ow, nw := SplitWords(oldLine), SplitWords(newLine)
 	in := NewInterner()
 	a, b := in.InternAll(ow), in.InternAll(nw)
-	r, err := Diff(a, b, Options{Algorithm: Myers})
+	r, err := Diff(a, b, Options{Algorithm: MyersLinearSpace})
 	if err != nil {
 		return nil, nil
 	}
