@@ -2,11 +2,13 @@
 -- G-OPS-01) and forced row-level security on every tenant-scoped table,
 -- its partitions and its child tables (spec 10.7; G-OPS-02).
 --
--- Four functions do the work so that cmd/migrate can re-run them after
+-- These functions do the work so that cmd/migrate can re-run them after
 -- every migration job (tables created by later files get the same
--- treatment) and the partition helper can secure the partitions it adds:
+-- treatment) and the partition helper can secure the partition it adds:
 --
 -- * public.ff_service_roles(): the role table below.
+-- * public.ff_secure_table(t, policy, using): secures one table; each step
+--   runs only when missing, so a secured table is never locked.
 -- * public.ff_secure_rls(): catalog-driven and idempotent. Every table in a
 --   service schema with a tenant_id column (partitioned parents and each
 --   partition included: a query that names a partition directly does not
@@ -23,7 +25,8 @@
 --   users), revokes PUBLIC access to the service schemas, grants each role
 --   USAGE and DML on its own schema only and revokes it everywhere else
 --   (cross-service data moves by value over gRPC and the bus, never by a
---   cross-schema read), and removes the roles from cloudsqlsuperuser when that role exists.
+--   cross-schema read), and removes the roles from cloudsqlsuperuser when
+--   that role exists.
 -- * public.ff_role_problems(): what cmd/migrate refuses to leave behind (a
 --   service role that is a superuser, bypasses RLS, can create roles or
 --   databases, owns a service table, or is still in cloudsqlsuperuser).
@@ -75,11 +78,54 @@ LANGUAGE sql IMMUTABLE AS $$
                        ARRAY['identity', 'scope', 'engine', 'graph', 'notifier'])
 $$;
 
+-- ff_secure_table secures one table: ENABLE + FORCE RLS, the policy given
+-- by using_expr (tenant_isolation, or parent_visible for a child table)
+-- and the svc_<role> policies its schema calls for. Every step runs only
+-- when the catalog shows it missing: ALTER TABLE and CREATE/DROP POLICY
+-- take an AccessExclusive lock, so an already secured table is not locked
+-- at all (the deploy-time re-runs and the partition helper must not block
+-- or deadlock against the running services).
+CREATE OR REPLACE FUNCTION public.ff_secure_table(t regclass, policy_name text, using_expr text) RETURNS void
+LANGUAGE plpgsql AS $$
+DECLARE
+  r record;
+  nsp text;
+  want boolean;
+  has boolean;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = t AND relrowsecurity AND relforcerowsecurity) THEN
+    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY', t);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = t AND polname = policy_name) THEN
+    EXECUTE format('CREATE POLICY %I ON %s USING (%s)', policy_name, t, using_expr);
+  END IF;
+  -- Cross-tenant access, as a permissive policy scoped to a role (OR-ed
+  -- with the policy above; a policy TO a role also applies to its
+  -- members). Roles that do not exist yet are skipped; ff_sync_roles
+  -- creates them and runs this again.
+  SELECT n.nspname INTO nsp FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = t;
+  FOR r IN SELECT sr.role, sr.cross_tenant FROM public.ff_service_roles() sr
+           WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = sr.role) LOOP
+    want := nsp = ANY (r.cross_tenant) OR (r.role = 'ff_graph' AND t = 'graph.change_events'::regclass);
+    has := EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = t AND polname = 'svc_' || r.role);
+    IF want AND NOT has THEN
+      EXECUTE format('CREATE POLICY %I ON %s TO %I USING (true) WITH CHECK (true)', 'svc_' || r.role, t, r.role);
+    ELSIF has AND NOT want THEN
+      EXECUTE format('DROP POLICY %I ON %s', 'svc_' || r.role, t);
+    END IF;
+  END LOOP;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.ff_tenant_policy() RETURNS text
+LANGUAGE sql IMMUTABLE AS $$ SELECT 'tenant_id = NULLIF(current_setting(''app.tenant_id'', true), '''')::uuid' $$;
+
+-- ff_secure_rls secures every tenant-scoped and child table, catalog-wide.
+-- For migration time only (this file and ff_sync_roles); the partition
+-- helper secures just the partition it adds.
 CREATE OR REPLACE FUNCTION public.ff_secure_rls() RETURNS void
 LANGUAGE plpgsql AS $$
 DECLARE
   r record;
-  tenant_pol constant text := 'tenant_id = NULLIF(current_setting(''app.tenant_id'', true), '''')::uuid';
 BEGIN
   FOR r IN
     SELECT c.oid::regclass AS t
@@ -89,10 +135,7 @@ BEGIN
     WHERE n.nspname IN ('identity', 'scope', 'engine', 'graph', 'notifier') AND c.relkind IN ('r', 'p')
     ORDER BY 1
   LOOP
-    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY', r.t);
-    IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = r.t AND polname = 'tenant_isolation') THEN
-      EXECUTE format('CREATE POLICY tenant_isolation ON %s USING (%s)', r.t, tenant_pol);
-    END IF;
+    PERFORM public.ff_secure_table(r.t, 'tenant_isolation', public.ff_tenant_policy());
   END LOOP;
 
   -- Child tables: (child, column, parent, parent column). The global
@@ -117,35 +160,10 @@ BEGIN
     ) AS v(child, col, parent, pcol)
     WHERE to_regclass(v.child) IS NOT NULL AND to_regclass(v.parent) IS NOT NULL
   LOOP
-    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY', r.child);
-    IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = to_regclass(r.child) AND polname = 'parent_visible') THEN
-      -- The child column is qualified with the child's table name: an
-      -- unqualified name would bind to the parent if it had such a column.
-      EXECUTE format('CREATE POLICY parent_visible ON %s USING (EXISTS (SELECT 1 FROM %s p WHERE p.%I = %I.%I))',
-        r.child, r.parent, r.pcol, split_part(r.child, '.', 2), r.col);
-    END IF;
-  END LOOP;
-
-  -- Cross-tenant access, as a permissive policy scoped to a role (OR-ed
-  -- with tenant_isolation / parent_visible; a policy TO a role also
-  -- applies to its members). Roles that do not exist yet are skipped;
-  -- ff_sync_roles creates them and calls this again.
-  FOR r IN
-    SELECT c.oid::regclass AS rel, n.nspname AS nsp, sr.role, sr.cross_tenant
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    CROSS JOIN public.ff_service_roles() sr
-    WHERE c.relrowsecurity AND c.relkind IN ('r', 'p')
-      AND n.nspname IN ('identity', 'scope', 'engine', 'graph', 'notifier')
-      AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = sr.role)
-  LOOP
-    IF r.nsp = ANY (r.cross_tenant) OR (r.role = 'ff_graph' AND r.rel = 'graph.change_events'::regclass) THEN
-      IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = r.rel AND polname = 'svc_' || r.role) THEN
-        EXECUTE format('CREATE POLICY %I ON %s TO %I USING (true) WITH CHECK (true)', 'svc_' || r.role, r.rel, r.role);
-      END IF;
-    ELSIF EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = r.rel AND polname = 'svc_' || r.role) THEN
-      EXECUTE format('DROP POLICY %I ON %s', 'svc_' || r.role, r.rel);
-    END IF;
+    -- The child column is qualified with the child's table name: an
+    -- unqualified name would bind to the parent if it had such a column.
+    PERFORM public.ff_secure_table(to_regclass(r.child), 'parent_visible',
+      format('EXISTS (SELECT 1 FROM %s p WHERE p.%I = %I.%I)', r.parent, r.pcol, split_part(r.child, '.', 2), r.col));
   END LOOP;
 END $$;
 
@@ -188,6 +206,7 @@ BEGIN
     REVOKE ALL ON TABLE public.schema_migrations FROM PUBLIC;
   END IF;
   REVOKE ALL ON FUNCTION public.ff_secure_rls() FROM PUBLIC;
+  REVOKE ALL ON FUNCTION public.ff_secure_table(regclass, text, text) FROM PUBLIC;
   REVOKE ALL ON FUNCTION public.ff_sync_roles() FROM PUBLIC;
   REVOKE ALL ON FUNCTION public.ff_role_problems() FROM PUBLIC;
 
@@ -279,7 +298,8 @@ $$;
 -- 0011's helper, now SECURITY DEFINER (creating and attaching a partition
 -- needs ownership of scope.scope_decisions, which only the migrator has)
 -- and securing the partition it creates (a partition queried by name does
--- not inherit the parent's policies). Body otherwise unchanged.
+-- not inherit the parent's policies; only that one is touched). Body
+-- otherwise unchanged.
 CREATE OR REPLACE FUNCTION scope.ensure_decision_partition(month timestamptz) RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
@@ -302,7 +322,10 @@ BEGIN
     'WITH moved AS (DELETE FROM scope.scope_decisions_default WHERE decided_at >= %L AND decided_at < %L RETURNING *) '
     'INSERT INTO scope.%I SELECT * FROM moved', lo, hi, part);
   EXECUTE format('ALTER TABLE scope.scope_decisions ATTACH PARTITION scope.%I FOR VALUES FROM (%L) TO (%L)', part, lo, hi);
-  PERFORM public.ff_secure_rls();
+  -- Only the new partition: a catalog-wide pass would lock every service
+  -- table. Its grants come from the default privileges ff_sync_roles set
+  -- for the migrator (the definer) in schema scope.
+  PERFORM public.ff_secure_table(format('scope.%I', part)::regclass, 'tenant_isolation', public.ff_tenant_policy());
   RETURN 'scope.' || part;
 END $$;
 

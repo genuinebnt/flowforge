@@ -15,9 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/services/devstack"
 	"github.com/genuinebnt/flowforge/services/egressproxy"
+	"github.com/genuinebnt/flowforge/services/internal/platform"
 	"github.com/genuinebnt/flowforge/services/internal/servicetest"
 	"github.com/genuinebnt/flowforge/services/notifier"
 )
@@ -93,7 +95,7 @@ func TestRegress_G_SVC_08_WebhooksThroughEgressProxy(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodConnect, proxied.String(), nil)
 	req.Host = "example.com:" + port
 	req.URL = &url.URL{Scheme: "http", Host: proxied.Host}
-	tok, err := st.Tokens.Token(context.Background(), servicetestIdentity("tool-runner"))
+	tok, err := st.Tokens.Token(context.Background(), platform.Identity{Tenant: servicetest.TenantA, Actor: platform.ServiceActor("tool-runner"), Role: auth.RoleAnalyst})
 	if err != nil {
 		t.Fatal(err)
 	}

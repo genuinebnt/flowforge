@@ -12,6 +12,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/services/internal/platform"
 )
 
 // Workflow schedules (G-OPS-10): POST/GET /v1/schedules,
@@ -28,11 +29,16 @@ type Schedules interface {
 	Do(ctx context.Context, method, path string, body []byte) (int, []byte, error)
 }
 
-// HTTPSchedules calls the engine at BaseURL (http://<FF_ENGINE_ADDR>).
+// HTTPSchedules calls the engine at BaseURL (http://<FF_ENGINE_ADDR>, or
+// https:// on Cloud Run). With IDTokens and an Audience every request also
+// carries a Google ID token in X-Serverless-Authorization (spec 17.3), as
+// the gRPC calls do; Authorization keeps the internal token.
 type HTTPSchedules struct {
-	BaseURL string
-	Keys    MinterSource
-	Client  *http.Client // default: 10 s timeout
+	BaseURL  string
+	Keys     MinterSource
+	IDTokens platform.IDTokenSource
+	Audience string
+	Client   *http.Client // default: 10 s timeout
 }
 
 // Do implements Schedules.
@@ -57,6 +63,13 @@ func (h HTTPSchedules) Do(ctx context.Context, method, path string, body []byte)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Request-Id", o.requestID)
 	req.Header.Set("Traceparent", o.traceparent)
+	if h.IDTokens != nil && h.Audience != "" {
+		id, err := h.IDTokens.IDToken(ctx, h.Audience)
+		if err != nil {
+			return 0, nil, err
+		}
+		req.Header.Set("X-Serverless-Authorization", "Bearer "+id)
+	}
 	cl := h.Client
 	if cl == nil {
 		cl = &http.Client{Timeout: 10 * time.Second}

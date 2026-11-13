@@ -66,6 +66,8 @@ checked before any internal call; `read` = every role.
 | GET /tools | read | tool runner |
 | POST /runs, POST /runs/{id}:cancel | runs:submit (analyst) | engine |
 | GET /runs, GET /runs/{id}, GET /runs/{id}/events, GET /runs/{id}/watch (SSE) | read | engine |
+| POST /schedules, DELETE /schedules/{id} | runs:submit (analyst) | engine (HTTP `/internal/schedules`, G-OPS-10) |
+| GET /schedules, GET /schedules/{id} | read | engine (HTTP) |
 | GET /approvals, GET /approvals/{id} | read | engine |
 | POST /approvals/{id}:decide | approvals:decide (approver) + approval role matches the membership role or a role group | engine |
 | GET /graph/entities, /graph/entities/{id}, /graph/entities/{id}/neighbors, /graph/search, /graph/diff, /graph/changes/watch (SSE); POST /graph/paths | read | graph |

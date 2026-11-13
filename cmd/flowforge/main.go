@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/services/app"
 	"github.com/genuinebnt/flowforge/services/devstack"
 	"github.com/genuinebnt/flowforge/services/gateway/gatewayd"
@@ -67,6 +68,10 @@ func dev(args []string) error {
 	// The gateway's identity side comes first: internal services must
 	// trust the keys it signs internal tokens with.
 	opts := devstack.Options{DBDSN: *db, Host: *host, Ports: ports, Logger: log}
+	if dir := os.Getenv("FF_BLOB_DIR"); dir != "" {
+		// Raw tool output, snapshot files and run archives (G-OPS-14).
+		opts.Blobs = graphstore.DirBlobs{Root: dir}
+	}
 	var gw *gatewayd.Gateway
 	if *gwAddr != "" {
 		issuer := "http://" + *gwAddr

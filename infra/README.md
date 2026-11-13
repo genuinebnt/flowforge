@@ -307,7 +307,16 @@ input `lab`.
 - **Egress for engine and notifier**: spec 17.1 makes the egress proxy the
   only identity with internet access, so webhook deliveries (notifier) and an
   external LLM endpoint (engine) also go through it; both get
-  `FF_EGRESS_PROXY` and Invoker on the proxy. With Vertex AI the engine needs
+  `FF_EGRESS_PROXY` and Invoker on the proxy. Notifier webhook and Slack
+  deliveries use the proxy's notify path (`X-Flowforge-Egress-Purpose:
+  notify`, see `services/egressproxy/README.md`): no scope decision, but the
+  destination host must be on the proxy's `FF_NOTIFY_ALLOWLIST`
+  (comma-separated host names, `.suffix` entries for subdomains; empty
+  refuses every delivery), and the proxy resolves it and connects only to
+  public addresses (the webhook SSRF rules of spec 15.4). Set
+  `FF_NOTIFY_ALLOWLIST` on `ff-egress-proxy` (for example
+  `hooks.slack.com`); the notifier refuses to start in prod without
+  `FF_EGRESS_PROXY`. With Vertex AI the engine needs
   no proxy (set `llm_api_key_enabled = false`).
 - **Grants beyond the 17.2 table**, each the narrowest possible: Subscriber on
   their own subscription for gateway (run.events SSE fan-out), tool-runner

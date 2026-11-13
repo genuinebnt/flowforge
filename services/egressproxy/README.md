@@ -32,6 +32,20 @@ the decision; 127.0.0.2 listener never reached), userinfo / decimal-IP /
 suffix tricks, missing and unknown decisions, no token, kill switch,
 CONNECT to another host.
 
+## Notify path (G-SVC-08)
+
+The notifier's webhook and Slack deliveries are not program targets, so
+they carry `X-Flowforge-Egress-Purpose: notify` instead of a decision id.
+The proxy then requires the `service:notifier` identity, CONNECT (https
+only), a destination host on `NotifyAllowlist` (`FF_NOTIFY_ALLOWLIST`:
+comma-separated names, `.example.com` for every name below a domain; empty
+refuses everything), resolves the host itself and connects only when every
+address passes `alerts.CheckResolved` (public unicast; spec 15.4), pinned
+for the connection. Refusals use the same 403 + `X-Flowforge-Refused`
+(`notify_not_notifier`, `notify_https_only`, `notify_not_allowlisted`,
+`notify_resolve_failed`, `forbidden_address`). Tested end to end in
+`services/notifier` (`TestRegress_G_SVC_08_WebhooksThroughEgressProxy`).
+
 Standalone (`cmd/egress-proxy`) it reads the decision log from the scope
 schema (`FF_DB_DSN`); in the dev stack it uses the scope service's
 repository.

@@ -21,6 +21,7 @@ type Store interface {
     Subscribe(ctx, run RunID, fromSeq uint64) iter.Seq2[Event, error]
     SaveSnapshot(ctx, run RunID, snap Snapshot) error
     LoadSnapshot(ctx, run RunID) (Snapshot, bool, error)
+    DeleteSnapshots(ctx, run RunID) error   // spec 10.7: when the run finishes (G-ENG-04)
     AcquireLease(ctx, run RunID, owner WorkerID, ttl time.Duration) (Lease, error)
     RenewLease(ctx, lease Lease, ttl time.Duration) (Lease, error)
     ReleaseLease(ctx, lease Lease, next Next) error

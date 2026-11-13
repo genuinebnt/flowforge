@@ -356,3 +356,64 @@ func TestRegress_G_OPS_02_ForcedRowLevelSecurity(t *testing.T) {
 		}
 	})
 }
+
+// TestRegress_G_OPS_02_SecuringTakesNoLocks: securing is lock-free once a
+// table is secured. While another session holds an open read transaction
+// on engine and scope tables, the partition helper (which secures only its
+// new partition) and a deploy-time re-run of ff_sync_roles both finish
+// under a short lock_timeout instead of queueing an AccessExclusive lock
+// behind the reader (which would also block every later query: the
+// deadlock the maintenance job hit).
+func TestRegress_G_OPS_02_SecuringTakesNoLocks(t *testing.T) {
+	cfg := freshDB(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	conn := connect(t, cfg)
+	if _, err := migrations.Deploy(ctx, conn); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	roleFixtures(t, ctx, conn)
+
+	reader := connect(t, cfg)
+	rtx, err := reader.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rtx.Rollback(ctx) }()
+	for _, q := range []string{`SELECT count(*) FROM engine.runs`, `SELECT count(*) FROM engine.run_events`,
+		`SELECT count(*) FROM scope.programs`, `SELECT count(*) FROM scope.scope_versions`, `SELECT count(*) FROM graph.entities`} {
+		var n int
+		if err := rtx.QueryRow(ctx, q).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, q := range []string{
+		`SELECT scope.ensure_decision_partition('2098-06-01T00:00:00Z')::text`,
+		`SELECT public.ff_sync_roles()::text`,
+	} {
+		tx, err := conn.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '2s'`); err != nil {
+			t.Fatal(err)
+		}
+		var out string
+		if err := tx.QueryRow(ctx, q).Scan(&out); err != nil {
+			_ = tx.Rollback(ctx)
+			t.Fatalf("%s while a reader holds engine and scope tables: %v", q, err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var forced bool
+	if err := conn.QueryRow(ctx, `SELECT relforcerowsecurity FROM pg_class WHERE oid = 'scope.scope_decisions_y2098m06'::regclass`).Scan(&forced); err != nil || !forced {
+		t.Fatalf("new partition forced RLS: %v %v", forced, err)
+	}
+	var policies int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM pg_policy WHERE polrelid = 'scope.scope_decisions_y2098m06'::regclass`).Scan(&policies); err != nil || policies != 3 {
+		t.Fatalf("new partition has %d policies (%v), want tenant_isolation, svc_ff_scope, svc_ff_maintenance", policies, err)
+	}
+}

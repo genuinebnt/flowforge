@@ -19,6 +19,8 @@ and a Go runner (`migrations.Apply`).
 | `0012_graph_vectors.sql` | `graph.embeddings`, `vector_indexes`, `vector_segments` (needs pgvector) | 22.9 |
 | `0013_engine_extras.sql` | `engine.workflow_version_ext`, `run_ext`, `run_requests`, `approval_ext` (engine/pgrepo's SchemaSQL, idempotent) | 9, 10.4 (addition) |
 | `0014_notifier_delivery_target.sql` | `notifier.deliveries.target` (Slack channel override / e-mail recipient of an action) | 15.4 (addition) |
+| `0016_v1_bus.sql` | `bus.subscriptions`, `bus.messages`, `bus.deliveries`: the Postgres event bus (services/internal/bus `PgBus`) | 11.7, 23.7 (addition; G-SVC-01) |
+| `0017_v1_maintenance.sql` | `notifier.throttle_windows`, `notifier.digest_buffers` (durable alert state), `engine.schedules`, `engine.run_archives`; `engine.forbid_mutation` lets only the archival transaction delete one archived run's events | 15.3, 17, 10.7 (addition; G-LIM-06, G-OPS-10, G-OPS-03) |
 | `0018_v1_db_roles.sql` | per-service roles and grants, forced RLS on tenant, partition and child tables, `ff_sync_roles()` | 10.7, 17.2 (addition) |
 
 ## Usage

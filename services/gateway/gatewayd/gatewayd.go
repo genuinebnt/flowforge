@@ -447,16 +447,15 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 	}
 	be := gateway.BackendsFromConns(conns["FF_SCOPE_ADDR"], conns["FF_ENGINE_ADDR"], conns["FF_GRAPH_ADDR"],
 		conns["FF_NOTIFIER_ADDR"], conns["FF_TOOL_RUNNER_ADDR"], conns["FF_SIMILARITY_ADDR"])
-	// The engine serves its schedule API on the gRPC port (h2c / Cloud
-	// Run); an address with a scheme is used as is.
-	engineURL := backends["FF_ENGINE_ADDR"]
-	if !strings.Contains(engineURL, "://") {
-		engineURL = "http://" + engineURL
-		if cfg.GRPCTLS {
-			engineURL = "https://" + backends["FF_ENGINE_ADDR"]
-		}
+	// The engine serves its schedule API as HTTP on its gRPC port (h2c
+	// locally, TLS on Cloud Run, where the ID token goes in
+	// X-Serverless-Authorization as for gRPC).
+	et, _ := platform.ParseTarget(backends["FF_ENGINE_ADDR"]) // checked in the loop above
+	engineURL := "http://" + et.Addr
+	if et.TLS || cfg.GRPCTLS {
+		engineURL = "https://" + et.Addr
 	}
-	be.Schedules = gateway.HTTPSchedules{BaseURL: engineURL, Keys: g.keys}
+	be.Schedules = gateway.HTTPSchedules{BaseURL: engineURL, Keys: g.keys, IDTokens: ids, Audience: et.Audience}
 
 	srv, err := gateway.New(gateway.Config{
 		Identity: g.svc, Revocations: g.revocations, Limiter: g.lim, Backends: be, Clock: g.clock, IDs: core.SystemRng{},

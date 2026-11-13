@@ -204,10 +204,11 @@ func TestMsParams(t *testing.T) {
 	}
 }
 
-// BenchmarkLim03_Redis is b_lim_03: the Lua limiter round trip with 1 and
-// 64 client connections, reporting p50 and p99 latency.
+// BenchmarkLim03_Redis is b_lim_03: the Lua limiter round trip with 1, 8
+// and 64 client connections (pool size and concurrent callers), reporting
+// p50 and p99 latency (G-SPEC-02).
 func BenchmarkLim03_Redis(b *testing.B) {
-	for _, conns := range []int{1, 64} {
+	for _, conns := range []int{1, 8, 64} {
 		b.Run("conns="+strconv.Itoa(conns), func(b *testing.B) {
 			c := client(b, conns)
 			rl, err := New(c, Options{}, limiter.Rule{Pattern: "*", Params: limiter.Params{Rate: 1e6, Burst: 1000}})

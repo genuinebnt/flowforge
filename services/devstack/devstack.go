@@ -34,6 +34,7 @@ import (
 	graphv1 "github.com/genuinebnt/flowforge/gen/flowforge/graph/v1"
 	simv1 "github.com/genuinebnt/flowforge/gen/flowforge/similarity/v1"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
+	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/migrations"
 	"github.com/genuinebnt/flowforge/scope"
 	"github.com/genuinebnt/flowforge/services/egressproxy"
@@ -80,6 +81,9 @@ type Options struct {
 	Workers int
 	// Engine tunes the engine (tests shorten PollInterval).
 	Engine engine.Config
+	// Blobs receives raw tool output, snapshot files and run archives
+	// (services/internal/blob); nil keeps them out of storage.
+	Blobs graphstore.BlobStore
 	// Logger defaults to discarding everything.
 	Logger *slog.Logger
 	// Issuer of internal tokens (default "flowforge-dev").
@@ -210,7 +214,7 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	}
 	env := func(name string) *wire.Env {
 		return &wire.Env{Service: name, Logger: o.Logger.With("component", name), Metrics: metrics, Clock: clock,
-			Tokens: tokens, Verifier: verifier, DB: st.DB, DSN: o.DBDSN, Bus: st.Bus}
+			Tokens: tokens, Verifier: verifier, DB: st.DB, DSN: o.DBDSN, Bus: st.Bus, Blobs: o.Blobs}
 	}
 	serve := func(name string, c *wire.Component) {
 		st.wg.Add(1)

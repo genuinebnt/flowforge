@@ -83,7 +83,8 @@ go test ./alerts/ -run '^$' -bench BenchmarkAlr01 -benchtime=3x
 
 ## Known limitations
 
-See `OPEN_QUESTIONS.md`. In short: throttle and digest state is in memory
-(the service persists alert events and can rebuild it); fields inside
+See `OPEN_QUESTIONS.md`. In short: throttle and digest state lives in the
+processor; `Outcome.State` reports each change for the caller to persist
+and `Processor.Restore` rebuilds it (the notifier does both); fields inside
 `patch`, `payload` and `attributes` are not addressable beyond key tests;
 opaque OAM types (Person, Location, ...) expose only the fixed columns.

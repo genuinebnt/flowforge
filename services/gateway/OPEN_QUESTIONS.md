@@ -87,3 +87,10 @@ pinned by a test or a conformance transcript (`conformance/api`).
     carries `user:` / `apikey:` (11.1).
 19. **Write deadlines** use the wall clock (socket deadlines), not the
     injected clock; SSE streams extend the deadline on every write.
+20. **Schedules** (`/v1/schedules`, G-OPS-10) are not in spec 12.3. They
+    need `runs:submit` to create or delete (a schedule submits runs) and
+    `read` to list. The gateway forwards them as JSON over HTTP to the
+    engine's `/internal/schedules` with the caller's internal token, since
+    the v1 EngineService proto has no schedule RPCs; the engine's 400, 404
+    and 409 become `validation_failed`, `not_found` and `already_exists`.
+    The ids carry a new `sch_` prefix (core.PrefixSchedule).
