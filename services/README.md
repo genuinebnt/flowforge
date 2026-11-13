@@ -177,8 +177,7 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
   restarts when rules change; default operational rules are not installed
   per tenant; `TestRule` with a historical event id is not supported
   (events are not retained); webhook deliveries go out directly (SSRF
-  checked and pinned), not through the egress proxy; Secret Manager
-  (`sm://`) references are not resolvable yet (`env://` and `file://` are).
+  checked and pinned), not through the egress proxy.
 * **Egress proxy** reads the scope decision log directly (in process, or
   the scope schema in Postgres); HTTPS is tunnelled, so redirects inside
   TLS are re-checked by the tool runner's client only.

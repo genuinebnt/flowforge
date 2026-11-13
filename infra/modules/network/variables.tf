@@ -59,3 +59,36 @@ variable "egress_proxy_tag" {
   type        = string
   default     = "ff-egress-proxy"
 }
+
+# --- Cost toggles. dev and prod keep the defaults (the full spec 17.3
+# design); the lab environment turns the billed pieces off.
+
+variable "nat_enabled" {
+  description = "Create Cloud Router + Cloud NAT and the reserved NAT IPs for the egress subnet (billed per gateway hour and per IP). lab: false (the egress proxy runs on the VM, which has its own external address)."
+  type        = bool
+  default     = true
+}
+
+variable "psa_enabled" {
+  description = "Create the private services access range and peering for Cloud SQL and Memorystore. lab: false (no Cloud SQL or Memorystore)."
+  type        = bool
+  default     = true
+}
+
+variable "private_dns_enabled" {
+  description = "Create the private DNS zones that map googleapis.com and run.app to private.googleapis.com (needed for internal-ingress service-to-service calls and the tool-runner's default-deny egress). Cloud DNS managed zones are billed per zone per month."
+  type        = bool
+  default     = true
+}
+
+variable "flow_logs_enabled" {
+  description = "VPC flow logs on every subnet (billed as log generation)."
+  type        = bool
+  default     = true
+}
+
+variable "firewall_logs_enabled" {
+  description = "Firewall rules logging on the deny rules (billed as Cloud Logging ingestion beyond the free allotment)."
+  type        = bool
+  default     = true
+}

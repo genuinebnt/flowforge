@@ -39,13 +39,13 @@ variable "image" {
 }
 
 variable "ingress" {
-  description = "INGRESS_TRAFFIC_INTERNAL_ONLY for internal services; INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER for the gateway behind the LB."
+  description = "INGRESS_TRAFFIC_INTERNAL_ONLY for internal services; INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER for the gateway behind the LB (dev, prod); INGRESS_TRAFFIC_ALL only for the gateway of the lab environment, which has no load balancer and serves on its run.app URL."
   type        = string
   default     = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   validation {
-    condition     = contains(["INGRESS_TRAFFIC_INTERNAL_ONLY", "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"], var.ingress)
-    error_message = "Flowforge services are never exposed with INGRESS_TRAFFIC_ALL; put the gateway behind the load balancer."
+    condition     = contains(["INGRESS_TRAFFIC_INTERNAL_ONLY", "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER", "INGRESS_TRAFFIC_ALL"], var.ingress)
+    error_message = "ingress must be INGRESS_TRAFFIC_INTERNAL_ONLY, INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER or (lab gateway only) INGRESS_TRAFFIC_ALL."
   }
 }
 
@@ -121,7 +121,7 @@ variable "request_timeout" {
 }
 
 variable "network_id" {
-  description = "VPC for Direct VPC egress."
+  description = "VPC for Direct VPC egress (no Serverless VPC Access connector, which bills while it runs)."
   type        = string
 }
 

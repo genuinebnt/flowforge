@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -192,6 +193,45 @@ func (r *PgRepo) GetVersion(ctx context.Context, tenant, program core.UUID, n in
 	return scanVersion(r.DB.QueryRow(ctx, `SELECT `+versionCols+` FROM scope.scope_versions v JOIN scope.programs p ON p.id = v.program_id
 WHERE v.program_id = $1 AND p.tenant_id = $2 AND v.version = CASE WHEN $3::int = 0 THEN p.current_version ELSE $3::int END`,
 		program.String(), tenant.String(), n))
+}
+
+// EffectiveVersion implements Repo. The scalar subquery yields 0 when no
+// version is in effect, and the outer row is missing (ErrNotFound) when
+// the program is not the tenant's.
+func (r *PgRepo) EffectiveVersion(ctx context.Context, tenant, program core.UUID, at time.Time) (int32, error) {
+	var v int32
+	err := r.DB.QueryRow(ctx, `SELECT coalesce((SELECT max(v.version) FROM scope.scope_versions v WHERE v.program_id = p.id AND v.effective_from <= $3), 0)
+FROM scope.programs p WHERE p.id = $1 AND p.tenant_id = $2`, program.String(), tenant.String(), at).Scan(&v)
+	return v, mapPgErr(err)
+}
+
+// DueVersions implements Repo. It reads every tenant's programs, like
+// KillSwitches, so the role must bypass row-level security (see PgRepo).
+func (r *PgRepo) DueVersions(ctx context.Context, after, upTo time.Time, limit int) ([]DueVersion, error) {
+	rows, err := r.DB.Query(ctx, `SELECT p.tenant_id::text, v.program_id::text, v.version, v.effective_from
+FROM scope.scope_versions v JOIN scope.programs p ON p.id = v.program_id
+WHERE v.effective_from > v.created_at AND v.effective_from > $1 AND v.effective_from <= $2
+ORDER BY v.effective_from, v.program_id, v.version LIMIT $3`, after, upTo, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []DueVersion
+	for rows.Next() {
+		var d DueVersion
+		var tenant, prog string
+		if err := rows.Scan(&tenant, &prog, &d.Version, &d.EffectiveFrom); err != nil {
+			return nil, err
+		}
+		d.Tenant, d.Program = core.MustParseUUID(tenant), core.MustParseUUID(prog)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// AppendEvents implements Repo.
+func (r *PgRepo) AppendEvents(ctx context.Context, evs []Event) error {
+	return r.tx(ctx, func(tx pgx.Tx) error { return r.emit(ctx, tx, evs) })
 }
 
 // ListVersions implements Repo.

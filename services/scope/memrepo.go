@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
@@ -122,6 +123,53 @@ func (r *MemRepo) GetVersion(_ context.Context, tenant, program core.UUID, n int
 		return Version{}, ErrNotFound
 	}
 	return vs[n-1], nil
+}
+
+// EffectiveVersion implements Repo.
+func (r *MemRepo) EffectiveVersion(_ context.Context, tenant, program core.UUID, at time.Time) (int32, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, err := r.program(tenant, program); err != nil {
+		return 0, err
+	}
+	var best int32
+	for _, v := range r.versions[program] {
+		if !v.EffectiveFrom.After(at) {
+			best = max(best, v.Version)
+		}
+	}
+	return best, nil
+}
+
+// DueVersions implements Repo.
+func (r *MemRepo) DueVersions(_ context.Context, after, upTo time.Time, limit int) ([]DueVersion, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []DueVersion
+	for pid, vs := range r.versions {
+		for _, v := range vs {
+			if v.EffectiveFrom.After(v.CreatedAt) && v.EffectiveFrom.After(after) && !v.EffectiveFrom.After(upTo) {
+				out = append(out, DueVersion{Tenant: r.programs[pid].Tenant, Program: pid, Version: v.Version, EffectiveFrom: v.EffectiveFrom})
+			}
+		}
+	}
+	// PORT: map iteration order is random in Go; sort so activation events
+	// are emitted in effective_from order, as the Postgres query returns them.
+	slices.SortFunc(out, func(a, b DueVersion) int {
+		return cmp.Or(a.EffectiveFrom.Compare(b.EffectiveFrom), cmp.Compare(a.Program.String(), b.Program.String()), cmp.Compare(a.Version, b.Version))
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// AppendEvents implements Repo.
+func (r *MemRepo) AppendEvents(_ context.Context, evs []Event) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.emit(evs)
+	return nil
 }
 
 // ListVersions implements Repo.

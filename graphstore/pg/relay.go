@@ -15,9 +15,11 @@ import (
 // a crash between the two re-publishes them: delivery is at least once
 // (duplicates possible, never loss); consumers deduplicate by event id.
 //
-// The relay spans tenants, so it must connect with a role that bypasses
-// row-level security (the table owner or BYPASSRLS, see
-// migrations/OPEN_QUESTIONS.md). Concurrent relays skip each other's rows
+// The relay spans tenants. Its scan of graph.change_events relies on the
+// svc_ff_graph policy of migration 0018 (or a superuser); the entity
+// snapshots it attaches are read with app.tenant_id set to each event's
+// tenant, so ff_graph stays subject to row-level security on every other
+// graph table (migrations/OPEN_QUESTIONS.md 12). Concurrent relays skip each other's rows
 // (FOR UPDATE SKIP LOCKED).
 type Relay struct {
 	DB DB
@@ -98,6 +100,11 @@ func (r *Relay) snapshots(ctx context.Context, tx pgx.Tx, evs []graphstore.Chang
 		tid, err := graphstore.ParseID(core.PrefixTenant, "tenant_id", tenant)
 		if err != nil {
 			return graphstore.Internal("relay tenant", err)
+		}
+		// set_config(..., true) is transaction-local and may change within
+		// the transaction; the last tenant's setting ends with it.
+		if _, err := tx.Exec(ctx, setTenant, tid.UUID.String()); err != nil {
+			return graphstore.Internal("relay set tenant", err)
 		}
 		m, err := readEntities(ctx, tx, tid, nil, ids)
 		if err != nil {

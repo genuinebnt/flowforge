@@ -20,6 +20,10 @@ NotifierService (spec 11.7) and the alerting pipeline of spec 15.
   only with `AllowInsecureLoopback`, for tests), slack (incoming-webhook URL
   from `webhook_secret_ref`), email (`EmailSender`: `SMTPEmail` over
   net/smtp, `LogEmail` for dev).
-* `Secrets` resolves references: `EnvSecrets` (`env://NAME`, `file://`),
-  `MapSecrets` (tests); `sm://` Secret Manager is future work.
+* `Secrets` (= `platform.Secrets`) resolves references: `cmd/notifier`
+  wires `platform.LocalSecrets` (`env://NAME`, `file:///path`) plus
+  `smsecrets.Store` for `sm://projects/P/secrets/S/versions/V` (or the
+  short `sm://S` with `FF_SECRET_PROJECT`, else `FF_PUBSUB_PROJECT`, as the
+  default project); `MapSecrets` in tests. An unresolvable reference fails
+  the delivery attempt (it is retried), never sends unsigned.
 * `MemRepo` / `PgRepo` (notifier schema, migrations 0006 and 0014).

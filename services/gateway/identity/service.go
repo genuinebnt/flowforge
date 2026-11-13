@@ -28,6 +28,7 @@ const (
 	EventLogin           = "login"
 	EventLoginFailed     = "login_failed"
 	EventLoginThrottled  = "login_throttled"
+	EventSignupThrottled = "signup_throttled"
 	EventRefreshReuse    = auth.AuditRefreshReuse
 	EventLogout          = "logout"
 	EventPasswordForgot  = "password_forgot"

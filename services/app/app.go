@@ -21,6 +21,7 @@ import (
 	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/migrations"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
+	"github.com/genuinebnt/flowforge/services/internal/platform/smsecrets"
 	"github.com/genuinebnt/flowforge/services/internal/wire"
 	"github.com/genuinebnt/flowforge/services/notifier"
 )
@@ -60,7 +61,7 @@ func Run(ctx context.Context, service string, getenv func(string) string) error 
 		return err
 	}
 	if tokens == nil {
-		log.Warn("config.no_signing_key", "detail", "FF_SIGNING_KEY unset: calls to other services will be rejected")
+		log.Warn("config.no_signing_key", "detail", "FF_SIGNING_KID with FF_SIGNING_KEY_<KID> (or FF_SIGNING_KEY) unset: calls to other services will be rejected")
 	}
 	env := &wire.Env{Service: service, Logger: log, Metrics: platform.NewMetrics(nil), Clock: clock, Verifier: verifier, DSN: cfg.DBDSN}
 	if tokens != nil {
@@ -95,7 +96,7 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		return c, nil
 	case "engine":
 		c, _, err := wire.Engine(ctx, env, wire.EngineOptions{ScopeAddr: cfg.ScopeAddr, ToolRunnerAddr: cfg.ToolRunnerAddr,
-			GraphAddr: cfg.GraphAddr, RedisAddr: cfg.RedisAddr, RedisAuth: cfg.RedisAuth, Workers: cfg.Workers,
+			GraphAddr: cfg.GraphAddr, RedisAddr: cfg.RedisAddr, RedisAuth: cfg.RedisAuth, RedisCA: cfg.RedisCA, Workers: cfg.Workers,
 			Engine: engine.Config{FuelLimit: cfg.FuelDefault}})
 		return c, err
 	case "tool-runner":
@@ -112,8 +113,12 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 	case "similarity":
 		return wire.Similarity(env, wire.SimilarityOptions{GraphAddr: cfg.GraphAddr, ScopeAddr: cfg.ScopeAddr})
 	case "notifier":
-		c, _ := wire.Notifier(env, wire.NotifierOptions{Secrets: notifier.EnvSecrets{Getenv: getenv},
-			Email: notifier.SMTPEmail{Secrets: notifier.EnvSecrets{Getenv: getenv}}})
+		// env:// and file:// resolve locally; sm:// through Secret Manager
+		// (G-SVC-04). The SM client starts on the first sm:// lookup, so a
+		// local notifier without Google credentials runs as long as no
+		// channel uses one.
+		secrets := platform.LocalSecrets(getenv, &smsecrets.Store{Project: cfg.SecretProject})
+		c, _ := wire.Notifier(env, wire.NotifierOptions{Secrets: secrets, Email: notifier.SMTPEmail{Secrets: secrets}})
 		return c, nil
 	}
 	return nil, fmt.Errorf("unknown service %q", cfg.Service)
@@ -132,7 +137,7 @@ func Migrate(ctx context.Context, getenv func(string) string) error {
 		return err
 	}
 	defer pool.Close()
-	res, err := migrations.ApplyReport(ctx, pool)
+	res, err := migrations.Deploy(ctx, pool)
 	for _, r := range res {
 		fmt.Printf("%s %s\n", r.Migration.File(), r.Status)
 	}

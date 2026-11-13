@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -102,7 +103,12 @@ func withDatabase(dsn, db string) string {
 // database. Elapse shifts every stored lease and wake timestamp back by d,
 // which is equivalent to advancing the database clock for every
 // comparison the store makes against now().
-func pgHarness(t testing.TB) *storetest.Harness {
+func pgHarness(t testing.TB) *storetest.Harness { return pgHarnessAs(t, "") }
+
+// pgHarnessAs is pgHarness with the store connecting as role (empty: the
+// test DSN's own user, a superuser). The fixtures and Elapse keep using
+// the superuser connection.
+func pgHarnessAs(t testing.TB, role string) *storetest.Harness {
 	t.Helper()
 	if testDSN == "" {
 		t.Skip("FF_TEST_PG_DSN not set")
@@ -118,7 +124,11 @@ func pgHarness(t testing.TB) *storetest.Harness {
 		t.Fatal(err)
 	}
 	open := func(t testing.TB) eventstore.Store {
-		s, err := pgstore.Open(ctx, pgstore.Config{DSN: testDSN, MaxConns: 64, PollInterval: 50 * time.Millisecond})
+		dsn := testDSN
+		if role != "" {
+			dsn = withRole(testDSN, role)
+		}
+		s, err := pgstore.Open(ctx, pgstore.Config{DSN: dsn, MaxConns: 64, PollInterval: 50 * time.Millisecond})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -156,6 +166,29 @@ func pgHarness(t testing.TB) *storetest.Harness {
 }
 
 func newPG(t *testing.T) *storetest.Harness { return pgHarness(t) }
+
+// withRole makes every connection of dsn run as role (the "role" startup
+// parameter is SET ROLE at connect time).
+func withRole(dsn, role string) string {
+	if u, err := url.Parse(dsn); err == nil && (u.Scheme == "postgres" || u.Scheme == "postgresql") {
+		q := u.Query()
+		q.Set("options", "-c role="+role)
+		// libpq reads options with %20 for spaces, not the "+" of form encoding.
+		u.RawQuery = strings.ReplaceAll(q.Encode(), "+", "%20")
+		return u.String()
+	}
+	return dsn + " options='-c role=" + role + "'"
+}
+
+// TestRegress_G_OPS_02_ConformanceAsEngineRole runs the event store suite
+// as ff_engine, the non-owner service role of migration 0018, with row
+// level security forced on engine.runs and its child tables and no
+// app.tenant_id set: the cross-tenant scheduler path (ListReady,
+// ClaimReady, Wake) and every per-run call keep working through the
+// role's svc_ff_engine policy.
+func TestRegress_G_OPS_02_ConformanceAsEngineRole(t *testing.T) {
+	storetest.Run(t, func(t *testing.T) *storetest.Harness { return pgHarnessAs(t, "ff_engine") })
+}
 
 // TestES007_AllImplementations runs the whole conformance suite against
 // Postgres (eventstore runs it against MemStore).

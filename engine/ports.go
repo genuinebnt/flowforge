@@ -177,9 +177,11 @@ type KillSwitchState struct {
 // Scope is the port to the scope service (spec 4, 11.3). Every error is
 // treated as deny (spec 2.4 "no silent success").
 type Scope interface {
-	// CurrentVersion returns the current scope version of a program of
-	// the tenant; ErrNotFound if the program does not exist or has no
-	// scope document.
+	// CurrentVersion returns the scope version of a program of the tenant
+	// that is in effect now: the highest version whose effective_from has
+	// passed (spec 4.1), never a pending future-dated one. Runs are pinned
+	// to it at submission. ErrNotFound if the program does not exist or no
+	// scope document is in effect.
 	CurrentVersion(ctx context.Context, tenant, program core.UUID) (int32, error)
 	// Policy returns the compiled scope document of a version.
 	Policy(ctx context.Context, tenant, program core.UUID, version int32) (*scope.Policy, error)

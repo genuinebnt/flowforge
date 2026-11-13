@@ -49,8 +49,12 @@ pinned by a test or a conformance transcript (`conformance/api`).
     5xx are not. Replayed bodies keep the original `request_id`. Public
     `/auth/*` POSTs never store responses.
 12. **Rate-limit keys for anonymous callers** are `rl:api:ip/<ip>:<class>`
-    (14.3 only names tenant keys). Limiter errors fail open for API limits
-    (auth throttles inside the identity service fail closed). Health,
+    (14.3 only names tenant keys). Limiter errors fail closed (spec 2.4): API
+    limits answer `503 unavailable` with `Retry-After: 2`, not 429 (the
+    caller exceeded nothing, and 11.8 maps UNAVAILABLE to 503 "retry with
+    backoff"); the auth throttles inside the identity service answer 503
+    on signup, resend and forgot, and the uniform login error path a 500.
+    Both deny (G-LIM-01). Health,
     readiness and JWKS are not limited and carry no RateLimit headers.
     `RateLimit-Reset` is the time until the bucket is full again.
 13. **Auth throttle keys** not named by 14.3: resend
