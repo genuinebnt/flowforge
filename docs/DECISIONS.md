@@ -54,3 +54,13 @@ v3 track T1 adds TypeScript and JSX to `jsparse`. The Rust port translates
 the Go parsers instead of adopting oxc or Sentinel's parsers, because the
 project's purpose is learning; oxc, swc and typescript-estree are design
 references and test-only differential oracles.
+
+## D6. Workspaces are a level inside a tenant (proposed)
+
+**Status: proposed, awaiting confirmation.** v3 track T11 plans
+`tenant 1—* workspace 1—* program`: the tenant stays the isolation and
+billing boundary (RLS, quotas), and a workspace is an authorization and
+policy boundary inside it, with its own memberships, policy and retention.
+Existing data moves into a `default` workspace per tenant. The rejected
+alternative, tenant = workspace, needs no new level but forces one
+organisation into several accounts with nothing shared between them.

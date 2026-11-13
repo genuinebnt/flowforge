@@ -37,6 +37,7 @@ benchmarks with acceptance shapes, and no trivial tests.
 | T8 | Anomaly toolkit | M | v2 content, T6 policy |
 | T9 | Agent step and MCP front: **moved to v4** (`docs/ROADMAP_V4.md`) | — | — |
 | T10 | Carry-overs from the v2 roadmap | — | — |
+| T11 | Governance: workspaces, policy hierarchy, deletion and erasure | L | v1 identity/scope, v2 chunkstore |
 
 ---
 
@@ -290,6 +291,79 @@ and roll into v3 unless pulled forward:
 * C0–C5 performance work;
 * D6 headless rendering in the sandbox.
 
+## T11. Governance: workspaces, policy hierarchy, deletion and erasure
+
+**Status: proposed.** The workspace model below (a workspace is a new
+level inside a tenant) is the working assumption, not yet decided (D6).
+
+Today the spec has two levels: a **tenant** (account boundary; all data
+and quotas) and a **program** (a scope, its versions and the assets found
+under it). Governance needs a level between them, so that one tenant can
+run separate engagements with their own people, rules and retention.
+
+**Model (D6, proposed):** `tenant 1—* workspace 1—* program`.
+
+* A workspace owns memberships and roles (a user can belong to several
+  workspaces of a tenant), a policy, and a retention class. Programs
+  belong to exactly one workspace. Every existing tenant gets a
+  `default` workspace in a migration, so v1/v2 data and APIs keep
+  working unchanged.
+* The `tenant_id` filter and RLS stay the isolation boundary (spec 2.6);
+  workspace is an authorization and policy boundary inside it. Rows gain
+  `workspace_id` only where policy is evaluated per row (programs,
+  runs, approvals, alerts); assets inherit it through their program.
+* Alternative, rejected unless D6 says otherwise: *tenant = workspace*.
+  Simpler (no new column), but one organisation then needs several
+  accounts, with separate billing, users and quotas, and nothing can be
+  shared between them.
+
+**Policy hierarchy.** Policies are evaluated top-down, and a lower level
+may only **narrow** what a higher one allows (the same fail-closed rule
+as scope, spec 6):
+
+1. platform denylist (operator-wide: hosts and ranges no tenant may ever
+   touch; v2 proposes the list itself);
+2. tenant policy (allowed tool classes, max intrusiveness, egress
+   regions, data-use classes from T6);
+3. workspace policy (people, approval roles, rate ceilings, retention);
+4. program scope (spec 6) and the activity's own limits.
+
+The effective policy is computed, versioned and recorded with every run
+decision (`policy_version` beside `scope_version`), so an audit can show
+which rule allowed or denied an action. Numbered invariants:
+GOV-INV-01 *narrowing only* (a property test over random hierarchies),
+GOV-INV-02 *decision recorded* (every allow or deny names the deciding
+level and version), GOV-INV-03 *default workspace* (the migration is
+loss-free and idempotent).
+
+**Deletion and erasure.** Deleting a program, a workspace, a graph slice
+or a change history is a saga, not a `DELETE`:
+
+* soft delete (hidden, reversible for a grace period, default 7 days);
+  in-flight runs are cancelled with CancelGrace first;
+* hard delete per store: graph rows and edges, event store snapshots and
+  events (archived runs), similarity vectors, text index postings,
+  chunkstore manifests; chunks are reclaimed by the existing reference
+  counted garbage collection once no manifest names them (V2_DESIGN §12:
+  no cross-tenant dedupe, so a chunk never outlives its tenant's last
+  reference);
+* legal hold and pinned snapshots block hard delete and say so;
+* a signed **erasure certificate** lists what was removed, from which
+  stores, with counts and the time each store confirmed;
+* the audit log keeps the fact of deletion (who, what, when) but not the
+  deleted content.
+
+Invariants: GOV-INV-04 *complete erasure* (after the saga no store
+answers a query for the deleted ids; checked by a cross-store sweep in
+the simulator), GOV-INV-05 *hold wins*, GOV-INV-06 *idempotent resume*
+(the saga survives a crash at any step and finishes exactly once).
+
+**Encoders and decoders** (base64, base64url, hex, percent-encoding,
+quoted-printable, gzip/deflate/zstd inflate with bounds) are **not**
+governance: they are a v2 `codec` package used by content extraction and
+exposed as pure DSL builtins. Only their limits (max decoded size,
+nesting depth) come from policy.
+
 ## Suggested order
 
 1. **T1 JSX**: small, immediately improves source-map diffs.
@@ -301,6 +375,10 @@ and roll into v3 unless pulled forward:
 7. **T6** leads and ranking, with the data-use policy.
 8. **T4** entity resolution and namespaces.
 9. **T8** anomaly toolkit.
+
+10. **T11** governance: the workspace level and policy hierarchy can start
+    any time after T2; deletion sagas need the v2 chunkstore and T3's
+    validity intervals.
 
 Carry-overs (T10) are interleaved as capacity allows. A1 (sandbox) should
 come before any tier-1 detection probes ship.
@@ -317,5 +395,8 @@ come before any tier-1 detection probes ship.
   rather than adopting oxc or Sentinel's parsers. The project is for
   learning, so the parsers are part of the point. oxc and swc remain
   design references and test oracles.
+* **D6, proposed:** a workspace is a level inside a tenant
+  (`tenant 1—* workspace 1—* program`), with a `default` workspace for
+  existing data (T11). The alternative is tenant = workspace.
 * Third-party model use moves to the v4 decisions (`docs/ROADMAP_V4.md`
   §8).
