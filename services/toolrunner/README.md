@@ -33,7 +33,10 @@ ToolRunnerService (spec 6, 11.5; V2_DESIGN §8).
   race) the execution ends as `kill_switch_active`, and with
   `rate_limited` / `concurrency_limited` as `rate_limited` carrying the
   longest retry delay (`ToolError.retry_after`); either replaces the
-  adapter's result, which lacks what the edge refused. The engine cancels
+  adapter's result, which lacks what the edge refused. A rate-limit
+  refusal the adapter retries itself is taken over
+  (`ToolCtx.RetryingEdgeLimit`; portscan paces and retries) and not
+  reported. The engine cancels
   a raced run with reason `kill_switch_race[:level]` and waits a
   rate-limit delay out without counting an attempt (spec 9.5).
 * **Raw capture** (`rawcapture.go`, spec 6.1 raw_ref, G-SVC-16). With

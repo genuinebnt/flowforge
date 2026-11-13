@@ -149,9 +149,10 @@ type ToolCtx struct {
 	// none are recorded; G-SVC-16).
 	Raw *RawCapture
 
-	edgeMu   sync.Mutex
-	edgeKill bool
-	edgeWait time.Duration
+	edgeMu    sync.Mutex
+	edgeKill  bool
+	edgeWait  time.Duration
+	edgeLimit int // rate-limit refusals no adapter took over
 }
 
 // Proxy refusal reasons that describe the network edge rather than the
@@ -181,9 +182,22 @@ func (tc *ToolCtx) noteRefusal(re *RefusedError) {
 		tc.edgeKill = true
 	case refusedRateLimited:
 		tc.edgeWait = max(tc.edgeWait, re.RetryAfter, time.Millisecond)
+		tc.edgeLimit++
 	case refusedConcurrency:
 		tc.edgeWait = max(tc.edgeWait, re.RetryAfter, concurrencyWait)
+		tc.edgeLimit++
 	}
+}
+
+// RetryingEdgeLimit is called by an adapter that retries, itself, a
+// request the proxy refused with rate_limited or concurrency_limited
+// (portscan paces and retries): it takes that refusal over, so Execute
+// does not report the execution as rate-limited for it. A refusal the
+// adapter gives up on is not taken over.
+func (tc *ToolCtx) RetryingEdgeLimit() {
+	tc.edgeMu.Lock()
+	defer tc.edgeMu.Unlock()
+	tc.edgeLimit = max(tc.edgeLimit-1, 0)
 }
 
 // edgeOutcome is the execution's result as the network edge decided it:
@@ -198,7 +212,7 @@ func (tc *ToolCtx) edgeOutcome() *ToolError {
 	switch {
 	case tc.edgeKill:
 		return &ToolError{Code: engine.CodeKillSwitch, Message: "the egress proxy refused a request: a kill switch is engaged"}
-	case tc.edgeWait > 0:
+	case tc.edgeLimit > 0:
 		return &ToolError{Code: engine.CodeRateLimited, Message: "the egress proxy's per-target limit refused a request",
 			Retryable: true, RetryAfter: tc.edgeWait}
 	}

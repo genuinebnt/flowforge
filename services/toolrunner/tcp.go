@@ -171,6 +171,7 @@ func (p PortScan) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, o
 				}
 				var re *RefusedError
 				if errors.As(err, &re) && (re.Reason == "rate_limited" || re.Reason == "concurrency_limited") && retries > 0 && attempt < retries {
+					tc.RetryingEdgeLimit()
 					extra = min(max(re.RetryAfter, pace), 5*time.Second)
 					continue
 				}

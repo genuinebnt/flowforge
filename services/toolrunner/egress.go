@@ -337,8 +337,8 @@ func (e *Egress) DialTCP(ctx context.Context, tc *ToolCtx, d scope.Decision, hos
 	return e.connect(ctx, tc, d, net.JoinHostPort(host, strconv.Itoa(port)), declared)
 }
 
-// dialProxy opens a connection to the proxy (TLS for an https:// proxy;
-// Cloud Run serves TLS on 443 only).
+// dialProxy opens a connection to the proxy (TLS for an https:// proxy,
+// its handshake bounded by 10 s; Cloud Run serves TLS on 443 only).
 func (e *Egress) dialProxy(ctx context.Context) (net.Conn, error) {
 	var dl net.Dialer
 	addr := e.Proxy.Host
@@ -361,8 +361,10 @@ func (e *Egress) dialProxy(ctx context.Context) (net.Conn, error) {
 		if conf.ServerName == "" {
 			conf.ServerName = e.Proxy.Hostname()
 		}
+		hctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
 		tlsConn := tls.Client(conn, conf)
-		if err := tlsConn.HandshakeContext(ctx); err != nil {
+		if err := tlsConn.HandshakeContext(hctx); err != nil {
 			conn.Close()
 			return nil, err
 		}

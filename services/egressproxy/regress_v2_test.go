@@ -269,11 +269,14 @@ func TestRegress_G_SVC_16_RawProtocolBytes(t *testing.T) {
 
 // edgeProbe is a test tool that makes its scope decision, lets the test
 // change the world (before), then sends n requests to its URL under that
-// decision through the proxy.
+// decision through the proxy. With retry set, a request refused 429 is
+// taken over (ToolCtx.RetryingEdgeLimit), retry runs, and the request is
+// sent once more.
 type edgeProbe struct {
 	url    string
 	n      int
 	before func()
+	retry  func()
 }
 
 func (p *edgeProbe) Spec() toolrunner.Spec {
@@ -290,12 +293,20 @@ func (p *edgeProbe) Run(ctx context.Context, _ json.RawMessage, tc *toolrunner.T
 	}
 	okN := 0
 	for range p.n {
-		resp, err := tc.Network().HTTPClient(tc, d, func(string, string) {}).Get(p.url)
-		if err == nil {
+		for try := 0; try < 2; try++ {
+			resp, err := tc.Network().HTTPClient(tc, d, func(string, string) {}).Get(p.url)
+			if err != nil {
+				break
+			}
+			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				okN++
 			}
-			resp.Body.Close()
+			if resp.StatusCode != http.StatusTooManyRequests || p.retry == nil {
+				break
+			}
+			tc.RetryingEdgeLimit()
+			p.retry()
 		}
 	}
 	return json.Marshal(okN)
@@ -319,6 +330,16 @@ func TestRegress_G_ENG_09_EdgeOutcome(t *testing.T) {
 		te := msgs[len(msgs)-1].GetError()
 		if te.GetCode() != engine.CodeRateLimited || !te.GetRetryable() || te.GetRetryAfter().AsDuration() <= 0 || te.GetRetryAfter().AsDuration() > time.Second {
 			t.Fatalf("rate-limited execution: %v", msgs[len(msgs)-1])
+		}
+	})
+	t.Run("taken_over_by_the_tool", func(t *testing.T) {
+		e := newV2(t, &pb.RateLimit{RequestsPerSecond: 1, Burst: 1, Concurrency: 4}, nil, nil)
+		srv := toolrunner.NewServer(toolrunner.Options{Adapters: []toolrunner.Adapter{&edgeProbe{url: u, n: 2,
+			retry: func() { e.clock.Advance(time.Second) }}},
+			Scope: scopesvc.NewClient(e.st.Scope, "tool-runner"), Egress: e.eg})
+		msgs := runTool(t, e, srv, "edgeprobe", "x")
+		if d := msgs[len(msgs)-1].GetDone(); d == nil || d.GetOutput().GetNumberValue() != 2 {
+			t.Fatalf("a refusal the tool retried was reported: %v", msgs[len(msgs)-1])
 		}
 	})
 	t.Run("kill_switch_race", func(t *testing.T) {
