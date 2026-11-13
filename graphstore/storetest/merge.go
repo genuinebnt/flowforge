@@ -32,6 +32,8 @@ type MergeFile struct {
 			CompletedAt time.Time `json:"completed_at"`
 		} `json:"complete_run"`
 		Error string `json:"error"`
+		// Pending: the observation must be buffered (IngestResult.Pending).
+		Pending bool `json:"pending"`
 	} `json:"steps"`
 	Expect struct {
 		Entities []struct {
@@ -160,6 +162,7 @@ func MergeConformance(t *testing.T, f Factory, cases []MergeCase, oracle Factory
 func replay(t *testing.T, f Factory, c MergeFile) *mergeRun {
 	t.Helper()
 	r := &mergeRun{t: t, e: newEnv(t, f, Options{Scope: scopeOf(c), StaleAfterRuns: c.StaleAfterRuns}), ids: map[string]string{}}
+	r.prescan(c)
 	for i, s := range c.Steps {
 		if s.CompleteRun != nil {
 			cr := s.CompleteRun
@@ -171,7 +174,10 @@ func replay(t *testing.T, f Factory, c MergeFile) *mergeRun {
 			}
 			continue
 		}
-		err := r.ingest(s.Observation)
+		pending, err := r.ingest(s.Observation)
+		if err == nil && pending != s.Pending {
+			t.Fatalf("step %d: pending %v, want %v", i, pending, s.Pending)
+		}
 		if s.Error != "" {
 			want, ok := sentinels[s.Error]
 			if !ok {
@@ -189,6 +195,35 @@ func replay(t *testing.T, f Factory, c MergeFile) *mergeRun {
 	return r
 }
 
+// prescan maps the conformance-space id of every entity any step creates
+// to its id in the store's tenant and program, so a step may reference an
+// entity that a later step ingests (pending references, G-CORE-03).
+func (r *mergeRun) prescan(c MergeFile) {
+	for _, s := range c.Steps {
+		if s.CompleteRun != nil {
+			continue
+		}
+		o, err := oam.DecodeObservation(s.Observation, oam.Strict)
+		if err != nil || len(o.Entities) == 0 {
+			continue
+		}
+		r.use(o.TenantID, o.ProgramID)
+		idsIn := func(tenant, program string) map[string]string {
+			g := oam.NewGraph(oam.Config{})
+			res, err := g.Apply(oam.Observation{ObservationID: "prescan", TenantID: tenant, ProgramID: program,
+				Tool: oam.Tool{Name: "prescan"}, ObservedAt: T0, Entities: o.Entities})
+			if err != nil {
+				return nil // an invalid step; ingest reports it
+			}
+			return res.RefToEntityID
+		}
+		file, store := idsIn(o.TenantID, o.ProgramID), idsIn(r.e.tenant, r.e.prog)
+		for ref, id := range file {
+			r.ids[id] = store[ref]
+		}
+	}
+}
+
 func (r *mergeRun) use(tenant, program string) {
 	r.e.tenant, r.e.prog = TenantID(tenant), ProgramID(program)
 	r.e.c = graphstore.Caller{TenantID: r.e.tenant}
@@ -196,10 +231,10 @@ func (r *mergeRun) use(tenant, program string) {
 
 // ingest decodes (strictly, as the gateway does), maps names, rewrites
 // conformance-space entity ids and ingests one step.
-func (r *mergeRun) ingest(raw json.RawMessage) error {
+func (r *mergeRun) ingest(raw json.RawMessage) (bool, error) {
 	o, err := oam.DecodeObservation(raw, oam.Strict)
 	if err != nil {
-		return err
+		return false, err
 	}
 	fileTenant, fileProgram := o.TenantID, o.ProgramID
 	r.use(o.TenantID, o.ProgramID)
@@ -224,14 +259,14 @@ func (r *mergeRun) ingest(raw json.RawMessage) error {
 		if !errors.As(err, &ce) || ce.Kind != core.KindInvalidArgument {
 			r.t.Fatalf("rejected observation must be INVALID_ARGUMENT *core.Error, got %T %v", err, err)
 		}
-		return err
+		return false, err
 	}
 	r.applied = append(r.applied, req)
 	for _, id := range res.RefToEntityID {
 		ent := r.e.entity(id)
 		r.ids[oam.EntityID(fileTenant, fileProgram, ent.AssetType, ent.Key)] = id
 	}
-	return nil
+	return res.Pending, nil
 }
 
 func checkMerge(t *testing.T, r *mergeRun, c MergeFile) {

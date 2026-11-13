@@ -107,15 +107,23 @@ Background work uses `platform.AsService(ctx, tenant, "engine")` (actor
 | `FF_LOG_LEVEL` | all | debug, info, warn, error |
 | `FF_DB_DSN` | scope, engine, graph, notifier, egress-proxy | Postgres; unset means in-memory stores |
 | `FF_REDIS_ADDR`, `FF_REDIS_AUTH` | engine | distributed limiter (else in-process GCRA) |
+| `FF_REDIS_CA` | engine (and gateway) | PEM of the Redis server CA, or a path to it; set means TLS verified against only that CA (Memorystore, `redisconf`) |
 | `FF_JWKS_URL`, `FF_JWT_ISSUER`, `FF_JWT_AUDIENCE` | all | verification keys (`https://`, `http://` or `file://`) |
-| `FF_SIGNING_KID`, `FF_SIGNING_KEY` | all callers | this service's internal-token key (32-byte Ed25519 seed, hex or base64) |
+| `FF_SIGNING_KID`, `FF_SIGNING_KEY_<KID>` | all callers | the internal-token key: kid, and its 32-byte Ed25519 seed (hex, base64 or raw) under the name Terraform mounts `ff-signing-key-<kid>` as (kid upper-cased, `-` as `_`). `FF_SIGNING_KEY` is still read when `FF_SIGNING_KEY_<KID>` is unset. It is the gateway's provisioned key, so the gateway's JWKS publishes it |
+| `FF_SECRET_PROJECT` | notifier | default project of short `sm://NAME` references (else `FF_PUBSUB_PROJECT`) |
+| `FF_ID_TOKEN_AUDIENCE_AUTO` | all callers | attach a Google ID token (`x-serverless-authorization`) to calls to `https://` addresses; defaults to on when `K_SERVICE` is set (Cloud Run) |
 | `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_NOTIFIER_ADDR`, `FF_SIMILARITY_ADDR` | callers | service addresses |
-| `FF_EGRESS_PROXY` | tool-runner | `http://host:port` of the egress proxy (required in prod) |
+| `FF_EGRESS_PROXY` | tool-runner | `http://host:port` or `https://host` of the egress proxy (required in prod) |
 | `FF_ENGINE_WORKERS`, `FF_FUEL_DEFAULT` | engine | worker count, VM fuel |
 | `FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX` | publishers, consumers | reserved for the Pub/Sub adapter (not implemented) |
 
-In dev without `FF_JWKS_URL`/`FF_SIGNING_KEY` a binary generates an
+In dev without `FF_JWKS_URL` and a signing key a binary generates an
 ephemeral key, which only works inside one process (`flowforge dev`).
+Service addresses: `https://host[:port]` (a Cloud Run URL) is dialled with
+TLS (system roots, port 443 by default) and, with ID tokens on, carries a
+Google ID token whose audience is `https://host` next to the internal JWT
+(Cloud Run IAM admits the calling service, the JWT says which tenant and
+actor it acts for); `host:port` and `http://host:port` are h2c.
 
 ## Errors, deadlines, telemetry
 
@@ -192,6 +200,7 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
 * **Graph analytics** re-build a snapshot in memory when the cached one is
   older than 30 s or the requested watermark; snapshots are not written to
   GCS by the service.
-* No TLS between services (Cloud Run terminates TLS); no authorization
+* Services listen in h2c and rely on Cloud Run's front end for TLS
+  (callers dial `https://` addresses with TLS); no authorization
   beyond tenant isolation, the global kill switch (owner) and similarity's
   include_out_of_scope (analyst+): permissions are the gateway's job.

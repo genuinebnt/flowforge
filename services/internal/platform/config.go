@@ -36,6 +36,12 @@ type Config struct {
 	// SecretProject is the default project of short sm://NAME secret
 	// references (FF_SECRET_PROJECT, else FF_PUBSUB_PROJECT).
 	SecretProject string
+	// IDTokens: attach a Google ID token to calls to https:// service
+	// addresses (Cloud Run IAM, spec 17.3; G-SVC-13). True when
+	// FF_ID_TOKEN_AUDIENCE_AUTO is true or the process runs on Cloud Run
+	// (K_SERVICE, set by the platform); FF_ID_TOKEN_AUDIENCE_AUTO=false
+	// turns it off there.
+	IDTokens bool
 
 	JWKSURL     string // FF_JWKS_URL: https://..., http://... or file:///path
 	JWTIssuer   string // FF_JWT_ISSUER
@@ -114,6 +120,7 @@ func ConfigFromEnv(service string, getenv func(string) string) (Config, error) {
 	}
 	c.RedisCA = getenv("FF_REDIS_CA")
 	c.SecretProject = or(getenv("FF_SECRET_PROJECT"), c.PubSubProject)
+	c.IDTokens = IDTokensFromEnv(getenv)
 	if name, v := SigningKeyEnv(c.SigningKID, getenv); v != "" {
 		seed, err := DecodeSeed(v)
 		if err != nil {
@@ -155,6 +162,16 @@ func intEnv(getenv func(string) string, k string) (int64, error) {
 		return 0, fmt.Errorf("%s: %w", k, err)
 	}
 	return n, nil
+}
+
+// IDTokensFromEnv reports whether calls to https:// services carry a
+// Google ID token (Config.IDTokens).
+func IDTokensFromEnv(getenv func(string) string) bool {
+	if v := getenv("FF_ID_TOKEN_AUDIENCE_AUTO"); v != "" {
+		b, _ := strconv.ParseBool(v)
+		return b
+	}
+	return getenv("K_SERVICE") != ""
 }
 
 // SigningKeyVar is the environment variable Terraform mounts the secret

@@ -21,7 +21,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
@@ -35,25 +34,34 @@ import (
 	"github.com/genuinebnt/flowforge/services/gateway/identity/redisstore"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
 	"github.com/genuinebnt/flowforge/services/internal/bus/busconfig"
+	"github.com/genuinebnt/flowforge/services/internal/platform"
+	"github.com/genuinebnt/flowforge/services/internal/platform/gcpauth"
 	"github.com/genuinebnt/flowforge/services/internal/platform/redisconf"
 	"github.com/genuinebnt/flowforge/services/internal/platform/smsecrets"
 )
 
 // Config is the gateway's environment configuration (spec 17.5).
 type Config struct {
-	Addr          string
-	DBDSN         string // FF_DB_DSN; empty = in-memory identity store
-	Migrate       bool   // FF_DB_MIGRATE: apply migrations at start (dev)
-	RedisAddr     string // FF_REDIS_ADDR; empty = in-process revocation, lockouts and limits
-	RedisAuth     string // FF_REDIS_AUTH
-	RedisCA       string // FF_REDIS_CA: PEM (or a PEM file path) of the server CA; set = TLS (G-OPS-13)
-	Issuer        string // FF_JWT_ISSUER
-	Audience      string // FF_JWT_AUDIENCE (must be flowforge-api)
-	PublicURL     string // FF_PUBLIC_URL: console base URL for e-mail links
-	CookieDomain  string // FF_COOKIE_DOMAIN
-	CookieInsec   bool   // FF_COOKIE_INSECURE: drop Secure (local HTTP only)
-	TrustXFF      bool   // FF_TRUST_XFF: client IP from X-Forwarded-For
-	GRPCTLS       bool   // FF_GRPC_TLS: TLS (system roots) to internal services
+	Addr         string
+	DBDSN        string // FF_DB_DSN; empty = in-memory identity store
+	Migrate      bool   // FF_DB_MIGRATE: apply migrations at start (dev)
+	RedisAddr    string // FF_REDIS_ADDR; empty = in-process revocation, lockouts and limits
+	RedisAuth    string // FF_REDIS_AUTH
+	RedisCA      string // FF_REDIS_CA: PEM (or a PEM file path) of the server CA; set = TLS (G-OPS-13)
+	Issuer       string // FF_JWT_ISSUER
+	Audience     string // FF_JWT_AUDIENCE (must be flowforge-api)
+	PublicURL    string // FF_PUBLIC_URL: console base URL for e-mail links
+	CookieDomain string // FF_COOKIE_DOMAIN
+	CookieInsec  bool   // FF_COOKIE_INSECURE: drop Secure (local HTTP only)
+	TrustXFF     bool   // FF_TRUST_XFF: client IP from X-Forwarded-For
+	GRPCTLS      bool   // FF_GRPC_TLS: TLS (system roots) to host:port internal services; https:// addresses always use TLS
+	// IDTokens (FF_ID_TOKEN_AUDIENCE_AUTO, or K_SERVICE on Cloud Run) adds
+	// a Google ID token for each https:// backend to its calls (spec 17.3;
+	// G-SVC-13). IDTokenSource and BackendTLS override the token source and
+	// the TLS configuration (tests).
+	IDTokens      bool
+	IDTokenSource platform.IDTokenSource
+	BackendTLS    *tls.Config
 	Backends      map[string]string
 	ShutdownGrace time.Duration
 
@@ -109,7 +117,7 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		RedisAddr: getenv("FF_REDIS_ADDR"), RedisAuth: getenv("FF_REDIS_AUTH"), RedisCA: getenv("FF_REDIS_CA"),
 		Issuer: getenv("FF_JWT_ISSUER"), Audience: getenv("FF_JWT_AUDIENCE"), PublicURL: getenv("FF_PUBLIC_URL"),
 		CookieDomain: getenv("FF_COOKIE_DOMAIN"), CookieInsec: boolEnv(getenv("FF_COOKIE_INSECURE")),
-		TrustXFF: boolEnv(getenv("FF_TRUST_XFF")), GRPCTLS: boolEnv(getenv("FF_GRPC_TLS")),
+		TrustXFF: boolEnv(getenv("FF_TRUST_XFF")), GRPCTLS: boolEnv(getenv("FF_GRPC_TLS")), IDTokens: platform.IDTokensFromEnv(getenv),
 		Backends: map[string]string{}, ShutdownGrace: 15 * time.Second,
 		BusKind: getenv("FF_BUS"), PubSubProject: getenv("FF_PUBSUB_PROJECT"), TopicPrefix: getenv("FF_TOPIC_PREFIX"),
 		PubSubCreate: boolEnv(getenv("FF_PUBSUB_CREATE")),
@@ -407,13 +415,22 @@ func (g *Gateway) Close() {
 // gracefully.
 func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 	cfg, log := g.cfg, g.log
-	creds := insecure.NewCredentials()
-	if cfg.GRPCTLS {
-		creds = credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+	ids := cfg.IDTokenSource
+	if ids == nil && cfg.IDTokens {
+		ids = gcpauth.New()
 	}
 	conns := map[string]*grpc.ClientConn{}
 	for _, v := range BackendVars {
-		cc, err := grpc.NewClient(backends[v], append([]grpc.DialOption{grpc.WithTransportCredentials(creds)}, gateway.DialOptions(g.keys)...)...)
+		t, err := platform.ParseTarget(backends[v])
+		if err != nil {
+			return fmt.Errorf("%s: %w", v, err)
+		}
+		creds := t.TransportCredentials(cfg.BackendTLS)
+		if cfg.GRPCTLS && !t.TLS {
+			creds = credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+		}
+		opts := append([]grpc.DialOption{grpc.WithTransportCredentials(creds)}, gateway.DialOptions(g.keys)...)
+		cc, err := grpc.NewClient(t.Addr, append(opts, platform.IDTokenDialOptions(t, ids)...)...)
 		if err != nil {
 			return fmt.Errorf("%s: %w", v, err)
 		}
@@ -430,6 +447,16 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 	}
 	be := gateway.BackendsFromConns(conns["FF_SCOPE_ADDR"], conns["FF_ENGINE_ADDR"], conns["FF_GRAPH_ADDR"],
 		conns["FF_NOTIFIER_ADDR"], conns["FF_TOOL_RUNNER_ADDR"], conns["FF_SIMILARITY_ADDR"])
+	// The engine serves its schedule API on the gRPC port (h2c / Cloud
+	// Run); an address with a scheme is used as is.
+	engineURL := backends["FF_ENGINE_ADDR"]
+	if !strings.Contains(engineURL, "://") {
+		engineURL = "http://" + engineURL
+		if cfg.GRPCTLS {
+			engineURL = "https://" + backends["FF_ENGINE_ADDR"]
+		}
+	}
+	be.Schedules = gateway.HTTPSchedules{BaseURL: engineURL, Keys: g.keys}
 
 	srv, err := gateway.New(gateway.Config{
 		Identity: g.svc, Revocations: g.revocations, Limiter: g.lim, Backends: be, Clock: g.clock, IDs: core.SystemRng{},

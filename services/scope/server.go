@@ -555,9 +555,10 @@ func (s *Server) ActivateDue(ctx context.Context, after, upTo time.Time) (time.T
 		}
 		next := due[len(due)-1].EffectiveFrom
 		if len(due) < 100 || !next.After(last) {
-			// A full page with one shared timestamp cannot advance the
-			// cursor; the rest of that instant is picked up next tick only
-			// if more than 100 versions share it, which is accepted.
+			// The cursor is exclusive, so if more than 100 versions share
+			// one effective_from the ones past this page are never
+			// announced; accepted, since timestamps come from separate
+			// PutScope calls and practically never collide.
 			return next, nil
 		}
 		last = next

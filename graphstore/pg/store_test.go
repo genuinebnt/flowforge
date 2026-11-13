@@ -228,7 +228,7 @@ func TestGraphPG_RowLevelSecurity(t *testing.T) {
 		"DROP ROLE IF EXISTS " + role,
 		"CREATE ROLE " + role + " LOGIN",
 		"GRANT USAGE ON SCHEMA graph TO " + role,
-		"GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA graph TO " + role,
+		"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA graph TO " + role, // DELETE: pending references
 		"GRANT USAGE ON ALL SEQUENCES IN SCHEMA graph TO " + role,
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
@@ -392,3 +392,83 @@ func BenchmarkSys01_Ingest(b *testing.B) {
 }
 
 const benchWorkers = 8
+
+// TestRegress_G_CORE_03_PendingReferencesPG pins the Postgres side of
+// pending references: observations that name an entity id racing with the
+// ingest that creates it all end up applied (none stuck in
+// graph.pending_observations), the per-tenant bound answers
+// RESOURCE_EXHAUSTED, and old rows expire by observed_at on the next
+// buffering ingest of the tenant.
+func TestRegress_G_CORE_03_PendingReferencesPG(t *testing.T) {
+	pool, _ := freshPool(t)
+	ctx := context.Background()
+	tenant, prog := storetest.TenantID("pend"), storetest.ProgramID("pend")
+	clock := storetest.NewClock(storetest.T0)
+	s := pg.New(pool, pg.Config{Config: graphstore.Config{Clock: clock, MaxPending: 50, PendingTTL: time.Hour}})
+	target := oam.FQDN{Name: "target.acme.com"}
+	id := storetest.EntityIDIn(tenant, prog, target)
+	ref := func(i int, at time.Time) graphstore.IngestRequest {
+		return graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: oam.Observation{
+			ObservationID: fmt.Sprint("ref-", i), Tool: oam.Tool{Name: "httpx"}, ObservedAt: at, Confidence: 0.5,
+			Entities: []oam.ObservedEntity{{Ref: "u", Asset: oam.URL{URL: fmt.Sprintf("https://target.acme.com/%d", i)}}},
+			Edges:    []oam.ObservedEdge{{From: "u", To: id, Relation: oam.SimpleRelation{Label: "related_to"}}}}}
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 40)
+	for i := range 30 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := s.IngestObservation(ctx, ref(i, storetest.T0)); err != nil {
+				errs <- err
+			}
+		}()
+		if i == 15 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := s.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tenant, ProgramID: prog, Observation: oam.Observation{
+					ObservationID: "creates", Tool: oam.Tool{Name: "dnsx"}, ObservedAt: storetest.T0, Confidence: 0.9,
+					Entities: []oam.ObservedEntity{{Ref: "a", Asset: target}}}})
+				if err != nil {
+					errs <- err
+				}
+			}()
+		}
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	var left, edges int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM graph.pending_observations`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM graph.edges`).Scan(&edges); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 || edges != 30 {
+		t.Fatalf("after the race: %d pending rows, %d edges; want 0 and 30", left, edges)
+	}
+
+	// Bound and expiry, on ids nobody creates.
+	other := storetest.EntityIDIn(tenant, prog, oam.FQDN{Name: "never.acme.com"})
+	small := pg.New(pool, pg.Config{Config: graphstore.Config{Clock: clock, MaxPending: 1, PendingTTL: time.Hour}})
+	req := func(i int, at time.Time) graphstore.IngestRequest {
+		r := ref(100+i, at)
+		r.Observation.Edges[0].To = other
+		return r
+	}
+	if res, err := small.IngestObservation(ctx, req(0, storetest.T0)); err != nil || !res.Pending {
+		t.Fatalf("first pending: %+v %v", res, err)
+	}
+	if _, err := small.IngestObservation(ctx, req(1, storetest.T0)); core.KindOf(err) != core.KindResourceExhausted {
+		t.Fatalf("over the bound: %v, want RESOURCE_EXHAUSTED", err)
+	}
+	clock.Set(storetest.T0.Add(2 * time.Hour))
+	res, err := small.IngestObservation(ctx, req(2, storetest.T0.Add(2*time.Hour)))
+	if err != nil || !res.Pending || res.Expired != 1 {
+		t.Fatalf("after the TTL: %+v %v, want pending with 1 expired", res, err)
+	}
+}

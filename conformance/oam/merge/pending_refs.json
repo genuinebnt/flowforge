@@ -1,0 +1,28 @@
+{
+  "description": "Spec 23.5 any-order convergence with id references (G-CORE-03): an observation whose edge and tag name an existing-entity id (ent_...) that has not been ingested yet is buffered as pending, then applied, with its own stamps, when the entity arrives. The reversed and duplicated order (entity first) gives the same state.",
+  "steps": [
+    {"observation": {"observation_id": "ref-first", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "httpx"}, "observed_at": "2026-11-12T10:05:00Z", "confidence": 0.9,
+      "entities": [{"ref": "u1", "asset": {"type": "URL", "url": "https://api.acme.com/", "scheme": "https", "host": "api.acme.com", "port": 443}}],
+      "edges": [{"from": "u1", "to": "ent_6A7ZSTGD84HP29SMKFPGF2WJF0", "relation": {"type": "SimpleRelation", "label": "domain"}}],
+      "tags": [{"target": "ent_6A7ZSTGD84HP29SMKFPGF2WJF0", "property": {"type": "SimpleProperty", "name": "note", "value": "seen by httpx"}}]},
+     "pending": true},
+    {"observation": {"observation_id": "entity", "tenant_id": "ten_acme", "program_id": "prg_acme", "tool": {"name": "subfinder"}, "observed_at": "2026-11-12T10:00:00Z", "confidence": 0.8,
+      "entities": [{"ref": "a", "asset": {"type": "FQDN", "name": "api.acme.com"}}]}}
+  ],
+  "expect": {
+    "entities": [
+      {"key": "fqdn:api.acme.com", "confidence": 0.8,
+       "tags": [{"type": "SimpleProperty", "name": "note", "content": {"name": "note", "value": "seen by httpx"}}]},
+      {"key": "url:https://api.acme.com/", "confidence": 0.9,
+       "content": {"url": "https://api.acme.com/", "scheme": "https", "host": "api.acme.com", "port": 443}}
+    ],
+    "edges": [
+      {"from": "url:https://api.acme.com/", "label": "domain", "to": "fqdn:api.acme.com", "relation_type": "SimpleRelation", "sources": {"httpx": 90}}
+    ],
+    "changes": [
+      {"type": "entity_added", "entity": "fqdn:api.acme.com"},
+      {"type": "entity_added", "entity": "url:https://api.acme.com/"},
+      {"type": "edge_added", "edge": {"from": "url:https://api.acme.com/", "label": "domain", "to": "fqdn:api.acme.com"}}
+    ]
+  }
+}

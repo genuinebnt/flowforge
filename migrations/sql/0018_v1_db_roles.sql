@@ -306,4 +306,29 @@ BEGIN
   RETURN 'scope.' || part;
 END $$;
 
+-- Pending references (G-CORE-03, spec 23.5): an observation whose edges or
+-- tags name an ent_/edg_ id that its tenant and program do not have yet is
+-- kept here instead of failing, and re-ingested when the last missing id is
+-- created (graphstore/pg). It is in this file, rather than its own, because
+-- it needs the same RLS and grants and was added in the same v1 batch.
+--   observation_id  graphstore.ObservationUUID (dedup key, as graph.observations.id)
+--   observation     the prepared envelope (oam JSON), re-ingested verbatim
+--   missing         public ids still absent; ready = every one now exists
+--                   and the row waits for its re-ingest
+CREATE TABLE graph.pending_observations (
+  tenant_id      uuid NOT NULL,
+  program_id     uuid NOT NULL,
+  observation_id uuid NOT NULL,
+  effect_path    text NOT NULL DEFAULT '',
+  observation    jsonb NOT NULL,
+  missing        text[] NOT NULL,
+  observed_at    timestamptz NOT NULL,
+  ready          boolean NOT NULL DEFAULT false,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, observation_id)
+);
+CREATE INDEX pending_observations_missing ON graph.pending_observations USING gin (missing);
+CREATE INDEX pending_observations_ready ON graph.pending_observations (tenant_id, program_id, observation_id) WHERE ready;
+CREATE INDEX pending_observations_age ON graph.pending_observations (tenant_id, observed_at);
+
 SELECT public.ff_sync_roles();

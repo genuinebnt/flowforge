@@ -30,6 +30,9 @@ type Env struct {
 	Clock    core.Clock
 	Tokens   platform.TokenSource
 	Verifier platform.TokenVerifier
+	// IDTokens adds Google ID tokens to calls to https:// (Cloud Run)
+	// addresses; nil locally (platform.ClientOptions.IDTokens).
+	IDTokens platform.IDTokenSource
 	// DB is nil for the in-memory stores; DSN is its connection string
 	// (LISTEN connections).
 	DB  *pgxpool.Pool
@@ -48,7 +51,7 @@ func (e *Env) Dial(target string) (*grpc.ClientConn, error) {
 	if target == "" {
 		return nil, errors.New("wire: empty service address")
 	}
-	return platform.Dial(target, platform.ClientOptions{Tokens: e.Tokens})
+	return platform.Dial(target, platform.ClientOptions{Tokens: e.Tokens, IDTokens: e.IDTokens})
 }
 
 // Component is a built service.

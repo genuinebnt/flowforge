@@ -13,9 +13,9 @@ fuzz_jwt, benchmark b_auth_01.
 
 | Area | Identifiers |
 |---|---|
-| Passwords | `Hasher` (`NewHasher`, `Hash`, `Verify`, `NeedsRehash`), `Params`, `PolicyParams`, `PasswordPolicy`, `BreachedChecker`, `BreachedSet` |
+| Passwords | `Hasher` (`NewHasher`, `Hash`, `Verify`, `NeedsRehash`), `Params`, `PolicyParams`, `Calibrate` / `Measure` (raise iterations to a 200-500 ms target, 13.1), `PasswordPolicy`, `BreachedChecker`, `BreachedSet` |
 | Keys | `SigningKey`, `PublicKey`, `KeyState`, `KeySet` (JWKS `MarshalJSON`, `ParseJWKS`), `KeyResolver`, `KeyCache`, `KeySource`, `MemoryKeySource` |
-| Tokens | `Claims`, `Signer`, `Minter` (`Access`, `Internal`), `Verifier`, `VerifierConfig`, `InternalVerifierConfig`, `RevocationChecker`, `InMemoryRevocation`, `NoRevocation` |
+| Tokens | `Claims` (internal tokens may carry `groups`: at most `MaxGroups` `ValidGroupName`s, rejected in access tokens), `Signer`, `Minter` (`Access`, `Internal`), `Verifier`, `VerifierConfig`, `InternalVerifierConfig`, `RevocationChecker`, `InMemoryRevocation`, `NoRevocation` |
 | Opaque secrets | `NewRefreshToken`, `HashToken`, `NewAPIKey`, `ParseAPIKey`, `EmailVerifier`, `VerificationStore`, `NewCSRFToken`, `CheckCSRF`, `CSRFRequired` |
 | Refresh rotation | `Refresher` (`Start`, `Rotate`, `RevokeSession`), `RefreshStore`, `InMemoryRefreshStore` |
 | Login | `LoginService`, `UserStore`, `Throttle`, `LockoutStore`, `PasswordHasher` and in-memory fakes; `IPThrottleKey`, `AccountThrottleKey` |

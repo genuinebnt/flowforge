@@ -2,6 +2,8 @@ package oam
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 )
@@ -35,12 +37,22 @@ const (
 // the graph never promotes unknown to in-scope by inference.
 type ScopeFunc func(tenantID, programID string, a Asset) ScopeStatus
 
+// DefaultMaxPending is the default bound on buffered observations per
+// tenant (Config.MaxPending).
+const DefaultMaxPending = 10_000
+
 // Config configures a Graph.
 type Config struct {
 	// StaleAfterRuns defaults to DefaultStaleAfterRuns when zero.
 	StaleAfterRuns int
 	// Scope classifies entities; nil leaves every entity unknown.
 	Scope ScopeFunc
+	// MaxPending bounds, per tenant, the observations buffered because they
+	// reference an entity or edge id that is not in the graph yet (see
+	// Apply). Zero means DefaultMaxPending; a negative value disables
+	// buffering, so such an observation fails with ErrUnknownEntity (the
+	// order-dependent behaviour before G-CORE-03).
+	MaxPending int
 }
 
 // Graph is the in-memory reference implementation of graph ingest (spec
@@ -58,6 +70,18 @@ type Graph struct {
 	applied    map[string]struct{} // tenant + NUL + observation id
 	runs       map[string]struct{} // completed covering runs
 	changes    []ChangeEvent
+
+	maxPending int
+	pending    map[string]*pendingObs         // tenant + NUL + observation id
+	waiting    map[string]map[string]struct{} // missing id -> pending keys
+	perTenant  map[string]int                 // pending observations per tenant
+}
+
+// pendingObs is an observation buffered until every id it references
+// exists in its tenant and program.
+type pendingObs struct {
+	o       Observation
+	missing map[string]struct{}
 }
 
 // NewGraph returns an empty graph.
@@ -66,10 +90,16 @@ func NewGraph(cfg Config) *Graph {
 	if n <= 0 {
 		n = DefaultStaleAfterRuns
 	}
+	mp := cfg.MaxPending
+	if mp == 0 {
+		mp = DefaultMaxPending
+	}
 	return &Graph{
 		staleAfter: n, scope: cfg.Scope,
 		entities: map[string]*entityState{}, edges: map[string]*edgeState{},
 		applied: map[string]struct{}{}, runs: map[string]struct{}{},
+		maxPending: mp, pending: map[string]*pendingObs{}, waiting: map[string]map[string]struct{}{},
+		perTenant: map[string]int{},
 	}
 }
 
@@ -84,6 +114,18 @@ type Result struct {
 	EdgesUpdated    int
 	RefToEntityID   map[string]string
 	Changes         []ChangeEvent
+	// Pending is true when the observation references entity or edge ids
+	// (ent_/edg_) that its tenant and program do not have yet: it was
+	// buffered, not applied, and Missing lists those ids (sorted). It is
+	// applied, atomically and with its own stamps, as soon as the last of
+	// them is created; re-sending it meanwhile has no further effect.
+	Pending bool
+	Missing []string
+	// Released lists the buffered observations this call applied because
+	// it created ids they were waiting for, in application order. Their
+	// change events are part of Changes; the counts above cover only this
+	// observation.
+	Released []string
 }
 
 type sighting struct {
@@ -200,75 +242,216 @@ func (r *record) confidence() float64 {
 // Apply ingests one observation atomically: either every entity, edge and
 // tag is applied or, on error, nothing is. Applying an observation id a
 // second time has no effect and returns Result{Duplicate: true}.
+//
+// An observation whose edges or tags name an ent_/edg_ id that is not in
+// the graph (for its tenant and program) is not an error: it is buffered
+// (Result.Pending) and applied when the last missing id is created, by the
+// Apply that creates it (Result.Released). Merges commute (spec 23.5), so
+// applying it later yields the state an earlier application would have,
+// and the graph converges for any order of the observations. A buffered
+// observation that turns out to be invalid once its references exist (an
+// edge label not allowed between the now-known asset types) is dropped,
+// as it would have been rejected in the other order. The buffer is bounded
+// per tenant (Config.MaxPending, ErrPendingLimit); ExpirePending drops old
+// entries.
 func (g *Graph) Apply(o Observation) (Result, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	return g.apply(o)
+}
+
+func (g *Graph) apply(o Observation) (Result, error) {
 	dk := o.TenantID + "\x00" + o.ObservationID
 	if _, ok := g.applied[dk]; ok {
 		return Result{Duplicate: true}, nil
+	}
+	if po, ok := g.pending[dk]; ok {
+		return Result{Pending: true, Missing: slices.Sorted(maps.Keys(po.missing)), RefToEntityID: map[string]string{}}, nil
 	}
 	p, err := o.prepare()
 	if err != nil {
 		return Result{}, err
 	}
-	ids, err := g.resolve(o, p)
+	ids, missing, err := g.resolve(o, p)
 	if err != nil {
 		return Result{}, err
 	}
+	if len(missing) > 0 {
+		return g.buffer(dk, o, missing)
+	}
 	res := g.commit(o, p, ids)
 	g.applied[dk] = struct{}{}
+	g.release(&res)
 	return res, nil
+}
+
+// buffer keeps o until every id in missing exists.
+func (g *Graph) buffer(dk string, o Observation, missing []string) (Result, error) {
+	if g.maxPending < 0 {
+		return Result{}, invalidAt("", fmt.Errorf("%w: %s", ErrUnknownEntity, missing[0]))
+	}
+	if g.perTenant[o.TenantID] >= g.maxPending {
+		return Result{}, fmt.Errorf("%w: %d buffered for tenant %s", ErrPendingLimit, g.perTenant[o.TenantID], o.TenantID)
+	}
+	po := &pendingObs{o: o, missing: make(map[string]struct{}, len(missing))}
+	for _, id := range missing {
+		po.missing[id] = struct{}{}
+		if g.waiting[id] == nil {
+			g.waiting[id] = map[string]struct{}{}
+		}
+		g.waiting[id][dk] = struct{}{}
+	}
+	g.pending[dk] = po
+	g.perTenant[o.TenantID]++
+	return Result{Pending: true, Missing: missing, RefToEntityID: map[string]string{}}, nil
+}
+
+// unbuffer removes a pending observation and its waiting entries.
+func (g *Graph) unbuffer(dk string) *pendingObs {
+	po := g.pending[dk]
+	if po == nil {
+		return nil
+	}
+	for id := range po.missing {
+		if w := g.waiting[id]; w != nil {
+			delete(w, dk)
+			if len(w) == 0 {
+				delete(g.waiting, id)
+			}
+		}
+	}
+	delete(g.pending, dk)
+	if g.perTenant[po.o.TenantID]--; g.perTenant[po.o.TenantID] <= 0 {
+		delete(g.perTenant, po.o.TenantID)
+	}
+	return po
+}
+
+// release applies the buffered observations whose last missing id res
+// created, and transitively the ones those create, appending their change
+// events to res.
+func (g *Graph) release(res *Result) {
+	queue := append([]ChangeEvent(nil), res.Changes...)
+	for len(queue) > 0 {
+		ev := queue[0]
+		queue = queue[1:]
+		id := ev.EntityID
+		if ev.Type == ChangeEdgeAdded {
+			id = ev.EdgeID
+		} else if ev.Type != ChangeEntityAdded {
+			continue
+		}
+		w := g.waiting[id]
+		if len(w) == 0 {
+			continue
+		}
+		// PORT: map order is random; pending keys are sorted so the change
+		// event order (and seqs in the stores) is deterministic.
+		for _, dk := range slices.Sorted(maps.Keys(w)) {
+			po := g.pending[dk]
+			delete(po.missing, id)
+			if len(po.missing) > 0 {
+				continue
+			}
+			g.unbuffer(dk)
+			// An id is never deleted, so every reference now resolves;
+			// apply can still fail on edge-label rules (dropped, see Apply)
+			// and never buffers again.
+			r, err := g.apply(po.o)
+			if err != nil {
+				continue
+			}
+			res.Released = append(res.Released, append([]string{po.o.ObservationID}, r.Released...)...)
+			res.Changes = append(res.Changes, r.Changes...)
+		}
+		delete(g.waiting, id)
+	}
+}
+
+// PendingCount returns the number of observations of tenant waiting for
+// referenced ids.
+func (g *Graph) PendingCount(tenantID string) int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.perTenant[tenantID]
+}
+
+// ExpirePending drops the buffered observations of tenant (every tenant
+// when empty) whose observed_at is before cutoff and returns their ids,
+// sorted. Expiry uses the observation's own time, not a clock, so it is
+// deterministic.
+func (g *Graph) ExpirePending(tenantID string, cutoff time.Time) []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	var out []string
+	for _, dk := range slices.Sorted(maps.Keys(g.pending)) {
+		po := g.pending[dk]
+		if (tenantID == "" || po.o.TenantID == tenantID) && po.o.ObservedAt.Before(cutoff) {
+			g.unbuffer(dk)
+			out = append(out, po.o.ObservationID)
+		}
+	}
+	return out
+}
+
+// DropPending removes one buffered observation and reports whether it was
+// buffered (a store that enforces a wider bound than the Graph's own).
+func (g *Graph) DropPending(tenantID, observationID string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.unbuffer(tenantID+"\x00"+observationID) != nil
 }
 
 // resolve computes local entity ids and checks every reference to an
 // existing entity or edge, plus label rules that need stored asset types.
-func (g *Graph) resolve(o Observation, p *prepared) ([]string, error) {
+// It returns the referenced ids that are not in the observation's tenant
+// and program yet (sorted, unique); label rules involving them are checked
+// when they exist.
+func (g *Graph) resolve(o Observation, p *prepared) ([]string, []string, error) {
 	ids := make([]string, len(p.entities))
 	for i, e := range p.entities {
 		ids[i] = EntityID(o.TenantID, o.ProgramID, e.assetType, e.key)
 		if ex, ok := g.entities[ids[i]]; ok && (ex.key != e.key || ex.assetType != e.assetType) {
-			return nil, fmt.Errorf("oam: entity id collision for %s", e.key)
+			return nil, nil, fmt.Errorf("oam: entity id collision for %s", e.key)
 		}
 	}
-	typeOf := func(path string, ep endpoint) (string, error) {
+	missing := map[string]struct{}{}
+	// typeOf returns "" for a missing id. An id of another tenant or
+	// program counts as missing: the Postgres store cannot see it either
+	// (row-level security), and it can never be created in this program.
+	typeOf := func(ep endpoint) string {
 		if ep.local >= 0 {
-			return p.entities[ep.local].assetType, nil
+			return p.entities[ep.local].assetType
 		}
 		e, ok := g.entities[ep.id]
 		if !ok || e.tenant != o.TenantID || e.program != o.ProgramID {
-			return "", invalidAt(path, fmt.Errorf("%w: %s", ErrUnknownEntity, ep.id))
+			missing[ep.id] = struct{}{}
+			return ""
 		}
-		return e.assetType, nil
+		return e.assetType
 	}
 	for i, e := range p.edges {
 		path := fmt.Sprintf("edges[%d]", i)
-		ft, err := typeOf(path+".from", e.from)
-		if err != nil {
-			return nil, err
-		}
-		tt, err := typeOf(path+".to", e.to)
-		if err != nil {
-			return nil, err
+		ft, tt := typeOf(e.from), typeOf(e.to)
+		if ft == "" || tt == "" {
+			continue
 		}
 		if e.from.local < 0 || e.to.local < 0 {
 			if err := ValidateEdge(e.rel, ft, tt); err != nil {
-				return nil, invalidAt(path+".relation", err)
+				return nil, nil, invalidAt(path+".relation", err)
 			}
 		}
 	}
-	for i, t := range p.tags {
-		path := fmt.Sprintf("tags[%d].target", i)
+	for _, t := range p.tags {
 		if t.edge {
 			if ed, ok := g.edges[t.target.id]; !ok || ed.tenant != o.TenantID || ed.program != o.ProgramID {
-				return nil, invalidAt(path, fmt.Errorf("%w: %s", ErrUnknownEntity, t.target.id))
+				missing[t.target.id] = struct{}{}
 			}
 			continue
 		}
-		if _, err := typeOf(path, t.target); err != nil {
-			return nil, err
-		}
+		typeOf(t.target)
 	}
-	return ids, nil
+	return ids, slices.Sorted(maps.Keys(missing)), nil
 }
 
 func (g *Graph) commit(o Observation, p *prepared, ids []string) Result {

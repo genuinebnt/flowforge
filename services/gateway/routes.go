@@ -84,6 +84,10 @@ func (s *Server) routes() []route {
 		r(get, "/runs/{id}", read, s.getRun),
 		r(post, "/runs/{id}/:cancel", runs, s.cancelRun),
 		r(get, "/runs/{id}/events", read, s.listRunEvents),
+		r(post, "/schedules", runs, s.createSchedule),
+		r(get, "/schedules", read, s.listSchedules),
+		r(get, "/schedules/{id}", read, s.getSchedule),
+		r(del, "/schedules/{id}", runs, s.deleteSchedule),
 		sse("/runs/{id}/watch", s.watchRun),
 
 		// Approvals (12.7).

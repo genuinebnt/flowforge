@@ -545,7 +545,9 @@ func (s *Server) getApproval(c *call) error {
 }
 
 // decideApproval also requires the approval's role to match the caller's
-// (spec 9.7, 13.6); the engine re-checks it and the self-approval rule.
+// membership role or one of their role groups (spec 9.7, 13.6; G-LIM-05).
+// The groups travel in the internal token, and the engine re-checks the
+// match and the self-approval rule.
 func (s *Server) decideApproval(c *call) error {
 	id, err := c.pathID("id", core.PrefixApproval)
 	if err != nil {
@@ -570,11 +572,15 @@ func (s *Server) decideApproval(c *call) error {
 	if len(in.Comment) > 4096 {
 		return errValidation("comment: at most 4096 bytes")
 	}
+	groups, err := c.loadGroups()
+	if err != nil {
+		return err
+	}
 	a, err := s.cfg.Backends.Engine.GetApproval(c.ctx, &pb.GetApprovalRequest{ApprovalId: id})
 	if err != nil {
 		return err
 	}
-	if !approverMatches(c.p.Role, a.GetRole()) {
+	if !auth.CanDecideApproval(c.p.Role, a.GetRole(), groups) {
 		return newError(http.StatusForbidden, core.ReasonForbiddenRole, "approval requires role %q", a.GetRole())
 	}
 	a, err = s.cfg.Backends.Engine.DecideApproval(c.ctx, &pb.DecideApprovalRequest{ApprovalId: id, Decision: d, Comment: in.Comment})
@@ -583,19 +589,4 @@ func (s *Server) decideApproval(c *call) error {
 	}
 	return c.ok(map[string]any{"id": a.GetId(), "status": a.GetStatus(), "decided_by": nonEmpty(publicActor(a.GetDecidedBy())),
 		"decided_at": ts(a.GetDecidedAt()), "run_id": a.GetRunId(), "comment": nonEmpty(a.GetComment())})
-}
-
-// approverMatches applies auth.CanDecideApproval. Approvals that name one
-// of the five membership roles must match it exactly; free-form approval
-// roles (finance_ap, lead) carry group membership the gateway does not
-// know, so any caller with approvals:decide passes here and the engine,
-// which owns the groups, decides.
-func approverMatches(role auth.Role, approvalRole string) bool {
-	if !auth.Can(role, auth.PermApprovalsDecide) {
-		return false
-	}
-	if _, err := auth.ParseRole(approvalRole); err != nil {
-		return true
-	}
-	return auth.CanDecideApproval(role, approvalRole, nil)
 }

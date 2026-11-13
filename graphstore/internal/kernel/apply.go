@@ -216,3 +216,34 @@ func CoverRun(st *State, tenant, prog, tool, run string, assetTypes []string, n 
 	}
 	return entities, edges, em.out
 }
+
+// Missing returns the entity and edge ids the observation references
+// (edge endpoints and tag targets given as ent_/edg_ ids) that st does not
+// hold, sorted and unique: the ids a store waits for before it applies the
+// observation (pending references, G-CORE-03). st must have been loaded
+// for p.EntityIDs() and p.EdgeIDs() as for Apply. Apply's label checks on
+// those references run only once the ids exist, exactly as oam.Graph
+// buffers.
+func Missing(st *State, p *Prepared) []string {
+	var out []string
+	entity := func(ep Endpoint) {
+		if ep.Local < 0 {
+			if _, ok := st.Entities[ep.ID]; !ok {
+				out = append(out, ep.ID)
+			}
+		}
+	}
+	for _, e := range p.Edges {
+		entity(e.From)
+		entity(e.To)
+	}
+	for _, t := range p.Tags {
+		if !t.Edge {
+			entity(t.Target)
+		} else if _, ok := st.Edges[t.Target.ID]; !ok {
+			out = append(out, t.Target.ID)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}

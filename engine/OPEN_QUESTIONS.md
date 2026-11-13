@@ -61,7 +61,11 @@ Each choice is pinned by a test where it changes behaviour.
     APPROVAL_ALREADY_DECIDED). "Idempotent per (approval, actor)": the same
     actor repeating the same decision gets the approval back; anything else
     on a decided approval is 409. The approval's `proposed` is `{}` (the
-    effect carries no proposal).
+    effect carries no proposal). `Caller.Roles` is the membership role
+    plus the caller's tenant role groups (the internal token's `groups`
+    claim, managed in the gateway's identity service, G-LIM-05), so a
+    free-form approval role such as `finance_ap` is decidable by group
+    members; the engine stores no groups itself.
 11. **Tool inputs** are sent as the single input's JSON, or a JSON array
     for several inputs; proofs are unwrapped and Hosts sent as plain names.
     Outputs are decoded with the tool's `output_type` (`vm.FromJSON`); a

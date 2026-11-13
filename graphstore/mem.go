@@ -54,7 +54,8 @@ func (m *Mem) program(tenant, program ID) *memProgram {
 	if !ok {
 		p = &memProgram{
 			tenant: tenant, program: program,
-			g:   oam.NewGraph(oam.Config{StaleAfterRuns: m.cfg.StaleAfterRuns, Scope: m.cfg.Scope}),
+			g: oam.NewGraph(oam.Config{StaleAfterRuns: m.cfg.StaleAfterRuns, Scope: m.cfg.Scope,
+				MaxPending: m.cfg.MaxPending}),
 			out: map[string][]string{}, in: map[string][]string{}, edges: map[string]struct{}{},
 		}
 		m.progs[k] = p
@@ -118,21 +119,58 @@ func (m *Mem) IngestObservation(ctx context.Context, req IngestRequest) (IngestR
 		return IngestResult{Duplicate: true, RefToEntityID: map[string]string{}}, nil
 	}
 	p := m.program(pi.Tenant, pi.Program)
+	expired := m.expirePending(pi.Tenant)
 	res, err := p.g.Apply(o)
 	if err != nil {
 		return IngestResult{}, Classify(err)
 	}
-	m.applied[dk] = struct{}{}
+	// Each program has its own oam.Graph; the bound is per tenant.
+	if res.Pending && m.cfg.MaxPending > 0 && m.pendingOf(pi.Tenant) > m.cfg.MaxPending {
+		p.g.DropPending(pi.Tenant.Text, o.ObservationID)
+		return IngestResult{}, Classify(oam.ErrPendingLimit)
+	}
+	if !res.Pending {
+		m.applied[dk] = struct{}{}
+	}
+	for _, id := range res.Released {
+		m.applied[pi.Tenant.Text+"\x00"+id] = struct{}{}
+	}
 	m.index(p, res.Changes)
 	out := IngestResult{
 		Duplicate: res.Duplicate, EntitiesCreated: res.EntitiesCreated, EntitiesUpdated: res.EntitiesUpdated,
 		EdgesCreated: res.EdgesCreated, EdgesUpdated: res.EdgesUpdated,
 		Changes: m.changes(p, res.Changes), RefToEntityID: res.RefToEntityID,
+		Pending: res.Pending, Missing: res.Missing, Released: res.Released, Expired: expired,
 	}
 	if len(res.Changes) > 0 {
 		m.notify.Broadcast()
 	}
 	return out, nil
+}
+
+// pendingOf counts the tenant's buffered observations over its programs;
+// m.mu must be held.
+func (m *Mem) pendingOf(tenant ID) int {
+	n := 0
+	for _, p := range m.progs {
+		if p.tenant == tenant {
+			n += p.g.PendingCount(tenant.Text)
+		}
+	}
+	return n
+}
+
+// expirePending drops the tenant's buffered observations older than
+// PendingTTL (by observed_at); m.mu must be held.
+func (m *Mem) expirePending(tenant ID) int {
+	cutoff := m.cfg.Now().Add(-m.cfg.PendingTTL)
+	n := 0
+	for _, p := range m.progs {
+		if p.tenant == tenant {
+			n += len(p.g.ExpirePending(tenant.Text, cutoff))
+		}
+	}
+	return n
 }
 
 // SetStale implements Store.

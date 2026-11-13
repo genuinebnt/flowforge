@@ -135,6 +135,17 @@ type IngestResult struct {
 	EdgesUpdated    int
 	Changes         []ChangeEvent
 	RefToEntityID   map[string]string
+	// Pending: the observation names ent_/edg_ ids its tenant and program
+	// do not have yet (Missing, sorted); it is buffered and applied when
+	// the last of them is created (oam.Graph.Apply, G-CORE-03).
+	Pending bool
+	Missing []string
+	// Released lists buffered observations this ingest applied (their
+	// change events are in Changes; the counts cover this observation).
+	Released []string
+	// Expired counts buffered observations of the tenant dropped by this
+	// ingest because they outlived Config.PendingTTL.
+	Expired int
 }
 
 // GetEntityRequest is proto GetEntityRequest.

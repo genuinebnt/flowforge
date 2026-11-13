@@ -48,7 +48,19 @@ type Config struct {
 	Clock core.Clock
 	// FuzzyThreshold defaults to DefaultFuzzyThreshold.
 	FuzzyThreshold float64
+	// MaxPending bounds, per tenant, the observations waiting for entity
+	// or edge ids they reference (IngestResult.Pending, G-CORE-03); zero
+	// means oam.DefaultMaxPending, negative disables the buffer (such an
+	// observation is rejected with oam.ErrUnknownEntity).
+	MaxPending int
+	// PendingTTL drops a waiting observation whose observed_at is older
+	// than now minus PendingTTL (default DefaultPendingTTL). Expiry runs
+	// on ingest, per tenant.
+	PendingTTL time.Duration
 }
+
+// DefaultPendingTTL is the default Config.PendingTTL.
+const DefaultPendingTTL = 7 * 24 * time.Hour
 
 // WithDefaults returns c with zero fields replaced by their defaults.
 func (c Config) WithDefaults() Config {
@@ -57,6 +69,12 @@ func (c Config) WithDefaults() Config {
 	}
 	if c.Clock == nil {
 		c.Clock = &core.SystemClock{}
+	}
+	if c.MaxPending == 0 {
+		c.MaxPending = oam.DefaultMaxPending
+	}
+	if c.PendingTTL <= 0 {
+		c.PendingTTL = DefaultPendingTTL
 	}
 	if c.FuzzyThreshold <= 0 || c.FuzzyThreshold > 1 {
 		c.FuzzyThreshold = DefaultFuzzyThreshold

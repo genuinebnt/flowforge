@@ -10,11 +10,19 @@ pinned by a test or a conformance transcript (`conformance/api`).
    (including GET) use `members:admin` (configs may hold webhook targets);
    `GET /me` and `POST /auth/logout` need only a valid credential. As in
    `auth/OPEN_QUESTIONS.md` 14, 13.6 wins over the "Min. role" column.
-2. **Approval role match.** The gateway applies `auth.CanDecideApproval`
-   when the approval names one of the five membership roles; free-form
-   approval roles (`lead`, `finance_ap`) depend on groups the engine owns,
-   so the gateway only requires `approvals:decide` and leaves the match
-   (and the self-approval rule) to the engine.
+2. **Approval role match.** Free-form approval roles (`lead`,
+   `finance_ap`) are tenant role groups (G-LIM-05): `identity.role_groups`
+   / `role_group_members` (migration 0015), managed by admins through
+   `PUT`/`DELETE /tenant/role-groups/{name}/members/{user_id}` and `GET
+   /tenant/role-groups` (members:admin, like the other membership
+   endpoints; not in 13.6). Group names are `[a-z][a-z0-9_.-]{0,63}` and
+   never a membership role name; a user holds at most 32. On
+   `:decide` the gateway reads the caller's groups (per request, so a
+   removal applies at once), applies `auth.CanDecideApproval(role,
+   approval.role, groups)` and sends the groups in the internal token's
+   bounded `groups` claim; the engine matches approval.role against the
+   membership role or a group again and applies the self-approval rule.
+   API keys hold no groups. Other calls do not look groups up.
 3. **Login failure reason.** 11.8 has no credentials reason; bad
    credentials, unknown e-mails and missing memberships are `401
    token_invalid` with one fixed message. "Email address not verified" is

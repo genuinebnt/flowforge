@@ -12,8 +12,12 @@ It composes package `auth`; see `../README.md` for the flows.
 | `Revocations` (deny:jti, sv) | `MemRevocations` | `redisstore.Revocations` |
 | `auth.LockoutStore` | `auth.InMemoryLockoutStore` | `redisstore.Lockouts` |
 | `LimiterFactory` (rl:auth:*) | `MemLimiterFactory` (GCRA) | `redislimiter` |
-| `KeyStore` (private keys) | `MemKeyStore` | Secret Manager / KMS (not implemented) |
+| `KeyStore` (private keys) | `MemKeyStore` | `keystore.Provisioned` (`FromEnv`: Terraform's `FF_SIGNING_KEY_<KID>`; `FromSecretManager`), `keystore.Dir`, `keystore.SecretManager`. A `ProvisionedKeys` store makes rotation operator-driven (`ErrOperatorRotation`) |
 | `EmailSender` | `MemEmailSender`, `LogEmailSender` | provider adapter (not implemented) |
+
+Role groups (`groups.go`, migration 0015) back free-form approval roles:
+`AddRoleGroupMember`, `RemoveRoleGroupMember`, `ListRoleGroups`,
+`UserRoleGroups` (the names the gateway puts in the internal token).
 
 `identitytest` builds a fully wired in-memory service and holds the Store
 contract suite run against both stores.

@@ -92,6 +92,9 @@ type mergeFile struct {
 			CompletedAt time.Time `json:"completed_at"`
 		} `json:"complete_run"`
 		Error string `json:"error"` // expected sentinel, see sentinels
+		// Pending: the observation references ids not ingested yet and must
+		// be buffered (Result.Pending), not applied and not rejected.
+		Pending bool `json:"pending"`
 	} `json:"steps"`
 	Expect struct {
 		Entities []struct {
@@ -206,8 +209,12 @@ func runMergeSteps(t *testing.T, c mergeFile) (*oam.Graph, []oam.Observation) {
 			continue
 		}
 		o, err := oam.DecodeObservation(s.Observation, oam.Strict)
+		var res oam.Result
 		if err == nil {
-			_, err = g.Apply(o)
+			res, err = g.Apply(o)
+		}
+		if err == nil && res.Pending != s.Pending {
+			t.Fatalf("step %d: pending %v, want %v (missing %v)", i, res.Pending, s.Pending, res.Missing)
 		}
 		if s.Error != "" {
 			want, ok := sentinels[s.Error]

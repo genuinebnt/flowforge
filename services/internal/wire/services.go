@@ -28,6 +28,7 @@ import (
 	"github.com/genuinebnt/flowforge/services/internal/convert"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
 	"github.com/genuinebnt/flowforge/services/internal/platform/redisconf"
+	"github.com/genuinebnt/flowforge/services/maintenance"
 	"github.com/genuinebnt/flowforge/services/notifier"
 	scopesvc "github.com/genuinebnt/flowforge/services/scope"
 	"github.com/genuinebnt/flowforge/services/similarity"
@@ -76,6 +77,16 @@ type EngineOptions struct {
 	RedisCA string
 	Workers int
 	Engine  engine.Config
+	// ScheduleInterval is how often the in-process scheduler fires due
+	// workflow schedules (default 15 s; G-OPS-10).
+	ScheduleInterval time.Duration
+	// MaintenanceInterval is how often the retention and partition jobs
+	// run in process with Postgres (default 1 h; negative disables, e.g.
+	// when Cloud Scheduler's tick drives them; G-OPS-03).
+	MaintenanceInterval time.Duration
+	// TickAudience and TickServiceAccount accept Cloud Scheduler's Google
+	// ID token on POST /internal/schedules:tick.
+	TickAudience, TickServiceAccount string
 }
 
 // Engine builds the engine service.
@@ -148,11 +159,33 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 	if err != nil {
 		return nil, nil, err
 	}
+	var store enginesvc.ScheduleStore = enginesvc.NewMemSchedules()
+	var maint func(context.Context) error
+	var runner *maintenance.Runner
+	if env.DB != nil {
+		store = enginesvc.PgSchedules{DB: env.DB}
+		runner = &maintenance.Runner{Pool: env.DB, Blobs: env.Blobs, Logger: env.Logger}
+		maint = func(ctx context.Context) error {
+			_, err := runner.RunOnce(ctx)
+			if errors.Is(err, maintenance.ErrBusy) {
+				return nil
+			}
+			return err
+		}
+	}
+	sched := &enginesvc.Scheduler{Store: store, Engine: svc.Engine, Clock: env.Clock, Logger: env.Logger}
+	sh := svc.SchedulesHandler(sched, enginesvc.TickAuth{Verifier: env.Verifier, Audience: o.TickAudience, ServiceAccount: o.TickServiceAccount}, maint)
+	if o.ScheduleInterval <= 0 {
+		o.ScheduleInterval = 15 * time.Second
+	}
 	c := &Component{
 		Register: func(g *grpc.Server) { pb.RegisterEngineServiceServer(g, svc.Server) },
-		Routes:   map[string]http.Handler{"/internal/schedules/": svc.HTTPHandler()},
-		Run:      []func(context.Context) error{svc.Run},
-		Ready:    ping(env),
+		Routes:   map[string]http.Handler{"/internal/schedules": sh, "/internal/schedules/": sh, "/internal/schedules:tick": sh},
+		Run: []func(context.Context) error{svc.Run, func(ctx context.Context) error {
+			sched.Run(ctx, o.ScheduleInterval)
+			return nil
+		}},
+		Ready: ping(env),
 		Close: func() {
 			for _, f := range closers {
 				f()
@@ -161,6 +194,13 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 	}
 	if wake != nil {
 		c.Run = append(c.Run, func(ctx context.Context) error { enginesvc.ListenWake(ctx, env.DSN, wake, env.Logger); return nil })
+	}
+	if runner != nil && o.MaintenanceInterval >= 0 {
+		iv := o.MaintenanceInterval
+		if iv == 0 {
+			iv = time.Hour
+		}
+		c.Run = append(c.Run, func(ctx context.Context) error { runner.Loop(ctx, iv); return nil })
 	}
 	return c, svc, nil
 }
@@ -185,6 +225,9 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 	eg, err := toolrunner.NewEgress(o.EgressProxy, env.Tokens)
 	if err != nil {
 		return nil, err
+	}
+	if eg != nil {
+		eg.IDTokens = env.IDTokens
 	}
 	if o.Resolver == nil {
 		o.Resolver = scopesvc.NetResolver{}
