@@ -206,8 +206,8 @@ assumptions it was written against.
 | G-ALG-03 | limiter and placement: rename and consolidate their comparative benchmarks into `BenchmarkLimAlgo` and `BenchmarkPlcAlgo` | **closed on feat_v1** (limiter.New / placement.New + LimAlgo/PlcAlgo) |
 | G-ALG-04 | vm/treewalk and eventstore: comparative benchmarks under the Algo naming | **closed on feat_v1** (VMAlgo, ESAlgo) |
 | G-ALG-05 | vecindex: add HNSW as a candidate next to Vamana (recall against QPS) | v3 (C3) |
-| G-ALG-06 | chunkstore: fixed-size, Rabin CDC and whole-blob candidates with dedupe, speed and shift-resistance comparisons | v2 |
-| G-ALG-07 | v2 packages (diff, textindex, htmlparse, jsparse, sketch): pluggable candidates, benchmarks and ALGORITHMS.md entries | v2 (in progress) |
+| G-ALG-06 | chunkstore: fixed-size, Rabin CDC and whole-blob candidates with dedupe, speed and shift-resistance comparisons | **closed on feat_v2** (fastcdc/rabin/fixed/whole via Config.Chunking.Algo; manifest v2 records the chunker; BenchmarkChunkAlgo, CHUNK-INV-24/25) |
+| G-ALG-07 | v2 packages (diff, textindex, htmlparse, jsparse, sketch): pluggable candidates, benchmarks and ALGORITHMS.md entries | **closed on feat_v2** (diff, textindex, sketch, htmlparse, jsparse and bus adapters measured; BenchmarkHTMLAlgo, BenchmarkJSAlgo, BenchmarkBusAlgo) |
 | G-CMT-01 | Comment pass on every v1 package: correct, useful, spec-referencing comments, `PORT:` notes, no restating, no stale text | v1 (then merged forward) |
 | G-CMT-02 | Comment pass on every v2 package | v2 |
 
@@ -228,7 +228,7 @@ assumptions it was written against.
 | G-CST-01 | No Terraform for the content service: Cloud Run service, `ff_content` DB user, `FF_CONTENT_KEK` secret, Pub/Sub topic and subscriptions | **closed on feat_v2** (same as G-OPS-16) |
 | G-CST-02 | The content chunk store has no GCS backend; it uses a local directory (`FF_CONTENT_DIR`) or memory, so Cloud Run instances lose it | **closed on feat_v2** (FF_CONTENT_BUCKET selects GCS; TestRegress_G_CST_02_*) |
 | G-CST-03 | chunkstore allows one writer per tenant namespace, so the content service must run one replica per tenant set | v3 (writer leases or per-tenant ownership via placement) |
-| G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | v2 |
+| G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | **closed on feat_v2** (Store.Rederive in the sweep and on ingest; migration 0032; CSTORE-INV-14..16 on mem and pg) |
 | G-CST-05 | The §10 "less than 25 % of raw" target: on the tiny SPA fixture all records take 59.8 %, because each version carries about 300 bytes of fixed records | **closed** (the §10 lab, with realistic page sizes, stores raw snapshots at 6.8 % and all records including diffs at 18.4 %; TestLabAcceptance_*) |
 | G-LANG-10 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | **closed on feat_v2** (spec Part II §36.2-36.3) |
 
