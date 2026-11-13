@@ -27,15 +27,22 @@ func (p *parser) semicolon() {
 	p.syntaxError(CodeUnexpectedToken, "missing semicolon before "+p.tokText())
 }
 
-// startsStatementKeyword reports whether t is a keyword that begins a
-// statement; resync stops before such a keyword at the start of a line.
-func startsStatementKeyword(t *Token) bool {
-	if t.Kind != TIdentifier || t.Flags&FlagEscaped != 0 {
-		return false
-	}
-	switch t.Kw {
-	case KwVar, KwLet, KwConst, KwFunction, KwClass, KwIf, KwFor, KwWhile, KwDo, KwReturn,
-		KwTry, KwSwitch, KwThrow, KwWith, KwDebugger, KwBreak, KwContinue, KwImport, KwExport:
+// startsStatement reports whether t can begin a statement; resync stops
+// before such a token at the start of a line (where ASI would also end the
+// damaged statement). Operators and closing brackets do not count, so a
+// continuation line is still skipped.
+func startsStatement(t *Token) bool {
+	switch t.Kind {
+	case TIdentifier:
+		if t.Flags&FlagEscaped != 0 {
+			return true
+		}
+		switch t.Kw {
+		case KwIn, KwInstanceof, KwElse, KwCase, KwDefault, KwCatch, KwFinally, KwExtends:
+			return false
+		}
+		return true
+	case TString, TNumeric, TBigInt, TNoSubstitutionTemplate, TTemplateHead, TPrivateName, TLBrace, TLBracket, TLParen:
 		return true
 	}
 	return false
@@ -44,8 +51,8 @@ func startsStatementKeyword(t *Token) bool {
 // resync is tolerant-mode recovery after a halt: it re-lexes from the
 // token where the error occurred and skips tokens, balancing brackets and
 // template substitutions, until a statement boundary: a `;` (consumed), a
-// `}` that closes the enclosing block (not consumed), or a statement
-// keyword at the start of a line. A boundary at stmtStart itself (the
+// `}` that closes the enclosing block (not consumed), or a token that can
+// start a statement at the start of a line. A boundary at stmtStart itself (the
 // start of the statement that failed) does not count, so every recovery
 // makes progress.
 func (p *parser) resync(stmtStart int32) {
@@ -58,6 +65,9 @@ func (p *parser) resync(stmtStart int32) {
 	p.checkLexError()
 	depth := 0
 	var tmpl []int
+	for i := 0; i < p.haltTmpl; i++ {
+		tmpl = append(tmpl, 0)
+	}
 	for !p.at(TEOF) {
 		t := &p.tok
 		if depth == 0 && t.Start > stmtStart {
@@ -67,7 +77,7 @@ func (p *parser) resync(stmtStart int32) {
 				return
 			case t.Kind == TRBrace && len(tmpl) == 0:
 				return
-			case t.Flags&FlagNewlineBefore != 0 && startsStatementKeyword(t):
+			case t.Flags&FlagNewlineBefore != 0 && len(tmpl) == 0 && startsStatement(t):
 				return
 			}
 		}

@@ -35,13 +35,16 @@ func fl(name string, f NodeFlags) field { return field{name: name, kind: fFlag, 
 func op(name string) field              { return field{name: name, kind: fOp} }
 func constFalse(name string) field      { return field{name: name, kind: fFalse} }
 func constNull(name string) field       { return field{name: name, kind: fNull} }
-func fnFields(withID bool, arrow bool) []field {
+
+// fnFields is the schema shared by the function kinds. acorn writes
+// `expression` on every function and `id: null, generator: false` on
+// arrows; the canonical form does the same.
+func fnFields(arrow bool) []field {
 	f := []field{nd("id", 0), ls("params", 0), nd("body", 1), fl("async", NAsync), fl("expression", NExpression)}
 	if arrow {
 		f[0] = constNull("id")
 		return append(f, constFalse("generator"))
 	}
-	_ = withID
 	return append(f, fl("generator", NGenerator))
 }
 
@@ -76,15 +79,15 @@ var schemas = [kindCount][]field{
 	KForStatement:             {nd("init", 0), nd("test", 1), nd("update", 2), nd("body", 3)},
 	KForInStatement:           {nd("left", 0), nd("right", 1), nd("body", 2)},
 	KForOfStatement:           {nd("left", 0), nd("right", 1), nd("body", 2), fl("await", NAwait)},
-	KFunctionDeclaration:      fnFields(true, false),
+	KFunctionDeclaration:      fnFields(false),
 	KVariableDeclaration:      {ls("declarations", 0), op("kind")},
 	KVariableDeclarator:       {nd("id", 0), nd("init", 1)},
 	KThisExpression:           {},
 	KArrayExpression:          {ls("elements", 0)},
 	KObjectExpression:         {ls("properties", 0)},
 	KProperty:                 {nd("key", 0), nd("value", 1), op("kind"), fl("method", NMethod), fl("shorthand", NShorthand), fl("computed", NComputed)},
-	KFunctionExpression:       fnFields(true, false),
-	KArrowFunctionExpression:  fnFields(false, true),
+	KFunctionExpression:       fnFields(false),
+	KArrowFunctionExpression:  fnFields(true),
 	KUnaryExpression:          {op("operator"), field{name: "prefix", kind: fFlag, flag: 0}, nd("argument", 0)},
 	KUpdateExpression:         {op("operator"), fl("prefix", NPrefix), nd("argument", 0)},
 	KBinaryExpression:         {op("operator"), nd("left", 0), nd("right", 1)},

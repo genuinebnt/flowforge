@@ -172,12 +172,10 @@ func (p *parser) parseFunctionBody(info *fnInfo) NodeID {
 	p.expect(TLBrace)
 	id := p.newNode(KBlockStatement, start)
 	mark := len(p.scratch)
-	wasStrict := p.strict()
 	useStrict := p.parseDirectives(info)
 	if useStrict && !info.simple {
 		p.early(CodeNonSimpleUseStrict, Span{start, start + 1}, "\"use strict\" not allowed in function with non-simple parameters")
 	}
-	_ = wasStrict
 	p.parseStatementList(TRBrace, false)
 	p.expect(TRBrace)
 	p.checkParamDuplicates(info)
@@ -235,13 +233,11 @@ func (p *parser) checkParamDuplicates(info *fnInfo) {
 	}
 }
 
-// parseArrowFromParams parses `=> ConciseBody` for parameters already
-// parsed as expressions (or identifiers) in params, converting them to
-// binding patterns in the arrow's own scope.
-func (p *parser) parseArrowFromParams(start int32, params NodeList, isAsync bool, paramsStart int32, _ bool) NodeID {
-	return p.parseArrow(start, params, isAsync, paramsStart, false)
-}
-
+// parseArrow parses `=> ConciseBody` for parameters already parsed as
+// expressions (CoverParenthesizedExpressionAndArrowParameterList,
+// CoverCallExpressionAndAsyncArrowHead or a lone identifier), converting
+// them in place to binding patterns declared in the arrow's own scope.
+// noIn is the [In] parameter of an expression body.
 func (p *parser) parseArrow(start int32, params NodeList, isAsync bool, paramsStart int32, noIn bool) NodeID {
 	if !p.enter() {
 		p.leave()

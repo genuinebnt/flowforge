@@ -903,7 +903,7 @@ func (p *parser) parsePrimary(noIn bool) NodeID {
 		id := p.ident(tok.Value, tok.Span())
 		p.next()
 		if p.at(TArrow) && !p.newlineBefore() {
-			return p.parseArrowFromParams(start, p.listOf(id), false, start, false)
+			return p.parseArrow(start, p.listOf(id), false, start, noIn)
 		}
 		return id
 	case TNumeric, TString, TBigInt:
@@ -956,7 +956,7 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 			p.unexpected()
 			return param
 		}
-		return p.parseArrowFromParams(start, p.listOf(param), true, start, false)
+		return p.parseArrow(start, p.listOf(param), true, start, noIn)
 	case pk.Kind == TLParen && !pkNewline:
 		p.checkIdentifierReference(&asyncTok)
 		p.next()
@@ -976,7 +976,7 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 					p.nd(a).Kind = KRestElement
 				}
 			}
-			return p.parseArrowFromParams(start, args, true, argsStart, true)
+			return p.parseArrow(start, args, true, argsStart, noIn)
 		}
 		p.flushCover(argsStart)
 		// The callee node is created only now so that an async arrow leaves
@@ -989,7 +989,7 @@ func (p *parser) parseAsyncPrimary(noIn bool) NodeID {
 	id := p.ident("async", tok.Span())
 	p.next()
 	if p.at(TArrow) && !p.newlineBefore() {
-		return p.parseArrowFromParams(start, p.listOf(id), false, start, false)
+		return p.parseArrow(start, p.listOf(id), false, start, noIn)
 	}
 	return id
 }
@@ -1007,7 +1007,7 @@ func (p *parser) parseParenOrArrow(noIn bool) NodeID {
 			p.unexpected()
 			return p.errNode()
 		}
-		return p.parseArrowFromParams(start, NodeList{Start: int32(len(p.children))}, false, start, true)
+		return p.parseArrow(start, NodeList{Start: int32(len(p.children))}, false, start, noIn)
 	}
 	mark := len(p.scratch)
 	rest, trailing := false, false
@@ -1041,7 +1041,7 @@ func (p *parser) parseParenOrArrow(noIn bool) NodeID {
 			p.early(CodeYieldAwaitInParams, Span{start, p.prevEnd}, "yield or await expression in arrow parameters")
 		}
 		params := p.list(mark)
-		return p.parseArrowFromParams(start, params, false, start, true)
+		return p.parseArrow(start, params, false, start, noIn)
 	}
 	items := p.scratch[mark:]
 	if len(items) == 0 || rest || trailing {
@@ -1193,8 +1193,8 @@ func (p *parser) parsePropertyKey(allowPrivate bool) propKey {
 	return k
 }
 
-// isMethodModifierEnd reports whether t ends a property after a get / set /
-// async / static prefix word, making the word itself the key.
+// isModifierKeyEnd reports whether t ends a property after a get / set /
+// async prefix word, making the word itself the key.
 func isModifierKeyEnd(t *Token) bool {
 	switch t.Kind {
 	case TLParen, TColon, TComma, TRBrace, TEq, TSemicolon, TEOF:

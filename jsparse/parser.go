@@ -70,9 +70,12 @@ type parser struct {
 	scratch  []NodeID
 	tokens   []Token
 
-	diags    []Diagnostic
-	halted   bool
-	haltTok  Token
+	diags   []Diagnostic
+	halted  bool
+	haltTok Token
+	// haltTmpl is the number of template substitutions open at the halt;
+	// resync must lex their closing braces as template continuations.
+	haltTmpl int
 	depth    int
 	maxDepth int
 
@@ -328,6 +331,7 @@ func (p *parser) halt() {
 		return
 	}
 	p.haltTok = p.tok
+	p.haltTmpl = p.tmplDepth
 	p.halted = true
 	p.havePeek = false
 	p.tok = Token{Kind: TEOF, Start: p.tok.Start, End: p.tok.Start}
@@ -362,6 +366,10 @@ func (p *parser) done(id NodeID) NodeID {
 	return id
 }
 
+// nd returns a pointer into the arena. It must not be held across a call
+// that creates nodes: growing p.nodes moves the slice and the write would
+// be lost (`p.nd(id).A = p.ident(...)` is exactly that bug: Go evaluates
+// the left operand first). PORT: the Rust borrow checker rejects it.
 func (p *parser) nd(id NodeID) *Node { return &p.nodes[id] }
 
 func (p *parser) start() int32 { return p.tok.Start }

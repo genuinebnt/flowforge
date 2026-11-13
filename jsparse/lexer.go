@@ -63,12 +63,11 @@ func (l *Lexer) Pos() int { return l.pos }
 // lexerState is the resumable part of the lexer: enough to re-lex from an
 // earlier token under a different goal.
 type lexerState struct {
-	pos         int
-	newline     bool
-	sawToken    bool
-	nTrivia     int
-	nComments   int
-	afterTokPos int
+	pos       int
+	newline   bool
+	sawToken  bool
+	nTrivia   int
+	nComments int
 }
 
 func (l *Lexer) save() lexerState {
@@ -115,7 +114,10 @@ func (l *Lexer) peekByte(off int) byte {
 }
 
 // decodeRune decodes the code point at i. Invalid UTF-8 yields
-// (utf8.RuneError, 1).
+// (U+FFFD, 1), so malformed input advances one byte at a time.
+// PORT: a Rust &str is valid UTF-8 by construction; the port either
+// validates first (and rejects or replaces) or lexes &[u8] with this
+// same decoder to keep byte offsets identical.
 func decodeRune(s string, i int) (rune, int) {
 	c := s[i]
 	if c < 0x80 {
@@ -125,8 +127,8 @@ func decodeRune(s string, i int) (rune, int) {
 }
 
 func decodeRuneSlow(s string, i int) (rune, int) {
-	// Manual decoding keeps the state machine free of the utf8 package's
-	// string conversions; it follows RFC 3629 exactly.
+	// RFC 3629 decoding, except that three-byte surrogate encodings are
+	// accepted (see below).
 	c := s[i]
 	n := len(s) - i
 	switch {
@@ -154,7 +156,8 @@ func isCont(b byte) bool { return b&0xC0 == 0x80 }
 
 // appendWTF8 appends r in UTF-8, encoding lone surrogates (which string
 // escapes can produce) as three-byte WTF-8 sequences so that no code unit
-// is lost.
+// is lost. PORT: Rust String cannot hold these; store cooked values as
+// Vec<u16> or WTF-8 bytes and convert at the JSON boundary.
 func appendWTF8(b []byte, r rune) []byte {
 	switch {
 	case r < 0x80:

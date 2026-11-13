@@ -57,6 +57,15 @@ func (p *parser) parseStatementList(end TokenKind, topLevel bool) {
 		if p.at(end) || p.at(TEOF) {
 			return
 		}
+		if p.at(TRBrace) && p.opts.Tolerant {
+			// A stray `}` at the top level: drop just that token (it was
+			// already reported if the halt happened on it).
+			if n := len(p.diags); n == 0 || p.diags[n-1].Span.Start != p.tok.Start {
+				p.diags = append(p.diags, Diagnostic{Code: CodeUnexpectedToken, Span: p.tok.Span(), Message: "unexpected token }"})
+			}
+			p.next()
+			continue
+		}
 		if p.tok.Start == last {
 			// No progress since the last item (tolerant mode): drop a token.
 			p.next()

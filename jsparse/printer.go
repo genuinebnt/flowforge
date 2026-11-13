@@ -548,10 +548,10 @@ func (w *printer) leftmostNode(id NodeID) NodeID {
 	return id
 }
 
-// startsBadly reports whether an expression statement (or arrow body when
-// !stmt... callers pass stmt) would begin with a token that the
-// ExpressionStatement lookahead restriction forbids: `{`, `function`,
-// `class`, `let [`, `async function`.
+// startsBadly reports whether the expression would begin with a token that
+// a lookahead restriction forbids there. For an ExpressionStatement (stmt)
+// that is `{`, `function`, `class`, `async function` or `let`; for an
+// arrow ConciseBody or a for head only `{`.
 func (w *printer) startsBadly(id NodeID, stmt bool) bool {
 	l := w.leftmostNode(id)
 	if l == NoNode {

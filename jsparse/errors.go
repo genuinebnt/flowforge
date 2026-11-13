@@ -174,6 +174,8 @@ func (c Code) Class() Class {
 }
 
 // Span is a half-open byte range [Start, End) in the source.
+// PORT: offsets count UTF-8 bytes, not UTF-16 code units as acorn's
+// start/end do; positions in the canonical JSON are byte offsets too.
 type Span struct {
 	Start, End int32
 }

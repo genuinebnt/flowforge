@@ -66,8 +66,8 @@ func (p *parser) argumentsForbidden() bool {
 	return false
 }
 
-// inStaticBlock reports whether the innermost non-arrow context is a
-// class static block.
+// inStaticBlock reports whether the innermost context is a class static
+// block (where await is reserved and AwaitExpression forbidden).
 func (p *parser) inStaticBlock() bool {
 	// Arrow functions are function boundaries for this rule (15.7.1).
 	return p.cur().staticBlock
@@ -358,8 +358,8 @@ func (p *parser) checkExports() {
 // ---- cover grammar ----
 
 // coverErr is an error that is cancelled if the expression containing it
-// is reinterpreted as a pattern (CoverInitializedName, duplicate
-// __proto__), or one that only applies if it is (none yet).
+// is reinterpreted as a pattern: CoverInitializedName (13.2.5.1) and
+// duplicate __proto__ (B.3.1, which does not apply to patterns).
 type coverErr struct {
 	code Code
 	span Span

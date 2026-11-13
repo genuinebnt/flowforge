@@ -200,7 +200,8 @@ func (t *Token) Span() Span { return Span{t.Start, t.End} }
 // Keyword identifies reserved and contextual words (12.7.2).
 type Keyword uint8
 
-// Keywords. Reserved words come before kwFirstContextual.
+// Keywords: the ReservedWords of 12.7.2 first, then the words reserved
+// only in strict mode code, then contextual words the parser tests for.
 const (
 	KwNone Keyword = iota
 	KwAwait

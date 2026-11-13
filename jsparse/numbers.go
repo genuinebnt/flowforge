@@ -281,7 +281,8 @@ func isDigitOfBase(c byte, base int) bool {
 }
 
 // parseDecimal converts StrDecimalLiteral text to the nearest double
-// (round half to even), as NumericValue requires.
+// (round half to even), as NumericValue requires. PORT: Rust's
+// str::parse::<f64> is also correctly rounded.
 func parseDecimal(s string) float64 {
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
