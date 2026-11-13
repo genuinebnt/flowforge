@@ -92,6 +92,7 @@ func ReplayRecord(evs []ChangeEvent) (AsOfState, error) {
 	return st, nil
 }
 
+// topField decodes the RFC 6901 pointer of a top-level field.
 func topField(path string) (string, error) {
 	s, ok := strings.CutPrefix(path, "/")
 	if !ok || strings.Contains(s, "/") {
@@ -100,6 +101,7 @@ func topField(path string) (string, error) {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "~1", "/"), "~0", "~"), nil
 }
 
+// applyTagPatch applies a tag_changed patch; nil means the tag is absent.
 func applyTagPatch(cur map[string]any, ops []oam.PatchOp) (map[string]any, error) {
 	cur = maps.Clone(cur)
 	for _, op := range ops {

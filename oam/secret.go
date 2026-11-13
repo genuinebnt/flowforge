@@ -126,9 +126,9 @@ func validNormalizerVersionOrIdent(s string) bool {
 }
 
 // CheckNoSecrets returns ErrSecretValue when any string field of p
-// LooksLikeSecret. The content service calls it on every property it
-// derives from captured bytes; the graph enforces it on exposed_secret
-// tags.
+// LooksLikeSecret. The graph enforces it on exposed_secret tags;
+// producers deriving properties from captured bytes can apply it to any
+// other property.
 func CheckNoSecrets(p Property) error {
 	_, _, content, err := splitPropertyUnchecked(p)
 	if err != nil {

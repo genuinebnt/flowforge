@@ -22,7 +22,8 @@ REST examples, 21.2/21.4/21.6 snapshots, 23.5 convergent merge, 25.8
 | `scopeport.go`, `watch.go`, `views.go` | `PolicyScope`, `WatchLoop`/`Notifier`, oam view conversions, `TagProperty` |
 | `mem.go`, `mem_read.go` | `Mem` |
 | `internal/kernel` | The merge kernel of the Postgres store: oam's rules over loaded rows, plus the storage encoding of oam's bookkeeping; tested against `oam.Graph` |
-| `pg/` | Postgres store and outbox `Relay` |
+| `asof.go`, `mem_v2.go` | v2: AsOf replay (`ReplayRecord`, `AsOfReader`, `GetAsOf`), commonness (`HolderHost`, `ComputeCommonness`); Mem's `RecordContentChange`, `GetEntityAsOf`, `NeighborsAsOf`, `Commonness` |
+| `pg/` | Postgres store and outbox `Relay` (`pg/v2.go`: the v2 methods) |
 | `storetest/` | Shared behaviour suite and the b_sys_01 workload |
 
 ## Usage
@@ -37,6 +38,33 @@ info, err := store.WriteSnapshot(ctx, caller, prg, graphstore.DirBlobs{Root: dir
 relay := &pg.Relay{DB: ownerPool, Publish: publishToBus} // at least once
 ```
 
+## v2 (V2 design §3)
+
+* Ingest accepts coverage-gated `authority` observations (oam rules;
+  `oam/OPEN_QUESTIONS.md` 22-31) and emits `tag_changed`; events carry
+  `tag_type`/`tag_name`, `base`, `cause`, `baseline` and, for
+  `content_changed`, `content_change`.
+* `RecordContentChange(ctx, Caller, ContentChange{EntityID, RunID, At,
+  Patch})` appends an idempotent `content_changed` event.
+* `GetEntityAsOf(seq)` / `NeighborsAsOf(seq)` replay change events from the
+  empty graph: entity existence, state, scope status, content and
+  non-source tags; edge existence and state.
+* `Commonness(entity)`: distinct active sources and holder hosts over
+  active incoming edges; `Common` when holders > `CommonThreshold` (50).
+* Postgres needs migration `0030_graph_v2.sql`.
+
+## Invariants (port these)
+
+The oam list is in `oam/README.md`; these run on the stores.
+
+| Id | Test | Statement |
+|----|------|-----------|
+| OAM-INV-05 | `TestOAMInv05_AuthoritativeConvergence` (Mem, pg vs Mem) | Authoritative multisets in any order with duplicates converge, and pg equals Mem. |
+| OAM-INV-12 | `TestOAMInv12_AsOf` (Mem, pg) | `GetEntityAsOf(s)` / `NeighborsAsOf(s)` equal the reference snapshot taken right after the operation that reached seq `s`, for every `s` of a random history; later entities are NOT_FOUND. |
+| OAM-INV-13 | `TestOAMInv13_MemEqualsPG` (pg) | On random histories (classic and authoritative observations, re-deliveries, covering runs, content changes) pg and Mem have byte-identical canonical state and change logs (seq excluded). |
+| OAM-INV-14 | `TestOAMInv14_Commonness` (Mem, pg) | Holders are distinct hosts of active sources over active edges; common iff holders > 50; withdrawn edges stop counting. |
+| OAM-INV-15 | `TestOAMInv15_KernelMatchesOAM` (internal/kernel) | The kernel over the storage encoding reproduces oam.Graph (results, event ids, state) with authority, tags and covering runs. |
+
 ## Tests and benchmarks
 
 ```sh
@@ -45,6 +73,8 @@ scripts/devpg.sh start                               # throwaway PostgreSQL 16
 FF_TEST_PG_DSN=postgres://... go test -race ./graphstore/...   # + Postgres, compared with Mem
 go test ./graphstore/ -run '^$' -bench Sys01 -benchtime 20000x
 FF_TEST_PG_DSN=... go test ./graphstore/pg/ -run '^$' -bench Sys01 -benchtime 20000x
+go test ./graphstore/ -run '^$' -bench GraphAuth -benchtime 1000x          # authoritative re-captures
+FF_TEST_PG_DSN=... go test ./graphstore/pg/ -run '^$' -bench GraphAuth -benchtime 1000x
 ```
 
 The suite (`storetest`) replays `conformance/oam/merge`, checks

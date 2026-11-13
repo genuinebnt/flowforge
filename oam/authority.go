@@ -174,6 +174,10 @@ func (tx *authTx) snapTag(ref tagRef, r *record) {
 
 // applyAuthority reports the observation's authoritative edges and tags
 // (by family) to the source's units and updates memberships.
+//
+// PORT: families and members are visited in sorted order (Go maps
+// iterate randomly); the order only affects which records are touched
+// first, never the result, but keep it for identical event ids.
 func (tx *authTx) applyAuthority(src *entityState, p *prepared, units map[string][]string) {
 	fams := UnitFamilies(units, p.auth.complete, p.auth.covered)
 	if src.heads == nil {

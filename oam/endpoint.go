@@ -172,6 +172,12 @@ type tplPiece struct {
 // distinct with and without one); the root path is "/". The result is a
 // fixed point: NormalizeURLTemplate(NormalizeURLTemplate(s)) ==
 // NormalizeURLTemplate(s).
+//
+// PORT: step 1 trims with strings.TrimSpace (Unicode White_Space, as
+// Rust's str::trim). Step 6 inherits netnorm's use of Go's net/url
+// EscapedPath: bytes outside unreserved, sub-delims, ":" and "@" (and
+// every byte >= 0x80) are percent-encoded with upper-case hex; the
+// conformance data pins the visible cases.
 func NormalizeURLTemplate(s string) (string, error) {
 	bad := func(format string, args ...any) error {
 		return fmt.Errorf("%w: "+format, append([]any{ErrInvalidURLTemplate}, args...)...)

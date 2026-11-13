@@ -30,7 +30,7 @@ var (
 	// a new file instead.
 	ErrChecksumMismatch = errors.New("migrations: applied migration was modified")
 	// ErrBadFile reports an embedded file that does not follow the naming
-	// rules (NNNN_name.sql, versions 1..n without gaps or duplicates).
+	// rules (NNNN_name.sql, versions unique and positive).
 	ErrBadFile = errors.New("migrations: malformed migration file set")
 )
 
@@ -81,8 +81,18 @@ var fileRE = regexp.MustCompile(`^([0-9]{4})_([a-z0-9_]+)\.sql$`)
 var requiresRE = regexp.MustCompile(`^--\s*requires-extension:\s*([a-z0-9_]+)\s*$`)
 
 // All returns the embedded migrations in version order.
-func All() ([]Migration, error) {
-	entries, err := fs.ReadDir(sqlFS, "sql")
+//
+// Versions must be unique, but gaps are allowed: 0015-0029 are reserved for
+// v1 fixes made on feat_v1 and merged forward, while v2 migrations start at
+// 0030 (docs/V2_DESIGN.md "Migration numbering"). Apply applies every
+// unapplied file in version order, so a reserved-range fix that arrives
+// after a higher version was applied still runs; migrations in the reserved
+// range must therefore not depend on any later migration.
+func All() ([]Migration, error) { return load(sqlFS) }
+
+// load reads the migration files under sql/ in fsys.
+func load(fsys fs.FS) ([]Migration, error) {
+	entries, err := fs.ReadDir(fsys, "sql")
 	if err != nil {
 		return nil, fmt.Errorf("migrations: read embedded files: %w", err)
 	}
@@ -96,7 +106,7 @@ func All() ([]Migration, error) {
 			return nil, fmt.Errorf("%w: unexpected file %q", ErrBadFile, e.Name())
 		}
 		v, _ := strconv.Atoi(m[1])
-		b, err := sqlFS.ReadFile(path.Join("sql", e.Name()))
+		b, err := fs.ReadFile(fsys, path.Join("sql", e.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("migrations: read %s: %w", e.Name(), err)
 		}
@@ -109,8 +119,11 @@ func All() ([]Migration, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Version < out[j].Version })
 	for i, m := range out {
-		if m.Version != i+1 {
-			return nil, fmt.Errorf("%w: expected version %04d, found %s", ErrBadFile, i+1, m.File())
+		if m.Version < 1 {
+			return nil, fmt.Errorf("%w: version must be positive in %s", ErrBadFile, m.File())
+		}
+		if i > 0 && out[i-1].Version == m.Version {
+			return nil, fmt.Errorf("%w: duplicate version %04d (%s, %s)", ErrBadFile, m.Version, out[i-1].File(), m.File())
 		}
 	}
 	if len(out) == 0 {

@@ -6,9 +6,11 @@ import (
 )
 
 // BlastRadiusLabels returns the ownership and hosting relation labels that
-// blast_radius follows (spec 5.9).
+// blast_radius follows (spec 5.9), plus the v2 content labels a page
+// depends on (V2 design §3.4): the scripts and styles it loads and the
+// documents it embeds.
 func BlastRadiusLabels() []string {
-	return []string{"dns_record", "port", "certificate", "contains", "owns"}
+	return []string{"dns_record", "port", "certificate", "contains", "owns", "loads_script", "loads_style", "embeds"}
 }
 
 // Reach is a node found by a traversal together with its hop distance.
