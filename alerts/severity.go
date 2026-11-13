@@ -24,7 +24,7 @@ const DefaultSeverity = SeverityMedium
 // ErrUnknownSeverity is returned by ParseSeverity.
 var ErrUnknownSeverity = errors.New("alerts: unknown severity")
 
-// severityIdent is the rule-source spelling of a severity.
+// ident returns the rule-source spelling of a severity ("High").
 func (s Severity) ident() string {
 	switch s {
 	case SeverityInfo:

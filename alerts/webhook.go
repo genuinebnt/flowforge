@@ -82,6 +82,9 @@ func Verify(secret []byte, timestampHeader, signatureHeader string, body []byte,
 	if ts < n-tol || ts > n+tol {
 		return fmt.Errorf("%w: timestamp %d, now %d", ErrTimestampSkew, ts, n)
 	}
+	// The MAC covers the timestamp text as received (trimmed), not a
+	// re-formatted number, so "0123" is verified as "0123". PORT: keep
+	// the received text.
 	want := mac(secret, tsText, body)
 	found := false
 	for part := range strings.SplitSeq(signatureHeader, ",") {

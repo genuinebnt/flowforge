@@ -450,7 +450,9 @@ func (s *Service) FlushDigests(ctx context.Context) {
 	}
 }
 
-// DeliverDue sends every due delivery once and returns how many it tried.
+// DeliverDue sends up to 50 due deliveries once each (the earliest due
+// first; Run calls it every DeliveryInterval) and returns how many it
+// tried.
 // Failures are rescheduled with the spec 15.1 backoff (alerts.NextAttempt)
 // and marked failed after 24 h; one channel's failure never blocks another.
 func (s *Service) DeliverDue(ctx context.Context) (int, error) {

@@ -77,8 +77,8 @@ the cases whose id carries their number.
 
 Decision point: first-matching-rule lookup (spec 4.3). `Compile(doc,
 WithMatcher(m))` selects it; `Matchers()` lists the candidates. Both run
-the conformance suite and `TestScopeProp_IndexedMatchesNaive` /
-`FuzzScopeDecide` compare them decision by decision.
+the conformance suite and `TestScopeProp_IndexedMatchesNaive` compares
+them decision by decision.
 
 | Matcher | 10 rules | 1,000 rules | 10,000 rules |
 |---|---|---|---|

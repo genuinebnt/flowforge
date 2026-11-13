@@ -104,6 +104,10 @@ func (h *Hasher) Params() Params { return h.params }
 // Hash returns the PHC string of password with a fresh salt:
 // $argon2id$v=19$m=<KiB>,t=<iterations>,p=<parallelism>$<salt>$<hash>, with
 // salt and hash in unpadded standard base64.
+//
+// PORT: the argon2 crate's PasswordHash reads and writes this format; the
+// password is hashed as its raw UTF-8 bytes with no normalization
+// (docs/PORTING_RUST.md 4.4).
 func (h *Hasher) Hash(password string) (string, error) {
 	salt := make([]byte, h.params.SaltLen)
 	if _, err := io.ReadFull(h.rand, salt); err != nil {

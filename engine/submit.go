@@ -40,8 +40,10 @@ func requestHash(req SubmitRunRequest, input json.RawMessage) ([]byte, error) {
 // SubmitRun creates a run (spec 3.3, 9.10): it requires an idempotency
 // key, returns the original run for a repeated request with the same
 // hash and fails with ALREADY_EXISTS/IDEMPOTENCY_KEY_REUSED for a
-// different one, rejects deprecated versions, pins the program's current
-// scope version and records run_submitted.
+// different one, rejects deprecated versions and versions whose class or
+// tools the program's current scope document forbids (max_class,
+// activity.prohibited), pins that scope version and records
+// run_submitted.
 func (e *Engine) SubmitRun(ctx context.Context, c Caller, req SubmitRunRequest) (Run, error) {
 	key := strings.TrimSpace(req.IdempotencyKey)
 	if key == "" || len(key) > 255 {
@@ -93,6 +95,12 @@ func (e *Engine) SubmitRun(ctx context.Context, c Caller, req SubmitRunRequest) 
 		}
 		if v.InferredClass > pol.MaxClass {
 			return Run{}, errDenied(core.ReasonScopeDenied, "workflow class %s exceeds the program's max_class %s", v.InferredClass, pol.MaxClass)
+		}
+		// The version may have been registered against an older scope
+		// document; check the tools it pins against the current one.
+		match := func(a ...string) (string, bool) { return core.ProhibitedActivity(pol.Prohibited, a...) }
+		if tool, entry, bad := prohibitedTool(match, lm.tools); bad {
+			return Run{}, errDenied(core.ReasonScopeDenied, "workflow calls tool %s, which the program prohibits (activity.prohibited %q)", tool, entry)
 		}
 		scopeVersion = pol.ScopeVersion
 	}

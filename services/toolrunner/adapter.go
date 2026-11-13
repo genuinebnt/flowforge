@@ -117,6 +117,7 @@ type ToolError struct {
 	RetryAfter time.Duration
 }
 
+// Error returns "<code>: <message>".
 func (e *ToolError) Error() string { return e.Code + ": " + e.Message }
 
 // Errorf returns a *ToolError.

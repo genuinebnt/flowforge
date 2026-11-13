@@ -93,7 +93,15 @@ func (q *QuietHours) DeliverAt(sev Severity, t time.Time) time.Time {
 	return t
 }
 
-// windowEnd returns the end of the window containing t, if any.
+// windowEnd returns the end of the window containing t, if any. Only the
+// local hour and minute of t are compared; seconds are ignored.
+//
+// PORT: time.Date normalizes the day overflow of d+1 and resolves an end
+// time that falls in a DST gap or overlap by Go's own (documented as
+// unspecified) rule. chrono's from_local_datetime returns None or
+// Ambiguous there, so a port must choose explicitly; add a conformance
+// case for a zone whose transition hits the window end before relying on
+// it.
 func (q *QuietHours) windowEnd(t time.Time) (time.Time, bool) {
 	lt := t.In(q.Location)
 	tod := lt.Hour()*60 + lt.Minute()

@@ -7,7 +7,7 @@
 //
 // The bundled HashEmbedder is a deterministic feature-hashing embedder for
 // dev and tests. It is NOT semantic: it captures shared tokens and
-// character trigrams only. A Vertex AI / Genkit adapter is future work.
+// character trigrams only. A semantic embedder is G-VEC-05 (v4).
 package similarity
 
 import (
@@ -281,7 +281,7 @@ func (s *Server) finish(ctx context.Context, id platform.Identity, k vecindex.Ke
 		if s.o.Graph != nil {
 			e, err := s.o.Graph.GetEntity(gctx, &pb.GetEntityRequest{EntityId: core.PublicID(core.PrefixEntity, h.ID), IncludeTags: len(f.GetTags()) > 0})
 			if err != nil {
-				continue // deleted or another program's: never returned
+				continue // deleted, or not visible to the tenant: never returned (the index is per program)
 			}
 			if len(f.GetAssetTypes()) > 0 && !contains(f.GetAssetTypes(), e.GetAssetType()) {
 				continue

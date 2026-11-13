@@ -47,7 +47,13 @@ func effectivePolicy(spec ToolSpec, site bytecode.SiteAnnotation) RetryPolicy {
 }
 
 // BackoffDelay is delay(n) = min(max_ms, initial_ms * multiplier^(n-1))
-// for n failed attempts so far (spec 9.5).
+// for n failed attempts so far (spec 9.5), computed in float64
+// milliseconds (math.Pow) and truncated to nanoseconds.
+//
+// PORT: a max_ms above about 9.2e12 (292 years) overflows the final
+// conversion, which Go leaves implementation-defined and Rust's `as`
+// saturates; registries never hold such values, but clamp explicitly if
+// the port must match on them.
 func BackoffDelay(b Backoff, n int) time.Duration {
 	if n < 1 {
 		n = 1
@@ -60,7 +66,8 @@ func BackoffDelay(b Backoff, n int) time.Duration {
 }
 
 // FullJitter draws the wait uniformly from [0, d] ("full jitter",
-// spec 9.5) with the injected randomness.
+// spec 9.5) with the injected randomness: one Uint64 modulo d+1
+// nanoseconds, so seeded tests reproduce exactly.
 func FullJitter(rng core.Rng, d time.Duration) time.Duration {
 	if d <= 0 {
 		return 0

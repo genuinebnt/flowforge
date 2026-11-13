@@ -46,6 +46,7 @@ type Failed struct {
 	Span    Span
 }
 
+// Error returns "<code>: <message>".
 func (f Failed) Error() string { return fmt.Sprintf("%s: %s", f.Code, f.Message) }
 
 // OutOfFuel reports that the fuel slice given to Run or Resume ran out.

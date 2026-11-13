@@ -179,6 +179,7 @@ func (op Opcode) Size() int {
 	return 0
 }
 
+// String returns the mnemonic, or "OP_XX" for an unassigned byte.
 func (op Opcode) String() string {
 	if i := opTable[op]; i != nil {
 		return i.Name

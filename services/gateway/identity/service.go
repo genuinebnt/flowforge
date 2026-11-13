@@ -76,8 +76,11 @@ type Config struct {
 	Policy      auth.PasswordPolicy
 	Email       EmailSender
 	Clock       core.Clock
-	IDs         core.Rng
-	Random      io.Reader // secrets: refresh tokens, API keys, e-mail tokens
+	// IDs draws row ids under the service's own lock; an Rng shared with
+	// another user (KeyManagerConfig.IDs) must itself be safe for
+	// concurrent use, such as core.SystemRng.
+	IDs    core.Rng
+	Random io.Reader // secrets: refresh tokens, API keys, e-mail tokens
 	// PublicURL is the console base URL used in e-mail links.
 	PublicURL string
 	Limits    Limits

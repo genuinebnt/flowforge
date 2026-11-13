@@ -37,6 +37,11 @@ func (s *Signer) KID() string { return s.key.KID }
 
 // Sign returns the compact serialization of c, with the protected header
 // {"alg":"EdDSA","typ":"JWT","kid":<kid>}.
+//
+// PORT: header and claims are json.Marshal output (struct field order,
+// HTML characters escaped as \u003c etc.). Verifiers only check the
+// signature over the bytes they receive, so a port need not reproduce the
+// exact bytes, only the member names and types.
 func (s *Signer) Sign(c Claims) (string, error) {
 	p, err := json.Marshal(c)
 	if err != nil {

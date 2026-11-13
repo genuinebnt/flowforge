@@ -27,7 +27,7 @@ Adapters with heavy dependencies live in sub-packages so the pure package
 stays light: `eventstore/pgstore` (pgx), `limiter/redislimiter` (go-redis),
 `vecindex/pgvector`, etc. A pure package never imports its adapter.
 
-`testkit` is imported only from `_test.go` files.
+`testkit` is imported only from `_test.go` files and from test-support packages (`*/storetest`, `engine/enginetest`, `services/internal/servicetest`) that are themselves only imported by tests.
 
 ## Code rules
 

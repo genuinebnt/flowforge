@@ -245,7 +245,8 @@ func (b *Backend) id(p core.Prefix) string {
 
 func (b *Backend) now() *timestamppb.Timestamp { return timestamppb.New(b.clock.Now()) }
 
-// page applies an offset page token ("o<N>").
+// page applies an offset page token ("o<N>", 50 items by default). The
+// real services use keyset cursors; the gateway treats both as opaque.
 func page[T any](items []T, p *pb.PageRequest) ([]T, *pb.PageResponse, error) {
 	size := int(p.GetPageSize())
 	if size <= 0 {
@@ -429,12 +430,18 @@ func (s scopeSrv) Check(ctx context.Context, r *pb.CheckRequest) (*pb.Decision, 
 	return d, nil
 }
 
+// SetKillSwitch fakes the program level only, the one the public API
+// reaches, with the scope service's rule for it (programs:admin from the
+// token's role; G-SEC-02). Engaging it shows the program as paused.
 func (s scopeSrv) SetKillSwitch(ctx context.Context, r *pb.SetKillSwitchRequest) (*pb.KillSwitch, error) {
 	b := s.b
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if r.GetLevel() != "program" {
 		return nil, fail(codes.PermissionDenied, core.ReasonForbiddenRole, "only program kill switches")
+	}
+	if !auth.Can(from(ctx).role, auth.PermProgramsAdmin) {
+		return nil, fail(codes.PermissionDenied, core.ReasonForbiddenRole, "a program kill switch needs programs:admin")
 	}
 	p, err := b.programOf(ctx, r.GetTargetId())
 	if err != nil {
@@ -811,6 +818,8 @@ func contains(xs []string, x string) bool {
 	return false
 }
 
+// sortBy is a stable insertion sort by key (fixtures hold a handful of
+// items).
 func sortBy[T any](xs []T, key func(T) string) {
 	for i := 1; i < len(xs); i++ {
 		for j := i; j > 0 && key(xs[j]) < key(xs[j-1]); j-- {

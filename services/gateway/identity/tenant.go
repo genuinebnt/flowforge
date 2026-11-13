@@ -371,7 +371,10 @@ func passOrInternalOrNil(err error) error {
 	return passOrInternal(err)
 }
 
-// AuthenticateAPIKey resolves a presented ffk_ token.
+// AuthenticateAPIKey resolves a presented ffk_ token (spec 13.2): the
+// prefix finds the row, the SHA-256 of the secret must match, and the key
+// must be unrevoked, unexpired and in an enabled tenant. Every failure is
+// UNAUTHENTICATED (TOKEN_EXPIRED for an expired key).
 func (s *Service) AuthenticateAPIKey(ctx context.Context, token string) (APIKeyRecord, error) {
 	invalid := errUnauthenticated(core.ReasonTokenInvalid, "API key is invalid")
 	p, err := auth.ParseAPIKey(token)
@@ -386,6 +389,8 @@ func (s *Service) AuthenticateAPIKey(ctx context.Context, token string) (APIKeyR
 		return APIKeyRecord{}, errInternal(err)
 	}
 	now := s.now()
+	// The secret is checked first, so the revoked and expired messages
+	// are only ever shown to a holder of the real secret.
 	switch {
 	case !p.Matches(k.SecretHash[:]):
 		return APIKeyRecord{}, invalid
@@ -397,6 +402,8 @@ func (s *Service) AuthenticateAPIKey(ctx context.Context, token string) (APIKeyR
 	if t, err := s.cfg.Store.GetTenant(ctx, k.TenantID); err != nil || !t.DisabledAt.IsZero() {
 		return APIKeyRecord{}, invalid
 	}
+	// last_used_at is written at most once a minute per key, so a busy key
+	// does not turn every request into a row update.
 	if k.LastUsedAt.IsZero() || now.Sub(k.LastUsedAt) >= time.Minute {
 		if err := s.cfg.Store.TouchAPIKey(ctx, k.ID, now); err == nil {
 			k.LastUsedAt = now

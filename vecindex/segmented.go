@@ -561,7 +561,8 @@ func (s *Segmented) Destroy() error {
 	return errors.Join(errs...)
 }
 
-// popcount of the tombstone bitset, for invariant checks in tests.
+// countDead returns the popcount of the tombstone bitset, for invariant
+// checks in tests.
 func (ls *liveSegment) countDead() int {
 	n := 0
 	for _, w := range ls.dead {

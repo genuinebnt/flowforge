@@ -75,8 +75,9 @@ func (f Fence) IsZero() bool { return f == Fence{} }
 func (f Fence) String() string { return fmt.Sprintf("%d.%d", f.Term, f.Counter) }
 
 // Event is one entry of a run's event log (spec 9.3). Seq starts at 1 and
-// is gapless per run. Actor is "engine", "vm", "tool:<name>" or
-// "user:<id>".
+// is gapless per run. Actor is "engine", "vm", "tool:<name>" or the
+// caller's actor ("user:<uuid>", "apikey:<uuid>", "service:<name>",
+// "schedule:<id>").
 type Event struct {
 	RunID   RunID           `json:"run_id"`
 	Seq     uint64          `json:"seq"`
@@ -109,6 +110,10 @@ var AllShards = Shard{}
 // ShardOf maps a run to one of count shards. It uses the last four bytes
 // of the UUID, which are random in a version 7 UUID, so the mapping is
 // uniform and can be computed in SQL. count 0 or 1 maps every run to 0.
+//
+// PORT: the bytes are read big-endian as an unsigned 32-bit value and
+// reduced modulo count; workers of both implementations sharing a store
+// must agree (docs/PORTING_RUST.md 5.10).
 func ShardOf(run RunID, count uint32) uint32 {
 	if count <= 1 {
 		return 0

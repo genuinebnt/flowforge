@@ -9,5 +9,5 @@
 // It holds no domain logic. Identity always comes from the verified
 // internal token (authorization metadata), never from a request body:
 // the server interceptor puts an Identity into the context and every
-// handler reads it with IdentityFrom.
+// handler reads it with IdentityFrom or MustIdentity.
 package platform

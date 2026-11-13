@@ -454,7 +454,10 @@ func firstArg(b *Builtin, args []*Arg) *Arg {
 	return nil
 }
 
-// headDef returns the TypeDef (or a primitive marker) at the head of t.
+// headMatches reports whether arg has the same head type constructor as
+// the overload parameter param (the same named type definition, or the
+// same primitive), which is how an overloaded builtin is chosen by its
+// first argument. Type arguments are not compared.
 func headMatches(param, arg Type) bool {
 	switch pt := param.(type) {
 	case *NamedType:

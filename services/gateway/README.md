@@ -41,7 +41,11 @@ hash time, clamped to 200-500 ms, and logs the result; hashes with other
 parameters are re-hashed at the next login), `FF_ID_TOKEN_AUDIENCE_AUTO`
 (ID tokens to `https://` backends; on when `K_SERVICE` is set), `FF_JWT_ISSUER`
 (required), `FF_JWT_AUDIENCE` (must be `flowforge-api`), `FF_PUBLIC_URL`,
-`FF_COOKIE_DOMAIN`, `FF_COOKIE_INSECURE`, `FF_TRUST_XFF`, `FF_GRPC_TLS`,
+`FF_COOKIE_DOMAIN`, `FF_COOKIE_INSECURE`, `FF_TRUST_XFF` (the number of
+trusted proxies in front of the gateway that append to `X-Forwarded-For`;
+the client IP is that many entries from the right, `true` = 1, unset = the
+connection address; 1 on a `run.app` URL, 2 behind the external load
+balancer in dev/prod, G-SVC-17), `FF_GRPC_TLS`,
 and `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR` (also analytics),
 `FF_NOTIFIER_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_SIMILARITY_ADDR`.
 

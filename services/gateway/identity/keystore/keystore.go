@@ -180,7 +180,8 @@ func (d Dir) GetPrivateKey(ctx context.Context, ref string) ([]byte, error) {
 }
 
 // SecretManager stores each generated key as secret ff-signing-key-<kid>
-// in Project, so KeyManager.Rotate works across instances and restarts.
+// in the project of SM, so KeyManager.Rotate works across instances and
+// restarts.
 type SecretManager struct{ SM *smsecrets.Store }
 
 var _ identity.KeyStore = SecretManager{}

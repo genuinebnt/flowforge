@@ -4,6 +4,9 @@ package main
 
 import "github.com/genuinebnt/flowforge/services/app"
 
+// version is stamped at link time by deploy/Dockerfile
+// (-ldflags "-X main.version=..."); nothing reports it yet, the blank
+// use in main keeps the linker from dropping it.
 var version = "dev"
 
 func main() {

@@ -7,7 +7,7 @@ import "time"
 type Claims struct {
 	Issuer         string `json:"iss"`
 	Audience       string `json:"aud"`
-	Subject        string `json:"sub"`           // usr_..., or the actor of an internal token
+	Subject        string `json:"sub"`           // usr_... in access tokens; the actor ("user:<uuid>", "service:<name>", ...) in internal tokens
 	TenantID       string `json:"tid"`           // ten_...
 	Role           Role   `json:"role"`          // membership role in TenantID
 	SessionID      string `json:"sid,omitempty"` // ses_..., the refresh family

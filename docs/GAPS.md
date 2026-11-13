@@ -208,7 +208,7 @@ assumptions it was written against.
 | G-ALG-05 | vecindex: add HNSW as a candidate next to Vamana (recall against QPS) | v3 (C3) |
 | G-ALG-06 | chunkstore: fixed-size, Rabin CDC and whole-blob candidates with dedupe, speed and shift-resistance comparisons | **closed on feat_v2** (fastcdc/rabin/fixed/whole via Config.Chunking.Algo; manifest v2 records the chunker; BenchmarkChunkAlgo, CHUNK-INV-24/25) |
 | G-ALG-07 | v2 packages (diff, textindex, htmlparse, jsparse, sketch): pluggable candidates, benchmarks and ALGORITHMS.md entries | **closed on feat_v2** (diff, textindex, sketch, htmlparse, jsparse and bus adapters measured; BenchmarkHTMLAlgo, BenchmarkJSAlgo, BenchmarkBusAlgo) |
-| G-CMT-01 | Comment pass on every v1 package: correct, useful, spec-referencing comments, `PORT:` notes, no restating, no stale text | v1 (then merged forward) |
+| G-CMT-01 | Comment pass on every v1 package: correct, useful, spec-referencing comments, `PORT:` notes, no restating, no stale text | **closed on feat_v1** (pass 1: core, core/netnorm, scope, oam, limiter (+redislimiter), csr, placement, auth, dsl, compiler, bytecode, vecindex, alerts, vm, eventstore (+storetest), graphstore (+pg, storetest), engine, sim, testkit, migrations, cmd/*; pass 2: services/engine, gateway, graph, notifier, maintenance, scope, similarity, egressproxy, toolrunner, internal/platform; pass 3, line by line: gateway/identity with pgstore, redisstore, keystore and identitytest, gateway/gatewayd, gateway/internal/fakebackend, internal/wire, internal/convert, devstack, app, internal/bus with busconfig, pubsubbus and bustest. Bugs found: G-CORE-09/10, G-LIM-11, G-ENG-11, G-SVC-17 to G-SVC-25, G-SEC-02) |
 | G-CMT-02 | Comment pass on every v2 package | **closed on feat_v2** (first pass over all v2 packages, then line by line: htmlparse, jsparse, textindex, content, contentstore, services/content, the lab and v2 files in shared packages; 12 bugs found and fixed with TestRegress_ tests) |
 
 ### Found during the v1 fixes
@@ -235,6 +235,25 @@ assumptions it was written against.
 | G-CST-06 | No admin RPC to trigger re-derive on demand; only the maintenance sweep runs it | v3 |
 | G-LANG-10 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | **closed on feat_v2** (spec Part II §36.2-36.3) |
 
+### Found during the v1 comment pass
+
+| ID | Gap | Target |
+|---|---|---|
+| G-CORE-09 | `Activity.Prohibited` (spec 4.1) was stored and passed around but enforced nowhere: the compiler adapters passed only `max_class` | **closed on feat_v1** (an entry names a tool or an effect class, `core.ProhibitedActivity`; E0402 at compile, SCOPE_DENIED at submit, pause at re-validation, `scope_denied`/`class_exceeds_program` before every tool effect; scope OPEN_QUESTIONS 19; TestRegress_G_CORE_09_*, dsl `f_E0402_prohibited_*`) |
+| G-LIM-11 | `auth.IPThrottleKey` (login) did not escape `:` while `limiter.AuthIPKey` (signup, reset) did, and neither normalized the address, so one IPv6 client had two spellings and `::ffff:a.b.c.d` differed from `a.b.c.d` | **closed on feat_v1** (`netnorm.ClientIPText` + limiter escaping in both; TestRegress_G_LIM_11_IPKeysAgree). Deploy: in-flight login throttle windows of IPv6 clients reset once (their key spelling changes); IPv4 and signup/reset keys are unchanged |
+| G-ENG-11 | Due schedules sharing `next_fire_at` fired in map order (memory) or arbitrary order (Postgres), so under a limit the stores fired different ones | **closed on feat_v1** (ties by schedule id in both; TestRegress_G_ENG_11_ScheduleTieOrder_*) |
+| G-CORE-10 | Scope activation paged by `effective_from` alone: a page of 100 ending inside a group sharing one `effective_from` (round times) left the rest unannounced, so their in-flight runs were never re-validated | **closed on feat_v1** (keyset paging by effective_from, program, version; TestRegress_G_CORE_10_ActivationSharedTime_*) |
+| G-SVC-17 | With `FF_TRUST_XFF` the gateway keyed callers by the first X-Forwarded-For entry, which the client writes (Google's proxies append), so a client could choose its rate-limit and login-throttle key; Terraform did not set it, so on Cloud Run every client shared the front end's address | **closed on feat_v1** (hop count from the right, `FF_TRUST_XFF`=N; Terraform sets 1 in lab, 2 in dev/prod, to confirm on the first apply, G-OPS-17; TestRegress_G_SVC_17_ForwardedForRightmost) |
+| G-SVC-18 | A User-Agent with invalid UTF-8, or cut at 256 bytes inside a rune, made the auth_audit insert fail, failing signup, verification and password reset | **closed on feat_v1** (sanitized in the gateway and pgstore; TestRegress_G_SVC_18_*) |
+| G-SVC-19 | The notifier's SMTP sender put the alert summary (rendered from target-controlled graph data) into the Subject header unescaped: header injection | **closed on feat_v1** (control characters replaced; TestRegress_G_SVC_19_SMTPHeaderInjection) |
+| G-SVC-20 | `notifier.MemRepo.DueDeliveries` ordered by id, Postgres by `next_attempt_at, id` | **closed on feat_v1** (memory matches Postgres; TestRegress_G_SVC_20_MemDeliveryOrder) |
+| G-SEC-02 | `ScopeService.SetKillSwitch` let any tenant owner (and any service identity) set the **global** kill switch, which stops every tenant's runs, and checked no role at all for tenant and program switches (a viewer or a service could set them); the public API only reached the program level through `programs:admin` routes | **closed on feat_v1** (authorization by level, fail closed: global only for the platform operator, `platform.Operator()` = actor `service:operator` on the nil tenant, which the gateway never mints; tenant and program only for `user:`/`apikey:` members with `programs:admin` (admin, owner), foreign targets NOT_FOUND; the actor is logged on `scope.kill_switch`; services/scope README; TestRegress_G_SEC_02_KillSwitchLevels, TestRegress_G_SEC_02_KillSwitchUntokenedIdentities) |
+| G-SVC-21 | Login and API keys refused a disabled tenant, but `identity.Service.Refresh` kept minting access tokens for its existing sessions (up to the 90-day family lifetime) | **closed on feat_v1** (Refresh revokes the family and fails like an invalid token; access tokens already issued live out their 10 minutes; TestRegress_G_SVC_21_RefreshDisabledTenant) |
+| G-SVC-22 | `identity.MemStore.IdemAbandon` deleted the idempotency row unconditionally, Postgres only an in-flight one, so in memory a request whose stale row another request had taken over and completed erased that stored response | **closed on feat_v1** (memory matches Postgres; Store contract case; TestRegress_G_SVC_22_MemIdemAbandonKeepsCompleted) |
+| G-SVC-23 | pgstore `RemoveRoleGroupMember` deleted the member and the empty group in one statement whose snapshot could not see a concurrently added member; the group delete then cascaded to that member, whose add had succeeded | **closed on feat_v1** (both sides take the group row lock first, the emptiness check runs in a later statement; TestRegress_G_SVC_23_RoleGroupAddRemoveRace) |
+| G-SVC-24 | `gatewayd.Gateway.Serve` waited for the auth.events relay, which stopped only with the caller's context, so a listener error (address in use) hung the gateway instead of exiting | **closed on feat_v1** (background loops get their own context, cancelled when Serve returns; TestRegress_G_SVC_24_ServeListenError) |
+| G-SVC-25 | Outbox relays (`bus.PgOutbox`, `graphstore/pg.Relay`) on several replicas claimed rows with FOR UPDATE SKIP LOCKED, so a second relay published the rows after the first one's batch, possibly before them: events of one ordering key (run, program) could leave out of order (spec 11.7) | **closed on feat_v1** (one relay per table at a time via a transaction-scoped advisory lock; TestRegress_G_SVC_25_PgOutboxRelaysKeepKeyOrder, TestRegress_G_SVC_25_GraphRelaysKeepOrder) |
+
 ## Doc and code conflicts to resolve with the fixes
 
 1. infra and cloud-sql READMEs vs code on DB grants (G-OPS-01).
@@ -255,8 +274,8 @@ assumptions it was written against.
 
 Counted from the tables above (one table row may name several ids):
 
-* **closed on `feat_v1`:** 37 rows (merged forward into `feat_v2`).
+* **closed on `feat_v1`:** 52 rows (merged forward into `feat_v2`).
 * **closed on `feat_v2`:** 26 rows.
-* **open, v1:** 1 (G-CMT-01). **open, v2:** 0. **open, spec errata:** 0.
+* **open, v1:** 0. **open, v2:** 0. **open, spec errata:** 0.
 * **v3:** 37 rows. **v4:** 3 rows.
 * **accepted or operator steps:** 11 rows (to confirm before v4).

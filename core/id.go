@@ -19,8 +19,16 @@ var Nil UUID
 // ErrInvalidID reports a malformed UUID or public identifier.
 var ErrInvalidID = errors.New("core: invalid identifier")
 
-// NewUUIDv7 builds a version 7 UUID from the clock's wall time in
-// milliseconds and 74 random bits drawn from rng.
+// NewUUIDv7 builds a version 7 UUID (RFC 9562 5.7) from the clock's wall
+// time in Unix milliseconds and 74 random bits drawn from two rng.Uint64
+// calls. UUIDs made in the same millisecond are not ordered among
+// themselves (no monotonic counter).
+//
+// PORT: the exact layout is a cross-language contract (docs/PORTING_RUST.md
+// 4.1): bytes 0-5 are the 48-bit big-endian milliseconds, bytes 6-7 the
+// low 16 bits of the first draw (big-endian), bytes 8-15 the second draw
+// (big-endian), then the version and variant bits are overwritten. A
+// pre-1970 time wraps through the uint64 conversion; keep the low 48 bits.
 func NewUUIDv7(clock Clock, rng Rng) UUID {
 	var u UUID
 	ms := uint64(clock.Now().UnixMilli())
@@ -55,7 +63,9 @@ func (u UUID) String() string {
 // IsZero reports whether u is the nil UUID.
 func (u UUID) IsZero() bool { return u == Nil }
 
-// ParseUUID parses the canonical hyphenated form (case-insensitive).
+// ParseUUID parses the canonical 8-4-4-4-12 hyphenated form; hex digits
+// may be upper or lower case. Braced, URN and unhyphenated forms are
+// rejected with ErrInvalidID. Any version and variant are accepted.
 func ParseUUID(s string) (UUID, error) {
 	var u UUID
 	if len(s) != 36 || s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-' {
@@ -94,7 +104,9 @@ func (u *UUID) UnmarshalText(b []byte) error {
 // Value implements driver.Valuer so a UUID can be passed to SQL drivers.
 func (u UUID) Value() (driver.Value, error) { return u.String(), nil }
 
-// Scan implements sql.Scanner.
+// Scan implements sql.Scanner. It accepts text (string or []byte of the
+// hyphenated form), 16 raw bytes, a [16]byte, and NULL, which scans as
+// Nil.
 func (u *UUID) Scan(src any) error {
 	switch v := src.(type) {
 	case string:
@@ -118,7 +130,9 @@ func (u *UUID) Scan(src any) error {
 // Prefix is the type tag carried by public identifiers in REST (spec 1.2).
 type Prefix string
 
-// Public identifier prefixes.
+// Public identifier prefixes (spec 1.2 lists run_, prg_, ent_, apr_, usr_,
+// ten_ and wf_; the others are Flowforge additions for the remaining REST
+// resources). A prefix never contains "_".
 const (
 	PrefixRun             Prefix = "run"
 	PrefixProgram         Prefix = "prg"
@@ -148,8 +162,10 @@ const (
 // public identifiers (the same alphabet as ULID).
 const crockford = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
-// PublicID renders u as "<prefix>_<26 Crockford base32 chars>". Because
-// UUIDv7 is time-ordered, public IDs sort in creation order.
+// PublicID renders u as "<prefix>_<26 Crockford base32 chars>", most
+// significant bits first and upper case. Because UUIDv7 is time-ordered
+// and the encoding preserves byte order, public ids of one prefix sort in
+// creation order to millisecond granularity.
 func PublicID(p Prefix, u UUID) string {
 	var out [26]byte
 	// 128 bits -> 26 chars: the first char carries the top 3 bits.
@@ -164,7 +180,14 @@ func PublicID(p Prefix, u UUID) string {
 }
 
 // ParsePublicID parses an identifier produced by PublicID and checks its
-// prefix. It also accepts the bare canonical UUID form for convenience.
+// prefix (case-sensitive). The base32 body is case-insensitive and its
+// first character must be 0-7, since it carries only 3 bits. Any 36-byte
+// input is parsed as a bare canonical UUID instead, without a prefix
+// check. Errors wrap ErrInvalidID.
+//
+// PORT: unlike full Crockford decoding, the ambiguous letters I, L and O
+// are rejected rather than read as 1, 1 and 0, and hyphens are not
+// skipped.
 func ParsePublicID(want Prefix, s string) (UUID, error) {
 	if len(s) == 36 {
 		return ParseUUID(s)
@@ -193,7 +216,7 @@ func ParsePublicID(want Prefix, s string) (UUID, error) {
 }
 
 // IDGen produces UUIDv7 values from injected ports. It is safe for
-// concurrent use only if the Rng is; wrap with a mutex otherwise.
+// concurrent use only if the Rng is (SystemRng is; SplitMix64 is not).
 type IDGen struct {
 	Clock Clock
 	Rng   Rng

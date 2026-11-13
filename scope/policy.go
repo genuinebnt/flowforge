@@ -103,6 +103,8 @@ func compileDocument(doc Document) (*Policy, error) {
 	if doc.Version < 0 {
 		fail(fmt.Errorf("version %d is negative", doc.Version))
 	}
+	// Rule indexes are int32 with noRule as the sentinel, so the last
+	// usable index is noRule-1.
 	if len(doc.Rules) >= int(noRule) {
 		fail(fmt.Errorf("too many rules (%d)", len(doc.Rules)))
 	}
@@ -113,6 +115,8 @@ func compileDocument(doc Document) (*Policy, error) {
 		if err != nil {
 			fail(fmt.Errorf("rule %d (%q): %w: %w", i, r.ID, ErrInvalidRule, err))
 		}
+		// An empty id is already reported by compileRule; do not report
+		// it again as a duplicate.
 		if prev, dup := seen[r.ID]; dup && r.ID != "" {
 			fail(fmt.Errorf("rule %d (%q): %w (first used by rule %d)", i, r.ID, ErrDuplicateRuleID, prev))
 		}
@@ -126,6 +130,8 @@ func compileDocument(doc Document) (*Policy, error) {
 	if a.MaxClass < core.ClassNone || a.MaxClass > core.ClassIntrusive {
 		fail(fmt.Errorf("%w: max_class %s", ErrInvalidActivity, a.MaxClass))
 	}
+	// The negated comparison also rejects NaN, which fails every ordered
+	// comparison.
 	if !(a.Rate.RequestsPerSecond >= 0) || math.IsInf(a.Rate.RequestsPerSecond, 0) || a.Rate.Burst < 0 || a.Rate.Concurrency < 0 {
 		fail(fmt.Errorf("%w: rate values must be finite and non-negative", ErrInvalidActivity))
 	}
@@ -153,7 +159,8 @@ func cloneDocument(d Document) Document {
 	return d
 }
 
-// Document returns a copy of the document the policy was compiled from.
+// Document returns a deep copy of the document the policy was compiled
+// from; callers may modify it freely.
 func (p *Policy) Document() Document { return cloneDocument(p.doc) }
 
 // Version returns the scope version every decision of p carries.
@@ -164,6 +171,13 @@ func (p *Policy) ProgramID() string { return p.doc.ProgramID }
 
 // MaxClass returns the program's highest permitted activity class.
 func (p *Policy) MaxClass() core.ActivityClass { return p.doc.Activity.MaxClass }
+
+// Prohibits reports the first activity.prohibited entry that names one of
+// activities (a tool's name and its effect names) and true, or "" and
+// false; see core.ProhibitedActivity for the match.
+func (p *Policy) Prohibits(activities ...string) (string, bool) {
+	return core.ProhibitedActivity(p.doc.Activity.Prohibited, activities...)
+}
 
 // ASNs returns the autonomous system numbers named by asn rules, in
 // document order. They seed passive discovery only and never grant

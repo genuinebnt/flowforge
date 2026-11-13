@@ -241,6 +241,8 @@ func listHas(list []value, x value) bool {
 	return false
 }
 
+// lenOf counts Unicode code points for strings (not bytes), elements for
+// lists and members for objects; any other kind is absent.
 func lenOf(v value) value {
 	switch v.k {
 	case kString:
@@ -301,6 +303,9 @@ func intArith(ctx *evalCtx, op string, a, b int64, k kind) value {
 		if b == 0 {
 			return ctx.fail(ErrDivisionByZero)
 		}
+		// PORT: Go defines MinInt64 % -1 as 0; Rust's % panics on that
+		// overflow, so use wrapping_rem. Both truncate toward zero (the
+		// result has the dividend's sign).
 		r = a % b
 	}
 	if !ok {
@@ -309,6 +314,9 @@ func intArith(ctx *evalCtx, op string, a, b int64, k kind) value {
 	return value{k: k, i: r}
 }
 
+// floatArith follows IEEE 754 without checks: unlike the VM, alert
+// expressions may produce Inf and NaN (x / 0.0 is Inf), and NaN then
+// compares as described at compareValues.
 func floatArith(op string, a, b float64) float64 {
 	switch op {
 	case "+":

@@ -3,7 +3,9 @@ package gateway
 import (
 	"crypto/rand"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
@@ -14,17 +16,29 @@ import (
 const prefixInvite core.Prefix = "inv"
 
 func (c *call) client() identity.ClientInfo {
-	return identity.ClientInfo{IP: c.ip, UserAgent: truncate(c.r.UserAgent(), 256)}
+	return identity.ClientInfo{IP: c.ip, UserAgent: userAgent(c.r)}
 }
 
-func truncate(s string, n int) string {
-	if len(s) > n {
-		return s[:n]
+// userAgent returns the request's User-Agent for the identity audit
+// (identity.auth_audit.user_agent, a Postgres text column): invalid UTF-8
+// replaced with U+FFFD, then cut to at most 256 bytes on a rune boundary.
+// net/http accepts any obs-text byte (0x80-0xFF) in a header, and a byte
+// cut can split a rune; Postgres rejects either in text, which failed the
+// transaction of signup, email verification and password reset
+// (G-SVC-18).
+func userAgent(r *http.Request) string {
+	ua := strings.ToValidUTF8(r.UserAgent(), "\uFFFD")
+	if len(ua) <= 256 {
+		return ua
 	}
-	return s
+	n := 256
+	for n > 0 && !utf8.RuneStart(ua[n]) {
+		n--
+	}
+	return ua[:n]
 }
 
-func (c *call) actor() identity.Actor { return c.p.identityActor(c.ip, truncate(c.r.UserAgent(), 256)) }
+func (c *call) actor() identity.Actor { return c.p.identityActor(c.ip, userAgent(c.r)) }
 
 func (s *Server) signup(c *call) error {
 	var in struct {

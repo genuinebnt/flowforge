@@ -44,7 +44,8 @@ func Main(service string) {
 }
 
 // Run builds and serves service with the configuration read through getenv
-// until SIGTERM or SIGINT.
+// (platform.ConfigFromEnv) until SIGTERM or SIGINT, logging JSON to
+// stdout. It returns configuration, connection and listener errors.
 func Run(ctx context.Context, service string, getenv func(string) string) error {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
 	defer stop()
@@ -70,6 +71,8 @@ func Run(ctx context.Context, service string, getenv func(string) string) error 
 		log.Warn("config.no_signing_key", "detail", "FF_SIGNING_KID with FF_SIGNING_KEY_<KID> (or FF_SIGNING_KEY) unset: calls to other services will be rejected")
 	}
 	env := &wire.Env{Service: service, Logger: log, Metrics: platform.NewMetrics(nil), Clock: clock, Verifier: verifier, DSN: cfg.DBDSN}
+	// PORT: assigned only when set, so env.Tokens stays a nil interface
+	// rather than one holding a nil *MinterTokens (which is non-nil).
 	if tokens != nil {
 		env.Tokens = tokens
 	}
@@ -202,9 +205,9 @@ func drainTimeout(getenv func(string) string) (time.Duration, error) {
 	return d, nil
 }
 
-// maintenanceInterval parses FF_MAINTENANCE_INTERVAL: empty is the
-// default (hourly), "0" disables the in-process jobs (GCP, where the
-// Cloud Scheduler tick runs them).
+// maintenanceInterval parses FF_MAINTENANCE_INTERVAL (a Go duration):
+// empty is the default (hourly), "0" or a negative duration disables the
+// in-process jobs (GCP, where the Cloud Scheduler tick runs them).
 func maintenanceInterval(s string) (time.Duration, error) {
 	if s == "" {
 		return 0, nil

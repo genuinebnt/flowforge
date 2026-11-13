@@ -213,6 +213,13 @@ func (w wireTag) decode(mode DecodeMode) (ObservedTag, error) {
 
 // EncodeObservation encodes an envelope. Decoding the result with either
 // mode yields an equal envelope.
+//
+// PORT: observed_at goes through time.Time's MarshalJSON, which is RFC
+// 3339 with up to nanosecond precision and trailing fractional zeros
+// trimmed ("2026-11-12T13:25:11.04Z"), not the millisecond form of
+// core.FormatTime. json.Marshal also escapes <, > and & as \u003c, \u003e
+// and \u0026 here; the bytes are stored, not hashed, so only the decoded
+// value must match.
 func EncodeObservation(o Observation) ([]byte, error) {
 	o.ObservedAt = o.ObservedAt.UTC()
 	b, err := json.Marshal(o)

@@ -4,6 +4,8 @@ package dsl
 // operation and tool summaries, declared-versus-inferred effects (E0401,
 // W0402) and the compile-time policy check (E0402, E0403).
 
+import "github.com/genuinebnt/flowforge/core"
+
 // summarize propagates runtime operations and tool uses through calls to
 // user fns until a fixpoint.
 func (c *checker) summarize() {
@@ -188,9 +190,71 @@ func (c *checker) checkPolicy() {
 				"effect `%s` exceeds the program's maximum activity class `%s`", en, maxClass).
 				withHelp("The program allows at most %s activity; remove this call or ask a program owner to raise max_class.", maxClass)
 		})
+		c.checkProhibited(d)
 		w := &approvalWalker{c: c, need: need, report: true}
 		w.expr(d.Body, false)
 	}
+}
+
+// checkProhibited reports E0402 for every tool workflow d may call that
+// the program's activity.prohibited list names, by tool name or by one of
+// its declared effects (spec 4.1; scope OPEN_QUESTIONS 19). E0402 is the
+// closest existing code: spec 7.7 has no code for a prohibited activity.
+// Tools are reported in first-use order, at their first use.
+func (c *checker) checkProhibited(d *WorkflowDecl) {
+	if len(c.opts.Policy.Prohibited) == 0 {
+		return
+	}
+	for _, t := range d.Func.Tools {
+		entry, bad := core.ProhibitedActivity(c.opts.Policy.Prohibited, append([]string{t.Name}, t.Effects.Names()...)...)
+		if !bad {
+			continue
+		}
+		sp, ok := firstToolSite(d.Body, t)
+		if !ok {
+			sp = d.Name.Span()
+		}
+		c.sink.errorf(CodeEffectExceedsMax, sp, "prohibited",
+			"tool `%s` is prohibited by the program (activity.prohibited `%s`)", t.Name, entry).
+			withHelp("The program forbids this activity; remove this call or ask a program owner to change activity.prohibited.")
+	}
+}
+
+// firstToolSite returns the span of the earliest expression in body that
+// may call t: a call of t, t used as a function value, or a call of (or
+// reference to) a fn whose summary includes t. On equal start offsets the
+// outer expression wins, so a direct call reports the whole call.
+func firstToolSite(body Node, t *Tool) (Span, bool) {
+	var best Span
+	found := false
+	consider := func(sp Span) {
+		if !found || sp.Start.Offset < best.Start.Offset {
+			best, found = sp, true
+		}
+	}
+	refs := func(ref Ref) bool {
+		switch ref.Kind {
+		case RefTool:
+			return ref.Tool == t
+		case RefFn:
+			return ref.Fn != nil && ref.Fn.Func != nil && containsTool(ref.Fn.Func.Tools, t)
+		}
+		return false
+	}
+	Walk(body, func(n Node) bool {
+		switch x := n.(type) {
+		case *CallExpr:
+			if x.Tool == t || (x.Kind == CallFn && x.FnDecl != nil && x.FnDecl.Func != nil && containsTool(x.FnDecl.Func.Tools, t)) {
+				consider(x.Span())
+			}
+		case *Ident:
+			if refs(x.Ref) {
+				consider(x.Span())
+			}
+		}
+		return true
+	})
+	return best, found
 }
 
 // approvalWalker checks that gated effects (financial_write, intrusive)

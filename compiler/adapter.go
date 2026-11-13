@@ -33,9 +33,13 @@ type AdapterTool struct {
 	SpecSHA256 [32]byte `json:"-"`
 }
 
-// AdapterPolicy is the part of a program policy the compiler checks.
+// AdapterPolicy is the part of a program policy the compiler checks
+// (spec 7.5 rule 7): the program's activity.max_class (E0402 for an effect
+// above it) and activity.prohibited (E0402 for a call of a tool it names;
+// dsl.Policy.Prohibited).
 type AdapterPolicy struct {
-	MaxClass core.ActivityClass `json:"max_class"`
+	MaxClass   core.ActivityClass `json:"max_class"`
+	Prohibited []string           `json:"prohibited,omitempty"`
 }
 
 // AdapterRequest is the input of Check and Compile.
@@ -93,7 +97,7 @@ func (a EngineAdapter) Compile(ctx context.Context, req AdapterRequest) (Adapter
 		opts.FileName = req.Name + ".ff"
 	}
 	if req.Policy != nil {
-		opts.Policy = dsl.Policy{MaxClass: req.Policy.MaxClass, Known: true}
+		opts.Policy = dsl.Policy{MaxClass: req.Policy.MaxClass, Prohibited: req.Policy.Prohibited, Known: true}
 	}
 	for _, t := range req.Tools {
 		opts.Tools = append(opts.Tools, Tool{Spec: t.toolSpec(), SpecSHA256: t.SpecSHA256, Idempotent: t.Idempotent})

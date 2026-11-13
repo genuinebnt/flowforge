@@ -45,6 +45,8 @@ var kindNames = [numKinds]string{
 	"ScopeProof", "EntityRef",
 }
 
+// String returns the DSL name of the kind ("Int", "Fqdn", ...), or
+// "kind(N)" for a value outside the enum.
 func (k Kind) String() string {
 	if k < numKinds {
 		return kindNames[k]

@@ -200,7 +200,8 @@ var builtinOrder = []struct {
 	{"log", builtinSpec{sigs: []string{"(level: String, msg: String) -> ()"}, op: OpLog}},
 }
 
-// prelude holds the builtin namespaces.
+// preludeTables holds the builtin namespaces (the prelude variable is the
+// one instance).
 type preludeTables struct {
 	types    map[string]*TypeDef
 	builtins map[string]*Builtin

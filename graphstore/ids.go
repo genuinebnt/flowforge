@@ -57,6 +57,11 @@ func IDFromUUID(p core.Prefix, u core.UUID) ID {
 // domain-separated, length-prefixed tuple. It is the same construction
 // oam uses for entity and edge ids, so every id the graph store mints is
 // a pure function of its identity and replays produce the same ids.
+//
+// PORT: each part is written as unsigned LEB128 (binary.PutUvarint) of
+// its byte length followed by its bytes, exactly as oam's derivation
+// (docs/PORTING_RUST.md 4.1); these ids are primary keys shared with any
+// Rust writer.
 func DeriveUUID(domain string, parts ...string) core.UUID {
 	h := sha256.New()
 	var n [binary.MaxVarintLen64]byte

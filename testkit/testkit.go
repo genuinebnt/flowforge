@@ -3,7 +3,9 @@
 // through FF_SEED, and a loader for the language-neutral conformance data
 // under conformance/ (spec 24.2, 25.2, 25.9).
 //
-// testkit is imported only from _test.go files.
+// testkit is imported only from _test.go files and from the test-support
+// packages built on it (eventstore/storetest, engine/enginetest), which in
+// turn are imported only from tests.
 package testkit
 
 import (
@@ -76,8 +78,10 @@ func (c *FakeClock) SetWall(t time.Time) {
 	c.wall = t
 }
 
-// Seed returns the seed for a randomized test. It honours FF_SEED and logs
-// the seed when the test fails so the run can be reproduced (spec 25.2).
+// Seed returns the seed for a randomized test: FF_SEED (decimal uint64)
+// when set, otherwise the wall clock in nanoseconds. It logs the seed when
+// the test fails so the run can be reproduced (spec 25.2). A malformed
+// FF_SEED fails the test.
 func Seed(t testing.TB) uint64 {
 	t.Helper()
 	seed := uint64(time.Now().UnixNano())
@@ -100,7 +104,9 @@ func Seed(t testing.TB) uint64 {
 func Rng(t testing.TB) *core.SplitMix64 { return core.NewSplitMix64(Seed(t)) }
 
 // Cases returns the number of property-test iterations: 1,000 by default,
-// overridable with FF_PROPTEST_CASES (the nightly job uses 100,000).
+// 100 under go test -short, or FF_PROPTEST_CASES when it is a positive
+// integer (the nightly job uses 100,000); FF_PROPTEST_CASES wins over
+// -short.
 func Cases() int {
 	if s := os.Getenv("FF_PROPTEST_CASES"); s != "" {
 		if n, err := strconv.Atoi(s); err == nil && n > 0 {
@@ -146,8 +152,10 @@ type CaseFile[T any] struct {
 }
 
 // LoadCases decodes every *.json file in conformance/<suite> into T, in
-// file-name order. It fails the test if the suite is missing or empty, so a
-// deleted data directory cannot make a suite pass vacuously.
+// file-name order (byte order of the paths). It fails the test if the
+// suite is missing or empty, so a deleted data directory cannot make a
+// suite pass vacuously. Decoding is plain json.Unmarshal: unknown keys in
+// the data are ignored.
 func LoadCases[T any](t testing.TB, suite string) []CaseFile[T] {
 	t.Helper()
 	dir := ConformanceDir(t, suite)

@@ -40,7 +40,8 @@ type fnCtx struct {
 	lambda *Lambda // nil for items
 	// info is the enclosing item's FuncInfo (shared by nested lambdas).
 	info *FuncInfo
-	// itemFn is the enclosing fn declaration (nil in workflows).
+	// isWorkflow reports that the enclosing item is a workflow (lambdas
+	// inherit it from the frame that creates them).
 	isWorkflow bool
 	// calls collects user fns called from the item (for summaries).
 	calls *[]*FnDecl
@@ -733,7 +734,13 @@ func suggest(name string, candidates []string) string {
 	return best
 }
 
-// editDistance is the Levenshtein distance, giving up above limit.
+// editDistance is the Levenshtein distance over bytes. It returns limit+1
+// without computing when the lengths alone differ by more than limit;
+// otherwise it returns the exact distance, which may exceed limit.
+//
+// PORT: distances, the limit len(name)/3+1 and the first-letter tie-break
+// in suggest work on bytes, not chars; for non-ASCII identifiers a
+// char-based port would suggest different names in "Did you mean" help.
 func editDistance(a, b string, limit int) int {
 	if abs(len(a)-len(b)) > limit {
 		return limit + 1

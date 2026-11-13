@@ -1,0 +1,31 @@
+{
+  "diagnostics": [
+    {
+      "code": "E0402",
+      "help": "The program forbids this activity; remove this call or ask a program owner to change activity.prohibited.",
+      "message": "tool `nmap` is prohibited by the program (activity.prohibited `NMAP`)",
+      "primary": {
+        "end": {
+          "col": 18,
+          "line": 11,
+          "offset": 571
+        },
+        "file": "f_E0402_prohibited_tool.ff",
+        "label": "prohibited",
+        "start": {
+          "col": 11,
+          "line": 11,
+          "offset": 564
+        }
+      },
+      "secondary": [],
+      "severity": "error"
+    }
+  ],
+  "inferred_class": "intrusive",
+  "inferred_effects": [
+    "active",
+    "intrusive"
+  ],
+  "ok": false
+}

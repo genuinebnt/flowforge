@@ -69,7 +69,7 @@ func TestRegress_G_OPS_02_ScopeAsServiceRole(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	due, err := repo.DueVersions(ctx, clock.Now(), future.Add(time.Minute), 100)
+	due, err := repo.DueVersions(ctx, clock.Now(), nil, future.Add(time.Minute), 100)
 	if err != nil {
 		t.Fatalf("DueVersions as ff_scope: %v", err)
 	}

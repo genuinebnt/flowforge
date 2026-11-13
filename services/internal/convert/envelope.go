@@ -25,9 +25,8 @@ const (
 	TopicContentChanges = contentstore.TopicContentChanges
 )
 
-func parseAnyTime(s string) (time.Time, error) { return core.ParseTime(s) }
-
-// publicID renders a UUID or public id string with prefix p ("" stays "").
+// publicID renders a UUID or public id string with prefix p ("" and
+// strings that are neither stay as they are).
 func publicID(p core.Prefix, s string) string {
 	if s == "" {
 		return ""
@@ -126,7 +125,10 @@ func EnvelopeFromEngine(e engine.Envelope, traceparent string) (*pb.EventEnvelop
 	return EnvelopeFromOutbox(e.Topic, OutboxFromEngine(e), traceparent)
 }
 
-// GenericOutbox builds the outbox payload of a scope.* or auth.* event.
+// GenericOutbox builds the scope.outbox payload of a scope.* event, whose
+// payload EnvelopeFromOutbox carries as a generic Struct. (auth.* events
+// use the same shape, written by the gateway's identity service with the
+// payload under "generic".)
 func GenericOutbox(eventID core.UUID, typ string, tenant, program core.UUID, at time.Time, payload map[string]any) []byte {
 	p, _ := json.Marshal(payload)
 	o := OutboxJSON{EventID: eventID.String(), Type: typ, Schema: 1, TenantID: tenant.String(), OccurredAt: core.FormatTime(at), Payload: p}

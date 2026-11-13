@@ -105,7 +105,8 @@ func MustStruct(raw []byte) *structpb.Struct {
 	return s
 }
 
-// StructFromMap converts a map (nil gives nil).
+// StructFromMap converts a map (nil, or a map JSON cannot encode, gives
+// nil).
 func StructFromMap(m map[string]any) *structpb.Struct {
 	if m == nil {
 		return nil
@@ -126,7 +127,8 @@ func StructToJSON(s *structpb.Struct) (json.RawMessage, error) {
 	return b, err
 }
 
-// StructToMap converts a Struct to a map (nil for nil).
+// StructToMap converts a Struct to a map (nil for nil or an unencodable
+// Struct).
 func StructToMap(s *structpb.Struct) map[string]any {
 	if s == nil {
 		return nil

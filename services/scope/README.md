@@ -37,8 +37,26 @@ switches and the decision log.
 * `DecisionLog` — reads recorded decisions by id (the egress proxy).
 
 Uuid columns `created_by`/`set_by` keep the uuid of `user:<uuid>` actors
-(nil for service actors). The global kill switch needs the owner role or a
-service identity.
+(nil for service actors).
+
+**Kill switch authorization** (`SetKillSwitch`, GAPS G-SEC-02), fail
+closed:
+
+| Level | Who may set or clear it | Otherwise |
+|---|---|---|
+| `global` | the platform operator only: `platform.Operator()`, actor `service:operator` on the nil tenant | PERMISSION_DENIED `FORBIDDEN_ROLE`, also for tenant owners and other services |
+| `tenant` | a user or API key of that tenant holding `programs:admin` (admin, owner) | PERMISSION_DENIED; another tenant's id is NOT_FOUND |
+| `program` | the same, for one of the tenant's programs | PERMISSION_DENIED; another tenant's program is NOT_FOUND |
+
+Spec 13.6 has no role above a tenant owner, so the operator is an exact
+service actor rather than a membership role. The gateway mints internal
+tokens only for `user:` and `apikey:` actors of a real tenant, so the
+public API cannot reach the global switch; an operator sets it with an
+internal token for `platform.Operator()` minted with the internal signing
+key (for example from a one-off program using `platform.Keys.Tokens`, or
+`devstack.Stack.As(ctx, core.Nil, platform.OperatorActor, auth.RoleViewer)`
+in a dev stack). Service identities such as `service:engine` read switches
+(`GetKillSwitches`) but cannot set any.
 
 Tests: `go test ./services/scope/` (memory; Postgres too with
 `FF_TEST_PG_DSN`): tenant isolation on every RPC, optimistic concurrency,

@@ -524,7 +524,10 @@ func matchTarget(decided string, rq *request) (hostLevel bool, rf *refusal) {
 // Forbidden reports addresses the proxy never connects to unless the scope
 // explicitly allows them: unspecified, loopback, private (RFC 1918, ULA),
 // link-local (including 169.254.169.254, the metadata server), multicast,
-// CGNAT and 0.0.0.0/8.
+// CGNAT, 0.0.0.0/8, and invalid or zoned addresses. IPv4-mapped IPv6 is
+// unmapped first. It is narrower than alerts.IsForbiddenAddr (no
+// documentation or reserved ranges) because scope rules, not this list,
+// decide which public targets are reachable.
 func Forbidden(a netip.Addr) bool {
 	a = a.Unmap()
 	return !a.IsValid() || a.IsUnspecified() || a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() ||

@@ -75,9 +75,10 @@ func CheckAddr(a netip.Addr) error {
 // IsForbiddenAddr reports whether a webhook may not connect to a:
 // invalid, zoned, unspecified, loopback, private (RFC 1918, ULA),
 // link-local, multicast, CGNAT, documentation, benchmarking, reserved,
-// IETF protocol assignment, discard-only, deprecated site-local, and
-// IPv6 transition forms (NAT64, 6to4, IPv4-compatible, mapped) whose
-// embedded IPv4 address is itself forbidden.
+// IETF protocol assignments (all of 2001::/23, Teredo included),
+// discard-only, deprecated site-local, the whole IPv4-compatible range
+// ::/96, and IPv6 transition forms (IPv4-mapped, NAT64 64:ff9b::/96,
+// 6to4 2002::/16) whose embedded IPv4 address is itself forbidden.
 func IsForbiddenAddr(a netip.Addr) bool {
 	if !a.IsValid() || a.Zone() != "" {
 		return true

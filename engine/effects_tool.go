@@ -35,10 +35,10 @@ type execResult struct {
 	dur time.Duration
 }
 
-// doToolCall prepares a tool call (spec 9.5): resolve the spec, verify
-// the InScope arguments against recorded allow decisions (inv_06),
-// re-check the targets, acquire the rate limits, and record
-// effect_started. It also handles the operator resolution of an unknown
+// doToolCall prepares a tool call (spec 9.5): resolve the spec, refuse a
+// tool the pinned scope version prohibits (checkProhibited), verify the
+// InScope arguments against recorded allow decisions (inv_06), re-check
+// the targets, acquire the rate limits, and record effect_started. It also handles the operator resolution of an unknown
 // outcome and the re-execution of an ambiguous call after a crash.
 func (r *runner) doToolCall(s vm.Suspended, e *effectState, ph phase) (*stepResult, error) {
 	name := s.Tool()
@@ -110,6 +110,12 @@ func (r *runner) doToolCall(s vm.Suspended, e *effectState, ph phase) (*stepResu
 		}
 	}
 
+	if st, ee := r.checkProhibited(spec); st != nil || ee != nil {
+		if ee != nil {
+			return nil, r.failEffect(e, ActorEngine, *ee, bytecode.FailScopeDenied)
+		}
+		return st, nil
+	}
 	inputs := s.Args[1:]
 	var proofs []vm.Value
 	for _, a := range inputs {

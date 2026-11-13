@@ -19,6 +19,7 @@ package bus
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +33,10 @@ import (
 // Handlers must be idempotent by event_id (Inbox).
 type Handler func(ctx context.Context, env *pb.EventEnvelope) error
 
-// Bus is the publish/subscribe port. Delivery is at least once and in
-// publication order per subscription.
+// Bus is the publish/subscribe port. Delivery is at least once and, per
+// subscription, in publication order among envelopes with the same
+// OrderingKey; envelopes without a key may arrive in any order (Mem
+// happens to keep publication order, PgBus and Pub/Sub do not).
 type Bus interface {
 	// Publish delivers env to every subscription of topic.
 	Publish(ctx context.Context, topic string, env *pb.EventEnvelope) error
@@ -179,7 +182,7 @@ func (b *Mem) deliver(ctx context.Context, s *subscription, env *pb.EventEnvelop
 	b.mu.Unlock()
 	b.Metrics.BusDeadLetters.Inc(s.topic)
 	b.Logger.ErrorContext(hctx, "bus.dead_letter", "topic", s.topic, "consumer", s.consumer, "event_id", env.GetEventId(), "error", err.Error())
-	if s.topic[len(s.topic)-min(len(s.topic), len(DeadLetterSuffix)):] != DeadLetterSuffix {
+	if !strings.HasSuffix(s.topic, DeadLetterSuffix) {
 		_ = b.Publish(ctx, s.topic+DeadLetterSuffix, env)
 	}
 }

@@ -80,6 +80,9 @@ func IsDenied(t dsl.Type) bool {
 // VariantIndex returns the bytecode variant index of v. The DSL declares
 // Option as Some | None while the VM numbers None 0 and Some 1; every
 // other enum keeps its declaration order.
+//
+// PORT: a Rust compiler targeting Go-compatible bytecode must apply the
+// same mapping (docs/PORTING_RUST.md 5.12).
 func VariantIndex(v *dsl.Variant) uint8 {
 	if IsOption(v.Def) {
 		if v.Name == "Some" {

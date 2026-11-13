@@ -52,7 +52,7 @@ type AccessGrant struct {
 // tenant, the acting principal and its role (spec 13.2).
 type InternalGrant struct {
 	TenantID core.UUID
-	Actor    string // usr_... or a service account id
+	Actor    string // "user:<uuid>", "apikey:<uuid>", "service:<name>" or "schedule:<id>" (spec 3.2)
 	Role     Role
 	// Groups are the actor's tenant role groups (Claims.Groups); at most
 	// MaxGroups valid names, or Internal fails.

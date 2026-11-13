@@ -56,7 +56,18 @@ func decodeJSON(data []byte, v any, mode DecodeMode, extra ...string) error {
 }
 
 // checkStrict walks data alongside the Go type t and reports the first key
-// that t does not define, or any duplicated key.
+// that t does not define, or any duplicated key. Values whose type decodes
+// itself (json.Unmarshaler, encoding.TextUnmarshaler, json.RawMessage,
+// interfaces) and []byte are skipped: they are checked by their own
+// decoder or not at all.
+//
+// PORT: this pre-pass exists because encoding/json matches keys to fields
+// case-insensitively and keeps the last of duplicate keys. serde derive
+// with deny_unknown_fields already rejects unknown and duplicate struct
+// fields; do not add #[serde(alias)] or case-insensitive matching
+// (docs/PORTING_RUST.md 5.3). In Lenient mode Go still fills a field from a
+// case-variant key ("Name" for "name"); a Rust lenient decoder would ignore
+// it, so stored data must only ever contain exact keys.
 func checkStrict(data []byte, t reflect.Type, extra []string) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
@@ -175,7 +186,8 @@ func checkObject(dec *json.Decoder, t reflect.Type, extra []string, path string)
 	return nil
 }
 
-// jsonFields maps the exact JSON names of t's exported fields to their types.
+// jsonFields maps the exact JSON names of t's exported fields to their
+// types. Embedded structs are not flattened; no oam wire type embeds one.
 func jsonFields(t reflect.Type) map[string]reflect.Type {
 	out := make(map[string]reflect.Type, t.NumField())
 	for i := range t.NumField() {
@@ -245,7 +257,9 @@ func marshalTagged(typ string, v any) ([]byte, error) {
 	return append(out, body[1:]...), nil
 }
 
-// peekType reads the exact "type" key of a JSON object.
+// peekType reads the exact "type" key of a JSON object. A duplicated
+// "type" is not caught here (the last one wins); Strict decoding of the
+// whole object reports it afterwards.
 func peekType(data []byte, what error) (string, error) {
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(data, &m); err != nil {

@@ -21,6 +21,9 @@ type TraceEntry struct {
 	Result   EffectResult
 }
 
+// String renders one trace line for test failure messages: path, kind,
+// the first four bytes of the args hash in hex, and "ok <value>" or
+// "failed <code>".
 func (e TraceEntry) String() string {
 	r := "ok " + Display(e.Result.Value)
 	if e.Result.Failed {

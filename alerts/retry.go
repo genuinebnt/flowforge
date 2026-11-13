@@ -31,8 +31,14 @@ func RetryBackoff(attempt int) time.Duration {
 	return retryCeilingGap
 }
 
-// RetryDelay applies full jitter to RetryBackoff: uniform in
-// [MinRetryDelay, backoff].
+// RetryDelay applies full jitter to RetryBackoff: a uniform draw in
+// [0, backoff] (one core.Float64 of rng, truncated to whole nanoseconds),
+// raised to at least MinRetryDelay. Draws below the floor all become
+// MinRetryDelay, so the result is not uniform near it.
+//
+// PORT: seeded tests depend on this exact formula and on float-to-int
+// truncation toward zero (Rust `as i64` truncates the same way for
+// in-range values).
 func RetryDelay(attempt int, rng core.Rng) time.Duration {
 	base := RetryBackoff(attempt)
 	d := time.Duration(core.Float64(rng) * float64(base+1))

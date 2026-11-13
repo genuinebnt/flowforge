@@ -281,7 +281,8 @@ type PolicySource interface {
 }
 
 // ScopeFunc adapts a policy source to graphstore.PolicyScope with a short
-// cache (policies change only when a new scope version is published).
+// cache: a new or newly effective scope version is seen within ttl, and a
+// failed lookup is cached as nil (status unknown) for ttl too.
 func ScopeFunc(src PolicySource, ttl time.Duration) func(tenantID, programID string) *scope.Policy {
 	type entry struct {
 		p  *scope.Policy

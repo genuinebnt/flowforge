@@ -17,9 +17,12 @@ import (
 	"github.com/genuinebnt/flowforge/services/internal/convert"
 )
 
-// PgRepo is Repo over the scope schema (migrations 0003, 0008, 0011). It
-// must connect with a role that bypasses row-level security or is the table
-// owner; every query also filters by tenant explicitly.
+// PgRepo is Repo over the scope schema (migrations 0003, 0008, 0011). Row
+// level security is forced on its tables (0018, G-OPS-02) and PgRepo never
+// sets app.tenant_id, so it must connect as ff_scope, whose role-scoped
+// svc_ff_scope policies admit every tenant's rows (or as a superuser in
+// tests); every query filters by tenant explicitly instead. This is the
+// schema-wide isolation G-SEC-01 records.
 type PgRepo struct {
 	DB bus.DB
 }
@@ -205,13 +208,21 @@ FROM scope.programs p WHERE p.id = $1 AND p.tenant_id = $2`, program.String(), t
 	return v, mapPgErr(err)
 }
 
-// DueVersions implements Repo. It reads every tenant's programs, like
-// KillSwitches, so the role must bypass row-level security (see PgRepo).
-func (r *PgRepo) DueVersions(ctx context.Context, after, upTo time.Time, limit int) ([]DueVersion, error) {
-	rows, err := r.DB.Query(ctx, `SELECT p.tenant_id::text, v.program_id::text, v.version, v.effective_from
+// DueVersions implements Repo. It reads every tenant's programs, which the
+// svc_ff_scope policies allow (see PgRepo).
+func (r *PgRepo) DueVersions(ctx context.Context, after time.Time, from *DueVersion, upTo time.Time, limit int) ([]DueVersion, error) {
+	const cols = `SELECT p.tenant_id::text, v.program_id::text, v.version, v.effective_from
 FROM scope.scope_versions v JOIN scope.programs p ON p.id = v.program_id
-WHERE v.effective_from > v.created_at AND v.effective_from > $1 AND v.effective_from <= $2
-ORDER BY v.effective_from, v.program_id, v.version LIMIT $3`, after, upTo, limit)
+WHERE v.effective_from > v.created_at AND v.effective_from <= $1 AND `
+	const order = ` ORDER BY v.effective_from, v.program_id, v.version LIMIT $2`
+	var rows pgx.Rows
+	var err error
+	if from == nil {
+		rows, err = r.DB.Query(ctx, cols+`v.effective_from > $3`+order, upTo, limit, after)
+	} else {
+		rows, err = r.DB.Query(ctx, cols+`(v.effective_from, v.program_id, v.version) > ($3, $4::uuid, $5)`+order,
+			upTo, limit, from.EffectiveFrom, from.Program.String(), from.Version)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -158,6 +158,13 @@ type jwks struct {
 	Keys []jwk `json:"keys"`
 }
 
+// b64url is unpadded base64url that rejects non-zero trailing bits.
+//
+// PORT: Go's decoder still skips '\r' and '\n' anywhere in the input,
+// even in Strict mode, so a token segment with an embedded newline
+// decodes here while the base64 crate rejects it. Opaque secrets are
+// length-checked first (isSecret), so only JWS segments and JWKS x values
+// are affected.
 var b64url = base64.RawURLEncoding.Strict()
 
 // MarshalJSON renders the JWKS served at /.well-known/jwks.json: active and

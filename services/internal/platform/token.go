@@ -43,9 +43,11 @@ func NewMinterTokens(m *auth.Minter, clock core.Clock) *MinterTokens {
 	return &MinterTokens{Minter: m, Clock: clock, cache: map[string]cachedToken{}}
 }
 
-// cacheKey identifies the claims a token carries. PORT: Identity holds a
-// slice, so it cannot be a Go map key; the NUL-separated form is
-// unambiguous because none of the parts may contain NUL.
+// cacheKey identifies the claims a token carries. Identity holds a slice,
+// which a Go map key cannot, so it is flattened; the NUL-separated form is
+// unambiguous because group names cannot contain NUL (auth.ValidGroupName)
+// and the tenant and role are fixed-alphabet. PORT: a Rust cache can key on
+// the identity itself (derive Hash) instead.
 func cacheKey(id Identity) string {
 	return id.Tenant.String() + "\x00" + id.Actor + "\x00" + string(id.Role) + "\x00" + strings.Join(id.Groups, "\x00")
 }

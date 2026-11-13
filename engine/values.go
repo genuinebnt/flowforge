@@ -26,6 +26,11 @@ func IdempotencyKey(run core.UUID, path string) string {
 // observations and outbox events are derived from the run and effect
 // path, so a worker that re-performs a step after a crash produces the
 // same ids and the repository upserts stay idempotent.
+//
+// PORT: the input is the parts joined by NUL bytes (no length prefixes,
+// unlike oam.EntityUUID), SHA-256, first 16 bytes, then the version and
+// variant bits. These ids are stored rows, so a Rust engine sharing the
+// database must derive them identically.
 func derivedID(parts ...string) core.UUID {
 	h := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	var u core.UUID

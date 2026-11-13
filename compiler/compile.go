@@ -3,13 +3,16 @@ package compiler
 import (
 	"crypto/sha256"
 	"fmt"
+	"slices"
 
 	"github.com/genuinebnt/flowforge/bytecode"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/dsl"
 )
 
-// Version is the default compiler version recorded in META.
+// Version is the default compiler version recorded in META. It is part of
+// the encoded module, so a different compiler (or version) gives a
+// different module hash for the same source.
 const Version = "flowforge-go-compiler 0.1.0"
 
 // Tool is one entry of the tool registry the program is compiled against.
@@ -171,7 +174,12 @@ func selectWorkflow(prog *dsl.Program, name, file string) (*dsl.WorkflowDecl, *d
 }
 
 // ToolSpecSHA256 derives a registry hash for a tool spec that does not
-// carry one: SHA-256 of "name\x00signature\x00effect,effect".
+// carry one: SHA-256 of "name\x00signature\x00effect,effect", with the
+// effects in the given order (not sorted).
+//
+// PORT: the hash lands in the module's TOOLS table and so in the module
+// hash; a Rust compiler compiling against the same registry must derive
+// it the same way.
 func ToolSpecSHA256(s dsl.ToolSpec) [32]byte {
 	h := sha256.New()
 	h.Write([]byte(s.Name))
@@ -190,11 +198,33 @@ func ToolSpecSHA256(s dsl.ToolSpec) [32]byte {
 }
 
 // PolicySHA256 is the META program_policy_sha256 of a policy: SHA-256 of
-// its canonical JSON ({"known":...,"max_class":...}).
+// its canonical JSON ({"known":...,"max_class":...}, plus "prohibited"
+// when the list has a non-empty entry). The prohibited entries are hashed
+// as they match (trimmed, ASCII lower case), sorted and deduplicated, so
+// documents that forbid the same activities hash alike; an empty list
+// leaves the hash of policies compiled before the field existed unchanged.
 func PolicySHA256(p dsl.Policy) [32]byte {
-	b, err := core.CanonicalJSON(map[string]any{"max_class": p.MaxClass.String(), "known": p.Known})
+	m := map[string]any{"max_class": p.MaxClass.String(), "known": p.Known}
+	if pro := normalizedProhibited(p.Prohibited); len(pro) > 0 {
+		m["prohibited"] = pro
+	}
+	b, err := core.CanonicalJSON(m)
 	if err != nil {
 		return sha256.Sum256([]byte(fmt.Sprintf("%v", p)))
 	}
 	return sha256.Sum256(b)
+}
+
+// normalizedProhibited returns the entries of prohibited in
+// core.NormalizeActivity form, without empty ones, sorted and without
+// duplicates.
+func normalizedProhibited(prohibited []string) []string {
+	var out []string
+	for _, e := range prohibited {
+		if e = core.NormalizeActivity(e); e != "" {
+			out = append(out, e)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }

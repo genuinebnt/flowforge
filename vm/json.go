@@ -334,6 +334,13 @@ func (j *jsonEncoder) slice(vs []Value, depth int) ([]any, error) {
 	return out, nil
 }
 
+// minTime and maxTime bound the instants a Time (int64 Unix nanoseconds)
+// can hold.
+var (
+	minTime = time.Unix(0, math.MinInt64)
+	maxTime = time.Unix(0, math.MaxInt64)
+)
+
 // FromJSON decodes JSON into a value of type t (the inverse of ToJSON).
 // Records must have exactly their declared fields, except that missing
 // Option fields decode as None. Domain scalars are validated and
@@ -440,6 +447,13 @@ func (d *jsonDecoder) value(t Type, x any, depth int) (Value, error) {
 		tm, err := time.Parse(time.RFC3339Nano, s)
 		if err != nil {
 			return Value{}, jsonErr("bad time %q", s)
+		}
+		// UnixNano is undefined outside int64 nanoseconds (years 1677 to
+		// 2262) and silently wraps, so reject such times explicitly
+		// (TestRegress_VMFromJSONTimeOutOfRange). PORT: chrono's
+		// timestamp_nanos_opt returns None in the same cases.
+		if tm.Before(minTime) || tm.After(maxTime) {
+			return Value{}, jsonErr("time %q is outside the representable range", s)
 		}
 		return Time(tm.UnixNano()), nil
 	case TString, TEntityRef, TFqdn, TIPAddress, TNetblock, TAsn, TURL:

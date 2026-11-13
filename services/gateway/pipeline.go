@@ -129,13 +129,29 @@ func rewriteVerb(p string) (string, bool) {
 	return p[:i+1] + last[:j] + "/:" + last[j+1:], true
 }
 
-func clientIP(r *http.Request, trustXFF bool) string {
-	if trustXFF {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			first, _, _ := strings.Cut(xff, ",")
-			if a, err := netip.ParseAddr(strings.TrimSpace(first)); err == nil {
+// clientIP is the address the rate limits and identity throttles key an
+// unauthenticated caller by: with hops > 0 the hops-th X-Forwarded-For
+// entry from the right (Config.ForwardedHops), else the connection's
+// address, in canonical text (IPv4-mapped IPv6 unmapped, RFC 5952 IPv6),
+// or "unknown". Every X-Forwarded-For line counts, in order, as one list
+// (RFC 7230 3.2.2).
+//
+// The first entry, used before G-SVC-17, is whatever the client sent: a
+// proxy that appends keeps it, so a client could pick its own throttle
+// key on every request.
+func clientIP(r *http.Request, hops int) string {
+	if hops > 0 {
+		var xs []string
+		for _, line := range r.Header.Values("X-Forwarded-For") {
+			for _, x := range strings.Split(line, ",") {
+				xs = append(xs, strings.TrimSpace(x))
+			}
+		}
+		if len(xs) >= hops {
+			if a, err := netip.ParseAddr(xs[len(xs)-hops]); err == nil {
 				return a.Unmap().String()
 			}
+			return "unknown"
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -155,7 +171,7 @@ func (s *Server) wrap(rt *route) http.Handler {
 		ctx := r.Context()
 		reqID, _ := ctx.Value(keyReqID).(string)
 		orig, _ := ctx.Value(keyOrigPath).(string)
-		c := &call{s: s, w: w, r: r, ctx: ctx, rt: rt, reqID: reqID, ip: clientIP(r, s.cfg.TrustForwardedFor), path: orig}
+		c := &call{s: s, w: w, r: r, ctx: ctx, rt: rt, reqID: reqID, ip: clientIP(r, s.cfg.ForwardedHops), path: orig}
 		if err := s.serve(c); err != nil {
 			c.fail(err)
 		}
@@ -465,7 +481,8 @@ func listOf[T any](items []T, next string) list {
 	return list{Items: items, NextPageToken: nextToken(next)}
 }
 
-// etag computes a weak-free strong ETag from a resource's JSON form.
+// etag is the strong ETag of a resource (spec 12.1 Concurrency): the first
+// 20 hex digits of the SHA-256 of its canonical JSON, quoted.
 func etag(v any) string {
 	b, err := core.CanonicalJSON(v)
 	if err != nil {
@@ -474,7 +491,11 @@ func etag(v any) string {
 	return `"` + core.SHA256Hex(b)[:20] + `"`
 }
 
-// checkIfMatch enforces If-Match against the current representation.
+// checkIfMatch enforces If-Match against the current representation:
+// absent or "*" passes, otherwise one listed tag must equal etag(current)
+// exactly (strong comparison, RFC 9110 13.1.1; a W/ tag never matches),
+// else 412 PRECONDITION_FAILED. The caller then writes separately, so two
+// writers holding the same tag can both pass (G-SVC-10).
 func (c *call) checkIfMatch(current any) error {
 	im := strings.TrimSpace(c.r.Header.Get("If-Match"))
 	if im == "" || im == "*" {

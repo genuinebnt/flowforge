@@ -168,7 +168,7 @@ func wantKind(t testing.TB, what string, err error, kind core.Kind) {
 
 func isNotFound(err error) bool { return errors.Is(err, core.ErrNotFound) }
 
-// fqdn, ip, ... build fixture observations.
+// ent, dns, simple, port and obs build fixture observations.
 func ent(ref string, a oam.Asset) oam.ObservedEntity { return oam.ObservedEntity{Ref: ref, Asset: a} }
 
 func dns(from, to string, rr int) oam.ObservedEdge {

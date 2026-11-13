@@ -15,7 +15,8 @@ type Config struct {
 	FuelSlice int64
 	// LeaseTTL is the lease duration (default 30 s, spec 9.4).
 	LeaseTTL time.Duration
-	// RenewEvery is how often a held lease is renewed (default 10 s).
+	// RenewEvery is how often a held lease is renewed (default LeaseTTL/3,
+	// 10 s with the default TTL).
 	RenewEvery time.Duration
 	// PollInterval is the real-time period of the per-run watchdog that
 	// renews the lease and notices cancellation, kill switches and the

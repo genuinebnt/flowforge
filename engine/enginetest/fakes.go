@@ -184,6 +184,8 @@ type Program struct {
 
 // FakeCompiler is the engine.Compiler double: it maps source texts to
 // hand-assembled modules. Unknown sources produce an E0101 diagnostic.
+// Like the real checker it reports E0402 when a program policy is given
+// and the class exceeds max_class or a pinned tool is prohibited.
 type FakeCompiler struct {
 	mu       sync.Mutex
 	programs map[string]Program
@@ -242,11 +244,29 @@ func (c *FakeCompiler) Compile(ctx context.Context, req engine.CompileRequest) (
 			res.Class = cl
 		}
 	}
+	e0402 := func(msg string) engine.Diagnostic {
+		return engine.Diagnostic{Code: "E0402", Severity: "error", Message: msg, Secondary: []engine.SourceSpan{},
+			Primary: engine.SourceSpan{File: file, Start: engine.SourcePos{Line: 1, Col: 1}, End: engine.SourcePos{Line: 1, Col: 1}}}
+	}
 	if req.Policy != nil && res.Class > req.Policy.MaxClass {
-		res.Diagnostics = append(res.Diagnostics, engine.Diagnostic{Code: "E0402", Severity: "error",
-			Message: "effect exceeds the program's max_class", Secondary: []engine.SourceSpan{},
-			Primary: engine.SourceSpan{File: file, Start: engine.SourcePos{Line: 1, Col: 1}, End: engine.SourcePos{Line: 1, Col: 1}}})
+		res.Diagnostics = append(res.Diagnostics, e0402("effect exceeds the program's max_class"))
 		return res, nil
+	}
+	if req.Policy != nil {
+		// The real checker's prohibited rule (dsl checkProhibited), over the
+		// tools the module pins.
+		for i := range m.Tools {
+			t, ok := tools[m.ToolName(i)]
+			if !ok {
+				continue
+			}
+			if entry, bad := core.ProhibitedActivity(req.Policy.Prohibited, t.Name, t.EffectClass); bad {
+				res.Diagnostics = append(res.Diagnostics, e0402(fmt.Sprintf("tool `%s` is prohibited by the program (activity.prohibited `%s`)", t.Name, entry)))
+			}
+		}
+		if engine.HasErrors(res.Diagnostics) {
+			return res, nil
+		}
 	}
 	b, err := m.Encode()
 	if err != nil {

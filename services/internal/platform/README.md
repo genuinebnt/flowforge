@@ -22,3 +22,8 @@ shutdown).
   `FF_SIGNING_KEY_<KID>`), `DecodeSeed`.
 * `Identity.Groups` (the token's `groups` claim) reaches the engine as
   extra `Caller.Roles`.
+* Actor kinds: `IsMember` (`user:`, `apikey:`; spec 13.6 roles apply),
+  `IsService` (`service:<name>`), and `IsOperator`: the platform operator,
+  `OperatorActor` (`service:operator`) on the nil tenant (`Operator()`),
+  the only identity the scope service lets set the global kill switch
+  (GAPS G-SEC-02).

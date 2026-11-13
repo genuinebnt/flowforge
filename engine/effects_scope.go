@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 
@@ -154,8 +155,9 @@ func (r *runner) recheck(spec ToolSpec, e *effectState, proofs []vm.Value) (*sco
 }
 
 // revalidate applies a scope version change at an effect boundary: the
-// run's class must fit the new max_class and every target the run holds
-// an allow decision for must still be allowed. The decisions are
+// run's class must fit the new max_class, no tool the module pins may be
+// prohibited by it, and every target the run holds an allow decision for
+// must still be allowed. The decisions are
 // recorded; the run then continues pinned to the new version or pauses.
 //
 // If the scope service cannot be reached (the policy cannot be loaded for
@@ -173,6 +175,12 @@ func (r *runner) revalidate(version int32, path string) (paused, retry bool, err
 		return false, true, nil
 	case perr != nil || pol.MaxClass() < r.ver.InferredClass:
 		ok = false
+	default:
+		// The new version may prohibit a tool the module pins (spec 4.1
+		// activity.prohibited); such a run cannot continue under it.
+		if _, _, bad := prohibitedTool(pol.Prohibits, r.lm.tools); bad {
+			ok = false
+		}
 	}
 	var evs []pending
 	if ok {
@@ -241,3 +249,49 @@ func (p policySnapshot) Allows(target vm.Value) bool {
 type denyAll struct{}
 
 func (denyAll) Allows(vm.Value) bool { return false }
+
+// prohibitedTool returns the first tool of tools, in name order, that
+// match (Policy.Prohibits, or core.ProhibitedActivity over a list) finds
+// prohibited by its name or effect class, with the matching entry.
+//
+// PORT: Go map iteration is random; names are sorted so the reported tool
+// does not depend on it.
+func prohibitedTool(match func(...string) (string, bool), tools map[string]ToolSpec) (tool, entry string, ok bool) {
+	for _, n := range slices.Sorted(maps.Keys(tools)) {
+		t := tools[n]
+		if entry, ok := match(t.Name, t.EffectClass); ok {
+			return t.Name, entry, true
+		}
+	}
+	return "", "", false
+}
+
+// checkProhibited is the authoritative activity.prohibited check (spec
+// 4.1; scope OPEN_QUESTIONS 19), made right before a tool effect runs:
+// the tool's name and effect class against the policy of the run's pinned
+// scope version, which re-validation moves forward when a new version is
+// published. It does not trust the compile-time or submit-time checks,
+// since the document may have changed since. A run without a program has
+// no policy, so nothing is prohibited. It fails closed: a pinned version
+// that cannot be found fails the effect, and an unreachable scope service
+// makes the call wait and ask again, never run. A prohibited tool fails
+// the effect with scope_denied and the decision reason
+// class_exceeds_program (the closest reason spec 11 lists).
+func (r *runner) checkProhibited(spec ToolSpec) (*stepResult, *EffectError) {
+	if r.rec.ProgramID.IsZero() {
+		return nil, nil
+	}
+	ver := r.log.scopeVersion
+	pol, err := r.e.d.Scope.Policy(r.ctx, r.rec.Tenant, r.rec.ProgramID, ver)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return nil, &EffectError{Code: "scope_denied", Message: fmt.Sprintf("scope version %d of the program was not found", ver)}
+	case err != nil:
+		return waitUntil(r.now().Add(r.e.cfg.RateLimitErrorBackoff), reasonScopeUnavailable), nil
+	}
+	if entry, bad := pol.Prohibits(spec.Name, spec.EffectClass); bad {
+		return nil, &EffectError{Code: "scope_denied", Message: fmt.Sprintf("tool %s is prohibited by scope version %d (activity.prohibited %q): %s",
+			spec.Name, ver, entry, scope.ReasonClassExceedsProgram)}
+	}
+	return nil, nil
+}

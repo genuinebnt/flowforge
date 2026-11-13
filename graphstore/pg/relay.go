@@ -19,8 +19,11 @@ import (
 // svc_ff_graph policy of migration 0018 (or a superuser); the entity
 // snapshots it attaches are read with app.tenant_id set to each event's
 // tenant, so ff_graph stays subject to row-level security on every other
-// graph table (migrations/OPEN_QUESTIONS.md 12). Concurrent relays skip each other's rows
-// (FOR UPDATE SKIP LOCKED).
+// graph table (migrations/OPEN_QUESTIONS.md 12). One relay publishes at a
+// time (a transaction-scoped advisory lock; the others publish nothing
+// until it commits), so graph.changes leave in seq order and one
+// program's events never overtake each other (spec 11.7 ordering key;
+// GAPS G-SVC-25).
 type Relay struct {
 	DB DB
 	// Publish delivers one batch, in seq order; an error leaves the batch
@@ -48,8 +51,18 @@ func (r *Relay) RunOnce(ctx context.Context) (int, error) {
 		return 0, graphstore.Internal("relay begin", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	// With row locks alone (SKIP LOCKED) a second graph replica's relay
+	// took the rows after the first one's batch and could publish them
+	// first.
+	var mine bool
+	if err := tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtextextended('ff_outbox:graph.change_events', 0))`).Scan(&mine); err != nil {
+		return 0, graphstore.Internal("relay lock", err)
+	}
+	if !mine {
+		return 0, nil
+	}
 	rows, err := tx.Query(ctx, `SELECT `+changeCols+` FROM graph.change_events c
-		WHERE c.published_at IS NULL ORDER BY c.seq LIMIT $1 FOR UPDATE SKIP LOCKED`, n)
+		WHERE c.published_at IS NULL ORDER BY c.seq LIMIT $1 FOR UPDATE`, n)
 	if err != nil {
 		return 0, graphstore.Internal("relay read", err)
 	}

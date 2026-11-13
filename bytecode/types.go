@@ -30,6 +30,12 @@ const (
 )
 
 // Variant indices of the fixed enums.
+//
+// PORT: Option is numbered None = 0, Some = 1 although the DSL declares
+// `Some | None`; the compiler maps the two (compiler/internal/abi
+// VariantIndex). Every other enum keeps declaration order. A compiler
+// emitting Go-compatible bytecode must do the same (docs/PORTING_RUST.md
+// 5.12).
 const (
 	VariantNone uint8 = 0
 	VariantSome uint8 = 1

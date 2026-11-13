@@ -48,7 +48,9 @@ func (l *lexer) peekByte(i int) byte {
 	return 0
 }
 
-// advance consumes one code point (or one invalid byte).
+// advance consumes one code point (or one invalid byte) and keeps line
+// and col current: col counts code points, an invalid byte counting as
+// one (spec 7.7 positions).
 func (l *lexer) advance() rune {
 	if l.off >= len(l.src) {
 		return 0
@@ -223,7 +225,14 @@ var oneCharOps = map[byte]TokenKind{
 	'}': TokRBrace, '#': TokHash,
 }
 
-// number lexes an integer, float or duration literal.
+// number lexes an integer, float or duration literal. Underscores are
+// digit separators anywhere after the first digit ("1_000", even "1__0"
+// and "1_"). Integers must fit in int64 without a sign (the unary minus is
+// a separate token, which is why -9223372036854775808 cannot be written,
+// dsl/OPEN_QUESTIONS.md); durations must fit in int64 nanoseconds; floats
+// are rejected when they overflow to Inf, while underflow silently gives
+// 0 (strconv.ParseFloat, like Rust's str::parse::<f64>, rounds
+// correctly and returns 0 without error).
 func (l *lexer) number(start Pos) Token {
 	// Hexadecimal integer.
 	if l.src[l.off] == '0' && (l.peekByte(1) == 'x' || l.peekByte(1) == 'X') {

@@ -68,7 +68,10 @@ func (c *Client) CurrentVersion(ctx context.Context, tenant, program core.UUID) 
 }
 
 // Policy implements engine.Scope: the version's document compiled locally
-// (no resolver: the engine uses it for passive answers and max_class only).
+// (no resolver: the engine uses it for passive scope.allows answers,
+// max_class and activity.prohibited, never for active decisions, which go
+// through Check). Versions are immutable, so a numbered version is cached;
+// version 0 is always fetched.
 func (c *Client) Policy(ctx context.Context, tenant, program core.UUID, version int32) (*scope.Policy, error) {
 	k := policyKey{program, version}
 	c.mu.Lock()

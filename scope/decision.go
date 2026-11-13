@@ -48,7 +48,9 @@ type Decision struct {
 // allow, including the zero Decision, is a denial.
 func (d Decision) Allowed() bool { return d.Result == ResultAllow }
 
-// Equal reports whether d and o are the same decision.
+// Equal reports whether d and o are the same decision: every field equal,
+// PinnedIPs in the same order, DecidedAt the same instant (time.Time.Equal,
+// so the location is ignored).
 func (d Decision) Equal(o Decision) bool {
 	return d.ID == o.ID && d.Result == o.Result && d.Reason == o.Reason && d.RuleID == o.RuleID &&
 		d.ScopeVersion == o.ScopeVersion && d.Target == o.Target &&
@@ -67,7 +69,11 @@ type decisionJSON struct {
 }
 
 // MarshalJSON renders the REST shape of spec 12.5, with decided_at in the
-// canonical millisecond UTC form.
+// canonical millisecond UTC form (omitted when zero) and pinned_ips always
+// an array, never null.
+//
+// PORT: netip.Addr marshals as its String form: dotted quad for IPv4 and
+// RFC 5952 compressed lowercase for IPv6 (Rust's Ipv6Addr Display matches).
 func (d Decision) MarshalJSON() ([]byte, error) {
 	j := decisionJSON{
 		ID: d.ID, Result: d.Result, Reason: d.Reason, RuleID: d.RuleID,
@@ -82,7 +88,9 @@ func (d Decision) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j)
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaler for the MarshalJSON shape. It
+// is tolerant (unknown fields ignored, spec 1.2 responses) and turns a
+// missing or null pinned_ips into an empty slice.
 func (d *Decision) UnmarshalJSON(b []byte) error {
 	var j decisionJSON
 	if err := json.Unmarshal(b, &j); err != nil {

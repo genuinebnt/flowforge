@@ -23,8 +23,11 @@ programs of spec 7.1. A name segment that is a code (`e_E0102_...`,
 no errors.
 
 The policy object is `{"max_class": "none|passive|active|intrusive",
-"known": true}`. Without one the checker checks internal consistency only
-(no E0402/E0403).
+"known": true, "prohibited": [...]}` (`prohibited` optional). A workflow
+that may call a tool whose name or declared effect a `prohibited` entry
+names (trimmed, ASCII case-insensitive) gets E0402 at the tool's first
+use. Without a policy the checker checks internal consistency only (no
+E0402/E0403).
 
 Check cases are analyzed with the file name `<case>.ff`. Diagnostics use
 the shape of spec 7.7 (`code`, `severity`, `message`, `primary`,

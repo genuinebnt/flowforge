@@ -115,3 +115,33 @@ brackets).
     allow pins the answer. Windows still do not apply to passive work. The
     engine's own passive checks do not request resolution (a passive name
     that does not resolve stays allowed). [resolved_ip.json `passive_*`]
+19. **activity.prohibited.** Spec 4.1 shows `"prohibited": ["dos",
+    "social_engineering", "credential_stuffing"]` but says nothing about
+    what an entry matches, where it is enforced, or which reason a refusal
+    carries. Technique names have no mapping to tools in the tool registry
+    (ToolSpec has no technique field). The reading chosen
+    (`core.ProhibitedActivity`): an entry matches a tool call when it
+    equals the tool's name or one of its declared effect names (its effect
+    class: passive, active, intrusive, read, write, financial_write, llm),
+    after trimming ASCII white space and folding ASCII case; empty entries
+    match nothing, and an entry no tool carries (such as `dos`) has no
+    effect. It is enforced, like max_class, at every point that knows the
+    tools:
+    * compile time: the policy check reports **E0402** at the first use of
+      each prohibited tool (spec 7.7 has no code for it; E0402 "effect
+      exceeds program class" is the closest);
+    * submission: `SubmitRun` checks the tools the module pins against the
+      current scope document, since it may have changed after
+      registration (PERMISSION_DENIED/`SCOPE_DENIED`, as for max_class);
+    * scope re-validation: a new version that prohibits a pinned tool
+      pauses the run, as a lower max_class does;
+    * effect time (authoritative): before every tool effect the engine
+      checks the tool against the policy of the run's pinned version and
+      fails the effect with `scope_denied` (fail code scope_denied), the
+      message naming the decision reason **`class_exceeds_program`**, the
+      closest of the spec 11 reasons. A pinned version that is not found
+      fails the effect; an unreachable scope service makes the call wait.
+    `Policy.Check` is not told the tool and ignores the list, so
+    conformance decisions are unchanged.
+    [dsl `f_E0402_prohibited_*`, `f_prohibited_unused_ok`,
+    `TestRegress_G_CORE_09_*`]

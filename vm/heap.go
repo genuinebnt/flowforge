@@ -17,6 +17,13 @@ import "github.com/genuinebnt/flowforge/bytecode"
 // counters are part of the snapshot and the object graph is restored with
 // its sharing intact, so the decision is deterministic across restore.
 
+// valueBytes and the *Bytes functions below are the accounting sizes of
+// values and heap objects, modelled on the Go layout (a Value is 32 bytes,
+// a slice or string header 24).
+//
+// PORT: they are a fixed cost model, not measurements: a Rust VM must use
+// the same constants, not size_of, or heap-limit failures will happen at
+// different points and replay of a recorded limit_exceeded diverges.
 const valueBytes = 32
 
 type fault struct {

@@ -128,6 +128,8 @@ func (c Config) normalized() (Config, error) {
 // fourth par_map child of effect 14 (spec 8.6).
 type Path []uint32
 
+// String returns the components in decimal joined by "/" ("" for an
+// empty path). The engine stores this text as the effect path.
 func (p Path) String() string {
 	var sb strings.Builder
 	for i, c := range p {

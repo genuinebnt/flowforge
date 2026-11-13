@@ -22,6 +22,8 @@ import (
 	"github.com/genuinebnt/flowforge/services/gateway/gatewayd"
 )
 
+// version is set at link time with -ldflags "-X main.version=..." and
+// printed in the dev stack banner.
 var version = "dev"
 
 func main() {

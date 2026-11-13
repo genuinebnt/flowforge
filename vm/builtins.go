@@ -176,6 +176,12 @@ func (vm *VM) callBuiltin(id bytecode.BuiltinID, a []Value) (Value, *fault) {
 			}
 			return vm.newStr(sb.String())
 		}
+	// PORT: trim, lower and upper are strings.TrimSpace (Unicode
+	// White_Space), strings.ToLower and strings.ToUpper, which map each rune
+	// with Unicode simple case mapping: upper("ß") stays "ß" and
+	// lower("İ") is "i", where Rust's str::to_uppercase/to_lowercase give
+	// "SS" and "i\u0307". Use per-char simple mappings; len counts code
+	// points.
 	case bytecode.BTrim:
 		if str1 {
 			return vm.newStr(strings.TrimSpace(a[0].Str()))
@@ -206,6 +212,10 @@ func (vm *VM) callBuiltin(id bytecode.BuiltinID, a []Value) (Value, *fault) {
 			return vm.some(Int(n))
 		}
 	case bytecode.BParseFloat:
+		// ParseFloat also accepts Go syntax Rust's f64::from_str lacks
+		// (hex floats, underscores); those are rejected explicitly so both
+		// accept the same decimal forms. NaN and infinities are None
+		// because VM floats are always finite.
 		if str1 {
 			s := a[0].Str()
 			x, err := strconv.ParseFloat(s, 64)

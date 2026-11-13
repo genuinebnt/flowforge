@@ -32,6 +32,10 @@ import (
 // and occupies ceil(record / 4096) sectors. Every section carries its own
 // CRC32C in the header and the trailer covers the whole file, so any
 // flipped byte fails OpenSegment with ErrChecksum (vec_007).
+//
+// PORT: this layout is shared with the Rust implementation
+// (docs/PORTING_RUST.md 4.4, vecindex/OPEN_QUESTIONS.md); floats are their
+// IEEE-754 little-endian bits and CRC32C is the Castagnoli polynomial.
 const (
 	// SectorSize is the I/O unit of the segment layout.
 	SectorSize = 4096

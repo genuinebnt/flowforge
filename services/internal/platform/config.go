@@ -18,8 +18,8 @@ import (
 )
 
 // Config is the environment of one service binary (spec 17.5). Only cmd
-// mains read the environment (ConfigFromEnv); everything below them gets
-// this struct.
+// mains and services/app read the environment (ConfigFromEnv with
+// os.Getenv); everything below them gets this struct.
 type Config struct {
 	Service    string
 	Env        string // FF_ENV: dev or prod

@@ -314,9 +314,22 @@ func (s *Server) ListScopeVersions(ctx context.Context, req *pb.ListScopeVersion
 	return out, nil
 }
 
-// SetKillSwitch implements ScopeService. A tenant switch must name the
-// caller's tenant and a program switch one of its programs; the global
-// switch needs the owner role or a service identity.
+// SetKillSwitch implements ScopeService. Authorization is by level and
+// fails closed (GAPS G-SEC-02; spec 13.6 "authorization is evaluated in
+// each service from the internal token"):
+//
+//   - global: only the platform operator (platform.Identity.IsOperator);
+//     every tenant member, owners included, and every other service is
+//     PERMISSION_DENIED FORBIDDEN_ROLE, since the switch stops every
+//     tenant's runs (spec 4.4, 18.2).
+//   - tenant: a member (user or API key) holding programs:admin (admin or
+//     owner, spec 13.6 "use kill switch"); target_id, when given, must be
+//     the caller's tenant (NOT_FOUND otherwise, as for any foreign id).
+//   - program: the same permission; target_id must be one of the caller's
+//     programs (NOT_FOUND otherwise).
+//
+// Clearing a switch (enabled false) needs the same grant as setting it.
+// An unknown level is INVALID_ARGUMENT.
 func (s *Server) SetKillSwitch(ctx context.Context, req *pb.SetKillSwitchRequest) (*pb.KillSwitch, error) {
 	id, err := platform.MustIdentity(ctx)
 	if err != nil {
@@ -326,9 +339,17 @@ func (s *Server) SetKillSwitch(ctx context.Context, req *pb.SetKillSwitchRequest
 	var program core.UUID
 	switch ks.Level {
 	case LevelGlobal:
-		if !id.IsService() && id.Role != auth.RoleOwner {
-			return nil, core.Errorf(core.KindPermissionDenied, core.ReasonForbiddenRole, "the global kill switch needs the owner role")
+		if !id.IsOperator() {
+			return nil, core.Errorf(core.KindPermissionDenied, core.ReasonForbiddenRole, "the global kill switch needs the platform operator")
 		}
+	case LevelTenant, LevelProgram:
+		if !id.IsMember() || !auth.Can(id.Role, auth.PermProgramsAdmin) {
+			return nil, core.Errorf(core.KindPermissionDenied, core.ReasonForbiddenRole, "a %s kill switch needs %s (admin or owner)", ks.Level, auth.PermProgramsAdmin)
+		}
+	default:
+		return nil, convert.Invalid("level", "level must be global, tenant or program")
+	}
+	switch ks.Level {
 	case LevelTenant:
 		t, err := convert.OptionalID(core.PrefixTenant, "target_id", req.GetTargetId())
 		if err != nil {
@@ -346,16 +367,22 @@ func (s *Server) SetKillSwitch(ctx context.Context, req *pb.SetKillSwitchRequest
 			return nil, repoErr("program", err)
 		}
 		ks.Target = program
-	default:
-		return nil, convert.Invalid("level", "level must be global, tenant or program")
 	}
+	// The event carries the caller's tenant, the nil tenant for the
+	// operator. Consumers must not scope a global switch by it: the engine
+	// cancels every tenant's runs at that level (services/engine
+	// HandleScopeEvent).
 	evs := []Event{{ID: s.newID(), Type: EventKillSwitchSet, Tenant: id.Tenant, Program: program, At: ks.SetAt,
 		Payload: map[string]any{"level": ks.Level, "target_id": killProto(ks).TargetId, "enabled": ks.Enabled, "reason": ks.Reason}}}
 	ks, err = s.o.Repo.SetKillSwitch(ctx, ks, evs)
 	if err != nil {
 		return nil, repoErr("kill switch", err)
 	}
-	s.o.Logger.WarnContext(ctx, "scope.kill_switch", "level", ks.Level, "target_id", killProto(ks).TargetId, "enabled", ks.Enabled)
+	// The log line is the audit record of who set it (spec 18.2): the
+	// set_by column keeps only user uuids, so a service or operator actor
+	// is visible only here.
+	s.o.Logger.WarnContext(ctx, "scope.kill_switch", "level", ks.Level, "target_id", killProto(ks).TargetId, "enabled", ks.Enabled,
+		"set_by", id.Actor, "tenant_id", id.TenantPublicID())
 	return killProto(ks), nil
 }
 
@@ -532,15 +559,22 @@ const ActivationLookback = 24 * time.Hour
 
 // ActivateDue publishes scope.version_published for every future-dated
 // version whose effective_from lies in (after, upTo], and returns the
-// effective_from of the last one announced (after when none). Event ids
-// are derived from (program, version), so a repeated window re-emits the
-// same ids and the outboxes and consumer inboxes drop the duplicates.
+// effective_from of the last one announced (after when none, or on an
+// error, so the caller retries the whole window; re-announcing is
+// harmless, see below). It pages
+// through them by (effective_from, program, version), so any number of
+// versions sharing one effective_from (round times such as midnight are
+// common) are all announced (G-CORE-10). Event ids are derived from
+// (program, version), so a repeated window re-emits the same ids and the
+// outboxes and consumer inboxes drop the duplicates.
 func (s *Server) ActivateDue(ctx context.Context, after, upTo time.Time) (time.Time, error) {
+	const page = 100
 	last := after
+	var from *DueVersion
 	for {
-		due, err := s.o.Repo.DueVersions(ctx, last, upTo, 100)
+		due, err := s.o.Repo.DueVersions(ctx, after, from, upTo, page)
 		if err != nil {
-			return last, err
+			return after, err
 		}
 		if len(due) == 0 {
 			return last, nil
@@ -552,17 +586,14 @@ func (s *Server) ActivateDue(ctx context.Context, after, upTo time.Time) (time.T
 					"effective_from": core.FormatTime(d.EffectiveFrom)}})
 		}
 		if err := s.o.Repo.AppendEvents(ctx, evs); err != nil {
-			return last, err
+			return after, err
 		}
-		next := due[len(due)-1].EffectiveFrom
-		if len(due) < 100 || !next.After(last) {
-			// The cursor is exclusive, so if more than 100 versions share
-			// one effective_from the ones past this page are never
-			// announced; accepted, since timestamps come from separate
-			// PutScope calls and practically never collide.
-			return next, nil
+		end := due[len(due)-1]
+		last = end.EffectiveFrom
+		if len(due) < page {
+			return last, nil
 		}
-		last = next
+		from = &end
 	}
 }
 

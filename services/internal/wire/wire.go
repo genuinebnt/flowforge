@@ -24,10 +24,14 @@ import (
 
 // Env is what every service is built from.
 type Env struct {
-	Service  string
-	Logger   *slog.Logger
-	Metrics  *platform.Metrics
-	Clock    core.Clock
+	// Service names the service in ErrorInfo.domain, logs and the health
+	// check.
+	Service string
+	Logger  *slog.Logger
+	Metrics *platform.Metrics
+	Clock   core.Clock
+	// Tokens mints the internal tokens of outgoing calls (spec 11.1);
+	// Verifier checks those of incoming calls.
 	Tokens   platform.TokenSource
 	Verifier platform.TokenVerifier
 	// IDTokens adds Google ID tokens to calls to https:// (Cloud Run)
@@ -37,8 +41,9 @@ type Env struct {
 	// (LISTEN connections).
 	DB  *pgxpool.Pool
 	DSN string
-	// Bus is nil when no event bus is available (standalone binaries: no
-	// Pub/Sub adapter yet); outboxes then keep their rows unpublished.
+	// Bus is the event bus (busconfig.Resolve picks Pub/Sub, the Postgres
+	// bus or the in-process one; G-SVC-01). Nil means none: outboxes then
+	// keep their rows unpublished and nothing is consumed (some tests).
 	Bus bus.Bus
 	// Blobs is the object store for raw tool output, snapshot files and
 	// run archives (services/internal/blob); nil keeps raw output out of
@@ -63,7 +68,9 @@ type Component struct {
 	// Handler, when set, replaces the gRPC/HTTP handler entirely (the
 	// egress proxy is a plain HTTP proxy).
 	Handler http.Handler
-	// Run are background loops (workers, relays, consumers).
+	// Run are background loops (workers, relays, consumers). They stop
+	// with the context; one that fails earlier is logged and the service
+	// keeps serving without it.
 	Run []func(context.Context) error
 	// Ready is an optional readiness check.
 	Ready func(context.Context) error
@@ -74,7 +81,9 @@ type Component struct {
 	ServerOptions []grpc.ServerOption
 }
 
-// Serve serves c on lis until ctx is done, running its background loops.
+// Serve serves c on lis until ctx is done (or the server fails), running
+// its background loops; it then stops the loops, waits for them, calls
+// c.Close and returns the server's error.
 func Serve(ctx context.Context, env *Env, lis net.Listener, c *Component) error {
 	health := platform.NewHealth()
 	if c.Ready != nil {
@@ -115,10 +124,3 @@ func Serve(ctx context.Context, env *Env, lis net.Listener, c *Component) error 
 	}
 	return err
 }
-
-type lockedRng struct {
-	mu sync.Mutex
-	r  core.Rng
-}
-
-func (l *lockedRng) Uint64() uint64 { l.mu.Lock(); defer l.mu.Unlock(); return l.r.Uint64() }

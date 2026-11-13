@@ -2,6 +2,7 @@ package bus_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -120,5 +121,60 @@ func TestRegress_GSVC01_PgBusDurableAcrossProcesses(t *testing.T) {
 	n, err := second.Cleanup(ctx, bus.Retention{})
 	if err != nil || n != 4 {
 		t.Fatalf("cleanup removed %d rows (%v), want 2 deliveries + 2 messages", n, err)
+	}
+}
+
+// TestRegress_G_SVC_25_PgOutboxRelaysKeepKeyOrder: two relays (two engine
+// replicas) claimed one outbox with FOR UPDATE SKIP LOCKED, so while the
+// first was publishing a batch the second took the next rows and could
+// publish an event of the same run before an earlier one. A second relay
+// now claims nothing until the first commits.
+func TestRegress_G_SVC_25_PgOutboxRelaysKeepKeyOrder(t *testing.T) {
+	ctx := context.Background()
+	pool := pgPool(t)
+	for i := 1; i <= 2; i++ {
+		if _, err := pool.Exec(ctx, `INSERT INTO engine.outbox (event_id, topic, ordering_key, payload) VALUES ($1, 'run.events', 'run_1', '{}')`,
+			bustest.EventID(i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ob := bus.PgOutbox{DB: pool, Table: "engine.outbox"}
+	var mu sync.Mutex
+	var order []int64
+	publish := func(_ context.Context, rows []bus.OutboxRow) error {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, r := range rows {
+			order = append(order, r.ID)
+		}
+		return nil
+	}
+	inA, release := make(chan struct{}), make(chan struct{})
+	doneA := make(chan error, 1)
+	go func() {
+		_, err := ob.Claim(ctx, 1, func(ctx context.Context, rows []bus.OutboxRow) error {
+			close(inA)
+			<-release
+			return publish(ctx, rows)
+		})
+		doneA <- err
+	}()
+	<-inA
+	n, err := ob.Claim(ctx, 1, publish)
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	if err := <-doneA; err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("a second relay claimed %d rows while the first was publishing", n)
+	}
+	if n, err := ob.Claim(ctx, 10, publish); err != nil || n != 1 {
+		t.Fatalf("after the first relay: claimed %d (%v)", n, err)
+	}
+	if len(order) != 2 || order[0] >= order[1] {
+		t.Fatalf("publication order %v", order)
 	}
 }

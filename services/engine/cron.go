@@ -11,9 +11,12 @@ import (
 // Cron is a parsed five-field cron expression (minute hour day-of-month
 // month day-of-week), evaluated in UTC, the format Cloud Scheduler uses
 // (unix-cron). Each field accepts *, a value, a range a-b, a list a,b and
-// a step */n or a-b/n. Day of week is 0-7 (0 and 7 are Sunday). As in
-// Vixie cron, when both day fields are restricted a day matches if either
-// does. Names (JAN, MON) and the @hourly shorthands are not supported.
+// a step */n, a-b/n or a/n (a to the field's maximum). Day of week is 0-7
+// (0 and 7 are Sunday). When both day fields are restricted a day matches
+// if either does, as in Vixie cron; a field counts as unrestricted only
+// when it is exactly "*". Vixie cron also treats "*/n" as unrestricted (so
+// "0 0 */2 * 1" there means odd days that are Mondays, here odd days or
+// Mondays). Names (JAN, MON) and the @hourly shorthands are not supported.
 type Cron struct {
 	src                          string
 	minute, hour, dom, month, dw uint64 // bit i set: value i allowed

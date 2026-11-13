@@ -15,10 +15,17 @@ import (
 //
 // nodes holds the entity ids; nodeTypes is either empty (every type 0) or
 // parallel to nodes. Edge Src and Dst index nodes, Label indexes labels.
-// Build renumbers nodes in ascending entity-id order, so the same graph
-// content in any input order yields a byte-identical snapshot. Rows are
-// sorted by (target, label, confidence); the transpose lists each node's
-// in-edges by (source, forward edge index).
+// Build renumbers nodes in ascending entity-id order, so the same nodes,
+// edges and label dictionary (the dictionary order is part of the content:
+// it fixes the label indices) in any node or edge order yield a
+// byte-identical snapshot (csr_009). Rows are sorted by (target, label,
+// confidence); the transpose lists each node's in-edges by (source,
+// forward edge index). Confidence -0 is stored as +0. Errors wrap
+// ErrInvalidInput.
+//
+// PORT: slices.SortFunc is not stable, which is harmless here because
+// records that compare equal are identical. Keep that property (or use a
+// stable sort) so csr_009's cross-language SHA-256 comparison holds.
 //
 // The work is O(V log V) for the id sort (O(V) when nodes is already
 // sorted) plus O(V + E) for the counting sort and the transpose, plus
@@ -98,6 +105,12 @@ func Build(meta Meta, nodes []core.UUID, nodeTypes []uint8, edges []Edge, labels
 	for _, e := range edges {
 		s := remap[e.Src]
 		c := e.Conf
+		if c == 0 {
+			// Fold -0 into +0: they compare equal in the row sort below
+			// but encode to different bits, which would make the file
+			// depend on the input order (TestRegress_CSRNegativeZeroConf).
+			c = 0
+		}
 		if quantise {
 			c = quantiseConf(c)
 		}
@@ -159,6 +172,9 @@ func validConf(c float32) bool { return c >= 0 && c <= 1 } // false for NaN
 
 // quantiseConf rounds c to the nearest multiple of 1/255, the value a
 // FlagConfU8 snapshot stores.
+//
+// PORT: math.Round rounds halves away from zero (f64::round does the
+// same); the product is taken in float64 after widening the float32.
 func quantiseConf(c float32) float32 { return dequantise(quantByte(c)) }
 
 func quantByte(c float32) byte { return byte(math.Round(float64(c) * 255)) }
@@ -184,7 +200,8 @@ type Builder struct {
 }
 
 // NewBuilder returns an empty Builder. labels seeds the label dictionary;
-// AddEdge appends unseen labels in first-use order.
+// AddEdge appends unseen labels in first-use order, so the snapshot bytes
+// depend on edge insertion order unless every label is seeded here.
 func NewBuilder(labels ...string) *Builder {
 	b := &Builder{index: map[core.UUID]uint32{}, label: map[string]uint8{}}
 	for _, l := range labels {

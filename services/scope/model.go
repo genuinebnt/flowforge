@@ -132,10 +132,13 @@ type Repo interface {
 	// at or before at (spec 4.1), 0 when no version is in effect yet, and
 	// ErrNotFound when the tenant has no such program.
 	EffectiveVersion(ctx context.Context, tenant, program core.UUID, at time.Time) (int32, error)
-	// DueVersions returns, across tenants, the versions that were
-	// future-dated when published (effective_from > created_at) and whose
-	// effective_from lies in (after, upTo], ordered by effective_from.
-	DueVersions(ctx context.Context, after, upTo time.Time, limit int) ([]DueVersion, error)
+	// DueVersions returns, across tenants, at most limit versions that
+	// were future-dated when published (effective_from > created_at) and
+	// whose effective_from lies in (after, upTo], ordered by
+	// (effective_from, program, version). With from set, the rows start
+	// strictly after that key instead (keyset paging: versions sharing
+	// one effective_from can span pages).
+	DueVersions(ctx context.Context, after time.Time, from *DueVersion, upTo time.Time, limit int) ([]DueVersion, error)
 	// AppendEvents writes outbox events outside a state change (activation
 	// notices); event ids already present are ignored.
 	AppendEvents(ctx context.Context, evs []Event) error

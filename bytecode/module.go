@@ -13,9 +13,10 @@ const (
 
 	// MaxModuleSize is the largest encoded module accepted (spec 8.7).
 	MaxModuleSize = 4 << 20
-	// MaxStackDepth is the value stack limit (spec 8.7). The module format
-	// has no per-function stack size field, so the verifier computes each
-	// function's maximum operand depth and requires it to stay below this.
+	// MaxStackDepth is the value stack limit per frame (spec 8.7). The
+	// module format has no per-function stack size field, so the verifier
+	// computes each function's maximum operand depth and requires
+	// NLocals + depth <= MaxStackDepth at every instruction.
 	MaxStackDepth = 65536
 	// MaxStringBytes bounds string constants and run-time strings.
 	MaxStringBytes = 1 << 20
@@ -27,8 +28,8 @@ const (
 type ConstTag uint8
 
 // Constant tags. Int, Duration and Time payloads are 8-byte little-endian
-// two's complement; Float is the 8-byte IEEE 754 bit pattern (finite only);
-// String is UTF-8.
+// two's complement; Float is the 8-byte IEEE 754 bit pattern (finite only;
+// -0.0 keeps its sign bit); String is UTF-8 of at most MaxStringBytes.
 const (
 	ConstInt      ConstTag = 1
 	ConstFloat    ConstTag = 2
@@ -37,6 +38,8 @@ const (
 	ConstTime     ConstTag = 5 // Unix nanoseconds
 )
 
+// String returns the lower-case tag name ("int", "float", ...), or
+// "tag(N)" for an unknown tag.
 func (t ConstTag) String() string {
 	switch t {
 	case ConstInt:
@@ -87,6 +90,7 @@ func (c Const) key() string {
 	return fmt.Sprintf("%d:%d", c.Tag, c.Int)
 }
 
+// String renders c for disassembly ("int 3", "string \"x\"", ...).
 func (c Const) String() string {
 	switch c.Tag {
 	case ConstFloat:
@@ -169,6 +173,10 @@ type Module struct {
 }
 
 // Hash returns the module hash: SHA-256 of the encoded module.
+//
+// PORT: the hash is stored with every run and checked on replay, so a
+// Rust encoder must produce byte-identical modules and accept Go-encoded
+// ones (docs/PORTING_RUST.md 4.4, 5.12).
 func (m *Module) Hash() ([32]byte, error) {
 	b, err := m.Encode()
 	if err != nil {

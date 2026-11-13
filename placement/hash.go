@@ -18,6 +18,11 @@ const (
 // the (key, worker) encoding unambiguous; the finalizer gives FNV's output
 // full avalanche so the ordering of workers that differ only in their last
 // byte is uniformly random.
+//
+// PORT: the FNV multiplications and fmix64 wrap modulo 2^64 (use
+// wrapping_mul); worker is hashed as its raw bytes with no length prefix
+// or terminator. Vectors: conformance/placement/hash64.json
+// (docs/PORTING_RUST.md 4.4).
 func Hash64(key []byte, worker WorkerID) uint64 {
 	return fmix64(fnvString(keyState(key), string(worker)))
 }

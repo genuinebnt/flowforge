@@ -7,6 +7,9 @@ import (
 
 // WorkerID identifies a worker. It is compared byte-wise for tie-breaking,
 // so every node must spell the same worker the same way.
+//
+// PORT: Go string comparison is byte order of the UTF-8 bytes; Rust's
+// String/&str Ord is the same, so derive Ord on a String newtype.
 type WorkerID string
 
 // Placement is the work-distribution port of spec section 24.4. Both methods

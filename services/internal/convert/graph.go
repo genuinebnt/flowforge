@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/genuinebnt/flowforge/core"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/oam"
@@ -52,6 +53,10 @@ func withType(key, typ string, content map[string]any) map[string]any {
 func observationMap(p *pb.Observation) map[string]any {
 	m := map[string]any{"observation_id": p.GetObservationId(), "confidence": p.GetConfidence()}
 	if p.GetObservedAt() != nil {
+		// RFC 3339 with up to nanoseconds, not core.FormatTime: that
+		// truncates to milliseconds, and a re-encoded observation must
+		// keep the adapter's exact time. PORT: Go's .999999999 drops
+		// trailing zeros; match it.
 		m["observed_at"] = Time(p.GetObservedAt()).Format("2006-01-02T15:04:05.999999999Z07:00")
 	}
 	if p.GetRawRef() != "" {
@@ -119,7 +124,7 @@ func ObservationFromJSON(raw []byte) (*pb.Observation, error) {
 	}
 	out := &pb.Observation{ObservationId: o.ObservationID, Confidence: o.Confidence, RawRef: o.RawRef}
 	if o.ObservedAt != "" {
-		t, err := parseAnyTime(o.ObservedAt)
+		t, err := core.ParseTime(o.ObservedAt)
 		if err != nil {
 			return nil, Invalid("observation.observed_at", "observed_at: %v", err)
 		}

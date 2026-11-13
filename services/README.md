@@ -176,7 +176,8 @@ works end to end; to call a service directly in tests, use
 
 The per-service binaries (`cmd/scope`, `cmd/engine`, `cmd/tool-runner`,
 `cmd/egress-proxy`, `cmd/graph`, `cmd/similarity`, `cmd/notifier`) are what
-`deploy/Dockerfile` builds; `cmd/migrate` applies `migrations.Apply`.
+`deploy/Dockerfile` builds; `cmd/migrate` runs `migrations.Deploy` (apply,
+sync roles, check role privileges).
 
 ### Gateway integration (`devstack`)
 
@@ -385,5 +386,7 @@ sources. Tool adapters run against recorded fixtures in
   adapters keep no protocol-level raw bytes (DNS packets, probe bodies).
 * Services listen in h2c and rely on Cloud Run's front end for TLS
   (callers dial `https://` addresses with TLS); no authorization
-  beyond tenant isolation, the global kill switch (owner) and similarity's
-  include_out_of_scope (analyst+): permissions are the gateway's job.
+  beyond tenant isolation, the kill switches (global: the platform
+  operator, `platform.Operator()`; tenant and program: members with
+  programs:admin; G-SEC-02) and similarity's include_out_of_scope
+  (analyst+): other permissions are the gateway's job.

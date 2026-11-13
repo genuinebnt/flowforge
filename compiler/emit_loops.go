@@ -84,7 +84,7 @@ type callable struct {
 	node    dsl.Node
 }
 
-// call emits a call of f with the arguments in the given locals and
+// callWith emits a call of f with the arguments in the given locals and
 // leaves the result on the stack.
 func (x *fnCtx) callWith(f callable, args ...uint16) {
 	switch {
@@ -212,8 +212,10 @@ func (x *fnCtx) foldLoop(xs, init uint16, f callable) {
 	x.fb.Load(lp.acc[0])
 }
 
-// searchLoop pushes any(xs, f) (wantTrue), all(xs, f) or first(xs, f).
-// It leaves the loop early through found.
+// searchLoop pushes any(xs, f), all(xs, f) or first(xs, f), selected by
+// kind ("any", "all", anything else for first). It leaves the loop early
+// through found: on the first true for any and first, on the first false
+// for all.
 func (x *fnCtx) searchLoop(xs uint16, f callable, kind string) {
 	lp := x.loopBegin(xs, x.loopLen(xs), 0)
 	e := x.loopElem(lp)

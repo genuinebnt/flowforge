@@ -75,10 +75,15 @@ func Scope(env *Env, o ScopeOptions) (*Component, scopesvc.Repo) {
 
 // EngineOptions configure the engine service.
 type EngineOptions struct {
+	// ScopeAddr and ToolRunnerAddr are required; GraphAddr is optional
+	// (without it observations are not forwarded to the graph).
 	ScopeAddr, ToolRunnerAddr, GraphAddr string
-	RedisAddr, RedisAuth                 string
+	// RedisAddr selects the Redis rate limiter (FF_REDIS_ADDR, with the
+	// local failover of spec 23.8); empty uses an in-process GCRA.
+	RedisAddr, RedisAuth string
 	// RedisCA is FF_REDIS_CA (redisconf.Config.CA): set enables TLS.
 	RedisCA string
+	// Workers is the number of scheduler workers (enginesvc.Options).
 	Workers int
 	Engine  engine.Config
 	// ScheduleInterval is how often the in-process scheduler fires due
@@ -93,7 +98,10 @@ type EngineOptions struct {
 	TickAudience, TickServiceAccount string
 }
 
-// Engine builds the engine service.
+// Engine builds the engine service: Postgres stores (event store, run
+// repository, outbox, inbox, schedules, maintenance) when env.DB is set,
+// in-memory ones otherwise. It returns the component and the service, whose
+// Engine the dev stack drives directly.
 func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *enginesvc.Service, error) {
 	scopeConn, err := env.Dial(o.ScopeAddr)
 	if err != nil {
@@ -132,7 +140,9 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 	} else {
 		out := bus.NewMemOutbox()
 		d.Store = eventstore.NewMemStore(env.Clock)
-		d.Repo = enginesvc.NewMemRepo(core.IDGen{Clock: env.Clock, Rng: &lockedRng{r: core.SystemRng{}}})
+		// SystemRng is safe for concurrent use (crypto/rand), which the
+		// workers sharing the repository need.
+		d.Repo = enginesvc.NewMemRepo(core.IDGen{Clock: env.Clock, Rng: core.SystemRng{}})
 		d.Tools = enginesvc.MemToolStore{MemTools: enginesvc.NewMemTools()}
 		d.Publisher, d.Outbox, d.Inbox = enginesvc.MemPublisher{Outbox: out}, out, bus.NewMemInbox()
 	}
@@ -457,6 +467,8 @@ func Graph(env *Env, o GraphOptions) (*Component, graphstore.Store, error) {
 				}
 				return nil
 			}}
+			// Relay graph.changes rows: drain while there are rows, back
+			// off 100 ms when idle or after an error.
 			c.Run = append(c.Run, func(ctx context.Context) error {
 				for ctx.Err() == nil {
 					n, err := relay.RunOnce(ctx)

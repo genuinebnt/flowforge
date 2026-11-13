@@ -18,7 +18,12 @@ const DefaultRRFK = 60
 // A document repeated within one list counts at its first (best) rank.
 // rrfK <= 0 means 60. The result holds every document once, sorted by
 // score descending, ties broken by id ascending; Distance is +Inf (RRF has
-// no distance).
+// no distance). Scores are summed in float64 in list order and reported as
+// float32.
+//
+// PORT: the spec 22.6 example rounds each term before summing, so compare
+// scores with tolerance 1e-5 (docs/PORTING_RUST.md 5.9); exact ties, and
+// hence the id tie-break, can differ when a port sums in another order.
 func RRF(rrfK int, lists ...[]core.UUID) []Hit {
 	if rrfK <= 0 {
 		rrfK = DefaultRRFK

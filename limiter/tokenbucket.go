@@ -7,9 +7,11 @@ import "math"
 // bucket holds at least its cost.
 //
 // Tokens are kept in fixed point (1e9 units per token, so the refill is
-// elapsed_ns * Rate units) instead of the spec's float, which makes the
-// bucket exact for integer rates and lets tests compare it with a
-// reference model without tolerances. A key starts full. A time earlier
+// elapsed_ns * Rate units, with the sub-unit remainder carried as a float
+// below 1) instead of the spec's float token count, which makes the bucket
+// exact for integer rates and lets tests compare it with a reference model
+// without tolerances. PORT: match this representation if traces are
+// compared across implementations (docs/PORTING_RUST.md 5.4). A key starts full. A time earlier
 // than the last one seen refills nothing and is otherwise treated as that
 // last time, so a backwards clock can never mint tokens (lim_003).
 type TokenBucket struct {
@@ -66,6 +68,9 @@ func (s *bucketState) take(c *compiled, rate float64, cost, now int64) decision 
 	if s.units >= need {
 		return decision{allowed: true, remaining: (s.units - need) / unit, limit: c.burst}
 	}
+	// PORT: Go's float-to-int conversion is implementation-defined out of
+	// range while Rust's `as` saturates; compile bounds burst/rate to
+	// maxSpan, so the value always fits and both agree.
 	retry := int64(math.Ceil((float64(need-s.units) - s.frac) / rate))
 	return decision{retry: max(retry, 1), limit: c.burst}
 }

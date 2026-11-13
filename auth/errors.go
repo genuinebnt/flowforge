@@ -117,6 +117,7 @@ type ThrottledError struct {
 	RetryAfter time.Duration
 }
 
+// Error implements error; the wait is formatted with time.Duration.String.
 func (e *ThrottledError) Error() string {
 	return fmt.Sprintf("auth: too many attempts; retry after %s", e.RetryAfter)
 }
@@ -126,14 +127,23 @@ func (e *ThrottledError) Is(target error) bool { return target == ErrThrottled }
 
 // Key, opaque-token and store errors.
 var (
-	ErrInvalidKey   = errors.New("auth: invalid signing key")
+	// ErrInvalidKey reports a bad kid, seed, key length or key state.
+	ErrInvalidKey = errors.New("auth: invalid signing key")
+	// ErrKeyNotActive is returned by NewSigner for a retiring or retired
+	// key.
 	ErrKeyNotActive = errors.New("auth: only an active key may sign")
-	ErrInvalidJWKS  = errors.New("auth: invalid JWKS")
+	// ErrInvalidJWKS reports a JWKS document ParseJWKS rejects.
+	ErrInvalidJWKS = errors.New("auth: invalid JWKS")
 
-	ErrInvalidAPIKey       = errors.New("auth: invalid API key")
+	// ErrInvalidAPIKey reports a key id or presented key of the wrong shape.
+	ErrInvalidAPIKey = errors.New("auth: invalid API key")
+	// ErrVerificationInvalid covers unknown, used and expired email
+	// verification tokens alike, so the reason does not leak.
 	ErrVerificationInvalid = errors.New("auth: email verification token is invalid, used or expired")
-	ErrCSRFMissing         = errors.New("auth: CSRF token missing")
-	ErrCSRFMismatch        = errors.New("auth: CSRF token mismatch")
+	// ErrCSRFMissing reports a missing CSRF header or cookie.
+	ErrCSRFMissing = errors.New("auth: CSRF token missing")
+	// ErrCSRFMismatch reports a CSRF header that differs from the cookie.
+	ErrCSRFMismatch = errors.New("auth: CSRF token mismatch")
 
 	// ErrNotFound is returned by store ports for a missing row.
 	ErrNotFound = errors.New("auth: not found")

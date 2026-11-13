@@ -52,6 +52,7 @@ var failNames = [...]string{
 // Valid reports whether c is a known failure code.
 func (c FailCode) Valid() bool { return c != 0 && int(c) < len(failNames) }
 
+// String returns the snake_case failure name, or "fail(N)".
 func (c FailCode) String() string {
 	if c.Valid() {
 		return failNames[c]

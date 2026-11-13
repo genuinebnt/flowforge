@@ -53,7 +53,10 @@ func TestEng005_CancelDeadline(t *testing.T) {
 		go func() { _, err := w.RunOnce(h.Ctx()); done <- err }()
 		<-started
 		got, err := h.Engine.CancelRun(h.Ctx(), c, r.ID, "operator stop")
-		if err != nil || got.Status != engine.StatusCancelling {
+		// CancelRun returns the status read after queueing the request; the
+		// worker, interrupted at once, may already have moved the run on to
+		// compensating by then.
+		if err != nil || (got.Status != engine.StatusCancelling && got.Status != engine.StatusCompensating) {
 			t.Fatalf("cancel: %v %v", got.Status, err)
 		}
 		if err := <-done; err != nil {

@@ -137,8 +137,8 @@ func SortDiagnostics(ds []Diagnostic) {
 type diagSink struct {
 	file  string
 	diags []Diagnostic
-	// errorsAt suppresses duplicate errors at the same offset with the
-	// same code, which recovery can otherwise produce.
+	// seen suppresses duplicate errors at the same offset with the same
+	// code, which recovery can otherwise produce (see errorOnce).
 	seen map[[2]int]bool
 }
 

@@ -43,7 +43,8 @@ type ServerOptions struct {
 	Timeouts map[string]time.Duration
 }
 
-// publicMethods need no token (health checks).
+// publicMethod reports whether gRPC method m needs no token (the health
+// checks).
 func publicMethod(m string) bool { return strings.HasPrefix(m, "/grpc.health.v1.Health/") }
 
 // NewGRPCServer returns a gRPC server whose every call runs through the

@@ -63,6 +63,8 @@ type VerifyError struct {
 	Detail string
 }
 
+// Error returns the rule text followed by the function, offset and detail
+// when known.
 func (e *VerifyError) Error() string {
 	s := e.Rule.Error()
 	if e.Func >= 0 {

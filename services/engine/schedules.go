@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -77,9 +79,11 @@ var (
 	ErrScheduleNotFound = errors.New("engine: schedule not found")
 )
 
-// ScheduleStore persists schedules. FireDue hands each due schedule to
-// fire and stores the result atomically with its claim; concurrent callers
-// never fire the same schedule at the same time.
+// ScheduleStore persists schedules. FireDue hands each due schedule
+// (enabled, next_fire_at <= now) to fire, earliest next_fire_at first and
+// ties by id so every store picks the same ones under limit, and stores
+// the result atomically with its claim; concurrent callers never fire the
+// same schedule at the same time. It returns how many it fired.
 type ScheduleStore interface {
 	Create(ctx context.Context, s Schedule) error
 	List(ctx context.Context, tenant core.UUID) ([]Schedule, error)
@@ -148,7 +152,8 @@ func (s *MemSchedules) Delete(_ context.Context, tenant, id core.UUID) error {
 	return nil
 }
 
-// FireDue implements ScheduleStore (one firing pass at a time).
+// FireDue implements ScheduleStore (one firing pass at a time). Due
+// schedules fire earliest next_fire_at first, ties by id, at most limit.
 func (s *MemSchedules) FireDue(ctx context.Context, now time.Time, limit int, fire func(context.Context, Schedule) FireResult) (int, error) {
 	s.fire.Lock()
 	defer s.fire.Unlock()
@@ -160,7 +165,18 @@ func (s *MemSchedules) FireDue(ctx context.Context, now time.Time, limit int, fi
 		}
 	}
 	s.mu.Unlock()
-	sort.Slice(due, func(i, j int) bool { return due[i].NextFireAt.Before(due[j].NextFireAt) })
+	// Earliest first, ties by id, the order of PgSchedules' ORDER BY
+	// next_fire_at, id, so both stores fire the same schedules under a
+	// limit and in the same order.
+	//
+	// PORT: Go map iteration is random, and Postgres orders uuid by its 16
+	// bytes, which bytes.Compare reproduces.
+	slices.SortFunc(due, func(a, b Schedule) int {
+		if c := a.NextFireAt.Compare(b.NextFireAt); c != 0 {
+			return c
+		}
+		return bytes.Compare(a.ID[:], b.ID[:])
+	})
 	if len(due) > limit {
 		due = due[:limit]
 	}
@@ -266,7 +282,9 @@ func (p PgSchedules) Delete(ctx context.Context, tenant, id core.UUID) error {
 	return err
 }
 
-// FireDue implements ScheduleStore. Each schedule is claimed with
+// FireDue implements ScheduleStore, firing due schedules earliest
+// next_fire_at first, ties by id (as MemSchedules does), at most limit.
+// Each schedule is claimed with
 // FOR UPDATE SKIP LOCKED in its own transaction, which stays open while
 // fire submits the run, so another engine skips it; the run's idempotency
 // key covers a crash between the submit and the commit.
@@ -289,7 +307,7 @@ func (p PgSchedules) fireOne(ctx context.Context, now time.Time, fire func(conte
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 	s, err := scanSchedule(tx.QueryRow(ctx, `SELECT `+scheduleCols+` FROM engine.schedules
-WHERE enabled AND next_fire_at <= $1 ORDER BY next_fire_at LIMIT 1 FOR UPDATE SKIP LOCKED`, now))
+WHERE enabled AND next_fire_at <= $1 ORDER BY next_fire_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`, now))
 	if errors.Is(err, ErrScheduleNotFound) {
 		return false, nil
 	}

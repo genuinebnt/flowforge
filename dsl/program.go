@@ -17,6 +17,10 @@ const registryFile = "<registry>"
 type Policy struct {
 	// MaxClass is the program's max_class.
 	MaxClass core.ActivityClass `json:"max_class"`
+	// Prohibited is the program's activity.prohibited list (spec 4.1). A
+	// workflow that may call a tool whose name or declared effect it names
+	// (core.ProhibitedActivity) fails with E0402.
+	Prohibited []string `json:"prohibited,omitempty"`
 	// Known reports that the program's policy is available.
 	Known bool `json:"known"`
 }

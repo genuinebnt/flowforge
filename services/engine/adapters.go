@@ -34,7 +34,7 @@ var _ engine.Compiler = Compiler{}
 func adapterRequest(req engine.CompileRequest) compiler.AdapterRequest {
 	out := compiler.AdapterRequest{Name: req.Name, Source: req.Source}
 	if req.Policy != nil {
-		out.Policy = &compiler.AdapterPolicy{MaxClass: req.Policy.MaxClass}
+		out.Policy = &compiler.AdapterPolicy{MaxClass: req.Policy.MaxClass, Prohibited: req.Policy.Prohibited}
 	}
 	for _, t := range req.Tools {
 		out.Tools = append(out.Tools, compiler.AdapterTool{Name: t.Name, InputType: t.InputType, OutputType: t.OutputType,

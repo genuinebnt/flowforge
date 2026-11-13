@@ -165,7 +165,7 @@ digits). Pitfalls in Rust:
   raw text) so that `1.0` and `1e3` round-trip with the same digits as the
   Go reference; otherwise float formatting differs (`ryu` vs Go's
   `strconv`), e.g. `1e21` vs `1e+21`.
-* Go's encoder escapes U+2028 and U+2029 as ` `/` ` even with HTML
+* Go's encoder escapes U+2028 and U+2029 as `\u2028`/`\u2029` even with HTML
   escaping off, and replaces invalid UTF-8 bytes with U+FFFD; serde_json does
   neither the escaping nor (being `&str`-based) accept invalid UTF-8 at all.
   Match the Go behaviour: escape U+2028/U+2029 and lossily convert byte input

@@ -226,7 +226,7 @@ func newToolExec(c *cluster) *toolExec {
 	return &toolExec{c: c, count: map[string]int{}, firstAt: map[string]time.Time{}}
 }
 
-// ErrToolTimeout is what a caller sees for a lost request or reply.
+// errToolTimeout is what a caller sees for a lost request or reply.
 var errToolTimeout = context.DeadlineExceeded
 
 // SerialBatches implements engine.SerialExecutor: the edge's limiter is

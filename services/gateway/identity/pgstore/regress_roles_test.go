@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -61,4 +62,18 @@ func TestRegress_G_OPS_01_IdentityAsGatewayRole(t *testing.T) {
 		})
 		return pgstore.New(pool)
 	})
+}
+
+// TestRegress_G_SVC_18_AuditUserAgentUTF8: a User-Agent with invalid
+// UTF-8 or a NUL made the auth_audit insert fail (Postgres text refuses
+// both), failing the transaction it belonged to (signup, verification,
+// password reset). The store now sanitizes it.
+func TestRegress_G_SVC_18_AuditUserAgentUTF8(t *testing.T) {
+	st := freshStore(t)
+	for _, ua := range []string{"curl/8 \xff\xfe", "x\x00y", "ok é"} {
+		if err := st.AppendAudit(context.Background(), identity.AuditRecord{At: time.Unix(1_800_000_000, 0), Event: "login",
+			IP: "192.0.2.1", UserAgent: ua}); err != nil {
+			t.Fatalf("AppendAudit(%q): %v", ua, err)
+		}
+	}
 }

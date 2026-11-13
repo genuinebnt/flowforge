@@ -194,3 +194,35 @@ func TestEngineService_ScopeEvents(t *testing.T) {
 		return r.GetStatus() == pb.RunStatus_RUN_STATUS_CANCELLED
 	})
 }
+
+// TestRegress_G_SEC_02_OperatorGlobalSwitchCancelsRuns: the global kill
+// switch is the platform operator's (G-SEC-02). Its scope.events message
+// carries the operator's nil tenant, and the engine still cancels the runs
+// of every tenant.
+func TestRegress_G_SEC_02_OperatorGlobalSwitchCancelsRuns(t *testing.T) {
+	st, a, _ := servicetest.Stack(t, devstack.Options{})
+	prog, err := st.Scope.CreateProgram(a, &pb.CreateProgramRequest{Name: "g", InitialScope: servicetest.ScopeDoc("example")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Engine.RegisterWorkflow(a, &pb.RegisterWorkflowRequest{Name: "nap", Source: `workflow nap(x: String) -> String { sleep(1h); mock(x) }`}); err != nil {
+		t.Fatal(err)
+	}
+	in, _ := structpb.NewStruct(map[string]any{"x": "a"})
+	run, err := st.Engine.SubmitRun(platform.WithIdempotencyKey(a, "nap-g"), &pb.SubmitRunRequest{WorkflowName: "nap", ProgramId: prog.GetId(), Input: in})
+	if err != nil {
+		t.Fatal(err)
+	}
+	servicetest.Eventually(t, 10*time.Second, "run waiting", func() bool {
+		r, _ := st.Engine.GetRun(a, &pb.GetRunRequest{RunId: run.GetId()})
+		return r.GetStatus() == pb.RunStatus_RUN_STATUS_WAITING
+	})
+	op := platform.WithIdentity(context.Background(), platform.Operator())
+	if _, err := st.Scope.SetKillSwitch(op, &pb.SetKillSwitchRequest{Level: "global", Enabled: true, Reason: "abuse"}); err != nil {
+		t.Fatal(err)
+	}
+	servicetest.Eventually(t, 15*time.Second, "run cancelled by the global kill switch", func() bool {
+		r, _ := st.Engine.GetRun(a, &pb.GetRunRequest{RunId: run.GetId()})
+		return r.GetStatus() == pb.RunStatus_RUN_STATUS_CANCELLED
+	})
+}

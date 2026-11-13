@@ -13,7 +13,7 @@ import (
 // invalid UTF-8, U+2028, HTML characters), ints, bools and nils.
 func TestAlrProp_DedupeFastPathCanonical(t *testing.T) {
 	rng := testkit.Rng(t)
-	alphabet := []string{"a", "é", "\"", "\\", "\n", "\r", "\t", "\b", "\f", "\x00", "\x1f", "\x7f", "<", ">", "&", " ", " ", "\xff", "\xe2\x80", "😀", " "}
+	alphabet := []string{"a", "é", "\"", "\\", "\n", "\r", "\t", "\b", "\f", "\x00", "\x1f", "\x7f", "<", ">", "&", "\u2028", "\u2029", "\xff", "\xe2\x80", "😀", " "}
 	for range testkit.Cases() {
 		n := core.IntN(rng, 4)
 		vals := make([]any, n)

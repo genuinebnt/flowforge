@@ -19,4 +19,11 @@
 // CheckInvariants checks inv_01..inv_11 of spec 25.7 on the recorded
 // History. See README.md for the architecture, the fault model and how to
 // reproduce a failing seed.
+//
+// PORT: a seed reproduces only within this Go harness: the schedule
+// depends on this scheduler's choice points and on the order of SplitMix64
+// draws, which a Rust scheduler will not share. Port the invariant checker
+// first and run it over event logs from either implementation; port the
+// scenarios of conformance/sim/regress_seeds.json as regression tests,
+// not the seeds (docs/PORTING_RUST.md 5.16).
 package sim

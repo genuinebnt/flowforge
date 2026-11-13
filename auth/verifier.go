@@ -59,20 +59,34 @@ func NewVerifier(cfg VerifierConfig) (*Verifier, error) {
 
 // Verify validates token and returns its claims. The steps, in order:
 //
-//  1. structure: three base64url segments, a JSON header without
-//     duplicate or crit members (ErrMalformed, ErrCritUnsupported);
-//  2. alg is exactly "EdDSA", never chosen by the header (ErrAlgNone,
-//     ErrAlgNotAllowed); typ is "JWT" (ErrTypInvalid);
+//  1. structure: at most MaxTokenLength bytes, three base64url segments,
+//     a JSON object header without duplicate or case-variant members
+//     (ErrMalformed);
+//  2. alg is exactly "EdDSA", never chosen by the header (ErrAlgNone for
+//     "none" in any case, else ErrAlgNotAllowed); typ is "JWT"
+//     (ErrTypInvalid); no crit member (ErrCritUnsupported);
 //  3. the key named by kid (ErrKidMissing, ErrUnknownKid, ErrKeyRetired);
 //  4. the Ed25519 signature (ErrBadSignature); nothing in the payload is
 //     read before this point;
-//  5. iss, aud, exp, iat and nbf with the skew allowance (ErrIssuer,
-//     ErrAudience, ErrExpired, ErrIssuedInFuture, ErrNotYetValid), the
-//     lifetime bound and the required claims;
+//  5. the claims object (duplicate or case-variant members are
+//     ErrMalformed), then iss, aud, exp, iat and nbf with the skew
+//     allowance (ErrIssuer, ErrAudience, ErrExpired when now >= exp+skew,
+//     ErrIssuedInFuture, ErrNotYetValid), exp after iat, the lifetime
+//     bound, and the required sub, tid, role and jti claims, a known role,
+//     a non-negative sv and valid groups (ErrClaimMissing,
+//     ErrClaimInvalid, ErrLifetimeTooLong);
 //  6. revocation by jti and session version (ErrRevoked,
 //     ErrSessionRevoked, ErrRevocationUnavailable).
 //
 // Every rejection except ErrRevocationUnavailable matches ErrInvalidToken.
+// The first failing check decides the error, so the order above is part
+// of the contract (docs/PORTING_RUST.md 5.7).
+//
+// PORT: crypto/ed25519 verifies cofactorless and rejects a non-canonical
+// S; ed25519-dalek's verify and verify_strict differ from it on edge
+// cases (small-order keys, non-canonical point encodings). Tokens from
+// real signers verify the same in both; pin any edge case you rely on
+// with a conformance vector.
 func (v *Verifier) Verify(ctx context.Context, token string) (*Claims, error) {
 	tok, err := parseCompact(token)
 	if err != nil {

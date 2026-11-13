@@ -44,6 +44,7 @@ func (k EffectKind) Valid() bool {
 	return int(k) < len(effectNames) && effectNames[k] != ""
 }
 
+// String returns the spec 8.4 name ("tool_call", ...), or "effect(N)".
 func (k EffectKind) String() string {
 	if k.Valid() {
 		return effectNames[k]
@@ -140,6 +141,8 @@ func ParseEffect(name string) (EffectMask, bool) {
 	return 0, false
 }
 
+// String lists the set bits by name in bit order, comma-separated inside
+// braces ("{read,active}"), with any unknown bits appended as 0xNNNN.
 func (m EffectMask) String() string {
 	var parts []string
 	for i, n := range maskNames {

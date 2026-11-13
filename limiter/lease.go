@@ -43,6 +43,8 @@ type Lease struct {
 // unused tokens. An expired lease that is never returned is forfeited, so
 // a crashed holder makes the system undershoot, never double spend.
 type Store interface {
+	// Lease grants between req.Min and req.Want tokens of req.Key, or
+	// nothing with Lease.RetryAfter set; a denial is not an error.
 	Lease(ctx context.Context, req LeaseRequest) (Lease, error)
 	// Return credits unused tokens of a lease back to its key and closes
 	// the lease. A second Return of the same lease fails with

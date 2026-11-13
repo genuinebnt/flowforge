@@ -17,7 +17,8 @@ import (
 // Issuer is the token issuer used by fixtures.
 const Issuer = "https://api.flowforge.test"
 
-// Fixture is a wired identity service over in-memory ports.
+// Fixture is a wired identity service over in-memory ports (or the Store
+// given in Options).
 type Fixture struct {
 	Service     *identity.Service
 	Store       identity.Store
@@ -41,6 +42,8 @@ type Options struct {
 
 // CountingHasher wraps auth.Hasher with weak (fast) parameters and counts
 // Verify calls, so tests can prove both login paths do the same hashing.
+// The count is a buffered channel, so it is safe for concurrent use; past
+// 65,536 undrained calls further calls go uncounted.
 type CountingHasher struct {
 	*auth.Hasher
 	verifies chan struct{}
@@ -79,9 +82,12 @@ func New(t testing.TB, clock core.Clock, opt Options) *Fixture {
 		mem = identity.NewMemStore()
 		st = mem
 	}
+	// The key manager and the service each serialize their own Rng, so they
+	// get separate generators: SplitMix64 is not safe for concurrent use.
 	ids := core.NewSplitMix64(uint64(clock.Now().UnixNano()) ^ 0x5eed)
+	keyIDs := core.NewSplitMix64(uint64(clock.Now().UnixNano()) ^ 0x6b6579)
 	keys, err := identity.NewKeyManager(ctx, identity.KeyManagerConfig{
-		Store: st, Secrets: identity.NewMemKeyStore(), Clock: clock, IDs: ids, Random: rand.Reader, Issuer: Issuer,
+		Store: st, Secrets: identity.NewMemKeyStore(), Clock: clock, IDs: keyIDs, Random: rand.Reader, Issuer: Issuer,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -134,6 +140,8 @@ func (f *Fixture) SeedTenantPlan(t testing.TB, slug, plan string) (core.UUID, ma
 	for _, c := range slug {
 		ids = core.NewSplitMix64(ids.Uint64() ^ uint64(c))
 	}
+	// Ids derive from the slug, so a slug seeds the same tenant and users
+	// in every run.
 	gen := core.IDGen{Clock: f.Clock, Rng: ids}
 	now := f.Clock.Now()
 	tid := gen.New()
@@ -167,6 +175,8 @@ func (f *Fixture) SeedTenantPlan(t testing.TB, slug, plan string) (core.UUID, ma
 // started through the real refresher).
 func (f *Fixture) AccessToken(t testing.TB, a Account) string {
 	t.Helper()
+	// A distinct pseudo-address per account keeps seeding many logins
+	// under the per-IP login throttle.
 	s, err := f.Service.Login(context.Background(), identity.LoginInput{Email: a.Email, Password: a.Password, TenantID: a.TenantID},
 		identity.ClientInfo{IP: "seed-" + a.Email})
 	if err != nil {
