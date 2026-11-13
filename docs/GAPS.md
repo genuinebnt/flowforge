@@ -152,7 +152,7 @@ assumptions it was written against.
 | G-SPEC-04 | Vector benchmarks use 20k synthetic vectors; no SIFT1M or GIST1M, no recall-vs-QPS chart | v3 (C3) |
 | G-SPEC-06 | No `bench/budgets.toml`, `bench/REPORT.md`, `gen-bench-data` or open-loop load generator | v3 (C0) |
 | G-SPEC-07 | graphstore has no language-neutral conformance data or required ids in modules.toml | **closed on feat_v2** (conformance/graphstore gs_001-006 on Mem and Postgres; TestGraph001-006) |
-| G-SPEC-09 | The v2 packages are not in modules.toml | v2 (in progress) |
+| G-SPEC-09 | The v2 packages are not in modules.toml | **closed on feat_v2** (every v2 library package has a module; adapter sub-packages such as chunkstore/gcsstore and contentstore/pg are verified through their parent module's `./dir/...` tests) |
 | G-DOC-02, 04, 05, 06, 07, 10, 11 | V2_DESIGN and ROADMAP_V2 inconsistencies: track D stale vs the brief; §2 table missing dnsmsg/socks5/crawl/lab; §6.2 DDL predates §12; Part II records undefined; quotas, score weights and labelled set unquantified; KMS port; PORTING_RUST v2 formats | **closed on feat_v2** (V2_DESIGN, ROADMAP_V2 and PORTING_RUST updated; spec Part II §26-41) |
 | G-DOC-15 | This register did not exist | **closed on feat_v1** (this file) |
 
