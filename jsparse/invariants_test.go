@@ -244,11 +244,13 @@ func TestJSInv03_PrintReparseGenerated(t *testing.T) {
 // genBundle builds a minified script bundle of at least size bytes from
 // generated programs, each wrapped in its own function like a bundler's
 // module wrapper.
-func genBundle(seed uint64, size int) []byte {
+func genBundle(seed uint64, size int) []byte { return genBundleOpt(seed, size, false) }
+
+func genBundleOpt(seed uint64, size int, acornSafe bool) []byte {
 	r := core.NewSplitMix64(seed)
 	var b []byte
 	for len(b) < size {
-		src, _ := genProgram(r, false)
+		src, _ := genProgramOpt(r, false, acornSafe)
 		prog, err := Parse(src, Options{})
 		if err != nil {
 			continue

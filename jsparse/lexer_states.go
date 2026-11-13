@@ -255,7 +255,7 @@ func (l *Lexer) dispatch(goal Goal) lexState {
 		return stateLineTerminator
 	case isWhiteSpace(r):
 		return stateWhiteSpace
-	case isIDStart(r):
+	case l.alt.idStart(r):
 		return stateIdentifierName
 	}
 	return stateInvalid
@@ -314,7 +314,7 @@ func (l *Lexer) scanIdentifierName(start int) Token {
 	if i >= len(src) || (src[i] != '\\' && src[i] < 0x80) {
 		l.pos = i
 		v := src[start:i]
-		return Token{Kind: TIdentifier, Kw: lookupKeyword(v), Start: int32(start), End: int32(i), Value: v}
+		return Token{Kind: TIdentifier, Kw: l.alt.keyword(v), Start: int32(start), End: int32(i), Value: v}
 	}
 	// Slow path: escapes or non-ASCII.
 	l.pos = start
@@ -329,7 +329,7 @@ func (l *Lexer) scanIdentifierName(start int) Token {
 			escStart := l.pos
 			flags |= FlagEscaped
 			r, ok := l.scanUnicodeEscapeInIdent()
-			valid := ok && ((first && isIDStart(r)) || (!first && isIDContinue(r)))
+			valid := ok && ((first && l.alt.idStart(r)) || (!first && l.alt.idContinue(r)))
 			if !valid && err == CodeNone {
 				err = CodeInvalidIdentifierEscape
 				errAt = int32(escStart)
@@ -341,7 +341,7 @@ func (l *Lexer) scanIdentifierName(start int) Token {
 			continue
 		}
 		r, n := decodeRune(src, l.pos)
-		if (first && !isIDStart(r)) || (!first && !isIDContinue(r)) {
+		if (first && !l.alt.idStart(r)) || (!first && !l.alt.idContinue(r)) {
 			break
 		}
 		buf = append(buf, src[l.pos:l.pos+n]...)
@@ -353,7 +353,7 @@ func (l *Lexer) scanIdentifierName(start int) Token {
 	if flags&FlagEscaped == 0 {
 		v = src[start:l.pos]
 	}
-	return Token{Kind: TIdentifier, Kw: lookupKeyword(v), Flags: flags, Start: int32(start), End: int32(l.pos), Value: v, Err: err, ErrAt: errAt}
+	return Token{Kind: TIdentifier, Kw: l.alt.keyword(v), Flags: flags, Start: int32(start), End: int32(l.pos), Value: v, Err: err, ErrAt: errAt}
 }
 
 // scanUnicodeEscapeInIdent consumes `\u` HexDigits or `\u{...}` at l.pos.

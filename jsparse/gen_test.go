@@ -27,6 +27,10 @@ type progGen struct {
 	// restricted production is affected.
 	newlines bool
 	ctx      genCtx
+	// acornSafe avoids `extends /re/` and `yield /re/`, which acorn's
+	// heuristic regex detection rejects (used only for the acorn
+	// throughput comparison).
+	acornSafe bool
 	// afterRegex: the last token was a regular expression literal, whose
 	// flags would absorb a following identifier character.
 	afterRegex bool
@@ -578,7 +582,11 @@ func (g *progGen) classTail() {
 	derived := g.chance(2)
 	if derived {
 		g.tok("extends")
-		g.primary()
+		if g.acornSafe {
+			g.tok(g.ref())
+		} else {
+			g.primary()
+		}
 	}
 	var priv []string
 	for k := g.n(3); k > 0; k-- {
@@ -936,6 +944,12 @@ func (g *progGen) assignment() {
 				if g.chance(3) {
 					g.tok("*")
 				}
+				if g.acornSafe { // acorn mis-lexes some `yield /re/`
+					g.tok("(")
+					g.expr(pAssign)
+					g.tok(")")
+					return
+				}
 				g.expr(pAssign)
 			}
 			return
@@ -1277,7 +1291,11 @@ func (g *progGen) atom() {
 		g.tok(strs[g.n(len(strs))])
 	case 2:
 		g.slashes = append(g.slashes, true)
-		g.tok(genRegexps[g.n(len(genRegexps))])
+		re := genRegexps[g.n(len(genRegexps))]
+		if g.acornSafe && re == "/=x/" {
+			re = "/a+b?/g" // acorn mis-lexes `yield /=x/` as division-assignment
+		}
+		g.tok(re)
 		g.afterRegex = true
 	case 3:
 		g.tok([]string{"true", "false", "null", "this"}[g.n(4)])
@@ -1288,7 +1306,12 @@ func (g *progGen) atom() {
 
 // genProgram returns one generated program and its `/` labels.
 func genProgram(r core.Rng, module bool) ([]byte, []bool) {
+	return genProgramOpt(r, module, false)
+}
+
+func genProgramOpt(r core.Rng, module, acornSafe bool) ([]byte, []bool) {
 	g := newProgGen(r, module)
+	g.acornSafe = acornSafe
 	src := g.program()
 	return src, g.slashes
 }

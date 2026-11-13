@@ -23,7 +23,7 @@ func (p *parser) parseDirectives(info *fnInfo) bool {
 		raw := p.src[t.Start+1 : t.End-1]
 		n = p.nd(stmt)
 		n.Flags |= NDirective
-		n.Str = raw
+		n.Str = p.str(raw)
 		if t.Flags&FlagLegacyOctal != 0 && octal.Start < 0 {
 			octal = t.Span()
 		}
@@ -456,7 +456,7 @@ func (p *parser) parseFor() NodeID {
 		if isOf && letIdent {
 			p.syntaxError(CodeForInOfHead, "for-of head may not start with let")
 		}
-		if isOf && asyncIdent && !isAwait && in.Kind == KIdentifier && in.Str == "async" && in.Flags&NParenthesized == 0 {
+		if isOf && asyncIdent && !isAwait && in.Kind == KIdentifier && p.strs[in.Str] == "async" && in.Flags&NParenthesized == 0 {
 			p.syntaxError(CodeForInOfHead, "for-of head may not start with async of")
 		}
 		p.toAssignTarget(init)

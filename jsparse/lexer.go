@@ -28,6 +28,7 @@ type Lexer struct {
 	comments     []Comment
 
 	buf []byte // scratch for decoded values
+	alt Algorithms
 }
 
 // Comment is a comment in the source (12.4, B.1.1).

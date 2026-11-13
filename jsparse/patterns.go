@@ -44,11 +44,11 @@ func (p *parser) checkSimpleTarget(id NodeID) {
 	n := p.nd(id)
 	switch n.Kind {
 	case KIdentifier:
-		if n.Str == "" {
+		if p.strs[n.Str] == "" {
 			return // placeholder after an error
 		}
-		if p.strict() && (n.Str == "eval" || n.Str == "arguments") {
-			p.early(CodeStrictEvalArguments, n.Span, "cannot assign to "+n.Str+" in strict mode")
+		if p.strict() && (p.strs[n.Str] == "eval" || p.strs[n.Str] == "arguments") {
+			p.early(CodeStrictEvalArguments, n.Span, "cannot assign to "+p.strs[n.Str]+" in strict mode")
 		}
 	case KMemberExpression:
 	default:
@@ -178,14 +178,14 @@ func (p *parser) toRestArgument(id NodeID, mode patMode, kind bindKind) {
 // bindIdentNode declares the identifier node id as a binding.
 func (p *parser) bindIdentNode(id NodeID, kind bindKind) {
 	n := p.nd(id)
-	if n.Str == "" {
+	if p.strs[n.Str] == "" {
 		return
 	}
-	p.checkBindingIdentifier(n.Str, n.Span, kind == bindLexical)
+	p.checkBindingIdentifier(p.strs[n.Str], n.Span, kind == bindLexical)
 	if p.bound != nil {
-		*p.bound = append(*p.bound, boundName{name: n.Str, kw: lookupKeyword(n.Str), span: n.Span})
+		*p.bound = append(*p.bound, boundName{name: p.strs[n.Str], kw: lookupKeyword(p.strs[n.Str]), span: n.Span})
 	}
-	p.declare(n.Str, kind, n.Span)
+	p.declare(p.strs[n.Str], kind, n.Span)
 }
 
 // parseBindingTarget parses BindingIdentifier or BindingPattern.
@@ -357,8 +357,8 @@ func (p *parser) boundNamesOf(dst []boundName, id NodeID) []boundName {
 	n := p.nd(id)
 	switch n.Kind {
 	case KIdentifier:
-		if n.Str != "" {
-			dst = append(dst, boundName{name: n.Str, kw: lookupKeyword(n.Str), span: n.Span})
+		if p.strs[n.Str] != "" {
+			dst = append(dst, boundName{name: p.strs[n.Str], kw: lookupKeyword(p.strs[n.Str]), span: n.Span})
 		}
 	case KObjectPattern:
 		for _, c := range p.ids(n.List) {

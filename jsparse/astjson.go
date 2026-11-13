@@ -234,7 +234,7 @@ func (w *jsonWriter) node(id NodeID) {
 			}
 		case keyName:
 			sep(k.name)
-			w.buf = appendJSONString(w.buf, n.Str)
+			w.buf = appendJSONString(w.buf, w.p.Strings[n.Str])
 		case keyValue:
 			sep(k.name)
 			w.value(n)
@@ -247,20 +247,20 @@ func (w *jsonWriter) node(id NodeID) {
 			if n.Op == LitRegExp {
 				sep(k.name)
 				w.buf = append(w.buf, `{"flags":`...)
-				w.buf = appendJSONString(w.buf, n.Str2)
+				w.buf = appendJSONString(w.buf, w.p.Strings[n.Str2])
 				w.buf = append(w.buf, `,"pattern":`...)
-				w.buf = appendJSONString(w.buf, n.Str)
+				w.buf = appendJSONString(w.buf, w.p.Strings[n.Str])
 				w.buf = append(w.buf, '}')
 			}
 		case keyBigint:
 			if n.Op == LitBigInt {
 				sep(k.name)
-				w.buf = appendJSONString(w.buf, n.Str)
+				w.buf = appendJSONString(w.buf, w.p.Strings[n.Str])
 			}
 		case keyDirective:
 			if n.Flags&NDirective != 0 {
 				sep(k.name)
-				w.buf = appendJSONString(w.buf, n.Str)
+				w.buf = appendJSONString(w.buf, w.p.Strings[n.Str])
 			}
 		case keySourceType:
 			sep(k.name)
@@ -308,16 +308,16 @@ func (w *jsonWriter) value(n *Node) {
 		if n.Flags&NCookedNull != 0 {
 			w.buf = append(w.buf, "null"...)
 		} else {
-			w.buf = appendJSONString(w.buf, n.Str)
+			w.buf = appendJSONString(w.buf, w.p.Strings[n.Str])
 		}
 		w.buf = append(w.buf, `,"raw":`...)
-		w.buf = appendJSONString(w.buf, n.Str2)
+		w.buf = appendJSONString(w.buf, w.p.Strings[n.Str2])
 		w.buf = append(w.buf, '}')
 		return
 	}
 	switch n.Op {
 	case LitString:
-		w.buf = appendJSONString(w.buf, n.Str)
+		w.buf = appendJSONString(w.buf, w.p.Strings[n.Str])
 	case LitNumber:
 		w.buf = appendJSONNumber(w.buf, n.Num)
 	case LitBoolean:

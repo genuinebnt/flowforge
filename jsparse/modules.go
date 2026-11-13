@@ -245,7 +245,7 @@ func (p *parser) parseExportDeclaration() NodeID {
 					exported = p.newNode(KLiteral, lt.Start)
 					en := p.nd(exported)
 					en.Op = LitString
-					en.Str = lt.Value
+					en.Str = p.str(lt.Value)
 					en.Span.End = lt.End
 				} else {
 					exported = p.ident(lt.Value, lt.Span())

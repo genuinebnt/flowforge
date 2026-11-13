@@ -214,6 +214,9 @@ const precRelational = 8
 // parseBinary parses the binary-operator levels from ShortCircuitExpression
 // down to ExponentiationExpression by precedence climbing.
 func (p *parser) parseBinary(minPrec int, noIn bool) NodeID {
+	if p.opts.Algorithms.Binary == BinaryCascade {
+		return p.parseBinaryCascade(max(minPrec, 1), minPrec, noIn)
+	}
 	start := p.start()
 	var left NodeID
 	if p.at(TPrivateName) {
@@ -225,7 +228,7 @@ func (p *parser) parseBinary(minPrec int, noIn bool) NodeID {
 			return p.errNode()
 		}
 		left = p.newNode(KPrivateIdentifier, span.Start)
-		p.nd(left).Str = name
+		p.nd(left).Str = p.str(name)
 		p.done(left)
 		p.usePrivate(name, span)
 	} else {
@@ -240,13 +243,7 @@ func (p *parser) parseBinary(minPrec int, noIn bool) NodeID {
 		if prec == 0 || prec < minPrec {
 			break
 		}
-		ln := p.nd(left)
-		if op == OpExp && ln.Flags&NParenthesized == 0 && (ln.Kind == KUnaryExpression || ln.Kind == KAwaitExpression) {
-			p.syntaxError(CodeExponentUnary, "unary expression before ** must be parenthesized")
-			break
-		}
-		if ln.Kind == KPrivateIdentifier && op != OpIn {
-			p.unexpected()
+		if !p.binaryOperatorOK(left, op) {
 			break
 		}
 		p.flushCover(start)
@@ -257,23 +254,7 @@ func (p *parser) parseBinary(minPrec int, noIn bool) NodeID {
 		} else {
 			right = p.parseBinary(prec+1, noIn)
 		}
-		if p.isBareArrow(right) {
-			p.syntaxErrorAt(CodeUnexpectedToken, p.nd(right).Span, "arrow function is not allowed as an operand")
-		}
-		if op == OpCoalesce || op == OpOr || op == OpAnd {
-			if p.mixesCoalesce(op, left) || p.mixesCoalesce(op, right) {
-				p.syntaxError(CodeMixedCoalesce, "?? cannot be mixed with && or || without parentheses")
-			}
-		}
-		kind := KBinaryExpression
-		if op == OpCoalesce || op == OpOr || op == OpAnd {
-			kind = KLogicalExpression
-		}
-		id := p.newNode(kind, start)
-		n := p.nd(id)
-		n.Op = op
-		n.A, n.B = left, right
-		left = p.done(id)
+		left = p.binaryNode(start, left, op, right)
 		added++
 		if !p.enter() {
 			break
@@ -281,6 +262,106 @@ func (p *parser) parseBinary(minPrec int, noIn bool) NodeID {
 	}
 	p.depth -= added
 	return left
+}
+
+// binaryOperatorOK applies the checks that depend on the left operand
+// before op is consumed: ExponentiationExpression's left side is an
+// UpdateExpression, never a bare UnaryExpression (13.6), and a
+// PrivateIdentifier may only be the left operand of `in` (13.10).
+func (p *parser) binaryOperatorOK(left NodeID, op Op) bool {
+	ln := p.nd(left)
+	if op == OpExp && ln.Flags&NParenthesized == 0 && (ln.Kind == KUnaryExpression || ln.Kind == KAwaitExpression) {
+		p.syntaxError(CodeExponentUnary, "unary expression before ** must be parenthesized")
+		return false
+	}
+	if ln.Kind == KPrivateIdentifier && op != OpIn {
+		p.unexpected()
+		return false
+	}
+	return true
+}
+
+// binaryNode builds `left op right`, rejecting arrow-function operands and
+// the ?? mixing forbidden by CoalesceExpressionHead (13.13).
+func (p *parser) binaryNode(start int32, left NodeID, op Op, right NodeID) NodeID {
+	if p.isBareArrow(right) {
+		p.syntaxErrorAt(CodeUnexpectedToken, p.nd(right).Span, "arrow function is not allowed as an operand")
+	}
+	kind := KBinaryExpression
+	if op == OpCoalesce || op == OpOr || op == OpAnd {
+		kind = KLogicalExpression
+		if p.mixesCoalesce(op, left) || p.mixesCoalesce(op, right) {
+			p.syntaxError(CodeMixedCoalesce, "?? cannot be mixed with && or || without parentheses")
+		}
+	}
+	id := p.newNode(kind, start)
+	n := p.nd(id)
+	n.Op = op
+	n.A, n.B = left, right
+	return p.done(id)
+}
+
+// parseBinaryCascade is the BinaryCascade candidate: one recursion level
+// per precedence level, from level up to ExponentiationExpression (12);
+// floor is the lowest precedence the whole descent accepts (it decides
+// whether `#x in y` is allowed at the bottom). It builds the same trees
+// and reports the same diagnostics as parseBinary.
+func (p *parser) parseBinaryCascade(level, floor int, noIn bool) NodeID {
+	start := p.start()
+	if level > 12 {
+		return p.parseBinaryOperand(floor, noIn)
+	}
+	left := p.parseBinaryCascade(level+1, floor, noIn)
+	if p.isBareArrow(left) {
+		return left
+	}
+	added := 0
+	for {
+		prec, op := p.binaryPrec(noIn)
+		if prec != level {
+			break
+		}
+		if !p.binaryOperatorOK(left, op) {
+			break
+		}
+		p.flushCover(start)
+		p.next()
+		var right NodeID
+		if op == OpExp {
+			right = p.parseBinaryCascade(12, 12, noIn) // right-associative
+		} else {
+			right = p.parseBinaryCascade(level+1, level+1, noIn)
+		}
+		left = p.binaryNode(start, left, op, right)
+		added++
+		if !p.enter() {
+			break
+		}
+		if op == OpExp {
+			break
+		}
+	}
+	p.depth -= added
+	return left
+}
+
+// parseBinaryOperand parses the operand at the bottom of the binary
+// levels: a UnaryExpression, or `#x` when followed by `in`.
+func (p *parser) parseBinaryOperand(minPrec int, noIn bool) NodeID {
+	if !p.at(TPrivateName) {
+		return p.parseUnary(noIn)
+	}
+	name, span := p.tok.Value, p.tok.Span()
+	p.next()
+	if !p.isKw(KwIn) || noIn || precRelational < minPrec {
+		p.unexpected()
+		return p.errNode()
+	}
+	id := p.newNode(KPrivateIdentifier, span.Start)
+	p.nd(id).Str = p.str(name)
+	p.done(id)
+	p.usePrivate(name, span)
+	return id
 }
 
 // mixesCoalesce reports whether operand (of an op expression) is an
@@ -721,7 +802,7 @@ func (p *parser) parseMemberName() NodeID {
 	case TPrivateName:
 		span := p.tok.Span()
 		id := p.newNode(KPrivateIdentifier, span.Start)
-		p.nd(id).Str = p.tok.Value
+		p.nd(id).Str = p.str(p.tok.Value)
 		p.usePrivate(p.tok.Value, span)
 		p.next()
 		return p.done(id)
@@ -1102,7 +1183,7 @@ func (p *parser) parsePropertyKey(allowPrivate bool) propKey {
 		k.name, k.named = p.tok.Value, true
 		span := p.tok.Span()
 		k.id = p.newNode(KPrivateIdentifier, span.Start)
-		p.nd(k.id).Str = p.tok.Value
+		p.nd(k.id).Str = p.str(p.tok.Value)
 		p.next()
 		p.done(k.id)
 	default:
@@ -1223,7 +1304,7 @@ func (p *parser) parseLiteral() NodeID {
 	switch t.Kind {
 	case TString:
 		n.Op = LitString
-		n.Str = t.Value
+		n.Str = p.str(t.Value)
 		if t.Flags&FlagLegacyOctal != 0 && p.strict() {
 			p.early(CodeStrictOctal, t.Span(), "octal escape sequences are not allowed in strict mode")
 		}
@@ -1235,11 +1316,11 @@ func (p *parser) parseLiteral() NodeID {
 		}
 	case TBigInt:
 		n.Op = LitBigInt
-		n.Str = t.Value
+		n.Str = p.str(t.Value)
 	case TRegExp:
 		n.Op = LitRegExp
-		n.Str = t.Value
-		n.Str2 = t.Raw
+		n.Str = p.str(t.Value)
+		n.Str2 = p.str(t.Raw)
 		flags, at, ok := validateRegExpFlags(t.Raw)
 		if !ok {
 			flagStart := t.End - int32(len(t.Raw))
@@ -1279,14 +1360,14 @@ func (p *parser) parseTemplate(tagged bool) NodeID {
 		q := p.newNode(KTemplateElement, qs)
 		n := p.nd(q)
 		n.Span.End = qe
-		n.Str2 = t.Raw
+		n.Str2 = p.str(t.Raw)
 		if t.Flags&FlagInvalidEscape != 0 {
 			n.Flags |= NCookedNull
 			if !tagged {
 				p.early(CodeInvalidTemplate, Span{t.ErrAt, t.ErrAt + 1}, "invalid escape sequence in template")
 			}
 		} else {
-			n.Str = t.Value
+			n.Str = p.str(t.Value)
 		}
 		if tail {
 			n.Flags |= NTail

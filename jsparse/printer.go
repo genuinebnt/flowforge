@@ -271,7 +271,7 @@ func (w *printer) stmt(id NodeID) {
 			w.tok("continue")
 		}
 		if n.A != NoNode {
-			w.tok(w.n(n.A).Str)
+			w.tok(w.p.Strings[w.n(n.A).Str])
 		}
 		w.tok(";")
 	case KIfStatement:
@@ -396,7 +396,7 @@ func (w *printer) stmt(id NodeID) {
 		left := w.n(n.A)
 		if left.Kind == KVariableDeclaration {
 			w.varDecl(n.A, false)
-		} else if left.Kind == KIdentifier && (left.Str == "let" || (left.Str == "async" && n.Kind == KForOfStatement)) {
+		} else if left.Kind == KIdentifier && (w.p.Strings[left.Str] == "let" || (w.p.Strings[left.Str] == "async" && n.Kind == KForOfStatement)) {
 			w.tok("(")
 			w.pattern(n.A)
 			w.tok(")")
@@ -564,14 +564,14 @@ func (w *printer) startsBadly(id NodeID, stmt bool) bool {
 	case KFunctionExpression, KClassExpression:
 		return stmt
 	case KIdentifier:
-		return stmt && ln.Str == "let"
+		return stmt && w.p.Strings[ln.Str] == "let"
 	}
 	return false
 }
 
 func (w *printer) leftmostIsLet(id NodeID) bool {
 	l := w.leftmostNode(id)
-	return l != NoNode && w.n(l).Kind == KIdentifier && w.n(l).Str == "let"
+	return l != NoNode && w.n(l).Kind == KIdentifier && w.p.Strings[w.n(l).Str] == "let"
 }
 
 // ---- functions and classes ----
@@ -586,7 +586,7 @@ func (w *printer) function(id NodeID) {
 		w.tok("*")
 	}
 	if n.A != NoNode {
-		w.tok(w.n(n.A).Str)
+		w.tok(w.p.Strings[w.n(n.A).Str])
 	}
 	w.params(n.List)
 	w.sp()
@@ -640,7 +640,7 @@ func (w *printer) class(id NodeID) {
 	n := w.n(id)
 	w.tok("class")
 	if n.A != NoNode {
-		w.tok(w.n(n.A).Str)
+		w.tok(w.p.Strings[w.n(n.A).Str])
 	}
 	if n.B != NoNode {
 		w.tok("extends")
@@ -722,9 +722,9 @@ func (w *printer) propKey(key NodeID, computed bool) {
 	k := w.n(key)
 	switch k.Kind {
 	case KIdentifier:
-		w.tok(k.Str)
+		w.tok(w.p.Strings[k.Str])
 	case KPrivateIdentifier:
-		w.tok("#" + k.Str)
+		w.tok("#" + w.p.Strings[k.Str])
 	default:
 		w.expr(key, pPrimary)
 	}
@@ -822,9 +822,9 @@ func (w *printer) exprInner(id NodeID) {
 	n := w.n(id)
 	switch n.Kind {
 	case KIdentifier:
-		w.tok(n.Str)
+		w.tok(w.p.Strings[n.Str])
 	case KPrivateIdentifier:
-		w.tok("#" + n.Str)
+		w.tok("#" + w.p.Strings[n.Str])
 	case KLiteral:
 		w.literal(n)
 	case KThisExpression:
@@ -933,9 +933,9 @@ func (w *printer) exprInner(id NodeID) {
 		w.newCallee(n.A)
 		w.args(n.List)
 	case KMetaProperty:
-		w.tok(w.n(n.A).Str)
+		w.tok(w.p.Strings[w.n(n.A).Str])
 		w.tok(".")
-		w.tok(w.n(n.B).Str)
+		w.tok(w.p.Strings[w.n(n.B).Str])
 	case KImportExpression:
 		w.tok("import")
 		w.tok("(")
@@ -971,7 +971,7 @@ func (w *printer) pattern(id NodeID) {
 	n := w.n(id)
 	switch n.Kind {
 	case KIdentifier:
-		w.tok(n.Str)
+		w.tok(w.p.Strings[n.Str])
 	case KObjectPattern, KArrayPattern, KAssignmentPattern, KRestElement, KObjectExpression, KArrayExpression:
 		w.exprInner(id)
 	default:
@@ -1034,7 +1034,7 @@ func (w *printer) property(pn *Node, isPattern bool) {
 			w.pattern(pn.B)
 			return
 		}
-		w.tok(w.n(pn.A).Str)
+		w.tok(w.p.Strings[w.n(pn.A).Str])
 		return
 	}
 	w.propKey(pn.A, computed)
@@ -1113,10 +1113,10 @@ func (w *printer) member(n *Node, inChain bool) {
 func (w *printer) memberName(id NodeID) {
 	n := w.n(id)
 	if n.Kind == KPrivateIdentifier {
-		w.tok("#" + n.Str)
+		w.tok("#" + w.p.Strings[n.Str])
 		return
 	}
-	w.tok(n.Str)
+	w.tok(w.p.Strings[n.Str])
 }
 
 func (w *printer) call(n *Node, inChain bool) {
@@ -1194,7 +1194,7 @@ func (w *printer) template(n *Node) {
 	exprs := w.list(n.List2)
 	w.tok("`")
 	for i, q := range quasis {
-		w.out = append(w.out, w.n(q).Str2...)
+		w.out = append(w.out, w.p.Strings[w.n(q).Str2]...)
 		if i < len(exprs) {
 			w.out = append(w.out, '$', '{')
 			w.expr(exprs[i], pSeq)
@@ -1207,7 +1207,7 @@ func (w *printer) template(n *Node) {
 func (w *printer) literal(n *Node) {
 	switch n.Op {
 	case LitString:
-		w.tok(quoteJS(n.Str))
+		w.tok(quoteJS(w.p.Strings[n.Str]))
 	case LitNumber:
 		switch {
 		case math.IsInf(n.Num, 1):
@@ -1218,7 +1218,7 @@ func (w *printer) literal(n *Node) {
 			w.tok(NumberToString(n.Num))
 		}
 	case LitBigInt:
-		w.tok(n.Str + "n")
+		w.tok(w.p.Strings[n.Str] + "n")
 	case LitBoolean:
 		if n.Num != 0 {
 			w.tok("true")
@@ -1228,7 +1228,7 @@ func (w *printer) literal(n *Node) {
 	case LitNull:
 		w.tok("null")
 	case LitRegExp:
-		w.tok("/" + n.Str + "/" + n.Str2)
+		w.tok("/" + w.p.Strings[n.Str] + "/" + w.p.Strings[n.Str2])
 		w.afterRegex = true
 	}
 }
@@ -1289,7 +1289,7 @@ func (w *printer) moduleName(id NodeID) {
 		w.literal(n)
 		return
 	}
-	w.tok(n.Str)
+	w.tok(w.p.Strings[n.Str])
 }
 
 func (w *printer) withClause(l NodeList) {
@@ -1324,7 +1324,7 @@ func (w *printer) importDecl(id NodeID) {
 			sn := w.n(s)
 			switch sn.Kind {
 			case KImportDefaultSpecifier:
-				w.tok(w.n(sn.A).Str)
+				w.tok(w.p.Strings[w.n(sn.A).Str])
 			case KImportNamespaceSpecifier:
 				if i > 0 {
 					w.tok(",")
@@ -1333,7 +1333,7 @@ func (w *printer) importDecl(id NodeID) {
 				w.tok("*")
 				w.sp()
 				w.tok("as")
-				w.tok(w.n(sn.A).Str)
+				w.tok(w.p.Strings[w.n(sn.A).Str])
 			case KImportSpecifier:
 				if !named {
 					if i > 0 {
@@ -1347,9 +1347,9 @@ func (w *printer) importDecl(id NodeID) {
 					w.sp()
 				}
 				w.moduleName(sn.A)
-				if w.n(sn.A).Kind == KLiteral || w.n(sn.A).Str != w.n(sn.B).Str {
+				if w.n(sn.A).Kind == KLiteral || w.p.Strings[w.n(sn.A).Str] != w.p.Strings[w.n(sn.B).Str] {
 					w.tok("as")
-					w.tok(w.n(sn.B).Str)
+					w.tok(w.p.Strings[w.n(sn.B).Str])
 				}
 			}
 		}
@@ -1418,7 +1418,7 @@ func (w *printer) exportDecl(id NodeID) {
 			sn := w.n(s)
 			w.moduleName(sn.A)
 			ln, en := w.n(sn.A), w.n(sn.B)
-			if ln.Kind != en.Kind || ln.Str != en.Str {
+			if ln.Kind != en.Kind || w.p.Strings[ln.Str] != w.p.Strings[en.Str] {
 				w.tok("as")
 				w.moduleName(sn.B)
 			}

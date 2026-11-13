@@ -15,9 +15,9 @@ type StringKind uint8
 
 // String kinds.
 const (
-	StringLiteral    StringKind = iota // "..." or '...'
-	TemplateLiteral                    // `...${x}...`, untagged
-	TaggedTemplate                     // tag`...`
+	StringLiteral   StringKind = iota // "..." or '...'
+	TemplateLiteral                   // `...${x}...`, untagged
+	TaggedTemplate                    // tag`...`
 )
 
 // StringUse is one string or template literal with its syntactic context.
@@ -74,7 +74,7 @@ func newExtractor(p *Program) *extractor {
 			id, init := &p.Nodes[n.A], &p.Nodes[n.B]
 			if id.Kind == KIdentifier && init.Kind == KNewExpression {
 				if path := e.calleePath(init.A); path != "" {
-					e.ctor[id.Str] = path
+					e.ctor[p.Strings[id.Str]] = path
 				}
 			}
 		}
@@ -95,7 +95,7 @@ func (p *Program) StringLiterals() []StringUse {
 			if n.Op != LitString || e.isKeyOrSpecifier(id) {
 				return true
 			}
-			u := StringUse{Node: id, Kind: StringLiteral, Span: n.Span, Value: n.Str}
+			u := StringUse{Node: id, Kind: StringLiteral, Span: n.Span, Value: p.Strings[n.Str]}
 			e.context(&u, id)
 			out = append(out, u)
 		case KTemplateLiteral:
@@ -110,8 +110,8 @@ func (p *Program) StringLiterals() []StringUse {
 				if i > 0 {
 					b.WriteString(ExprPlaceholder)
 				}
-				b.WriteString(p.Nodes[q].Str)
-				u.Parts = append(u.Parts, p.Nodes[q].Str)
+				b.WriteString(p.Strings[p.Nodes[q].Str])
+				u.Parts = append(u.Parts, p.Strings[p.Nodes[q].Str])
 			}
 			u.Value = b.String()
 			if u.Kind == TaggedTemplate {
@@ -201,18 +201,18 @@ func (e *extractor) keyName(key NodeID, computed bool) string {
 	k := &e.p.Nodes[key]
 	if computed {
 		if k.Kind == KLiteral && k.Op == LitString {
-			return k.Str
+			return e.p.Strings[k.Str]
 		}
 		return "[]"
 	}
 	switch k.Kind {
 	case KIdentifier, KPrivateIdentifier:
-		return k.Str
+		return e.p.Strings[k.Str]
 	case KLiteral:
 		if k.Op == LitNumber {
 			return NumberToString(k.Num)
 		}
-		return k.Str
+		return e.p.Strings[k.Str]
 	}
 	return ""
 }
@@ -226,7 +226,7 @@ func (e *extractor) calleePath(id NodeID) string {
 		n := &e.p.Nodes[id]
 		switch n.Kind {
 		case KIdentifier:
-			parts = append(parts, n.Str)
+			parts = append(parts, e.p.Strings[n.Str])
 			id = NoNode
 		case KThisExpression:
 			parts = append(parts, "this")
@@ -312,14 +312,14 @@ func (p *Program) moduleRef(src NodeID, dynamic bool) ModuleRef {
 	r.Span = n.Span
 	switch {
 	case n.Kind == KLiteral && n.Op == LitString:
-		r.Specifier, r.Literal = n.Str, true
+		r.Specifier, r.Literal = p.Strings[n.Str], true
 	case n.Kind == KTemplateLiteral:
 		var b strings.Builder
 		for i, q := range p.List(n.List) {
 			if i > 0 {
 				b.WriteString(ExprPlaceholder)
 			}
-			b.WriteString(p.Nodes[q].Str)
+			b.WriteString(p.Strings[p.Nodes[q].Str])
 		}
 		r.Specifier, r.Literal = b.String(), true
 	}
@@ -481,7 +481,7 @@ func (e *extractor) flatten(t *LiteralTable, id NodeID, path string, max, depth 
 	case KLiteral:
 		switch n.Op {
 		case LitString:
-			add(path, ValueString, n.Str, id)
+			add(path, ValueString, e.p.Strings[n.Str], id)
 		case LitNumber:
 			add(path, ValueNumber, NumberToString(n.Num), id)
 		case LitBoolean:
@@ -489,9 +489,9 @@ func (e *extractor) flatten(t *LiteralTable, id NodeID, path string, max, depth 
 		case LitNull:
 			add(path, ValueNull, "null", id)
 		case LitRegExp:
-			add(path, ValueRegExp, "/"+n.Str+"/"+n.Str2, id)
+			add(path, ValueRegExp, "/"+e.p.Strings[n.Str]+"/"+e.p.Strings[n.Str2], id)
 		default:
-			add(path, ValueOther, n.Str, id)
+			add(path, ValueOther, e.p.Strings[n.Str], id)
 		}
 	case KTemplateLiteral:
 		var b strings.Builder
@@ -499,7 +499,7 @@ func (e *extractor) flatten(t *LiteralTable, id NodeID, path string, max, depth 
 			if i > 0 {
 				b.WriteString(ExprPlaceholder)
 			}
-			b.WriteString(e.p.Nodes[q].Str)
+			b.WriteString(e.p.Strings[e.p.Nodes[q].Str])
 		}
 		add(path, ValueTemplate, b.String(), id)
 	case KIdentifier, KMemberExpression:
@@ -523,7 +523,7 @@ func (e *extractor) tableContext(id NodeID) string {
 	switch pn.Kind {
 	case KVariableDeclarator:
 		if pn.A != NoNode && e.p.Nodes[pn.A].Kind == KIdentifier {
-			return e.p.Nodes[pn.A].Str
+			return e.p.Strings[e.p.Nodes[pn.A].Str]
 		}
 	case KAssignmentExpression:
 		return e.calleePath(pn.A)

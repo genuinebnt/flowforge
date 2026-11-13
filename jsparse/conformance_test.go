@@ -183,7 +183,8 @@ func explicitEquivalent(t *testing.T, prog *Program) string {
 			case LitString:
 				k.Kind = KIdentifier
 			case LitNumber:
-				k.Kind, k.Str = KIdentifier, NumberToString(k.Num)
+				prog.Strings = append(prog.Strings, NumberToString(k.Num))
+				k.Kind, k.Str = KIdentifier, StrID(len(prog.Strings)-1)
 			}
 		}
 	}

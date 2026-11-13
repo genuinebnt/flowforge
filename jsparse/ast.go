@@ -259,13 +259,20 @@ type Node struct {
 	List  NodeList
 	List2 NodeList
 	// Str is the identifier name, string value, template cooked value,
-	// regular expression pattern, BigInt digits or directive raw text.
-	Str string
+	// regular expression pattern, BigInt digits or directive raw text, as
+	// an index into Program.Strings.
+	Str StrID
 	// Str2 is the template raw value or the regular expression flags.
-	Str2 string
+	Str2 StrID
 	// Num is the value of a numeric literal (1 or 0 for booleans).
 	Num float64
 }
+
+// StrID indexes Program.Strings; 0 is the empty string. Keeping strings
+// out of Node makes the arena pointer-free, so the garbage collector never
+// scans it (PORT: Rust keeps the same layout with a Vec<String> or an
+// atom table).
+type StrID uint32
 
 // Has reports whether all of f are set.
 func (n *Node) Has(f NodeFlags) bool { return n.Flags&f == f }
@@ -289,8 +296,10 @@ func (s SourceType) String() string {
 // Program is a parsed source text: an arena of nodes plus the children
 // slice that NodeList ranges index.
 type Program struct {
-	Nodes      []Node
-	Children   []NodeID
+	Nodes    []Node
+	Children []NodeID
+	// Strings holds the node strings (Node.Str, Node.Str2); Strings[0] is "".
+	Strings    []string
 	Root       NodeID
 	SourceType SourceType
 	// Source is the parsed text (a copy of the input bytes).
@@ -309,6 +318,12 @@ type Program struct {
 
 // Node returns the node with the given id; id must be valid.
 func (p *Program) Node(id NodeID) *Node { return &p.Nodes[id] }
+
+// Text returns the Str of node id (its name or string value).
+func (p *Program) Text(id NodeID) string { return p.Strings[p.Nodes[id].Str] }
+
+// Text2 returns the Str2 of node id (template raw value, regexp flags).
+func (p *Program) Text2(id NodeID) string { return p.Strings[p.Nodes[id].Str2] }
 
 // List returns the ids of a node list.
 func (p *Program) List(l NodeList) []NodeID {

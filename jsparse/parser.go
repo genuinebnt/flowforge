@@ -16,6 +16,10 @@ type Options struct {
 	// MaxDepth bounds syntactic nesting (statements, expressions and
 	// binary-operator chains). 0 means DefaultMaxDepth.
 	MaxDepth int
+
+	// Algorithms selects measured alternative implementations; the zero
+	// value is the default.
+	Algorithms Algorithms
 }
 
 // DefaultMaxDepth is the nesting limit used when Options.MaxDepth is 0.
@@ -62,6 +66,7 @@ type parser struct {
 
 	nodes    []Node
 	children []NodeID
+	strs     []string
 	scratch  []NodeID
 	tokens   []Token
 
@@ -91,14 +96,18 @@ func newParser(src string, opts Options) *parser {
 	p := &parser{src: src, opts: opts, module: opts.SourceType == SourceModule}
 	p.lex = newLexer(src, p.module)
 	p.lex.recordTrivia = opts.Tokens
+	p.lex.alt = opts.Algorithms
 	p.maxDepth = opts.MaxDepth
 	if p.maxDepth <= 0 {
 		p.maxDepth = DefaultMaxDepth
 	}
 	p.lastAwaitIdent = -1
-	est := len(src)/6 + 16
+	// Minified code averages about 3.3 bytes per node; formatted code has
+	// more. Sizing for dense input avoids most regrowth of the arena.
+	est := len(src)/4 + 16
 	p.nodes = make([]Node, 0, est)
-	p.children = make([]NodeID, 0, est/2)
+	p.children = make([]NodeID, 0, est/4)
+	p.strs = make([]string, 1, est/2)
 	p.tok = p.lex.Next(GoalDiv)
 	p.checkLexError()
 	return p
@@ -108,6 +117,7 @@ func (p *parser) program() *Program {
 	prog := &Program{
 		Nodes:       p.nodes,
 		Children:    p.children,
+		Strings:     p.strs,
 		Root:        0,
 		SourceType:  p.opts.SourceType,
 		Source:      p.src,
@@ -326,6 +336,13 @@ func (p *parser) halt() {
 // ---- nodes ----
 
 func (p *parser) newNode(k Kind, start int32) NodeID {
+	if len(p.nodes) == cap(p.nodes) {
+		// Double explicitly: append grows large slices by only 1.25x, which
+		// copies a big arena many times.
+		grown := make([]Node, len(p.nodes), 2*cap(p.nodes)+16)
+		copy(grown, p.nodes)
+		p.nodes = grown
+	}
 	p.nodes = append(p.nodes, Node{Kind: k, Span: Span{start, start}, A: NoNode, B: NoNode, C: NoNode, D: NoNode})
 	return NodeID(len(p.nodes) - 1)
 }
@@ -369,6 +386,15 @@ func (p *parser) listOf(ids ...NodeID) NodeList {
 
 func (p *parser) ids(l NodeList) []NodeID { return p.children[l.Start : l.Start+l.Len] }
 
+// str interns s into the string table.
+func (p *parser) str(s string) StrID {
+	if s == "" {
+		return 0
+	}
+	p.strs = append(p.strs, s)
+	return StrID(len(p.strs) - 1)
+}
+
 func (p *parser) ident(name string, span Span) NodeID {
 	if p.halted {
 		// After a halt the span's token may never have been consumed.
@@ -377,7 +403,7 @@ func (p *parser) ident(name string, span Span) NodeID {
 	id := p.newNode(KIdentifier, span.Start)
 	n := p.nd(id)
 	n.Span.End = span.End
-	n.Str = name
+	n.Str = p.str(name)
 	return id
 }
 
