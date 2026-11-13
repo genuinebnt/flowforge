@@ -125,6 +125,18 @@ func sampleAsset(typ, tag string) oam.Asset {
 		return oam.FQDN{Name: tag + ".acme.com"}
 	case oam.TypeService:
 		return oam.Service{UniqueID: tag}
+	case oam.TypeNetblock:
+		return oam.Netblock{CIDR: "192.0.2.0/24"}
+	case oam.TypeIPAddress:
+		return oam.IPAddress{Address: "192.0.2.1"}
+	case oam.TypeIPNetRecord:
+		return oam.IPNetRecord{Handle: "NET-" + tag}
+	case oam.TypeDomainRecord:
+		return oam.DomainRecord{Domain: tag + ".acme.com"}
+	case oam.TypeAutonomousSystem:
+		return oam.AutonomousSystem{Number: 64500}
+	case oam.TypeAutnumRecord:
+		return oam.AutnumRecord{Number: 64500}
 	}
 	return oam.Opaque{Type: typ, Content: map[string]any{"name": tag}}
 }

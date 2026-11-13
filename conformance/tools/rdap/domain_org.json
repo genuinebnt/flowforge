@@ -312,7 +312,7 @@
      {
       "from": "e0",
       "relation": {
-       "label": "registration_record",
+       "label": "registration",
        "type": "SimpleRelation"
       },
       "to": "e1"

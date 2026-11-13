@@ -71,7 +71,8 @@ func (b *treeBuilder) adoptionAgency(tok *Token) {
 		furthest := b.stack[fbStack]
 		common := b.stack[feStack-1]
 		// bookmark: newElement is inserted into the list before the entry
-		// now at this index (fe itself is removed at the end).
+		// now at this index (fe itself is removed at the end), so every
+		// removal of an earlier entry must decrement it.
 		bookmark := feIdx
 		node := furthest
 		lastNode := furthest

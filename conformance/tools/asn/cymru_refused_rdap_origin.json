@@ -344,7 +344,7 @@
      {
       "from": "e4",
       "relation": {
-       "label": "registration_record",
+       "label": "registration",
        "type": "SimpleRelation"
       },
       "to": "e5"

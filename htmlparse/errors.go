@@ -214,6 +214,8 @@ func (c ErrorCode) IsTokenizerError() bool { return c <= ErrUnknownNamedCharacte
 // break, and a lone CR is a line break. For end-of-file errors Offset is
 // len(input). The error is located at the input character being consumed
 // when the error was detected.
+//
+// PORT: Col is in UTF-16 code units, not bytes or chars.
 type ParseError struct {
 	Code   ErrorCode
 	Offset int
@@ -299,9 +301,12 @@ func fillPositions(input []byte, errs []ParseError) {
 	}
 }
 
-// stableSortByOffset is an insertion/merge sort on idx keyed by
-// errs[idx[k]].Offset. Written out so the port does not depend on a
-// library's stability guarantee.
+// stableSortByOffset is a bottom-up merge sort of idx keyed by
+// errs[idx[k]].Offset.
+//
+// PORT: written out so the order of equal offsets (emission order) does
+// not depend on a library's stability guarantee; Rust's stable sort_by
+// gives the same result.
 func stableSortByOffset(idx []int, errs []ParseError) {
 	if len(idx) < 2 {
 		return

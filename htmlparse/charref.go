@@ -243,8 +243,12 @@ func (t *Tokenizer) hexadecimalCharacterReferenceStartState() {
 	t.state = t.returnState
 }
 
-// addDigit accumulates a digit into the character reference code,
-// saturating just above the Unicode range so overflow cannot wrap.
+// addDigit accumulates a digit into the character reference code. Once
+// the code exceeds 0x10FFFF it stops growing (the end state maps every
+// such value to U+FFFD), so it cannot overflow.
+//
+// PORT: keep this saturation; wrapping arithmetic would turn huge
+// references into valid code points.
 func (t *Tokenizer) addDigit(base, d int32) {
 	if t.refCode <= 0x10FFFF {
 		t.refCode = t.refCode*base + d

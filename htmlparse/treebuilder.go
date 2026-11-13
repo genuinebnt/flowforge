@@ -145,7 +145,8 @@ func (b *treeBuilder) run() {
 		b.tz.SetAllowCDATA(acn.id != None && acn.ns != HTMLNamespace)
 	}
 	for id, buf := range b.textBuf {
-		// Each entry writes only its own node, so map order is irrelevant.
+		// PORT: Go map iteration order is random; each entry writes only
+		// its own node, so the result does not depend on it.
 		b.doc.Nodes[id].Data = string(buf)
 	}
 	b.textBuf = nil
@@ -817,7 +818,9 @@ func (b *treeBuilder) insertElement(tok *Token, ns Namespace) (id NodeID, pushed
 }
 
 // insertHTML inserts an HTML element for tok.
-func (b *treeBuilder) insertHTML(tok *Token) (NodeID, bool) { return b.insertElement(tok, HTMLNamespace) }
+func (b *treeBuilder) insertHTML(tok *Token) (NodeID, bool) {
+	return b.insertElement(tok, HTMLNamespace)
+}
 
 // insertVoid inserts an HTML element for tok and immediately pops it,
 // acknowledging the self-closing flag.

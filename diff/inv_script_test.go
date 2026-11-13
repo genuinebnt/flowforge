@@ -24,8 +24,8 @@ func TestDiffInv01_ApplyCorrect(t *testing.T) {
 	}
 }
 
-// DIFF-INV-02: Myers and Myers are minimal: their distance equals the
-// brute-force n + m - 2*LCS on random small inputs.
+// DIFF-INV-02: MyersLinearSpace and Myers are minimal: their distance
+// equals the Reference dynamic program's n + m - 2*LCS on random inputs.
 func TestDiffInv02_MyersMinimal(t *testing.T) {
 	r := testkit.Rng(t)
 	for range 2 * testkit.Cases() {

@@ -51,7 +51,8 @@ func breakoutTag(tok *Token) bool {
 }
 
 // foreignContent applies the rules for parsing tokens in foreign content
-// to a non-character token. It returns true to reprocess.
+// to tok. It returns true when the token must be reprocessed by the
+// dispatcher.
 func (b *treeBuilder) foreignContent(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -120,7 +121,6 @@ func (b *treeBuilder) foreignBreakout(tok *Token) bool {
 	return b.processInMode(b.mode, tok)
 }
 
-
 // foreignEndTag is the "any other end tag" entry of the foreign rules.
 func (b *treeBuilder) foreignEndTag(tok *Token) bool {
 	i := len(b.stack) - 1
@@ -147,6 +147,9 @@ func (b *treeBuilder) foreignEndTag(tok *Token) bool {
 }
 
 // svgTagNameFixups is the SVG tag name case table of §13.2.6.5.
+//
+// PORT: this and svgAttrFixups are lookup-only maps (a Rust match or phf
+// map); nothing iterates them.
 var svgTagNameFixups = map[string]string{
 	"altglyph": "altGlyph", "altglyphdef": "altGlyphDef", "altglyphitem": "altGlyphItem",
 	"animatecolor": "animateColor", "animatemotion": "animateMotion", "animatetransform": "animateTransform",

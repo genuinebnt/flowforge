@@ -32,8 +32,8 @@ ToolRunnerService (spec 6, 11.5; V2_DESIGN §8).
 | `tcpconnect` 1.1.0 | same | active | alias of `portscan` |
 | `tlscert` 1.0.0 | `(InScope<Host>, Int) -> Option<TlsCertificate>` | passive (D3) | TLS handshake through a tunnel under a pinned decision, SNI = host; `InsecureSkipVerify` only to read the chain, the handshake is aborted when the certificates arrive (no application data). Service (`tls`), `port`, `certificate`, TLSCertificate, `common_name` / `san_dns_name` → FQDN |
 | `ctlog` 1.0.0 | `(Fqdn) -> List<Fqdn>` | passive | crt.sh search (`%.name`): `name_value` split on newlines, wildcards → base name, e-mails and IPs dropped, deduplicated; output = names at or below the input. Per certificate id (newest first, at most 50) the DER is downloaded, because a TLSCertificate is keyed by its SHA-256 fingerprint; `common_name` / `san_dns_name` edges |
-| `rdap` 1.0.0 | `(Host) -> List<Organization>` | passive | IANA bootstrap (dns/ipv4/ipv6, cached 24 h) → registry; domain (registrable domain) → DomainRecord (events, status, DNSSEC, port43) with `registration_record` from the FQDN; ip → IPNetRecord, Netblock (cidr0 or the range as prefixes) with `registration` and `contains`; Organizations from entities with roles `registrant` / `administrative` (edges labelled by role); redirects followed through the proxy |
-| `asn` 1.0.0 | `(IpAddress) -> Option<Asn>` | passive | RDAP ip network (+ ARIN origin-AS extension), Team Cymru `origin(6).asn.cymru.com` TXT via the DNS forwarder (announced prefix, origin AS), RDAP autnum; AutonomousSystem `announces` Netblock `contains` IPAddress, AutnumRecord (`registration_record`), IPNetRecord |
+| `rdap` 1.0.0 | `(Host) -> List<Organization>` | passive | IANA bootstrap (dns/ipv4/ipv6, cached 24 h) → registry; domain (registrable domain) → DomainRecord (events, status, DNSSEC, port43) with `registration` from the FQDN; ip → IPNetRecord, Netblock (cidr0 or the range as prefixes) with `registration` and `contains`; Organizations from entities with roles `registrant` / `administrative` (edges labelled by role); redirects followed through the proxy |
+| `asn` 1.0.0 | `(IpAddress) -> Option<Asn>` | passive | RDAP ip network (+ ARIN origin-AS extension), Team Cymru `origin(6).asn.cymru.com` TXT via the DNS forwarder (announced prefix, origin AS), RDAP autnum; AutonomousSystem `announces` Netblock `contains` IPAddress, AutnumRecord (`registration`), IPNetRecord |
 | `mock` 1.0.0 | `(String) -> String` | none | test tool |
 
 `spec_sha256` is the canonical hash of the engine-side spec with
@@ -62,16 +62,14 @@ organization name and redacted contacts are skipped. Their `unique_id` is
 
 ## Open questions
 
-* oam's endpoint table (spec 5.5) admits `registration` only for Netblock →
-  IPNetRecord; OAM also uses it for FQDN → DomainRecord and AutonomousSystem
-  → AutnumRecord. Those edges use `registration_record` until the table is
-  extended.
+* `registration` from FQDN → DomainRecord and AutonomousSystem →
+  AutnumRecord is an oam endpoint-table extension (oam OPEN_QUESTIONS).
 * Registrant/administrative organizations are linked from the record with
   the RDAP role as label (no ContactRecord in between).
 * A wildcard SAN `*.x` is reported as the FQDN `x`.
-* `tlscert` needs a pinned passive decision (D3); the scope service pins
-  only non-passive checks today, so in a running stack its tunnels are
-  refused (`no_pinned_ips`, fail closed).
+* `tlscert` re-checks with `AllowedPinned` (CheckRequest.resolve = true): a
+  passive decision that resolves and pins (D3); without pins the proxy
+  refuses the tunnel (`no_pinned_ips`).
 
 Not here: sandboxes (tools run in-process), retry policies per tool (the
 proto ToolSpec has no field for them).

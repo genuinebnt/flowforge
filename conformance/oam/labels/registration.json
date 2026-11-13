@@ -1,0 +1,13 @@
+{
+ "description": "Endpoint pairs of the registration label: spec 5.5 Netblock -> IPNetRecord plus the Flowforge extension (following OAM) FQDN -> DomainRecord and AutonomousSystem -> AutnumRecord. Pairs are checked together: a source may only point at its own record type.",
+ "cases": [
+  {"name": "registration Netblock->IPNetRecord", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "Netblock", "to": "IPNetRecord", "ok": true},
+  {"name": "registration FQDN->DomainRecord", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "FQDN", "to": "DomainRecord", "ok": true},
+  {"name": "registration AutonomousSystem->AutnumRecord", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "AutonomousSystem", "to": "AutnumRecord", "ok": true},
+  {"name": "registration FQDN->IPNetRecord rejected (crossed pair)", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "FQDN", "to": "IPNetRecord", "ok": false},
+  {"name": "registration Netblock->AutnumRecord rejected (crossed pair)", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "Netblock", "to": "AutnumRecord", "ok": false},
+  {"name": "registration AutonomousSystem->DomainRecord rejected (crossed pair)", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "AutonomousSystem", "to": "DomainRecord", "ok": false},
+  {"name": "registration IPAddress->IPNetRecord rejected", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "IPAddress", "to": "IPNetRecord", "ok": false},
+  {"name": "registration DomainRecord->FQDN rejected (direction)", "relation": {"type": "SimpleRelation", "label": "registration"}, "from": "DomainRecord", "to": "FQDN", "ok": false}
+ ]
+}

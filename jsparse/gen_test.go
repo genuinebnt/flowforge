@@ -27,6 +27,9 @@ type progGen struct {
 	// restricted production is affected.
 	newlines bool
 	ctx      genCtx
+	// afterRegex: the last token was a regular expression literal, whose
+	// flags would absorb a following identifier character.
+	afterRegex bool
 }
 
 // genCtx is the syntactic context the generator is in.
@@ -45,7 +48,7 @@ func newProgGen(r core.Rng, module bool) *progGen {
 	return g
 }
 
-func (g *progGen) n(k int) int      { return core.IntN(g.r, k) }
+func (g *progGen) n(k int) int       { return core.IntN(g.r, k) }
 func (g *progGen) chance(k int) bool { return g.n(k) == 0 }
 
 func (g *progGen) fresh() string {
@@ -58,7 +61,7 @@ func (g *progGen) fresh() string {
 func (g *progGen) tok(s string) {
 	if n := len(g.b); n > 0 {
 		last, first := g.b[n-1], s[0]
-		if (isWordByte(last) && isWordByte(first)) || ((last == '+' || last == '-') && first == last) ||
+		if (isWordByte(last) && isWordByte(first)) || (g.afterRegex && isWordByte(first)) || ((last == '+' || last == '-') && first == last) ||
 			(last == '/' && (first == '/' || first == '*')) || (last == '<' && first == '!') || (last == '-' && first == '>') {
 			g.b = append(g.b, ' ')
 		}
@@ -72,6 +75,7 @@ func (g *progGen) tok(s string) {
 		}
 	}
 	g.b = append(g.b, s...)
+	g.afterRegex = false
 }
 
 // brk may insert a line break (only called where one is harmless).
@@ -290,8 +294,13 @@ func (g *progGen) forStmt() {
 		case 0:
 			g.tok("(")
 			if g.chance(2) {
+				// Initializers are parenthesized: the head is parsed with [~In].
 				g.tok("let")
-				g.bindingList(true)
+				g.tok(g.fresh())
+				g.tok("=")
+				g.tok("(")
+				g.expr(pAssign)
+				g.tok(")")
 			}
 			g.tok(";")
 			if g.chance(2) {
@@ -475,7 +484,12 @@ func (g *progGen) bindingElement() {
 	}
 }
 
+// params emits FormalParameters; yield and await expressions are not
+// allowed there, so the context drops them while defaults are generated.
 func (g *progGen) params() {
+	gen, async := g.ctx.gen, g.ctx.async
+	g.ctx.gen, g.ctx.async = false, false
+	defer func() { g.ctx.gen, g.ctx.async = gen, async }()
 	g.tok("(")
 	for k := g.n(3); k > 0; k-- {
 		g.bindingElement()
@@ -498,13 +512,14 @@ func (g *progGen) withFn(async, gen, arrow, method, ctor bool, body func()) {
 	g.ctx.fn = true
 	g.ctx.loop, g.ctx.sw, g.ctx.labels = 0, 0, nil
 	body()
-	saved.private = g.ctx.private
 	g.ctx = saved
 }
 
-func (g *progGen) functionBody() {
+// functionBody emits { FunctionBody }; directive allows a "use strict"
+// prologue (only for simple parameter lists).
+func (g *progGen) functionBody(directive bool) {
 	g.tok("{")
-	if !g.ctx.strict && g.chance(8) {
+	if directive && !g.ctx.strict && g.chance(8) {
 		g.tok(`"use strict"`)
 		g.tok(";")
 		g.ctx.strict = true
@@ -534,7 +549,7 @@ func (g *progGen) functionDecl() {
 		} else {
 			g.simpleParams()
 		}
-		g.functionBody()
+		g.functionBody(!g.ctx.strict)
 	})
 }
 
@@ -556,13 +571,13 @@ func (g *progGen) classDecl() {
 }
 
 func (g *progGen) classTail() {
+	saved := g.ctx
+	g.ctx.strict = true // all parts of a class, heritage included, are strict
 	derived := g.chance(2)
 	if derived {
 		g.tok("extends")
 		g.primary()
 	}
-	saved := g.ctx
-	g.ctx.strict = true
 	var priv []string
 	for k := g.n(3); k > 0; k-- {
 		priv = append(priv, "p"+g.fresh())
@@ -631,16 +646,17 @@ func (g *progGen) classTail() {
 		}
 	}
 	g.tok("}")
-	saved.private = saved.private[:len(saved.private):len(saved.private)]
 	g.ctx = saved
 }
 
+// fieldInit emits a field initializer: a method-like context where
+// super.x is allowed and yield, await and return are not.
 func (g *progGen) fieldInit() {
-	g.withFn(false, false, true, true, false, func() {
-		g.ctx.fn = false
-		g.ctx.async = false
-		g.expr(pAssign)
-	})
+	saved := g.ctx
+	g.ctx.fn, g.ctx.async, g.ctx.gen, g.ctx.arrow, g.ctx.method, g.ctx.ctor = false, false, false, false, true, false
+	g.ctx.loop, g.ctx.sw, g.ctx.labels = 0, 0, nil
+	g.expr(pAssign)
+	g.ctx = saved
 }
 
 // method emits a class or object method, accessor or generator named name.
@@ -652,7 +668,7 @@ func (g *progGen) method(name string) {
 		g.withFn(false, false, false, true, false, func() {
 			g.tok("(")
 			g.tok(")")
-			g.functionBody()
+			g.functionBody(false)
 		})
 	case 1:
 		g.tok("set")
@@ -661,7 +677,7 @@ func (g *progGen) method(name string) {
 			g.tok("(")
 			g.tok(g.fresh())
 			g.tok(")")
-			g.functionBody()
+			g.functionBody(false)
 		})
 	default:
 		async, gen := g.chance(3), g.chance(3)
@@ -904,7 +920,7 @@ func (g *progGen) target() {
 }
 
 func (g *progGen) member() {
-	g.primaryNoArrow()
+	g.memberBase()
 	g.tok(".")
 	g.tok(g.propIdent())
 }
@@ -937,10 +953,11 @@ func (g *progGen) assignment() {
 		g.expr(pAssign)
 	default:
 		g.target()
-		g.tok([]string{"=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="}[g.n(16)])
-		if strings.HasPrefix(string(g.b[len(g.b)-3:]), "/=") || strings.HasSuffix(string(g.b), "/=") {
+		op := []string{"=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="}[g.n(16)]
+		if op == "/=" {
 			g.slashes = append(g.slashes, false)
 		}
+		g.tok(op)
 		g.brk()
 		g.expr(pAssign)
 	}
@@ -959,7 +976,7 @@ func (g *progGen) arrow() {
 		}
 		g.tok("=>")
 		if g.chance(2) {
-			g.functionBody()
+			g.functionBody(false)
 		} else {
 			mark := len(g.b)
 			g.expr(pAssign)
@@ -972,8 +989,21 @@ func (g *progGen) arrow() {
 	})
 }
 
-func (g *progGen) callOrMember() {
+// memberBase emits the object of a member access or call: a reference or
+// a parenthesized primary (so that numeric literals never meet a `.`).
+func (g *progGen) memberBase() {
+	if g.chance(2) {
+		g.tok(g.ref())
+		return
+	}
+	g.tok("(")
 	g.primaryNoArrow()
+	g.tok(")")
+}
+
+func (g *progGen) callOrMember() {
+	g.memberBase()
+	chained := false
 	for k := g.n(3) + 1; k > 0; k-- {
 		switch g.n(7) {
 		case 0:
@@ -986,12 +1016,17 @@ func (g *progGen) callOrMember() {
 		case 2:
 			g.tok("?.")
 			g.tok(g.propIdent())
+			chained = true
 		case 3:
 			g.tok("?.")
 			g.args()
+			chained = true
 		case 4:
+			if chained { // a tagged template may not follow an optional chain
+				g.args()
+				continue
+			}
 			g.template(true)
-			return // a tagged template may not follow an optional chain
 		case 5:
 			if len(g.ctx.private) > 0 {
 				g.tok(".")
@@ -1115,9 +1150,7 @@ func (g *progGen) primary() {
 	case 5:
 		g.tok("new")
 		g.atom()
-		if g.chance(2) {
-			g.args()
-		}
+		g.args()
 	case 6:
 		if g.ctx.method && !g.ctx.ctor {
 			g.tok("super")
@@ -1200,7 +1233,7 @@ func (g *progGen) template(tagged bool) {
 			if tagged {
 				b.WriteString(`\unicode`) // NotEscapeSequence: cooked undefined
 			} else {
-				b.WriteString(`\``)
+				b.WriteString("\\`")
 			}
 		case 3:
 			b.WriteString("$ {not}")
@@ -1235,7 +1268,7 @@ func (g *progGen) atom() {
 		}
 		g.tok(nums[g.n(len(nums))])
 	case 1:
-		strs := []string{`"s"`, `'it''s'`, `"\u{1F600}\x41\n"`, `'éé'`, "\"line\\\ncont\"", `""`, "' '"}
+		strs := []string{`"s"`, `'it\'s'`, `"\u{1F600}\x41\n"`, `'éé'`, "\"line\\\ncont\"", `""`, "' '"}
 		if !g.ctx.strict {
 			strs = append(strs, `"\101\8"`)
 		}
@@ -1243,6 +1276,7 @@ func (g *progGen) atom() {
 	case 2:
 		g.slashes = append(g.slashes, true)
 		g.tok(genRegexps[g.n(len(genRegexps))])
+		g.afterRegex = true
 	case 3:
 		g.tok([]string{"true", "false", "null", "this"}[g.n(4)])
 	default:

@@ -112,7 +112,8 @@ type Attr struct {
 // built from several character tokens spans from the first token's start
 // to the last token's end. Nodes the parser created without a token
 // (implied html/head/body/tbody...) have an empty span at the position of
-// the token that caused them.
+// the token that caused them; the fragment parser's synthetic html root
+// and context element have the empty span at 0.
 type Node struct {
 	Kind      NodeKind
 	Namespace Namespace
@@ -349,6 +350,9 @@ func (d *Document) Children(id NodeID) iter.Seq[NodeID] {
 	}
 }
 
+// PORT: iter.Seq is a push iterator; in Rust implement Iterator over the
+// same explicit stack.
+//
 // Descendants iterates the descendants of id in tree order (pre-order),
 // not including id. Template contents are visited where the template
 // element is (right after it, before its following siblings), so

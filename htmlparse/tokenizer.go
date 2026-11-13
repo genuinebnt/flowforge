@@ -97,8 +97,8 @@ const (
 	numStates
 )
 
-// stateNames are the spec names, used in diagnostics and by the port's
-// table-driven tests.
+// stateNames are the exact spec state names (without the trailing
+// "state"), for diagnostics.
 var stateNames = [numStates]string{
 	stateData: "data", stateRCDATA: "RCDATA", stateRAWTEXT: "RAWTEXT", stateScriptData: "script data",
 	statePLAINTEXT: "PLAINTEXT", stateTagOpen: "tag open", stateEndTagOpen: "end tag open", stateTagName: "tag name",
@@ -188,10 +188,10 @@ type Tokenizer struct {
 	attrs       []Attr
 	attrName    []byte
 	attrValue   []byte
-	attrOpen    bool // an attribute is being built
-	attrDrop    bool // the current attribute is a duplicate (or over the limit)
-	attrAdded   bool // the current attribute has been appended to attrs
-	attrIndex   map[string]struct{}
+	attrOpen    bool                // an attribute is being built
+	attrDrop    bool                // the current attribute is a duplicate (or over the limit)
+	attrAdded   bool                // the current attribute has been appended to attrs
+	attrIndex   map[string]struct{} // duplicate check for tags with many attributes (lookup only)
 	attrLimited bool
 	data        []byte // comment data, PI data
 	pubID       []byte
@@ -274,6 +274,9 @@ func (t *Tokenizer) Input() []byte { return t.in }
 
 // Next returns the next token. The returned pointer is valid until the
 // following call. After the EOF token Next keeps returning EOF tokens.
+//
+// PORT: the pointer aliases a buffer inside the tokenizer; in Rust return
+// an owned Token (or a borrow tied to &mut self).
 func (t *Tokenizer) Next() *Token {
 	for t.qlen == 0 {
 		if t.done {
@@ -356,8 +359,9 @@ func (t *Tokenizer) skipASCII(n int) {
 	}
 }
 
-// peekFold reports whether the input at pos starts with word, ASCII
-// case-insensitively (word must be lower-case ASCII).
+// peekFold reports whether the input at offset at starts with word,
+// ASCII case-insensitively (word must be lower-case ASCII). It consumes
+// nothing: the "if the next few characters are" steps use it.
 func (t *Tokenizer) peekFold(at int, word string) bool {
 	if len(t.in)-at < len(word) {
 		return false
@@ -581,6 +585,9 @@ func (t *Tokenizer) emitDoctype() {
 
 // internAttrName returns a string for an attribute name, without
 // allocating for the most common names.
+//
+// PORT: Go compiles switch string(b) to comparisons that do not allocate;
+// in Rust match on the &[u8] (or intern into a string pool).
 func internAttrName(b []byte) string {
 	switch string(b) {
 	case "class":

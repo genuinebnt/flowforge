@@ -59,6 +59,10 @@ const (
 type EndpointRule struct {
 	From []string
 	To   []string
+	// Pairs, when set, restricts the rule to these (from, to) type pairs
+	// (From and To are then their unions): a label whose targets depend on
+	// its source, such as registration.
+	Pairs [][2]string
 }
 
 // LabelRule returns the endpoint rule of a docs-tagged label. Labels
@@ -77,7 +81,12 @@ func LabelRule(label string) (EndpointRule, bool) {
 	case LabelAnnounces:
 		return r(one(TypeAutonomousSystem), one(TypeNetblock))
 	case LabelRegistration:
-		return r(one(TypeNetblock), one(TypeIPNetRecord))
+		// Spec 5.5 lists Netblock -> IPNetRecord; the other two pairs are
+		// a Flowforge extension following OAM, where FQDN and
+		// AutonomousSystem are linked to their registration records with
+		// the same label (rdap, asn tools).
+		return EndpointRule{From: one(TypeNetblock, TypeFQDN, TypeAutonomousSystem), To: one(TypeIPNetRecord, TypeDomainRecord, TypeAutnumRecord),
+			Pairs: [][2]string{{TypeNetblock, TypeIPNetRecord}, {TypeFQDN, TypeDomainRecord}, {TypeAutonomousSystem, TypeAutnumRecord}}}, true
 	case LabelPort:
 		return r(one(TypeIPAddress, TypeFQDN, TypeURL), one(TypeService))
 	case LabelCertificate:
@@ -143,7 +152,11 @@ func ValidateEdge(rel Relation, fromType, toType string) error {
 	if !ok {
 		return nil
 	}
-	if slices.Contains(rule.From, fromType) && (len(rule.To) == 0 || slices.Contains(rule.To, toType)) {
+	if rule.Pairs != nil {
+		if slices.Contains(rule.Pairs, [2]string{fromType, toType}) {
+			return nil
+		}
+	} else if slices.Contains(rule.From, fromType) && (len(rule.To) == 0 || slices.Contains(rule.To, toType)) {
 		return nil
 	}
 	return &EdgeError{Label: label, FromType: fromType, ToType: toType, AllowedFrom: rule.From, AllowedTo: rule.To}

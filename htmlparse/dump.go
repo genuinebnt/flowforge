@@ -87,6 +87,7 @@ func dumpNode(b *strings.Builder, doc *Document, id NodeID, depth int) {
 				names[i] = dumpAttrName(a)
 				order[i] = i
 			}
+			// html5lib sorts attributes by displayed name (byte order).
 			sort.SliceStable(order, func(x, y int) bool { return names[order[x]] < names[order[y]] })
 			for _, i := range order {
 				dumpIndent(b, depth+1)

@@ -394,12 +394,6 @@ func rdapOrgs(es []RDAPEntity) []rdapOrg {
 	return out
 }
 
-// LabelRegistrationRecord joins an FQDN to its DomainRecord and an
-// AutonomousSystem to its AutnumRecord. OAM calls both "registration", but
-// oam's endpoint table (spec 5.5) admits "registration" only for Netblock →
-// IPNetRecord, so these use this Flowforge label (README, open questions).
-const LabelRegistrationRecord = "registration_record"
-
 // rangeCIDRs returns the prefixes exactly covering [start, end] (at most
 // 16).
 func rangeCIDRs(start, end netip.Addr) []netip.Prefix {
@@ -527,7 +521,7 @@ func (o RDAPObject) autnumNumber() int64 {
 }
 
 // addAutnum adds an autnum object: AutonomousSystem, AutnumRecord with a
-// registration_record edge and the organizations.
+// registration edge and the organizations.
 func addAutnum(b *obsBuilder, o RDAPObject, orgs map[string]oam.Organization) bool {
 	n := o.autnumNumber()
 	if n < 1 || n > 1<<32-1 {
@@ -536,7 +530,7 @@ func addAutnum(b *obsBuilder, o RDAPObject, orgs map[string]oam.Organization) bo
 	aref := b.entity("asn:"+strconv.FormatInt(n, 10), oam.AutonomousSystem{Number: n})
 	rref := b.entity("autnum:"+strconv.FormatInt(n, 10), oam.AutnumRecord{Number: n, Handle: o.Handle, Name: o.Name, WhoisServer: o.Port43,
 		CreatedDate: o.event("registration"), UpdatedDate: o.event("last changed"), Status: o.Status})
-	b.edge(aref, rref, oam.SimpleRelation{Label: LabelRegistrationRecord})
+	b.edge(aref, rref, oam.SimpleRelation{Label: oam.LabelRegistration})
 	addOrgs(b, rref, o.Entities, orgs)
 	return true
 }
@@ -631,7 +625,7 @@ func (r *RDAP) Run(ctx context.Context, input json.RawMessage, tc *ToolCtx, out 
 			rec.DNSSEC = &v
 		}
 		rref := b.entity("domrec:"+domain, rec)
-		b.edge(fref, rref, oam.SimpleRelation{Label: LabelRegistrationRecord})
+		b.edge(fref, rref, oam.SimpleRelation{Label: oam.LabelRegistration})
 		addOrgs(b, rref, o.Entities, orgs)
 	} else {
 		addr := netip.MustParseAddr(t.String())

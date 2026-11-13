@@ -207,3 +207,11 @@ spec's names are used as written:
 No defects found while using `core/netnorm`. One note for its owner: it
 percent-decodes `%2e` before removing dot segments, so `/%2e%2e/x`
 normalizes to `/x` (consistent with RFC 3986 section 6.2.2 and WHATWG).
+
+## Registration endpoints (ff extension)
+
+Spec 5.5 gives `registration` only Netblock → IPNetRecord. OAM also links
+FQDN → DomainRecord and AutonomousSystem → AutnumRecord with it, and the
+rdap and asn tools emit those edges, so the table admits the three pairs
+(`EndpointRule.Pairs`: each source only with its own record type).
+[`conformance/oam/labels/registration.json`]

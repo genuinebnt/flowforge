@@ -8,7 +8,8 @@ import (
 
 // Bounds defaults (V2_DESIGN §5).
 const (
-	// DefaultMaxEditDistance caps token-level Myers at 10,000 token edits.
+	// DefaultMaxEditDistance caps the token-level algorithm at 10,000 token
+	// edits (inserted plus deleted tokens).
 	DefaultMaxEditDistance = 10_000
 	// DefaultMaxInputBytes is the largest side (4 MiB of normalized text)
 	// diffed at token level.
@@ -56,7 +57,8 @@ type Fallback uint8
 const (
 	// FallbackNone: the diff stayed at LevelTokens.
 	FallbackNone Fallback = iota
-	// FallbackEditDistance: token-level Myers exceeded MaxEditDistance.
+	// FallbackEditDistance: the token-level algorithm exceeded
+	// MaxEditDistance.
 	FallbackEditDistance
 	// FallbackInputSize: a side exceeded MaxInputBytes (and, for LevelHash,
 	// MaxLineInputBytes).

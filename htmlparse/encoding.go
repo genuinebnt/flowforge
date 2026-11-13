@@ -190,7 +190,12 @@ func decodeWith(e encoding.Encoding, raw []byte) []byte {
 }
 
 // decodeUTF8 is the WHATWG UTF-8 decoder: each maximal subpart of an
-// ill-formed sequence becomes one U+FFFD. Valid input is returned as is.
+// ill-formed sequence becomes one U+FFFD. Valid input is returned as is
+// (the result aliases raw).
+//
+// PORT: encoding_rs's UTF-8 decoder applies the same maximal-subpart
+// rule; the other encodings come from x/text here and encoding_rs there,
+// both built from the WHATWG index tables.
 func decodeUTF8(raw []byte) []byte {
 	if utf8.Valid(raw) {
 		return raw

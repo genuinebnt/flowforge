@@ -1,7 +1,7 @@
 package htmlparse
 
-// selectedcontent mirroring (HTML §4.10.7 select, §4.10.12
-// selectedcontent). In a browser the option and selectedcontent
+// selectedcontent mirroring (HTML "The select element" and "The
+// selectedcontent element" in §4.10). In a browser the option and selectedcontent
 // insertion / "children parsed" steps copy the selected option's children
 // into every enabled selectedcontent descendant of its select while the
 // parser runs. The html5lib expectations include that effect, so the tree

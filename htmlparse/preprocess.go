@@ -22,6 +22,10 @@ import "unicode/utf8"
 // decodeRune decodes the code point at the start of b (len(b) > 0) under
 // the rules above, except that surrogates are returned as their code point
 // (the caller reports and replaces them).
+//
+// PORT: Go strings may hold any bytes; this parser only ever stores valid
+// UTF-8 (ill-formed input and surrogates become U+FFFD), so every string
+// maps to a Rust String. The input itself stays &[u8].
 func decodeRune(b []byte) (rune, int) {
 	c := b[0]
 	if c < utf8.RuneSelf {
@@ -99,6 +103,8 @@ func isControlError(r rune) bool {
 // in the text states: printable ASCII plus TAB, LF, FF. It excludes CR
 // (newline normalization), NUL, other controls (input-stream errors),
 // '<' and '&' (state changes). The text fast paths test this table first.
+//
+// PORT: a constant 256-entry table (a const array in Rust).
 var asciiPlain = func() (t [256]bool) {
 	for c := 0x20; c < 0x7F; c++ {
 		t[c] = true
