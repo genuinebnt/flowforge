@@ -184,20 +184,36 @@ func TestRegress_GOPS14_BlobAdapters(t *testing.T) {
 	}
 }
 
-func TestZstdStoredRoundTrip(t *testing.T) {
+func TestZstdRoundTrip(t *testing.T) {
 	for _, n := range []int{0, 1, 4096, 128 << 10, 128<<10 + 7, 400 << 10} {
 		in := bytes.Repeat([]byte(`{"seq":1,"type":"x"}`+"\n"), n/21+1)[:n]
-		frame := blob.ZstdStored(in)
+		frame, err := blob.ZstdEncode(in)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if binary.LittleEndian.Uint32(frame) != 0xFD2FB528 {
 			t.Fatal("magic")
 		}
-		out, err := blob.ZstdDecodeStored(frame)
+		if n >= 4096 && len(frame) >= n/4 {
+			t.Fatalf("n=%d: frame %d bytes, repetitive JSON Lines should compress at least 4x", n, len(frame))
+		}
+		again, _ := blob.ZstdEncode(in)
+		if !bytes.Equal(again, frame) {
+			t.Fatalf("n=%d: encoding is not deterministic", n)
+		}
+		out, err := blob.ZstdDecode(frame, int64(n))
 		if err != nil || !bytes.Equal(out, in) {
 			t.Fatalf("n=%d: %v", n, err)
 		}
-		frame[len(frame)-1] ^= 1
-		if _, err := blob.ZstdDecodeStored(frame); err == nil {
-			t.Fatalf("n=%d: corrupted checksum accepted", n)
+		if n > 0 {
+			if _, err := blob.ZstdDecode(frame, int64(n-1)); err == nil {
+				t.Fatalf("n=%d: size cap not enforced", n)
+			}
+			bad := bytes.Clone(frame)
+			bad[len(bad)-1] ^= 1
+			if _, err := blob.ZstdDecode(bad, int64(n)); err == nil {
+				t.Fatalf("n=%d: corrupted checksum accepted", n)
+			}
 		}
 	}
 }

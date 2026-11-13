@@ -408,7 +408,10 @@ func (r *Runner) archiveRun(ctx context.Context, tenant, run core.UUID) error {
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	frame := blob.ZstdStored(buf.Bytes())
+	frame, err := blob.ZstdEncode(buf.Bytes())
+	if err != nil {
+		return err
+	}
 	// The archive is written (and overwritten on a retry) before anything
 	// is deleted: a crash in between leaves the run in place and the next
 	// pass writes the same object again.

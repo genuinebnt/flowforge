@@ -129,7 +129,7 @@ func TestRegress_GOPS03_RetentionAndArchival(t *testing.T) {
 	if !strings.HasSuffix(uri, maintenance.ArchiveName(core.MustParseUUID(tenant), core.MustParseUUID(oldRun))) {
 		t.Fatalf("archive uri %s", uri)
 	}
-	plain, err := blob.ZstdDecodeStored(frame)
+	plain, err := blob.ZstdDecode(frame, 64<<20)
 	if err != nil {
 		t.Fatal(err)
 	}
