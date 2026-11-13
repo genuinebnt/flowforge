@@ -258,9 +258,9 @@ assumptions it was written against.
 
 ## Counts
 
-* **v1 (fix on `feat_v1`, merge forward):** 44 rows, including 7 of the 8 high-severity ones.
-* **v2:** 17 rows.
-* **v3:** 30 rows.
-* **v4:** 3 rows.
-* **spec:** 4 rows.
-* **accept:** 12 rows.
+Counted from the tables above (one table row may name several ids). This
+is feat_v1's view; feat_v2 also closes the v2 rows.
+
+* **closed on `feat_v1`:** 52 rows. **open, v1:** 0.
+* **v2:** 17 rows. **v3:** 34 rows. **v4:** 3 rows.
+* **accepted, spec or operator steps:** 12 rows.
