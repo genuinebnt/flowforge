@@ -21,3 +21,12 @@ egress.
 
 Outputs: `network_id`, subnet ids, `psa_range_name`, `psa_connection`,
 `nat_ips`, network tags.
+
+Cost toggles (all default `true`, the spec 17.3 design used by dev/prod; the
+lab sets the first four to `false`): `nat_enabled` (router, NAT, NAT IPs),
+`psa_enabled` (private services access and the tool-runner -> Memorystore
+rule), `flow_logs_enabled`, `firewall_logs_enabled`, `private_dns_enabled`
+(Cloud DNS zones are billed; the lab keeps them because internal-ingress
+calls and the tool-runner's default-deny egress depend on them). `moved.tf`
+keeps existing state addresses. Extra outputs: `services_cidr`, `tools_cidr`,
+`egress_cidr`.
