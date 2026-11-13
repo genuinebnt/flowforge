@@ -137,6 +137,8 @@ func sampleAsset(typ, tag string) oam.Asset {
 		return oam.AutonomousSystem{Number: 64500}
 	case oam.TypeAutnumRecord:
 		return oam.AutnumRecord{Number: 64500}
+	case oam.TypeTLSCertificate:
+		return oam.TLSCertificate{FingerprintSHA256: oam.TLSFingerprint([]byte(tag))}
 	}
 	return oam.Opaque{Type: typ, Content: map[string]any{"name": tag}}
 }

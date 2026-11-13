@@ -1,0 +1,10 @@
+{
+ "description": "Endpoints of common_name and san_dns_name, tagged verify in spec 5.5 and confirmed by OAM's relation table (open-asset-model relation.go tlscertRels, commit 04e30738): SimpleRelation TLSCertificate -> FQDN (G-CORE-02). The ctlog and tlscert tools emit exactly these edges.",
+ "cases": [
+  {"name": "common_name TLSCertificate->FQDN", "relation": {"type": "SimpleRelation", "label": "common_name"}, "from": "TLSCertificate", "to": "FQDN", "ok": true},
+  {"name": "san_dns_name TLSCertificate->FQDN", "relation": {"type": "SimpleRelation", "label": "san_dns_name"}, "from": "TLSCertificate", "to": "FQDN", "ok": true},
+  {"name": "common_name FQDN->FQDN rejected", "relation": {"type": "SimpleRelation", "label": "common_name"}, "from": "FQDN", "to": "FQDN", "ok": false},
+  {"name": "san_dns_name TLSCertificate->IPAddress rejected (OAM uses san_ip_address)", "relation": {"type": "SimpleRelation", "label": "san_dns_name"}, "from": "TLSCertificate", "to": "IPAddress", "ok": false},
+  {"name": "common_name FQDN->TLSCertificate rejected (direction)", "relation": {"type": "SimpleRelation", "label": "common_name"}, "from": "FQDN", "to": "TLSCertificate", "ok": false}
+ ]
+}

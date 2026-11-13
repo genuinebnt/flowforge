@@ -5,7 +5,7 @@ ToolRunnerService (spec 6, 11.5; V2_DESIGN §8).
 * `Adapter` (spec 6.3): `Spec() Spec` and `Run(ctx, input, *ToolCtx,
   Emitter) (output, error)`. Adapters stream observations (at most 500
   entities each; validated with `oam.Observation.Validate`), progress and
-  skipped targets, return `*ToolError{Code, Message, Retryable}`, and must
+  skipped targets, return `*ToolError{Code, Message, Retryable, RetryAfter}`, and must
   stop within 2 s of cancellation (`Execute` waits `CancelGrace`, then
   returns).
 * `ToolCtx.Allowed` re-checks a concrete target with ScopeService.Check
@@ -15,18 +15,49 @@ ToolRunnerService (spec 6, 11.5; V2_DESIGN §8).
 * `Network` is the only route out: `Egress` (the egress proxy) in
   production, recorded fixtures in tests (`ToolCtx.Net`).
   `HTTPClient` (program targets; every redirect hop re-checked with its own
-  decision), `IntelClient` (intelligence sources under the passive decision;
+  decision, G-SVC-07: inside a TLS tunnel the proxy cannot see a Location,
+  so the runner checks each hop with an active, resolving scope check
+  whose decision is recorded and pinned, and opens the next hop's CONNECT
+  under it; the proxy in turn admits each tunnel only for the host and
+  port its decision covers. https is tunnelled by the runner itself
+  (CONNECT, then the target's TLS), so the decrypted response can be
+  recorded; connections are never reused), `IntelClient` (intelligence sources under the passive decision;
   hops must stay on the proxy's allowlist), `DialTCP` (CONNECT, or SOCKS5
   when `Egress.SOCKS`, declaring the call's ports in `X-Flowforge-Ports`) and
   `LookupDNS` (the proxy's DNS forwarder, ticket in an EDNS option).
   Refusals are `*RefusedError{Reason, RetryAfter}` (`errors.Is(err,
   ErrRefused)`).
+* **Edge outcome** (G-ENG-09). The proxy is the enforcement point of the
+  per-target limit and of kill switches. When it refused a request of an
+  execution with `kill_switch` (engaged after the runner's re-check: a
+  race) the execution ends as `kill_switch_active`, and with
+  `rate_limited` / `concurrency_limited` as `rate_limited` carrying the
+  longest retry delay (`ToolError.retry_after`); either replaces the
+  adapter's result, which lacks what the edge refused. The engine cancels
+  a raced run with reason `kill_switch_race[:level]` and waits a
+  rate-limit delay out without counting an attempt (spec 9.5).
+* **Raw capture** (`rawcapture.go`, spec 6.1 raw_ref, G-SVC-16). With
+  `Options.Raw`, each execution records the protocol bytes the egress
+  paths read, as read: every HTTP response off its connection (after TLS),
+  every DNS response message from the forwarder, and what a TLS server
+  sent during `tlscert`'s handshake; at most `DefaultRawLimit` (8 MiB) per
+  execution (`RawLimit`), later bytes cut and flagged. HTTP records are
+  redacted before storage (Set-Cookie values and credential headers become
+  typed placeholders, credential-shaped strings are replaced by the
+  content secret rules); DNS and TLS records are public and kept as
+  captured. The records form an FFRW v1 transcript (`EncodeRawTranscript`;
+  bytes in the `rawcapture.go` package comment) stored by a `RawStore`:
+  `ChunkRaw` in the chunk store (namespace `r<yyyymmdd>-<tenant>`, ref
+  `chunk://<ns>/<manifest>`), or `BlobRaw` (one object per transcript,
+  named by its SHA-256) where chunkstore has no backend (Cloud Storage,
+  G-CST-02); `RawStoreFor` picks one from the services' object store. Every
+  observation names the transcript captured up to its emission.
 
 ## Tools
 
 | Tool | DSL signature | Class | Emits |
 |------|---------------|-------|-------|
-| `dnsresolve` 2.0.0 | `(Fqdn) -> List<IpAddress>` | passive | via the DNS forwarder: A/AAAA (`dns_record` BasicDNSRelation to IPAddress), CNAME (FQDN → FQDN, every hop scope-checked, a denied hop is skipped and its addresses unused), MX (PrefDNSRelation), NS, TXT (`DNSRecordProperty` `dns_record`, strings joined); without a forwarder A/AAAA from the runner's resolver |
+| `dnsresolve` 2.0.0 | `(Fqdn) -> List<IpAddress>` | passive | only via the proxy's DNS forwarder (G-SVC-06: the runner has no resolver; no proxy is `no_egress`, a proxy without a forwarder `no_dns_forwarder`): A/AAAA (`dns_record` BasicDNSRelation to IPAddress), CNAME (FQDN → FQDN, every hop scope-checked, a denied hop is skipped and its addresses unused), MX (PrefDNSRelation), NS, TXT (`DNSRecordProperty` `dns_record`, strings joined) |
 | `httpprobe` 1.0.0 | `(InScope<Host>) -> Option<Service>` | active | unchanged |
 | `portscan` 2.0.0 | `(InScope<Host>, List<Int>) -> List<Int>` | active | Service + `port` PortRelation per open port; paced per target (default 1/rate), `Parallel` workers, rate-limit refusals retried after the proxy's hint, policy refusals reported as skipped |
 | `tcpconnect` 1.1.0 | same | active | alias of `portscan` |
@@ -76,8 +107,16 @@ the revisit policy and its state store, wellknown's ports, User-Agent.
   `FF_CRAWL_REVISIT=adaptive|fixed`. State is per tool-runner process
   (`MemRevisitStore`); after a restart every URL is due.
 
-`spec_sha256` is the canonical hash of the engine-side spec with
-`convert.DefaultToolRetry` (`Spec.EngineSpec`).
+Every tool declares a retry policy and an idempotency class (G-SVC-09),
+carried in the proto ToolSpec (`retry`, `idempotency`) and honoured by the
+engine (spec 6.2, 9.5): `RetryTransient` (3 attempts, 1-30 s, on
+`unavailable`, `deadline_exceeded`) for target-facing tools, `RetryIntel`
+(4 attempts, 2-60 s) for ctlog, rdap and asn, `RetryContent` (adds
+`content_unavailable`) for the content tools, `RetryNever` for mock; every
+built-in tool is `idempotent`. The runner's own tool timeout is reported
+as `deadline_exceeded`. `spec_sha256` is the canonical hash of the
+engine-side spec, policy and class included (`Spec.EngineSpec`; a spec
+without a policy gets `convert.DefaultToolRetry` on both sides).
 
 Organizations never carry personal data: individuals without an
 organization name and redacted contacts are skipped. Their `unique_id` is
@@ -98,7 +137,13 @@ organization name and redacted contacts are skipped. Their `unique_id` is
   jCards; every derived asset is valid for oam), `TestRangeCIDRs`,
   `TestCymru`.
 * The egress integration (real proxy, SOCKS5, DNS, rate limits, intel
-  sources) is in `services/egressproxy/v2_test.go`.
+  sources) is in `services/egressproxy/v2_test.go`; HTTPS redirect hops,
+  raw transcripts and edge outcomes through the real proxy in
+  `services/egressproxy/regress_v2_test.go` (`TestRegress_G_SVC_07_*`,
+  `TestRegress_G_SVC_16_RawProtocolBytes`, `TestRegress_G_ENG_09_EdgeOutcome`).
+* `regress_v2_test.go`: dnsresolve without a forwarder, the ToolSpec
+  retry fields and hashes, the FFRW bytes, redaction, the capture bound
+  and the chunk-store raw store.
 * `content_test.go` runs the content tools against the lab
   (`services/internal/lab`) with an in-process content service and a
   network that dials the decision's pinned address: the §8 signature
@@ -137,5 +182,6 @@ organization name and redacted contacts are skipped. Their `unique_id` is
   fetched through the original origin. unpack_sourcemap's derived
   snapshots have no body hash, size or media type of their own.
 
-Not here: sandboxes (tools run in-process), retry policies per tool (the
-proto ToolSpec has no field for them).
+Not here: sandboxes (tools run in-process). Raw transcripts are not yet
+garbage-collected inside a chunk namespace; whole namespaces expire with
+the day they were written (object-age lifecycle).

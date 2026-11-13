@@ -9,7 +9,7 @@ import (
 
 // TestOAM004_LabelEndpoints checks spec 25.3 oam_004 and the spec 5.5
 // table: docs-tagged labels between disallowed asset types are rejected
-// with a typed error; unknown labels and verify-tagged labels are accepted.
+// with a typed error; unknown labels are accepted.
 func TestOAM004_LabelEndpoints(t *testing.T) {
 	dns := oam.BasicDNSRelation{Label: "dns_record", Header: oam.DNSHeader{RRType: 1, Class: 1, TTL: 60}}
 	simple := func(l string) oam.Relation { return oam.SimpleRelation{Label: l} }
@@ -50,7 +50,9 @@ func TestOAM004_LabelEndpoints(t *testing.T) {
 		{"funding_source to FQDN", simple("funding_source"), oam.TypeOrganization, oam.TypeFQDN, false},
 		{"owns anything", simple("owns"), oam.TypeOrganization, oam.TypeNetblock, true},
 		{"owns from Person", simple("owns"), oam.TypePerson, oam.TypeNetblock, false},
-		{"verify-tagged common_name not enforced", simple("common_name"), oam.TypeFQDN, oam.TypeFQDN, true},
+		{"common_name TLSCertificate->FQDN", simple("common_name"), oam.TypeTLSCertificate, oam.TypeFQDN, true},
+		{"common_name from FQDN (G-CORE-02)", simple("common_name"), oam.TypeFQDN, oam.TypeFQDN, false},
+		{"san_dns_name to IPAddress (G-CORE-02)", simple("san_dns_name"), oam.TypeTLSCertificate, oam.TypeIPAddress, false},
 		{"unknown label accepted", simple("hosted_on"), oam.TypeFQDN, oam.TypeNetblock, true},
 		{"label case-insensitive", simple("Contains"), oam.TypeFQDN, oam.TypeIPAddress, false},
 	}

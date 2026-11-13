@@ -76,7 +76,20 @@ uniform in `[0, delay]` from the injected Rng, only for retryable errors
 (and, if the policy lists `retry_on`, listed codes), while attempts remain
 and the retry time is before the run deadline. `#[retry]` on the
 statement (bytecode ANNOTS) overrides the tool's policy; `#[timeout]` on
-the statement bounds the effect (code `timeout`).
+the statement bounds the effect (code `timeout`). The policy comes from
+the tool spec (proto `ToolSpec.retry`, G-SVC-09; `ToolSpec.Validate`
+bounds it). A `ToolError` with code `rate_limited` and a `RetryAfter`
+is a denial at the network edge (the egress proxy's per-target limit):
+spec 9.5 says it is not a failure, so the effect waits exactly that delay
+and the attempt is recorded `uncounted` (effect_failed), up to
+`Config.MaxEdgeWaits` (100) per effect; the policy's budget and backoff
+use the counted attempts. A `kill_switch_active` error from the edge in
+the body (the switch was engaged after the re-check) halts the run like
+the watchdog's kill-switch interrupt, records no outcome for the batch,
+and cancels with reason `kill_switch_race[:level]` (G-ENG-09). An
+executor implementing `SerialExecutor` gets a batch's calls one after
+the other in task order (the simulator, whose edge limiter is shared
+state).
 
 Graceful shutdown: cancelling `Worker.Run`'s context drains instead of
 crashing (`Config.DrainTimeout`, default 20 s): no new claims, in-flight
@@ -84,8 +97,10 @@ effects finish and are recorded, runs are released at their next effect
 boundary with `next_wake_at = now` (`OPEN_QUESTIONS.md` 21, G-ENG-05).
 
 Crash recovery (9.9): `effect_started` without a terminal event is
-ambiguous. Idempotent tools (spec flag, `#[idempotent]` site or workflow)
-and workflows with `#[on_unknown(retry)]` are re-executed with the same
+ambiguous. Tools whose idempotency class is `idempotent` or `keyed` (or
+whose class is empty and the spec flag is set: `ToolSpec.ReexecSafe`; a
+`non_idempotent` class wins over the flag), `#[idempotent]` sites or
+workflows, and workflows with `#[on_unknown(retry)]` are re-executed with the same
 attempt and key and no new event; others get `effect_outcome_unknown`
 and wait for `ResolveUnknownEffect` (retry, assume_completed with a
 result, assume_failed). `on_unknown(retry)` is read from the module's

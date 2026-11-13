@@ -19,15 +19,30 @@ import (
 func timeText(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
 // keyUsageNames are the X.509 key usage bits in bit order (RFC 5280
-// §4.2.1.3), with their RFC names in snake case.
+// §4.2.1.3), with OAM's names (G-CORE-02).
 var keyUsageNames = []struct {
 	bit  x509.KeyUsage
 	name string
 }{
-	{x509.KeyUsageDigitalSignature, "digital_signature"}, {x509.KeyUsageContentCommitment, "content_commitment"},
-	{x509.KeyUsageKeyEncipherment, "key_encipherment"}, {x509.KeyUsageDataEncipherment, "data_encipherment"},
-	{x509.KeyUsageKeyAgreement, "key_agreement"}, {x509.KeyUsageCertSign, "key_cert_sign"},
-	{x509.KeyUsageCRLSign, "crl_sign"}, {x509.KeyUsageEncipherOnly, "encipher_only"}, {x509.KeyUsageDecipherOnly, "decipher_only"},
+	{x509.KeyUsageDigitalSignature, oam.KeyUsageDigitalSignature}, {x509.KeyUsageContentCommitment, oam.KeyUsageContentCommitment},
+	{x509.KeyUsageKeyEncipherment, oam.KeyUsageKeyEncipherment}, {x509.KeyUsageDataEncipherment, oam.KeyUsageDataEncipherment},
+	{x509.KeyUsageKeyAgreement, oam.KeyUsageKeyAgreement}, {x509.KeyUsageCertSign, oam.KeyUsageCertSign},
+	{x509.KeyUsageCRLSign, oam.KeyUsageCRLSign}, {x509.KeyUsageEncipherOnly, oam.KeyUsageEncipherOnly},
+	{x509.KeyUsageDecipherOnly, oam.KeyUsageDecipherOnly},
+}
+
+// extKeyUsageNames maps X.509 extended key usages (RFC 5280 §4.2.1.12)
+// to OAM's names. Usages OAM does not name are reported by OID.
+var extKeyUsageNames = map[x509.ExtKeyUsage]string{
+	x509.ExtKeyUsageAny: oam.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth: oam.ExtKeyUsageServerAuth,
+	x509.ExtKeyUsageClientAuth: oam.ExtKeyUsageClientAuth, x509.ExtKeyUsageCodeSigning: oam.ExtKeyUsageCodeSigning,
+	x509.ExtKeyUsageEmailProtection: oam.ExtKeyUsageEmailProtection, x509.ExtKeyUsageIPSECEndSystem: oam.ExtKeyUsageIPSECEndSystem,
+	x509.ExtKeyUsageIPSECTunnel: oam.ExtKeyUsageIPSECTunnel, x509.ExtKeyUsageIPSECUser: oam.ExtKeyUsageIPSECUser,
+	x509.ExtKeyUsageTimeStamping: oam.ExtKeyUsageTimeStamping, x509.ExtKeyUsageOCSPSigning: oam.ExtKeyUsageOCSPSigning,
+	x509.ExtKeyUsageMicrosoftServerGatedCrypto:     oam.ExtKeyUsageMicrosoftServerGatedCrypto,
+	x509.ExtKeyUsageNetscapeServerGatedCrypto:      oam.ExtKeyUsageNetscapeServerGatedCrypto,
+	x509.ExtKeyUsageMicrosoftCommercialCodeSigning: oam.ExtKeyUsageMicrosoftCommercialCodeSigning,
+	x509.ExtKeyUsageMicrosoftKernelCodeSigning:     oam.ExtKeyUsageMicrosoftKernelCodeSigning,
 }
 
 // signatureNames maps signature algorithms to their RFC names (RFC 4055,
@@ -67,6 +82,15 @@ func certAsset(c *x509.Certificate) oam.TLSCertificate {
 		if c.KeyUsage&k.bit != 0 {
 			a.KeyUsage = append(a.KeyUsage, k.name)
 		}
+	}
+	// Extension order (RFC 5280 keeps it as encoded).
+	for _, u := range c.ExtKeyUsage {
+		if n, ok := extKeyUsageNames[u]; ok {
+			a.ExtKeyUsage = append(a.ExtKeyUsage, n)
+		}
+	}
+	for _, oid := range c.UnknownExtKeyUsage {
+		a.ExtKeyUsage = append(a.ExtKeyUsage, oid.String())
 	}
 	if c.BasicConstraintsValid {
 		ca := c.IsCA

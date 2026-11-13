@@ -120,7 +120,9 @@ func (a Service) MarshalJSON() ([]byte, error) {
 // TLSCertificate is an X.509 certificate. Key: tls:<sha256 of DER>. The
 // spec field list has no DER, so the hash travels in the Flowforge field
 // fingerprint_sha256 (see OPEN_QUESTIONS.md); use TLSFingerprint to compute
-// it.
+// it. The other field names are OAM's (certificate.TLSCertificate,
+// G-CORE-02), ext_key_usage included; key_usage and ext_key_usage hold
+// OAM's usage names (KeyUsage*, ExtKeyUsage* constants).
 type TLSCertificate struct {
 	Version               string   `json:"version,omitempty"`
 	SerialNumber          string   `json:"serial_number,omitempty"`
@@ -129,6 +131,7 @@ type TLSCertificate struct {
 	NotBefore             string   `json:"not_before,omitempty"`
 	NotAfter              string   `json:"not_after,omitempty"`
 	KeyUsage              []string `json:"key_usage,omitempty"`
+	ExtKeyUsage           []string `json:"ext_key_usage,omitempty"`
 	SignatureAlgorithm    string   `json:"signature_algorithm,omitempty"`
 	PublicKeyAlgorithm    string   `json:"public_key_algorithm,omitempty"`
 	IsCA                  *bool    `json:"is_ca,omitempty"`
@@ -137,6 +140,38 @@ type TLSCertificate struct {
 	AuthorityKeyID        string   `json:"authority_key_id,omitempty"`
 	FingerprintSHA256     string   `json:"fingerprint_sha256,omitempty"` // ff
 }
+
+// Key usage names (RFC 5280 §4.2.1.3) as OAM spells them
+// (open-asset-model certificate/tls_certificate.go), in bit order.
+const (
+	KeyUsageDigitalSignature  = "Digital Signature"
+	KeyUsageContentCommitment = "Content Commitment"
+	KeyUsageKeyEncipherment   = "Key Encipherment"
+	KeyUsageDataEncipherment  = "Data Encipherment"
+	KeyUsageKeyAgreement      = "Key Agreement"
+	KeyUsageCertSign          = "Certificate Sign"
+	KeyUsageCRLSign           = "CRL Sign"
+	KeyUsageEncipherOnly      = "Encipher Only"
+	KeyUsageDecipherOnly      = "Decipher Only"
+)
+
+// Extended key usage names (RFC 5280 §4.2.1.12) as OAM spells them.
+const (
+	ExtKeyUsageAny                            = "Any Usage"
+	ExtKeyUsageServerAuth                     = "TLS Server Authentication"
+	ExtKeyUsageClientAuth                     = "TLS Client Authentication"
+	ExtKeyUsageCodeSigning                    = "Code Signing"
+	ExtKeyUsageEmailProtection                = "E-mail Protection"
+	ExtKeyUsageIPSECEndSystem                 = "IPSec End System"
+	ExtKeyUsageIPSECTunnel                    = "IPSec Tunnel"
+	ExtKeyUsageIPSECUser                      = "IPSec User"
+	ExtKeyUsageTimeStamping                   = "Trusted Timestamping"
+	ExtKeyUsageOCSPSigning                    = "OCSP Signing"
+	ExtKeyUsageMicrosoftServerGatedCrypto     = "Microsoft Server Gated Crypto"
+	ExtKeyUsageNetscapeServerGatedCrypto      = "Netscape Server Gated Crypto"
+	ExtKeyUsageMicrosoftCommercialCodeSigning = "Microsoft Commercial Code Signing"
+	ExtKeyUsageMicrosoftKernelCodeSigning     = "Microsoft Kernel Code Signing"
+)
 
 // TLSFingerprint returns the lowercase hex SHA-256 of a DER certificate.
 func TLSFingerprint(der []byte) string {

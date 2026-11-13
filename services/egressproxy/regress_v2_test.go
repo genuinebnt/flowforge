@@ -145,7 +145,9 @@ func TestRegress_G_SVC_07_HTTPSRedirectHops(t *testing.T) {
 		t.Fatal("the denied hop was not recorded")
 	}
 	// The proxy path: a client that follows the hop under the first hop's
-	// decision (IntelClient re-uses its decision) is refused at the tunnel.
+	// decision is refused at the tunnel. IntelClient (ctlog, rdap, asn)
+	// keeps its decision across hops by design, so this is also the check
+	// that confines intelligence-source redirects to the allowlist.
 	before := www.hits.Load()
 	if _, err := e.eg.IntelClient(e.tc, d).Get(appURL + "/hop"); refusedReason(err) != "host_mismatch" || www.hits.Load() != before {
 		t.Fatalf("hop under a stale decision: %v (www hits %d -> %d)", err, before, www.hits.Load())

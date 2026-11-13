@@ -32,8 +32,9 @@ const (
 	LabelAccount            = "account"
 	LabelFundingSource      = "funding_source"
 	LabelOwns               = "owns"
-	// LabelCommonName and LabelSANDNSName are tagged "verify" in spec 5.5,
-	// so their endpoints are not enforced.
+	// LabelCommonName and LabelSANDNSName were tagged "verify" in spec
+	// 5.5; OAM's relation table (tlscertRels) confirms TLSCertificate ->
+	// FQDN, which is enforced (G-CORE-02).
 	LabelCommonName = "common_name"
 	LabelSANDNSName = "san_dns_name"
 )
@@ -65,9 +66,9 @@ type EndpointRule struct {
 	Pairs [][2]string
 }
 
-// LabelRule returns the endpoint rule of a docs-tagged label. Labels
-// without a rule (unknown labels, and labels tagged "verify") are accepted
-// between any asset types.
+// LabelRule returns the endpoint rule of a docs-tagged or OAM-confirmed
+// label. Labels without a rule (unknown labels) are accepted between any
+// asset types.
 func LabelRule(label string) (EndpointRule, bool) {
 	r := func(from, to []string) (EndpointRule, bool) { return EndpointRule{From: from, To: to}, true }
 	one := func(s ...string) []string { return s }
@@ -91,6 +92,8 @@ func LabelRule(label string) (EndpointRule, bool) {
 		return r(one(TypeIPAddress, TypeFQDN, TypeURL), one(TypeService))
 	case LabelCertificate:
 		return r(one(TypeService), one(TypeTLSCertificate))
+	case LabelCommonName, LabelSANDNSName:
+		return r(one(TypeTLSCertificate), one(TypeFQDN))
 	case LabelProvider:
 		return r(one(TypeService), one(TypeOrganization))
 	case LabelProductUsed:

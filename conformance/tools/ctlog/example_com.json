@@ -173,11 +173,14 @@
        "crl_distribution_points": [
         "http://crl.fixture.test/r1.crl"
        ],
+       "ext_key_usage": [
+        "TLS Server Authentication"
+       ],
        "fingerprint_sha256": "9a37c1c2c2cc1dafe456c879fd7043dcdf87cc4c641812b5201c36e6c9305802",
        "is_ca": false,
        "issuer_common_name": "Flowforge Fixture CA R1",
        "key_usage": [
-        "digital_signature"
+        "Digital Signature"
        ],
        "not_after": "2026-11-30T12:00:00.000Z",
        "not_before": "2026-09-01T12:00:00.000Z",
@@ -269,11 +272,14 @@
        "crl_distribution_points": [
         "http://crl.fixture.test/r1.crl"
        ],
+       "ext_key_usage": [
+        "TLS Server Authentication"
+       ],
        "fingerprint_sha256": "e44f3e8effb17446d8451d16a36d11dbe0c1a529a483cfa61604b62e3cfcc3df",
        "is_ca": false,
        "issuer_common_name": "Flowforge Fixture CA R1",
        "key_usage": [
-        "digital_signature"
+        "Digital Signature"
        ],
        "not_after": "2026-05-30T00:00:00.000Z",
        "not_before": "2026-03-01T00:00:00.000Z",

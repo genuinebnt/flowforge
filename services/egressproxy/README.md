@@ -40,7 +40,9 @@ runner's only way out. `Proxy` serves
    such requests must stay on the allowlist.
 5. Kill switches (fail closed when unknown).
 6. **Per-target rate limit**: GCRA (`limiter`, monotonic time from the
-   injectable `Clock`) on `rl:h:<program>:<registrable domain or ip>` at the
+   injectable `Clock`) on `rl:edge:h:<program>:<registrable domain or ip>`
+   (`EdgeKey`: the engine's `rl:h` key in its own family, so a Redis
+   shared with the engine does not charge each request twice; G-ENG-09) at the
    scope document's rate (`DefaultRate` when unset; an intel source may set
    its own), plus a concurrency cap per key held for the request or tunnel's
    lifetime. It applies to every HTTP request, CONNECT tunnel and SOCKS5

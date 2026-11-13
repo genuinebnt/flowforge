@@ -3,23 +3,52 @@
 Spec ambiguities met while implementing `oam`, the choice made, and the
 test that pins it.
 
-## Fields tagged "verify" in spec 5.4-5.6
+## Fields tagged "verify" in spec 5.4-5.6 (resolved, G-CORE-02)
 
-The spec marks these field lists as unverified against the OAM docs. The
-spec's names are used as written:
+Resolved against the OWASP Open Asset Model at
+github.com/owasp-amass/open-asset-model commit `04e30738` (2026-10-24) and
+against what the adapters return. `conformance/oam/fields/oam_upstream.json`
+pins each field to the OAM JSON member it carries
+(`TestRegress_G_CORE_02_UpstreamFieldNames`).
 
-* FQDN `name`; IPAddress `ip_version` (OAM's Go field is `Type`); Netblock
-  `cidr`, `ip_version`; AutonomousSystem `number`.
-* TLSCertificate, File, DomainRecord, IPNetRecord, AutnumRecord: every field
-  as listed.
-* BasicDNSRelation `header {rr_type, class, ttl}`; PrefDNSRelation
-  `preference`; SRVDNSRelation `priority`, `weight`, `port`.
-* DNSRecordProperty `property_name`, `header`, `data`; VulnProperty `id`,
-  `desc`, `source`, `category`, `enum`, `ref`.
-* Labels `common_name` and `san_dns_name` (endpoints "verify"): accepted
-  between any types; not validated.
+| Spec item | OAM upstream | Flowforge | Filled by (source) |
+|---|---|---|---|
+| FQDN `name` | `name` | same | dnsresolve, ctlog, tlscert, rdap |
+| IPAddress `address`, `ip_version` | `address`, `type` ("IPv4"/"IPv6") | `ip_version`, same values (rename: `type` is the discriminator) | dnsresolve (A/AAAA), rdap, asn |
+| Netblock `cidr`, `ip_version` | `cidr`, `type` | `ip_version` (rename) | rdap (cidr0, else derived from the start/end range), asn (Cymru origin) |
+| AutonomousSystem `number` | `number` | same | asn, rdap autnum |
+| TLSCertificate (13 fields) | same 13 names, plus `ext_key_usage` | all 14; `ext_key_usage` added; usage values use OAM's names ("Digital Signature", "TLS Server Authentication"); `fingerprint_sha256` is ff (decision 2) | tlscert (handshake), ctlog (DER from crt.sh): every field comes from the X.509 parse |
+| File `url`, `name`, `type` | same | `file_type` (rename, decision 1) | collect, crawl |
+| DomainRecord (12 fields) | same 12 | same | rdap: id = handle, whois_server = port43, dates = events (registration, last changed, expiration), status, dnssec = secureDNS.delegationSigned; name/extension split from the domain; punycode for xn-- names |
+| IPNetRecord (14 fields) | same 14 (`type`) | `ipnet_type` (rename) | rdap ip network object: handle, start/end address, type, name, country, parentHandle, port43, events, status; cidr as for Netblock |
+| AutnumRecord (8 fields) | same 8 | same | rdap autnum: handle, name, port43, events, status |
+| Basic/Pref/SRV DNSRelation `header {rr_type, class, ttl}`, `preference`, `priority`, `weight`, `port` | same | same | dnsresolve (A, AAAA, CNAME, NS; MX); SRV: no tool queries SRV yet |
+| DNSRecordProperty `property_name`, `header`, `data` | same | same | dnsresolve (TXT) |
+| VulnProperty `id`, `desc`, `source`, `category`, `enum`, `ref` | same (always encoded upstream) | same (omitted when empty) | content service exposed_secret findings |
+| `common_name`, `san_dns_name` endpoints | SimpleRelation TLSCertificate -> FQDN | enforced (`conformance/oam/labels/certificate_names.json`) | ctlog, tlscert |
+
+Still unknowable from the adapters (the fields stay in the model, empty):
+
+* `raw` of DomainRecord, IPNetRecord and AutnumRecord: OAM's raw is the
+  record text; RDAP answers JSON, which is not that text. The protocol
+  bytes of the RDAP answer are kept as the observation's raw transcript
+  (raw_ref, G-SVC-16) instead.
+* IPNetRecord `method`: OAM documents no meaning or vocabulary for it.
+* `subject_contact`, `issuer_contact`, `san_email_address`, `san_ip_address`,
+  `san_url`, `issuing_certificate`, `ocsp_server` (OAM TLSCertificate
+  relations): not emitted; the labels are accepted unvalidated.
 * Person, Location, Phone, ContactRecord, Identifier, Account,
-  FundsTransfer, Product, ProductRelease: stored as `Opaque`.
+  FundsTransfer, Product, ProductRelease stay `Opaque`: OAM now models them
+  (Product: unique_id, product_name, product_type, ...; ProductRelease:
+  name, release_date), but no adapter returns them except httpprobe's
+  Product fingerprint, whose content (`name`, from the Server header) is
+  not OAM's `product_name`, so modelling them is a v3 decision that must
+  migrate stored content.
+
+Found while comparing, not tagged verify in the spec (left as the spec
+says, for the spec owner): OAM's SimpleProperty is `property_name` /
+`property_value` where spec 5.6 has `name` / `value`; OAM's `ptr_record` is
+a SimpleRelation where spec 5.5 says BasicDNSRelation.
 
 ## Decisions
 
