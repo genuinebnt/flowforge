@@ -9,7 +9,8 @@ import (
 	"github.com/genuinebnt/flowforge/htmlparse"
 )
 
-// htmlRules is the html@1 rule table.
+// htmlRules is the html@2 rule table (html@1 masked an all-hex asset-name
+// part only when it had a digit, see isHashLike).
 var htmlRules = []string{
 	"parse:whatwg-html13.2 (htmlparse); valid utf-8 parsed as is, other bytes decoded (bom, transport charset, meta prescan)",
 	"emit:one line per start tag, end tag and text run; no indentation; void elements without end tag",
@@ -28,8 +29,8 @@ var htmlRules = []string{
 	"mask:input[name in csrf names].value, meta[name in csrf names].content → csrf",
 	"mask:input[type=hidden].value unless short numeric/boolean → hidden_value",
 	"mask:integrity attribute → build_hash",
-	"mask:url attributes (src href action data poster formaction srcset) → cache_bust query values, build_hash asset names",
-	"mask:data-* values that are timestamps/uuids/build ids, or whose name says time/nonce/token/request-id → timestamp/nonce/random_id",
+	"mask:url attributes (src href action data poster formaction srcset) → cache_bust query values, build_hash asset names (8-64 of [0-9A-Za-z_-], all hex or letters and digits)",
+	"mask:data-* values that are timestamps/uuids/build ids → timestamp/random_id/build_hash; else by name: time → timestamp, nonce → nonce, csrf/token → csrf, request-id/requestid/trace → random_id",
 	"mask:text iso-8601 date-times → timestamp",
 }
 
@@ -316,7 +317,7 @@ func (h *htmlNorm) startTag(tag, name string, n *htmlparse.Node, id htmlparse.No
 	return b.String()
 }
 
-// attrValue applies the html@1 attribute rules.
+// attrValue applies the html@2 attribute rules.
 func (h *htmlNorm) attrValue(tag, attr, v, inputName, typ string) string {
 	switch {
 	case strings.HasPrefix(attr, "on") && len(attr) > 2:

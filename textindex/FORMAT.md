@@ -41,7 +41,11 @@ CRC covers the section bytes.
 Footer (last 16 bytes): `directory_offset u64 | file_crc u32 | "XTFF"`.
 `file_crc` is CRC32C of every byte before it (including
 `directory_offset`). `directory_offset` must equal `file_size - 16 - 244`.
-Readers check the footer CRC first, then the section CRCs.
+Readers check, in this order: the size, the two magics, the version and
+the posting codec (`ErrCorrupt`, so a damaged magic or version byte is
+`ErrCorrupt`, not `ErrChecksum`); then the footer CRC (`ErrChecksum`);
+then each section's extent (`ErrCorrupt`) and CRC (`ErrChecksum`) in id
+order; then the structure of each section.
 
 Section ids: 1 META, 2 IDS, 3 NORMS, 4 KEYWORDS, 5 NUMERICS, 6 TERMDICT,
 7 POSTINGS, 8 POSITIONS, 9 TRIGRAMS, 10 STORED. In the following, *n* is

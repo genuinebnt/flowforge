@@ -70,8 +70,31 @@ func putSnapshotBlobs(ctx context.Context, tc *tenantChunks, snap *Snapshot, enc
 
 // snapshotPlain decodes a snapshot's blobs, following its delta chain
 // (bounded by the keyframe interval) through the plain-blob cache.
+//
+// The row and its delta base are read in separate transactions, so a
+// re-derive of the base committed in between (which re-encodes snap
+// against the base's new blobs in the same transaction) makes snap's old
+// frames fail against the new dictionary. On an error the row is read
+// again and, if its blobs were rewritten meanwhile, decoded from the
+// current row: a snapshot's plain blobs change only when it is itself
+// re-derived, and a caller that writes compares the row at its commit
+// (sameBlobs), so a stale row there is a conflict, not corruption.
 func (s *Store) snapshotPlain(ctx context.Context, tc *tenantChunks, snap Snapshot) (plainBlobs, error) {
-	if p, ok := s.cache.get(snap.Tenant, snap.ID); ok {
+	for attempt := 0; ; attempt++ {
+		p, err := s.snapshotPlainOnce(ctx, tc, snap)
+		if err == nil || attempt >= 3 {
+			return p, err
+		}
+		cur, gerr := s.GetSnapshot(ctx, snap.Tenant, snap.ID)
+		if gerr != nil || sameBlobs(cur, snap) {
+			return p, err
+		}
+		snap = cur
+	}
+}
+
+func (s *Store) snapshotPlainOnce(ctx context.Context, tc *tenantChunks, snap Snapshot) (plainBlobs, error) {
+	if p, ok := s.cache.get(snap); ok {
 		return p, nil
 	}
 	var raw plainBlobs
@@ -86,7 +109,7 @@ func (s *Store) snapshotPlain(ctx context.Context, tc *tenantChunks, snap Snapsh
 		*pair.dst = b
 	}
 	if snap.Codec == CodecChunk.String() || snap.Codec == "" {
-		s.cache.put(snap.Tenant, snap.ID, raw)
+		s.cache.put(snap, raw)
 		return raw, nil
 	}
 	var base *plainBlobs
@@ -129,7 +152,7 @@ func (s *Store) snapshotPlain(ctx context.Context, tc *tenantChunks, snap Snapsh
 	if out.Features, err = decodeBlob(raw.Features, d[3]); err != nil {
 		return plainBlobs{}, err
 	}
-	s.cache.put(snap.Tenant, snap.ID, out)
+	s.cache.put(snap, out)
 	return out, nil
 }
 
@@ -155,6 +178,12 @@ func decodeDiffBlob(b []byte) ([]byte, error) {
 // snapshot's plain blobs change only when it is re-derived (a keyframe
 // rewrite changes only their encoding), which drops its entry; the cache
 // is per Store, which is why one process writes a tenant (ChunkStores).
+// An entry also records the four blob refs it was decoded from and is a
+// hit only for a row with the same refs: dropping after the commit alone
+// leaves a window in which a concurrent re-derive reads the new row and
+// gets the old plain blobs (and encodes a delta dependent against a
+// dictionary the stored base no longer has), and a reader that loaded
+// the old row before the commit can put its entry back after the drop.
 //
 // PORT: container/list stores interface values; a Rust port uses an
 // indexed LRU (e.g. the lru crate). The cache never affects output.
@@ -167,36 +196,51 @@ type blobCache struct {
 }
 
 type cacheEntry struct {
-	key [2]core.UUID
-	val plainBlobs
+	key  [2]core.UUID
+	refs [4]string
+	val  plainBlobs
+}
+
+// blobRefs are the refs a snapshot's plain blobs are decoded from.
+func blobRefs(s Snapshot) [4]string {
+	return [4]string{s.HeadersRef, s.BodyManifest, s.NormalizedManifest, s.FeaturesRef}
 }
 
 func newBlobCache(maxBytes int) *blobCache {
 	return &blobCache{max: maxBytes, order: list.New(), items: map[[2]core.UUID]*list.Element{}}
 }
 
-func (c *blobCache) get(tenant, id core.UUID) (plainBlobs, bool) {
+// get returns snap's plain blobs if they are cached for its current refs.
+func (c *blobCache) get(snap Snapshot) (plainBlobs, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if e, ok := c.items[[2]core.UUID{tenant, id}]; ok {
+	if e, ok := c.items[[2]core.UUID{snap.Tenant, snap.ID}]; ok && e.Value.(*cacheEntry).refs == blobRefs(snap) {
 		c.order.MoveToFront(e)
 		return e.Value.(*cacheEntry).val, true
 	}
 	return plainBlobs{}, false
 }
 
-func (c *blobCache) put(tenant, id core.UUID, v plainBlobs) {
+// put caches v as snap's plain blobs under snap's refs, replacing an
+// entry for other refs.
+func (c *blobCache) put(snap Snapshot, v plainBlobs) {
 	if v.size() > c.max/4 {
 		return
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	k := [2]core.UUID{tenant, id}
+	k := [2]core.UUID{snap.Tenant, snap.ID}
+	refs := blobRefs(snap)
 	if e, ok := c.items[k]; ok {
-		c.order.MoveToFront(e)
-		return
+		if ce := e.Value.(*cacheEntry); ce.refs == refs {
+			c.order.MoveToFront(e)
+			return
+		}
+		c.order.Remove(e)
+		delete(c.items, k)
+		c.used -= e.Value.(*cacheEntry).val.size()
 	}
-	c.items[k] = c.order.PushFront(&cacheEntry{key: k, val: v})
+	c.items[k] = c.order.PushFront(&cacheEntry{key: k, refs: refs, val: v})
 	c.used += v.size()
 	for c.used > c.max && c.order.Len() > 0 {
 		e := c.order.Back()

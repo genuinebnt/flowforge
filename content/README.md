@@ -76,9 +76,9 @@ makes the version `name.learnedk@n` and is part of the rule-table hash.
 
 | Version | Kinds | Rule table SHA-256 (prefix) | Rules (summary) |
 |---|---|---|---|
-| `html@1` | html | `db7c52c2f2bb` | WHATWG parse; one line per tag and text run; comments dropped; text collapsed; attributes sorted; class tokens sorted; masks: nonce, CSRF inputs/meta, hidden values, integrity, cache-bust and build hash in URL attributes, volatile `data-*`, ISO times in text; inline scripts/styles/handlers → derived documents; output re-normalized to a fixed point |
-| `js@1` | js | `7965e46bd07a` | tolerant parse (script, else module); re-printed one statement per line; directives re-quoted; masks: timestamp/UUID/build-id strings (never path-like ones), ISO times in strings and templates, 13-digit epoch-ms numbers; any diagnostic → line fallback, grade partial |
-| `css@1` | css | `c75df612bd0d` | tokens re-emitted; comments dropped; canonical spacing; one declaration per line; redundant `;` dropped; strings re-quoted; masks in `url()`; invalid tokens stabilized |
+| `html@2` | html | `77ba7985a873` | WHATWG parse; one line per tag and text run; comments dropped; text collapsed; attributes sorted; class tokens sorted; masks: nonce, CSRF inputs/meta, hidden values, integrity, cache-bust and build hash in URL attributes (an asset-name part of 8–64 `[0-9A-Za-z_-]`, all hex or letters and digits; html@1 wanted a digit in an all-hex part), volatile `data-*` (timestamp, UUID and build-id values; by name time → timestamp, nonce, csrf/token → csrf, request-id/requestid/trace → random_id), ISO times in text; inline scripts/styles/handlers → derived documents; output re-normalized to a fixed point |
+| `js@1` | js | `7965e46bd07a` | tolerant parse (script, else module); re-printed one statement per line; directives re-quoted; masks: timestamp/UUID/build-id strings (never path-like ones), ISO times in strings and templates, epoch-ms integer numbers between 2000-01-01 and 2100-01-01 (13 digits, and 12 digits up to 2001-09-09; the rule line says "13-digit"); any diagnostic → line fallback, grade partial |
+| `css@2` | css | `07e0601c21ce` | tokens re-emitted; comments dropped; canonical spacing; one declaration per line; redundant `;` dropped; strings re-quoted; masks in `url()` (build hashes as in html@2; css@1 wanted a digit in an all-hex part); invalid tokens stabilized |
 | `json@1` | json, sourcemap | `16a8ff48e698` | canonical members sorted, two-space indent; numbers verbatim; volatile keys masked; invalid → text fallback |
 | `xml@1` | xml, sitemap | `27b640e17e5b` | xmlparse; one line per tag/text/PI; namespace declarations then attributes sorted; comments dropped; gzip sitemaps inflated within bounds |
 | `headers@1` | headers | `531554724f87` | security headers only, sorted; CSP directives and sources sorted, nonces removed; Set-Cookie → name + attributes, no value, no Expires; Location query masked |
@@ -98,17 +98,17 @@ the graph's authority units.
 | Extractor | Kinds | Features (family) | Graph mapping |
 |---|---|---|---|
 | `html.links@1` | html | link (links) | `links_to` URL→URL |
-| `html.scripts@1` | html | script, lineage-keyed, sri, third_party (scripts) | `loads_script` URL→File |
-| `html.styles@1` | html | style (styles) | `loads_style` URL→File |
+| `html.scripts@2` | html | script, lineage-keyed, sri, third_party (scripts) | `loads_script` URL→File |
+| `html.styles@2` | html | style (styles) | `loads_style` URL→File |
 | `html.frames@1` | html | frame (frames) | `embeds` URL→URL |
-| `html.forms@1` | html | form → Endpoint `html_form`, parameter (forms, parameters) | `form_action`, ParameterProperty |
+| `html.forms@2` | html | form → Endpoint `html_form`, parameter (forms, parameters): the form's own submission and one per further distinct (action, method, enctype) of a submit button's `formaction`/`formmethod`/`formenctype` | `form_action`, ParameterProperty |
 | `html.meta@1` | html | generator (libraries) | feature only |
 | `js.endpoints@1` | js | endpoint `js_call` (fetch, XHR, axios, $.ajax, sendBeacon, EventSource, `*.http.get` …) or `js_literal` (path-like strings), query parameters (endpoints, parameters) | `calls` File/URL→Endpoint |
 | `js.graphql@1` | js | graphql_operation (parameters) | ParameterProperty when its endpoint is known |
-| `js.sourcemap@1` | js | sourcemap (sourcemaps) | `source_map` File→File |
+| `js.sourcemap@2` | js | sourcemap (sourcemaps) | `source_map` File→File |
 | `js.libraries@1` | js | library from banners and known globals (libraries) | `includes_library` File→ProductRelease |
-| `js.modules@1` | js | module_import (scripts) | feature only |
-| `css.urls@1` | css | css_import (styles), css_asset (links) | `loads_style` File→File |
+| `js.modules@2` | js | module_import (scripts) | feature only |
+| `css.urls@2` | css | css_import (styles), css_asset (links) | `loads_style` File→File |
 | `headers.security@1` | headers | header (headers) | HTTPHeaderProperty |
 | `wellknown.robots@1` | robots | robots_rule, sitemap link (links) | `links_to` |
 | `wellknown.securitytxt@1` | securitytxt | security_field (links) | feature only |

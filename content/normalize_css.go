@@ -6,7 +6,8 @@ import (
 	"github.com/genuinebnt/flowforge/cssparse"
 )
 
-// cssRules is the css@1 rule table.
+// cssRules is the css@2 rule table (css@1 masked an all-hex asset-name
+// part only when it had a digit, see isHashLike).
 var cssRules = []string{
 	"tokenize:css-syntax-3 §4 (cssparse); tokens re-emitted from their source text",
 	"drop:comments (a comment separates like white space)",
@@ -15,7 +16,7 @@ var cssRules = []string{
 	"string:re-quoted with \" when the value needs no escape",
 	"url:url(value) without inner white space when the value needs no escape",
 	"invalid:strings cut by eof are closed; an escape cut by eof is dropped; a final hex escape gets its space; bad-string and bad-url tokens become fixed placeholders",
-	"mask:url values → cache_bust query values, build_hash asset names",
+	"mask:url values → cache_bust query values, build_hash asset names (8-64 of [0-9A-Za-z_-], all hex or letters and digits)",
 }
 
 func normalizeCSS(body []byte, lim Limits, m *masker) normResult {

@@ -40,7 +40,7 @@
         {
           "doc_id": "https://shop.example/",
           "kind": "html",
-          "normalizer": "html@1",
+          "normalizer": "html@2",
           "normalized_sha256": "b0b95f7176fe6f6db958247520fef179f6ff94e081a7cc1c322650d7c2cd4de8",
           "grade": "complete"
         },
@@ -99,7 +99,7 @@
         {
           "doc_id": "https://shop.example/",
           "kind": "html",
-          "normalizer": "html@1",
+          "normalizer": "html@2",
           "normalized_sha256": "b0b95f7176fe6f6db958247520fef179f6ff94e081a7cc1c322650d7c2cd4de8",
           "grade": "complete"
         },
@@ -163,7 +163,7 @@
         {
           "doc_id": "https://shop.example/",
           "kind": "html",
-          "normalizer": "html@1",
+          "normalizer": "html@2",
           "normalized_sha256": "83f6cbf6150dc9320aaef21fc82af4d311fca003f968b2220961da908a3126ed",
           "grade": "complete"
         },

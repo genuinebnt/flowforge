@@ -154,40 +154,115 @@ func (h *htmlExtract) link(id htmlparse.NodeID) {
 	}
 }
 
-// form extracts the form_action endpoint and its parameters (WHATWG
-// §4.10.21.3 form submission: the action defaults to the document URL,
-// the method to GET; dialog forms do not submit).
+// formSubmission is one (action, method, enctype) a form can submit
+// with: the action as written ("" for the form document's URL), the
+// method as GET, POST or DIALOG, and the enctype keyword.
+type formSubmission struct{ action, method, enctype string }
+
+// form extracts the form's submissions (WHATWG §4.10.21.3 form
+// submission) as form_action endpoints with their parameters: one for
+// the form's own action, method and enctype (form.submit(), or implicit
+// submission when the default button overrides nothing), and one for each
+// further distinct (action, method, enctype) a submit button produces with
+// its formaction, formmethod and formenctype attributes, which override
+// the form's (§4.10.18.6). A dialog method does not submit. The form's
+// own submission is extracted exactly as in html.forms@1, so its feature
+// ids and attributes are unchanged; html.forms@1 also took a formaction
+// from any button or input, kept the form's method unless formmethod was
+// post (a formmethod=get button in a POST form submits GET) and ignored
+// formmethod and formenctype without a formaction (OPEN_QUESTIONS 37).
 func (h *htmlExtract) form(id htmlparse.NodeID) {
-	method := strings.ToUpper(h.attr(id, "method"))
-	switch method {
-	case "", "GET":
-		method = "GET"
-	case "POST":
-	case "DIALOG":
-		return
-	default:
-		method = "GET" // invalid values fall back to GET (the method attribute's missing value default)
+	enctype := h.attr(id, "enctype")
+	own := formSubmission{h.attr(id, "action"), formMethod(h.attr(id, "method")), enctypeKeyword(enctype)}
+	seen := map[formSubmission]bool{own: true}
+	if own.method != "DIALOG" {
+		h.submission(id, own.action, own.method, enctype)
 	}
-	action := h.attr(id, "action")
-	if action == "" {
-		action = h.page
-	}
-	h.submission(id, action, method, h.attr(id, "enctype"))
 	for c := range h.doc.Descendants(id) {
-		n := h.doc.Node(c)
-		if n.Kind == htmlparse.ElementNode && (n.Name == "button" || n.Name == "input") {
-			if fa := h.attr(c, "formaction"); fa != "" {
-				fm := strings.ToUpper(h.attr(c, "formmethod"))
-				if fm != "POST" {
-					fm = method
-				}
-				h.submission(id, fa, fm, h.attr(id, "enctype"))
-			}
+		if !h.submitButton(c) {
+			continue
 		}
+		s, overrides := own, false
+		if v, ok := h.doc.Attr(c, "formaction"); ok {
+			s.action, overrides = strings.TrimSpace(v), true
+		}
+		if v, ok := h.doc.Attr(c, "formmethod"); ok {
+			s.method, overrides = formMethod(v), true
+		}
+		if v, ok := h.doc.Attr(c, "formenctype"); ok {
+			s.enctype, overrides = enctypeKeyword(v), true
+		}
+		if !overrides || s.method == "DIALOG" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		rec := enctype
+		if s.enctype != own.enctype {
+			rec = s.enctype
+		}
+		h.submission(id, s.action, s.method, rec)
 	}
 }
 
+// formMethod is the state of a method or formmethod attribute value
+// (§4.10.18.6): GET, POST or DIALOG, ASCII case-insensitive; the missing
+// value default of method and the invalid value default of both is GET.
+func formMethod(v string) string {
+	switch m := strings.ToUpper(strings.TrimSpace(v)); m {
+	case "POST", "DIALOG":
+		return m
+	default:
+		return "GET"
+	}
+}
+
+// enctypeKeyword is the state of an enctype or formenctype attribute value
+// (§4.10.18.6): application/x-www-form-urlencoded (also the missing and
+// invalid value default), multipart/form-data or text/plain.
+func enctypeKeyword(v string) string {
+	switch e := strings.ToLower(strings.TrimSpace(v)); e {
+	case "multipart/form-data", "text/plain":
+		return e
+	default:
+		return "application/x-www-form-urlencoded"
+	}
+}
+
+// submitButton reports a submit button (§4.10.6, §4.10.5.1.15–16): an
+// input of type submit or image, or a button whose type is submit, or in
+// the auto state (missing or invalid type) without a command or
+// commandfor attribute. Only a submit button's formaction, formmethod and
+// formenctype take part in submission.
+func (h *htmlExtract) submitButton(id htmlparse.NodeID) bool {
+	n := h.doc.Node(id)
+	if n.Kind != htmlparse.ElementNode || n.Namespace != htmlparse.HTMLNamespace {
+		return false
+	}
+	typ := strings.ToLower(h.attr(id, "type"))
+	switch n.Name {
+	case "input":
+		return typ == "submit" || typ == "image"
+	case "button":
+		switch typ {
+		case "submit":
+			return true
+		case "reset", "button":
+			return false
+		}
+		_, command := h.doc.Attr(id, "command")
+		_, commandfor := h.doc.Attr(id, "commandfor")
+		return !command && !commandfor
+	}
+	return false
+}
+
+// submission extracts one form submission: the endpoint of action (the
+// form document's URL when empty) under method, its parameters, and the
+// form feature with enctype (as written, lower-cased).
 func (h *htmlExtract) submission(form htmlparse.NodeID, action, method, enctype string) {
+	if action == "" {
+		action = h.page
+	}
 	abs, ok := resolveRef(h.base, action)
 	if !ok {
 		return

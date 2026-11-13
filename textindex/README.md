@@ -127,7 +127,7 @@ ws         = { " " | "\t" | "\n" | "\r" | "\f" | "\v" } ;
 | `INVALID_UTF8` | invalid UTF-8 | first bad byte |
 | `UNEXPECTED_TOKEN` | unmatched `)`, `--x`, junk after a group | the token |
 | `UNBALANCED_PAREN` | `(` never closed | `(` to end |
-| `EXPECTED_TERM` | missing operand after `-`, `AND`, `OR`, `(` | the token found |
+| `EXPECTED_TERM` | missing operand after `-`, `AND`, `OR`, `(` | after `AND`, `OR`, `(`: the token found; after `-`: the `-` token (also for `- x`) |
 | `EXPECTED_VALUE` | `field:` not followed directly by a value | the position |
 | `UNTERMINATED_PHRASE` / `UNTERMINATED_REGEX` | no closing quote / slash | opener to end |
 | `EMPTY_REGEX` | `//` | the regex |

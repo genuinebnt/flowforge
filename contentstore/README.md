@@ -184,14 +184,15 @@ bytes failed verification), `INTERNAL`.
 | CSTORE-INV-10 | `TestCStoreInv10_SearchDefaults` | Hunk sides are separate documents; vendored bundles are excluded unless asked; decoded blobs are searchable in `decoded` only; first appeared returns the earliest adding snapshot, baselines included; query errors are VALIDATION_FAILED. |
 | CSTORE-INV-11 | `TestCStoreInv11_SPAEndToEnd` | Renamed bundles link to their predecessors (lineage key, then SimHash) and an unrelated chunk does not; masked-only versions produce no documents; planted changes are findable by field query and regex; events carry a decodable observation and a valid patch; baselines are not alertable, the planted change is. |
 | CSTORE-INV-12 | `TestCStoreInv12_VolatilityLearned` | A non-feature attribute changing on every capture of a stable page is frozen once (version 1), later captures use the learned normalizer and diff masked-only; feature paths are never counted. |
-| CSTORE-INV-13 | `TestCStoreInv13_ObservationReplay` | The re-published observation of an unchanged re-fetch equals processing the capture afresh, byte for byte. |
+| CSTORE-INV-13 | `TestCStoreInv13_ObservationReplay` | The re-published observation of an unchanged re-fetch (the open version's stored processed capture and decrypted findings, observed at the re-fetch's fetch time) equals processing the re-fetched capture afresh, byte for byte. |
 | CSTORE-INV-14 | `TestCStoreInv14_RederiveIdempotent` (+`Postgres`) | After a normalizer upgrade, re-deriving in batches of one, in one batch, and with three concurrent jobs reach the same state, every snapshot carries the new stamp, and a second run re-derives nothing and changes nothing; a new stamp with an unchanged pipeline rewrites no record. |
 | CSTORE-INV-15 | `TestCStoreInv15_RederiveNoChange` (+`Postgres`) | Re-derive inserts no snapshot, diff, finding or outbox event, allocates no diff seq, closes or touches no version and learns no volatility; ids, sides, validity, lineage and seqs are kept and the new normalizer_version recorded; an ingest after the upgrade re-derives its predecessor first, so its diff is between snapshots of one derivation. |
-| CSTORE-INV-16 | `TestCStoreInv16_RederiveEqualsFreshIngest` (+`Postgres`) | After re-derive, every snapshot's normalized text, features record and derived columns, every diff's levels, stats, hunks and change set, and the search and first-appeared answers of a query set equal those of a store that ingested the same captures under the new pipeline. |
+| CSTORE-INV-16 | `TestCStoreInv16_RederiveEqualsFreshIngest` (+`Postgres`) | After re-derive, every snapshot's normalized text, features record and derived columns, every diff's levels, stats, hunks and change set, and the search and first-appeared answers of a query set equal those of a store that ingested the same captures under the new pipeline; this holds for a normalizer upgrade that changes every page and for one under which a snapshot's own records do not change after a predecessor whose records did (the diff into it is recomputed; `TestRegress_RederiveUnchangedSuccessorDiff`). |
 
 CSTORE-INV-14..16 live in `storetest` (`RederiveIdempotent`,
-`RederiveNoChange`, `RederiveEqualsFresh`, with `UpgradedPipeline` as the
-stand-in upgrade) so the Postgres adapter runs them too.
+`RederiveNoChange`, `RederiveEqualsFresh`, with `UpgradedPipeline` and
+`ScriptsUpgradedPipeline` as the stand-in upgrades; the regression case
+`RederiveUnchangedSuccessor`) so the Postgres adapter runs them too.
 
 Contract suite (`storetest.Run`): `TestCStoreContract_Mem`,
 `TestCStoreContract_Postgres` (as role `ff_content`, RLS on; skipped

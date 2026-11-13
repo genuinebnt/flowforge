@@ -59,8 +59,9 @@ func observePaths(kind content.Kind, text []byte) pathValues {
 	return pv
 }
 
-// htmlLineAttrs reads one html@1 start-tag line, `<tag a="v" b="w">`,
-// whose attribute values are double-quoted with '"' escaped as &quot;.
+// htmlLineAttrs reads one start-tag line of the html normalizer (html@1
+// and html@2 alike), `<tag a="v" b="w">`, whose attribute values are
+// double-quoted with '"' escaped as &quot;.
 func htmlLineAttrs(line []byte, add func(path, value string)) {
 	if len(line) < 3 || line[0] != '<' || line[1] == '/' || line[1] == '!' || line[len(line)-1] != '>' {
 		return

@@ -75,11 +75,11 @@ func (sg *Segment) Size() int { return len(sg.data) }
 func (sg *Segment) FileCRC() uint32 { return sg.fileCRC }
 
 func openSegment(data []byte, s Schema, c *codec) (*Segment, error) {
-	// Order of checks: size, magics, version and codec first (ErrCorrupt),
-	// then the footer CRC, then each section's extent and CRC in id order,
-	// then the structure of each section. A damaged magic or version byte
-	// therefore reports ErrCorrupt, not ErrChecksum, although spec 32.6 and
-	// FORMAT.md name the footer CRC as the first check.
+	// Order of checks (spec 32.6, FORMAT.md): size, magics, version and
+	// codec first (ErrCorrupt), then the footer CRC, then each section's
+	// extent and CRC in id order, then the structure of each section. A
+	// damaged magic or version byte therefore reports ErrCorrupt, not
+	// ErrChecksum.
 	minSize := segHeaderSize + 4 + numSections*dirEntrySize + segFooterSize
 	if len(data) < minSize {
 		return nil, corruptf("segment of %d bytes is shorter than %d", len(data), minSize)

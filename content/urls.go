@@ -51,9 +51,13 @@ func sameOrigin(a, b string) bool {
 const hashPlaceholder = "__FF_HASH__"
 
 // isHashLike reports a file-name part that a bundler generated: 8 to 64
-// characters of [0-9A-Za-z_-] that are all hex with at least one digit,
-// or mix letters and digits (webpack [contenthash], vite base64url-ish
-// hashes, esbuild [hash]). The placeholder itself is not hash-like, which
+// characters of [0-9A-Za-z_-] that are all hex, or mix letters and digits
+// (webpack [contenthash], vite base64url-ish hashes, esbuild [hash]). An
+// all-hex part needs no digit: a hex hash of 8 characters has none with
+// probability (6/16)^8, about 1 in 2,600 deploys (html@1 and css@1
+// required one, so such a deploy looked like a new script and a removed
+// one); English words of 8 or more letters drawn from a-f alone are
+// practically nonexistent. The placeholder itself is not hash-like, which
 // keeps masking idempotent.
 func isHashLike(s string) bool {
 	if len(s) < 8 || len(s) > 64 || s == hashPlaceholder {
@@ -74,7 +78,7 @@ func isHashLike(s string) bool {
 		}
 	}
 	if hex {
-		return digits
+		return true
 	}
 	return letters && digits
 }
@@ -83,7 +87,7 @@ func isHashLike(s string) bool {
 // hash-like parts of the file name with hashPlaceholder. The name is split
 // on '.', '-' and '_'; the extension (after the last '.') is never
 // replaced; the first part is replaced only when it is all digits (a
-// webpack chunk id) or all hex with a digit (a [contenthash] name), so
+// webpack chunk id) or all hex and hash-like (a [contenthash] name), so
 // "analytics2024.js" keeps its name; later parts are replaced when
 // isHashLike.
 func stripHashSegments(p string) string {

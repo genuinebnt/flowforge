@@ -230,8 +230,8 @@ func (ps *parser) parseUnary() (*astTmp, *QueryError) {
 	ps.p++
 	next := ps.tok()
 	// The span of this EXPECTED_TERM is the '-' itself, not the token
-	// found as for AND, OR and '(' (spec 40.3 says "the token found"): with
-	// "- x" the token found is a valid clause, only its distance is wrong.
+	// found as for AND, OR and '(' (spec 40.3): with "- x" the token found
+	// is a valid clause, only its distance is wrong.
 	if !canStart(next.kind) || next.start != t.end {
 		return nil, qerr(CodeExpectedTerm, t.start, t.end, "'-' must be followed directly by a clause")
 	}

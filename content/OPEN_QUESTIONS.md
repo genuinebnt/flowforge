@@ -179,3 +179,38 @@ is pinned by a test or conformance file named in its entry.
     CONTENT-INV-10 idempotence hold by construction, at the cost of
     redacting the exposed neighbour too (the conservative choice).
     `FuzzContentRedactIdempotent` pins it.
+37. **Form submission follows the submitter (html.forms@2).** WHATWG HTML
+    §4.10.21.3 takes the action, method and enctype from the submitter's
+    `formaction`, `formmethod` and `formenctype` when present (§4.10.18.6),
+    and only submit buttons are submitters: `button` of type submit or in
+    the auto state (missing or invalid type, no `command`/`commandfor`),
+    `input type=submit|image`. html.forms@1 took a `formaction` from any
+    `button` or `input`, kept the form's method unless `formmethod` was
+    post (a `formmethod=get` button in a POST form still extracted POST),
+    and ignored `formmethod`/`formenctype` without a `formaction`. Version
+    2 extracts the form's own submission exactly as version 1 did (so ids
+    and attributes of forms without overrides are unchanged; it is what
+    `form.submit()` sends) and one more form feature, with its parameters,
+    per further distinct (action, method, enctype) a submit button
+    produces; a dialog method never submits, but a POST button in a
+    dialog form does. Parameters keep version 1's rules (the submitter's
+    own name=value is not a parameter), and only descendants of the form
+    are read: controls associated through a `form` attribute from
+    elsewhere in the document are not, nor are descendants owned by
+    another form through one. TestRegress_FormSubmitterOverrides.
+38. **All-hex build hashes need no digit (html@2, css@2).** `isHashLike`
+    required a digit in an all-hex file-name part, so an 8-character hex
+    hash without one (probability (6/16)^8, about one deploy in 2,600 per
+    bundle) was neither masked in normalized text nor stripped from the
+    lineage key: the deploy looked like a removed script and a new one.
+    CONTENT-INV-02 found it (FF_SEED=1794593622660195640,
+    `main.fcbfaeeb.js`; TestRegress_DigitlessHexBuildHash). Any all-hex
+    part of 8 to 64 characters is now hash-like (English words of eight
+    letters from a-f alone are practically nonexistent). The normalizers
+    that mask URLs (html, css) and the extractors whose keys go through
+    `LineageKey` (html.scripts, html.styles, js.sourcemap, js.modules,
+    css.urls) moved to version 2, which changes the derivation stamp, so
+    stored snapshots are re-derived. Still open: vite's 8-character
+    base64url hashes have no digit about a quarter of the time and, when
+    they are letters only, are not hash-like (a letters-only part is
+    indistinguishable from a word such as `analytics`).

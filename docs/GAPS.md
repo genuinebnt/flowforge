@@ -164,7 +164,7 @@ assumptions it was written against.
 | G-CORE-07 | Time-based ageing not applied | v3 (T3) |
 | G-LANG-03 | The builtin doc says `parse_int` accepts `_` separators; the VM rejects them | **closed on feat_v1** (doc fixed) |
 | G-LANG-04 | `Format` drops comments | v3 |
-| G-LANG-05, G-LANG-06, G-VEC-08, G-DOC-14 | Spec text out of date or wrong: `is InScope(_)`, bytecode format additions, the 21.3 SCC listing, OPEN_QUESTIONS spec fixes | spec Part II |
+| G-LANG-05, G-LANG-06, G-VEC-08, G-DOC-14 | Spec text out of date or wrong: `is InScope(_)`, bytecode format additions, the 21.3 SCC listing, OPEN_QUESTIONS spec fixes | **closed on feat_v2** (spec Part I corrected in place without moving its line numbers: 22.9 example uses `scope.allows`; 8.3 layout lines, 8.7 failure codes and 8.8 stack bound; 21.3 and 25.3 csr_005 list SCCs in reverse topological order; 12.7 search score; full statements in Part II §42 Part I errata) |
 | G-LANG-08 | The Plan record layout is provisional | v4 (M1) |
 | G-ENG-09 | The inv_10 bound includes dispatch delay; kill-switch races are not reported | **closed on feat_v2** (edge key rl:edge:h, uncounted edge waits, kill_switch_race cancellation, strict inv_10 in the sim; TestRegress_G_ENG_09_*) |
 | G-LIM-08 | Default rules are not installed per tenant; TestRule cannot replay a historical event | v3 |
@@ -231,7 +231,7 @@ assumptions it was written against.
 | G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | **closed on feat_v2** (Store.Rederive in the sweep and on ingest; migration 0032; CSTORE-INV-14..16 on mem and pg) |
 | G-CST-05 | The §10 "less than 25 % of raw" target: on the tiny SPA fixture all records take 59.8 %, because each version carries about 300 bytes of fixed records | **closed** (the §10 lab, with realistic page sizes, stores raw snapshots at 6.8 % and all records including diffs at 18.4 %; TestLabAcceptance_*) |
 | G-RAW-01 | Raw transcripts expire only by whole day namespace; there is no GC inside a namespace, and `ChunkRaw` has a single writer per namespace (as G-CST-03) | v3 (with G-CST-03) |
-| G-SPEC-10 | Spec Part I 5.5 calls `ptr_record` a BasicDNSRelation (upstream OAM: SimpleRelation) and 5.6 names SimpleProperty fields `name`/`value` (upstream: `property_name`/`property_value`); neither was tagged verify | spec errata (with G-LANG-05/06) |
+| G-SPEC-10 | Spec Part I 5.5 calls `ptr_record` a BasicDNSRelation (upstream OAM: SimpleRelation) and 5.6 names SimpleProperty fields `name`/`value` (upstream: `property_name`/`property_value`); neither was tagged verify | **closed on feat_v2** (spec Part I 5.5 and 5.6 rows name the upstream form next to Flowforge's, which the code keeps; Part II §42.2) |
 | G-CST-06 | No admin RPC to trigger re-derive on demand; only the maintenance sweep runs it | v3 |
 | G-LANG-10 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | **closed on feat_v2** (spec Part II §36.2-36.3) |
 
@@ -247,15 +247,16 @@ assumptions it was written against.
 8. ROADMAP_V3 T7 title vs D4 (G-DOC-08).
 9. DECISIONS D1 "later" vs v4 (G-DOC-13).
 10. builtin doc vs VM for `parse_int` (G-LANG-03).
-11. spec 21.3 vs 21.5 SCC order (G-VEC-08).
+11. ~~spec 21.3 vs 21.5 SCC order (G-VEC-08).~~ Resolved on feat_v2 (spec §21.3, §25.3).
 12. spec M6 vs fake backends (G-SVC-11).
 13. limiter README vs placement/engine on rendezvous ownership (G-ENG-01).
 
 ## Counts
 
-* **v1 (fix on `feat_v1`, merge forward):** 30 rows, including 7 of the 8 high-severity ones.
-* **v2:** 17 rows.
-* **v3:** 30 rows.
-* **v4:** 3 rows.
-* **spec:** 4 rows.
-* **accept:** 12 rows.
+Counted from the tables above (one table row may name several ids):
+
+* **closed on `feat_v1`:** 37 rows (merged forward into `feat_v2`).
+* **closed on `feat_v2`:** 25 rows.
+* **open, v1:** 1 (G-CMT-01). **open, v2:** 1 (G-CMT-02). **open, spec errata:** 0.
+* **v3:** 37 rows. **v4:** 3 rows.
+* **accepted or operator steps:** 11 rows (to confirm before v4).

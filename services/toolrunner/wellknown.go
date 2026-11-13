@@ -21,8 +21,8 @@ import (
 // and stores robots.txt (RFC 9309), security.txt (RFC 9116, at
 // /.well-known/ and then the legacy root path), the sitemaps robots.txt
 // names (else /sitemap.xml; the sitemaps a sitemap index lists are read
-// too, at any depth, maxSitemaps in all, although spec 36.1 says "one
-// level"), OpenAPI/Swagger documents at their conventional paths and a
+// too, at any depth, maxSitemaps in all, spec 36.1), OpenAPI/Swagger
+// documents at their conventional paths and a
 // GraphQL endpoint (a `{__typename}` query by GET, which every GraphQL
 // server answers with a JSON data or errors member). A resource counts as
 // found only when it answered 2xx and its sniffed kind is the expected one

@@ -86,7 +86,7 @@ var secretRules = []secretRule{
 	{"github_fine_grained_pat", TierHigh, "github_pat_ + 82 [A-Za-z0-9_]", prefixScan([]string{"github_pat_"}, 82, 82, alnumUnderscore)},
 	{"gitlab_token", TierHigh, "glpat- + 20 [A-Za-z0-9_-]", prefixScan([]string{"glpat-"}, 20, 20, alnumDashUnderscore)},
 	{"slack_token", TierHigh, "xox[abeprs]- + 20..255 [A-Za-z0-9-]", prefixScan([]string{"xoxa-", "xoxb-", "xoxe-", "xoxp-", "xoxr-", "xoxs-"}, 20, 255, alnumDash)},
-	{"slack_webhook", TierHigh, "https://hooks.slack.com/services/T…/B…/[A-Za-z0-9]{24}", slackWebhookScan},
+	{"slack_webhook", TierHigh, "https://hooks.slack.com/services/ + 3 '/'-separated [A-Za-z0-9]+ segments", slackWebhookScan},
 	{"stripe_secret_key", TierHigh, "sk_live_|rk_live_ + 24..99 [A-Za-z0-9]", prefixScan([]string{"sk_live_", "rk_live_"}, 24, 99, alnum)},
 	{"google_api_key", TierHigh, "AIza + 35 [A-Za-z0-9_-]", prefixScan([]string{"AIza"}, 35, 35, alnumDashUnderscore)},
 	{"openai_api_key", TierHigh, "sk-proj- + 40..200 [A-Za-z0-9_-]", prefixScan([]string{"sk-proj-"}, 40, 200, alnumDashUnderscore)},
@@ -212,9 +212,11 @@ func assignedValue(s string, j, lo, hi int, body func(byte) bool) (int, int, boo
 }
 
 // slackWebhookScan matches the webhook prefix followed by three
-// '/'-separated alphanumeric segments of any length. The rule description
-// ("T…/B…/" and 24 characters) is narrower than the scan, which checks
-// neither the T and B prefixes nor the length.
+// '/'-separated alphanumeric segments of any length. Slack issues
+// T<team>/B<bot>/<24-character secret>, but the team and bot ids vary in
+// length and the secret's length is not documented, so the scan checks
+// neither the T and B prefixes nor any length: for redaction a looser
+// match fails closed (TestContentSlackWebhookShape).
 func slackWebhookScan(s string) [][2]int {
 	const p = "https://hooks.slack.com/services/"
 	var out [][2]int

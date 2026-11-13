@@ -139,9 +139,10 @@ the test that pins it. Where scope or policy is involved the conservative
 
 ## Not covered
 
-33. The `scope_check(h) is InScope(_)` form in 22.9's example is not in
-    the grammar of 7.3 and is not supported; write
-    `scope.allows(h)` or match on `scope.check(h)`.
+33. The `scope_check(h) is InScope(_)` form that 22.9's example used is
+    not in the grammar of 7.3 and is not supported; write
+    `scope.allows(h)` or match on `scope.check(h)` (the example now uses
+    `filter(h => scope.allows(h))`, spec Part II §42.2, G-LANG-05).
 34. Exhaustiveness checking gives up silently on pathological matches
     (more than 200,000 usefulness steps); such a match keeps its run-time
     `match_failed` fall-through.

@@ -1,7 +1,7 @@
 [
   {
     "name": "html",
-    "version": 1,
+    "version": 2,
     "rules": [
       "parse:whatwg-html13.2 (htmlparse); valid utf-8 parsed as is, other bytes decoded (bom, transport charset, meta prescan)",
       "emit:one line per start tag, end tag and text run; no indentation; void elements without end tag",
@@ -20,11 +20,11 @@
       "mask:input[name in csrf names].value, meta[name in csrf names].content → csrf",
       "mask:input[type=hidden].value unless short numeric/boolean → hidden_value",
       "mask:integrity attribute → build_hash",
-      "mask:url attributes (src href action data poster formaction srcset) → cache_bust query values, build_hash asset names",
-      "mask:data-* values that are timestamps/uuids/build ids, or whose name says time/nonce/token/request-id → timestamp/nonce/random_id",
+      "mask:url attributes (src href action data poster formaction srcset) → cache_bust query values, build_hash asset names (8-64 of [0-9A-Za-z_-], all hex or letters and digits)",
+      "mask:data-* values that are timestamps/uuids/build ids → timestamp/random_id/build_hash; else by name: time → timestamp, nonce → nonce, csrf/token → csrf, request-id/requestid/trace → random_id",
       "mask:text iso-8601 date-times → timestamp"
     ],
-    "rule_table_sha256": "db7c52c2f2bbe0510f992a29792ed3770273f12223f7e60bfa65385988928f21"
+    "rule_table_sha256": "77ba7985a873c5be69148966427d129c8b4f228120abd12f4b766480ad14f764"
   },
   {
     "name": "js",
@@ -41,7 +41,7 @@
   },
   {
     "name": "css",
-    "version": 1,
+    "version": 2,
     "rules": [
       "tokenize:css-syntax-3 §4 (cssparse); tokens re-emitted from their source text",
       "drop:comments (a comment separates like white space)",
@@ -50,9 +50,9 @@
       "string:re-quoted with \" when the value needs no escape",
       "url:url(value) without inner white space when the value needs no escape",
       "invalid:strings cut by eof are closed; an escape cut by eof is dropped; a final hex escape gets its space; bad-string and bad-url tokens become fixed placeholders",
-      "mask:url values → cache_bust query values, build_hash asset names"
+      "mask:url values → cache_bust query values, build_hash asset names (8-64 of [0-9A-Za-z_-], all hex or letters and digits)"
     ],
-    "rule_table_sha256": "c75df612bd0d5c448d749a2cbe7e7c0869f1c15a9d192311de08944d4cf5476e"
+    "rule_table_sha256": "07e0601c21ce48549015654605d1777c7e3dd8c7656a6c58938afc70b0a63c8e"
   },
   {
     "name": "json",

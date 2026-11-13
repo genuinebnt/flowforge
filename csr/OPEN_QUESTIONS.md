@@ -36,7 +36,8 @@ Each item records the spec gap, the choice made and the test pinning it.
    used by Dijkstra (infinite cost). With `FlagConfU8` `Build` quantises in
    memory so the decoded graph equals the built one.
 8. **SCC output order.** 21.5 requires reverse topological order; the 21.3
-   listing `{0} {2} {1,3,4}` is in topological order. We emit Tarjan's
+   listing was `{0} {2} {1,3,4}`, topological order (corrected to
+   `{1,3,4} {2} {0}`, spec Part II §42.2, G-VEC-08). We emit Tarjan's
    natural reverse topological order (`{1,3,4} {2} {0}`); conformance data
    stores the groups as sets and tests check the ordering property
    separately (`checkReverseTopological`).

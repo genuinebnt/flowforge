@@ -45,10 +45,12 @@ Still unknowable from the adapters (the fields stay in the model, empty):
   not OAM's `product_name`, so modelling them is a v3 decision that must
   migrate stored content.
 
-Found while comparing, not tagged verify in the spec (left as the spec
-says, for the spec owner): OAM's SimpleProperty is `property_name` /
-`property_value` where spec 5.6 has `name` / `value`; OAM's `ptr_record` is
-a SimpleRelation where spec 5.5 says BasicDNSRelation.
+Found while comparing, not tagged verify in the spec: OAM's SimpleProperty
+is `property_name` / `property_value` where spec 5.6 has `name` / `value`;
+OAM's `ptr_record` is a SimpleRelation where spec 5.5 says
+BasicDNSRelation. The code keeps the spec's names (and accepts
+`ptr_record` on any relation type, checking endpoints only); the spec now
+names the upstream form next to them (Part II §42.2, G-SPEC-10).
 
 ## Decisions
 

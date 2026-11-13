@@ -121,8 +121,9 @@ test that pins it. Merge semantics themselves are oam's (see
     candidates, ordered by SQL similarity with a small slack), ties by id;
     `matched_trigrams` are the shared trigrams. Word characters are
     Unicode letters and digits (pg_trgm follows the database locale; the
-    two agree on ASCII). The spec example score 0.78 is illustrative:
-    `jenkin` against `jenkins.acme.com` scores 6/18. (`TestGraphSearch`.)
+    two agree on ASCII). The spec example's score was 0.78;
+    `jenkin` against `jenkins.acme.com` scores 6/18, which the example
+    now shows (0.33333, spec Part II §42.2). (`TestGraphSearch`.)
 23. **FindEntities** returns entities without tags; `seen_after` is
     inclusive; pages are ordered by id with `{"id": ...}` tokens.
 24. **Change events carry an entity snapshot** (proto field 9): the state

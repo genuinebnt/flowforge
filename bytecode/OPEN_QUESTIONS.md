@@ -1,6 +1,7 @@
 # bytecode: open questions and decisions
 
-1. **Section details the spec leaves open (8.3).** FUNCS gets an explicit
+1. **Section details the spec leaves open (8.3; now stated in spec Part II
+   §42.1).** FUNCS gets an explicit
    `nspans u32` before the span table; META strings are `u32 len + bytes`;
    TYPES entries are `kind u8, name u32` followed by record fields
    `(name u32, type u32)`, enum variants `(name u32, arity u8, type u32*)`
@@ -33,7 +34,8 @@
    similarity_query as read, par_map as nothing (its closure's function is
    reachable through CLOSURE). All TOOLS entries are checked against the
    resolver, referenced or not; a nil resolver rejects any TOOLS entry.
-7. **Failure code 16 `type_mismatch`.** Not in spec 8.7. The verifier checks
+7. **Failure code 16 `type_mismatch`.** Not in spec 8.7 as first written
+   (8.7 now points to Part II §42.1, which adds it). The verifier checks
    stack shape, not value types, so a module not produced by a correct
    compiler can apply an instruction to the wrong kind; the VM fails with
    this code. Correct compilers never cause it.

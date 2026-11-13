@@ -40,7 +40,7 @@ func info(name string, version int, rules []string) NormalizerInfo {
 // (TestContentREADME).
 func Normalizers() []NormalizerInfo {
 	return []NormalizerInfo{
-		info("html", 1, htmlRules), info("js", 1, jsRules), info("css", 1, cssRules), info("json", 1, jsonRules),
+		info("html", 2, htmlRules), info("js", 1, jsRules), info("css", 2, cssRules), info("json", 1, jsonRules),
 		info("xml", 1, xmlRules), info("headers", 1, headerRules), info("text", 1, textRules), info("binary", 1, binaryRules),
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestContentLearnVolatility(t *testing.T) {
 		t.Fatalf("unsorted rules accepted: %v", err)
 	}
 	n := Normalize(KindHTML, []byte(`<div data-build="b-77">x</div>`), NormalizeOptions{Learned: set})
-	if !strings.Contains(string(n.Text), maskPlaceholder(MaskLearned)) || n.Version != "html.learned1@1" {
+	if !strings.Contains(string(n.Text), maskPlaceholder(MaskLearned)) || n.Version != "html.learned1@"+strconv.Itoa(NormalizerFor(KindHTML).Version) {
 		t.Fatalf("learned rule not applied or not versioned: %s %s", n.Version, n.Text)
 	}
 }

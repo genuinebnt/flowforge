@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -25,8 +26,8 @@ import (
 const UpgradedStamp = "test/normalizers-v2"
 
 // UpgradedPipeline is a stand-in for a normalizer upgrade: content.Process,
-// then html@1 becomes html@2 (script start tags written in upper case)
-// and js@1 becomes js@2 (spaces around every '='), each with a new rule
+// then html@n becomes html@n+1 (script start tags written in upper case)
+// and js@n becomes js@n+1 (spaces around every '='), each with a new rule
 // table hash. It changes most normalized lines of the SPA fixture's
 // bundles and some of its pages, and leaves the HTML attribute layout
 // volatility learning reads intact.
@@ -35,8 +36,8 @@ func UpgradedPipeline() contentstore.Pipeline { return upgradedPipeline(Upgraded
 // ScriptsUpgradedStamp is the stamp of ScriptsUpgradedPipeline.
 const ScriptsUpgradedStamp = "test/js-v2"
 
-// ScriptsUpgradedPipeline is UpgradedPipeline with only the js@2 part:
-// pages keep their html@1 records and only their inline scripts (derived
+// ScriptsUpgradedPipeline is UpgradedPipeline with only the js part:
+// pages keep their html records and only their inline scripts (derived
 // documents) and bundles change, so a page version without a script is
 // re-derived with no change while the one before it changes.
 func ScriptsUpgradedPipeline() contentstore.Pipeline {
@@ -60,7 +61,7 @@ func upgradedPipeline(stamp string, html bool) contentstore.Pipeline {
 			default:
 				continue
 			}
-			n.Version = strings.Replace(n.Version, "@1", "@2", 1)
+			n.Version = nextVersion(n.Version)
 			h := sha256.Sum256([]byte("v2:" + n.RuleTableSHA256))
 			n.RuleTableSHA256 = hex.EncodeToString(h[:])
 			t := sha256.Sum256(n.Text)
@@ -68,6 +69,17 @@ func upgradedPipeline(stamp string, html bool) contentstore.Pipeline {
 		}
 		return p, nil
 	}}
+}
+
+// nextVersion is a normalizer_version with its version number one higher
+// ("html@2" → "html@3", "js.learned1@1" → "js.learned1@2").
+func nextVersion(v string) string {
+	at := strings.LastIndexByte(v, '@')
+	n, err := strconv.Atoi(v[at+1:])
+	if at < 0 || err != nil {
+		panic("storetest: normalizer version without @n: " + v)
+	}
+	return v[:at+1] + strconv.Itoa(n+1)
 }
 
 // withPipeline returns a store over s's repository, chunks, keys and
@@ -85,7 +97,7 @@ func withPipeline(t *testing.T, s *contentstore.Store, p contentstore.Pipeline) 
 
 // aboutPage is a page whose first version has an inline script and whose
 // second has none. Under ScriptsUpgradedPipeline the first's records
-// change (its #script-1 document is re-normalized by js@2) and the
+// change (the upgraded js re-normalizes its #script-1 document) and the
 // second's do not, so the diff between them must be recomputed when the
 // second is re-derived although its own records do not change.
 func aboutPage(v string, at time.Time) content.Capture {
@@ -424,8 +436,7 @@ func RederiveNoChange(t *testing.T, open func(t *testing.T) contentstore.Repo) {
 			a.ParentID != b.ParentID || a.LineageParentID != b.LineageParentID || a.Signature != b.Signature || a.Degraded != b.Degraded {
 			t.Fatalf("snapshot %d identity or validity moved", i)
 		}
-		if strings.Contains(b.NormalizerVersion, "@1") && (b.Kind == "html" || b.Kind == "js") &&
-			a.NormalizerVersion != strings.Replace(b.NormalizerVersion, "@1", "@2", 1) {
+		if (b.Kind == "html" || b.Kind == "js") && a.NormalizerVersion != nextVersion(b.NormalizerVersion) {
 			t.Fatalf("snapshot %d records %q", i, a.NormalizerVersion)
 		}
 	}
@@ -448,7 +459,7 @@ func RederiveNoChange(t *testing.T, open func(t *testing.T) contentstore.Repo) {
 	if err != nil || r.Diff == nil || r.ChangeSet == nil {
 		t.Fatalf("ingest after the upgrade: %v", err)
 	}
-	if r.ChangeSet.Cause != "target" || r.Diff.NormalizerVersion != "html@2" {
+	if r.ChangeSet.Cause != "target" || r.Diff.NormalizerVersion != nextVersion(content.NormalizerFor(content.KindHTML).ID()) {
 		t.Fatalf("revert: cause %s, normalizer %s", r.ChangeSet.Cause, r.Diff.NormalizerVersion)
 	}
 	pred, err := up2.GetSnapshot(ctx, tenantA, res2[5].Snapshot.ID)
@@ -462,8 +473,9 @@ func RederiveNoChange(t *testing.T, open func(t *testing.T) contentstore.Repo) {
 	for _, a := range hunks {
 		for _, h := range a.Hunks {
 			for _, l := range h.Lines {
-				// html@2 writes no lower-case script tag: one on either
-				// side would be the old derivation.
+				// The upgraded html normalizer writes no lower-case
+				// script tag: one on either side would be the old
+				// derivation.
 				if strings.Contains(l, "<script") {
 					t.Fatalf("revert diff mixes derivations: %q", l)
 				}
@@ -645,9 +657,9 @@ func RederiveUnchangedSuccessor(t *testing.T, open func(t *testing.T) contentsto
 	for _, a := range hunks {
 		for _, h := range a.Hunks {
 			for _, l := range h.Lines {
-				// js@1 prints "team = "; js@2 adds a space on each side
-				// of every '=': "team = " is the old derivation of v1's
-				// inline script.
+				// js prints "team = "; the upgraded js adds a space on each
+				// side of every '=': "team = " is the old derivation of
+				// v1's inline script.
 				if strings.Contains(l, "team = ") {
 					t.Fatalf("diff into the unchanged successor keeps the old derivation: %q", l)
 				}

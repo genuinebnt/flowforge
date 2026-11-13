@@ -40,7 +40,7 @@
    history: inserting would re-parent and re-diff later versions.
 6. **Volatility observations** come from comparing the normalized main
    artifact and headers of consecutive versions when the capture had no
-   level-3 change: HTML attribute values (html@1 lines), JSON leaves
+   level-3 change: HTML attribute values (html normalizer lines), JSON leaves
    (array indices as `*`) and header values. Unchanged re-fetches are not
    counted (they would bias every path towards stable). Re-derive jobs on
    a normalizer upgrade (V2 §12.2) are not implemented here.

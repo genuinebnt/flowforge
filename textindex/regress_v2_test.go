@@ -2,7 +2,10 @@ package textindex
 
 import (
 	"errors"
+	"slices"
 	"testing"
+
+	"github.com/genuinebnt/flowforge/testkit"
 )
 
 // commitFailDir is a Directory whose commit-point writes fail while failing
@@ -90,5 +93,30 @@ func TestRegress_MergeCommitFailureKeepsSegments(t *testing.T) {
 	defer ix.Close()
 	if _, ok, err := ix.Get(3); err != nil || !ok {
 		t.Fatalf("Get(3) = %v, %v; want the document", ok, err)
+	}
+}
+
+// TestTIdxSegmentCheckOrder pins the reader's check order (spec 32.6,
+// FORMAT.md): header and end magics, version and codec come before the
+// footer CRC, so damaging one is ErrCorrupt (the spec said the footer CRC
+// came first, which would make it ErrChecksum); a damaged payload byte is
+// ErrChecksum.
+func TestTIdxSegmentCheckOrder(t *testing.T) {
+	s := testSchema()
+	data, err := EncodeSegment(s, randomDocs(testkit.Rng(t), 3), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name string
+		at   int
+		want error
+	}{{"magic", 0, ErrCorrupt}, {"version", 4, ErrCorrupt}, {"codec", 6, ErrCorrupt},
+		{"end magic", len(data) - 1, ErrCorrupt}, {"payload", 8, ErrChecksum}, {"footer crc", len(data) - 8, ErrChecksum}} {
+		b := slices.Clone(data)
+		b[c.at] ^= 0x40
+		if _, err := OpenSegment(b, s); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, err, c.want)
+		}
 	}
 }

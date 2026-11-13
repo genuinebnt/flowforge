@@ -46,7 +46,11 @@ const (
 var textKinds = []Kind{KindHTML, KindJS, KindCSS, KindJSON, KindXML, KindSitemap, KindSourceMap, KindRobots,
 	KindSecurityTxt, KindTSText, KindText, KindServerSource}
 
-// Extractors lists every extractor in a fixed order.
+// Extractors lists every extractor in a fixed order. Version 2 of
+// html.scripts, html.styles, js.sourcemap, js.modules and css.urls follows
+// the lineage-key change for all-hex build hashes without a digit
+// (isHashLike); version 2 of html.forms models submit buttons' formaction,
+// formmethod and formenctype (OPEN_QUESTIONS 37 and 38).
 func Extractors() []ExtractorInfo {
 	f := func(k ...FeatureKind) []string {
 		var out []string
@@ -60,17 +64,17 @@ func Extractors() []ExtractorInfo {
 	js := []Kind{KindJS}
 	return []ExtractorInfo{
 		{ExHTMLLinks, 1, html, f(FeatLink)},
-		{ExHTMLScripts, 1, html, f(FeatScript)},
-		{ExHTMLStyles, 1, html, f(FeatStyle)},
+		{ExHTMLScripts, 2, html, f(FeatScript)},
+		{ExHTMLStyles, 2, html, f(FeatStyle)},
 		{ExHTMLFrames, 1, html, f(FeatFrame)},
-		{ExHTMLForms, 1, html, f(FeatForm, FeatParameter)},
+		{ExHTMLForms, 2, html, f(FeatForm, FeatParameter)},
 		{ExHTMLMeta, 1, html, f(FeatGenerator)},
 		{ExJSEndpoints, 1, js, f(FeatEndpoint, FeatParameter)},
 		{ExJSGraphQL, 1, js, f(FeatGraphQLOperation)},
-		{ExJSSourceMap, 1, js, f(FeatSourceMap)},
+		{ExJSSourceMap, 2, js, f(FeatSourceMap)},
 		{ExJSLibraries, 1, js, f(FeatLibrary)},
-		{ExJSModules, 1, js, f(FeatModuleImport)},
-		{ExCSSURLs, 1, []Kind{KindCSS}, f(FeatCSSImport, FeatCSSAsset)},
+		{ExJSModules, 2, js, f(FeatModuleImport)},
+		{ExCSSURLs, 2, []Kind{KindCSS}, f(FeatCSSImport, FeatCSSAsset)},
 		{ExHeaders, 1, []Kind{KindHeaders}, f(FeatHeader)},
 		{ExRobots, 1, []Kind{KindRobots}, f(FeatRobotsRule, FeatLink)},
 		{ExSecurityTxt, 1, []Kind{KindSecurityTxt}, f(FeatSecurityField)},
@@ -82,6 +86,16 @@ func Extractors() []ExtractorInfo {
 		{ExDisclosure, 1, append(slices.Clone(textKinds), KindBinary), f(FeatSourceDisclosure)},
 	}
 }
+
+// extractorIDs maps an extractor name to its id ("<name>@<version>")
+// from the Extractors table, so a grade always names the running version.
+var extractorIDs = func() map[string]string {
+	m := map[string]string{}
+	for _, e := range Extractors() {
+		m[e.Name] = e.ID()
+	}
+	return m
+}()
 
 // ExtractorsFor returns the extractors that read a kind, in table order.
 func ExtractorsFor(k Kind) []ExtractorInfo {
@@ -186,9 +200,7 @@ func (x *extraction) report(name string, g Grade, reason string, fs []Feature) {
 		fs[i].Doc = x.in.Doc
 	}
 	x.features = append(x.features, fs...)
-	// Every extractor is at version 1 (Extractors); the suffix must follow
-	// a version bump there.
-	x.grades = append(x.grades, ExtractorGrade{Extractor: name + "@1", Doc: x.in.Doc, Grade: g, Facts: len(fs), Reason: reason})
+	x.grades = append(x.grades, ExtractorGrade{Extractor: extractorIDs[name], Doc: x.in.Doc, Grade: g, Facts: len(fs), Reason: reason})
 }
 
 func (x *extraction) result() FeatureSet {

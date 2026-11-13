@@ -402,7 +402,7 @@ Every relation also carries a source (discovery) property and timestamps. Direct
 
  | dns_record | Basic / Pref / SRV DNS | FQDN → IPAddress or FQDN | Resolved A/AAAA, or CNAME/NS/MX/SRV target | docs
 
- | ptr_record | BasicDNS | IPAddress → FQDN | Reverse DNS | docs (named)
+ | ptr_record | BasicDNS (OAM upstream: Simple; any relation type is accepted, only endpoints are validated) | IPAddress → FQDN | Reverse DNS | docs (named)
 
  | contains | Simple | Netblock → IPAddress | IP inside range | docs
 
@@ -448,7 +448,7 @@ The docs call the label list partial and extensible. The graph service MUST acce
 
  | SourceProperty | name (data source or plugin), confidence (int 0-100) | Provenance of an entity or edge. One per source. docs
 
- | SimpleProperty | name, value (strings) | Generic key-value, for example last_monitored. docs
+ | SimpleProperty | name, value (strings; Flowforge’s names, OAM upstream uses property_name, property_value) | Generic key-value, for example last_monitored. docs
 
  | DNSRecordProperty | property_name, header, data | DNS record data that is not a graph edge (TXT, SOA). docs (type named), verify fields
 
@@ -899,16 +899,16 @@ Little-endian binary. Section order is fixed. The module hash is the SHA-256 of 
 
 magic            "FFBC"                     4 bytes
 format_version   u16                        // this document: 1
-flags            u16
-section CONSTS   u32 count, then (tag u8, len u32, bytes)       // ints, floats, strings
-section TYPES    u32 count, then record and enum layouts        // names, fields, variants
+flags            u16                        // bit 1 (value 2): ANNOTS after META; other bits 0 (42.1)
+section CONSTS   u32 count, then (tag u8, len u32, bytes)       // tags 1 Int 2 Float 3 String 4 Duration 5 Time (42.1)
+section TYPES    u32 count, then record and enum layouts        // kind u8, name u32, then per kind (42.1)
 section FUNCS    u32 count, then:
                    name_idx u32, arity u8, nlocals u16, ncaps u8,
                    code_len u32, code bytes,
-                   span_table: (code_offset u32, source_offset u32, len u32)*
+                   nspans u32, then (code_offset u32, source_offset u32, len u32)*
 section EFFECTS  u16 declared effect mask, per-workflow
 section TOOLS    u16 count, then (tool_name_idx u32, spec_sha256 32 bytes)*
-section META     compiler_version, source_sha256, program_policy_sha256, workflow_name
+section META     compiler_version, source_sha256, program_policy_sha256, workflow_name   // strings u32 len + bytes; ANNOTS follows if flagged (42.1)
 entry            u16 function index of the workflow body
 
 ### 8.4 Instruction set
@@ -1039,7 +1039,7 @@ Effect kinds for EFFECT: 1 tool_call, 2 scope_check, 3 approval, 4 sleep, 5 agen
 
  | Limits | Value stack 65,536; call depth 256; live heap 64 MiB (counted by value size); string 1 MiB; list 1,000,000 elements; module 4 MiB; at most 10,000 effects per run unless the workflow declares #[effects(max = N)] up to 1,000,000.
 
- | Failure codes | arith_overflow, arith_nan, div_zero, index_oob, match_failed, unwrap_failed, approval_denied, scope_denied, effect_failed, timeout, budget_exceeded, out_of_fuel, nondeterminism_detected, limit_exceeded, cancelled
+ | Failure codes | arith_overflow, arith_nan, div_zero, index_oob, match_failed, unwrap_failed, approval_denied, scope_denied, effect_failed, timeout, budget_exceeded, out_of_fuel, nondeterminism_detected, limit_exceeded, cancelled, numbered 1 to 15 in this order, and type_mismatch (16, 42.1)
 
  | Snapshot | (module_hash, pc, frames[], stack[], compensation_stack[], next_seq, heap) encoded as deterministic CBOR (RFC 8949 section 4.2). A snapshot is a cache of replay: dropping all snapshots never changes behavior. Taken every 500 effects or 5 minutes, whichever is first.
 
@@ -1047,7 +1047,7 @@ Effect kinds for EFFECT: 1 tool_call, 2 scope_check, 3 approval, 4 sleep, 5 agen
 
 - All jump targets lie inside the function and on instruction boundaries. Only LOOP jumps backward.
 
-- Abstract stack depth is the same on every path that reaches an instruction, never negative, and never above the function's declared maximum.
+- Abstract stack depth is the same on every path that reaches an instruction, never negative, and never above 65,536 minus nlocals (the module stores no per-function maximum; the verifier computes each function's, 42.1).
 
 - Local indices are below nlocals; each local is written before read on every path and written at most once.
 
@@ -2247,7 +2247,7 @@ GET /v1/graph/search?program_id=prg_01JD8K2XH3&q=jenkin&fuzzy=true&limit=2
 
 HTTP/1.1 200 OK
 { "hits": [
-  { "score": 0.78, "entity": { "id": "ent_01JD8K3F", "asset_type": "FQDN", "content": { "type": "FQDN", "name": "jenkins.acme.com" },
+  { "score": 0.33333, "entity": { "id": "ent_01JD8K3F", "asset_type": "FQDN", "content": { "type": "FQDN", "name": "jenkins.acme.com" },
     "scope_status": "in_scope", "confidence": 0.93, "state": "active", "last_seen": "2026-11-12T14:02:12.311Z" } } ] }
 
 GET /v1/graph/entities/ent_01JD8K3A7Q/neighbors?direction=out&labels=dns_record,port&depth=2
@@ -2999,7 +2999,7 @@ in_offsets = [0, 0, 2, 3, 5, 6]        // in-degree = [0, 2, 1, 2, 1]
 in_sources = [0, 4,  0,  1, 2,  3]     // incoming to 1: {0,4}; to 2: {0}; to 3: {1,2}; to 4: {3}
 
 BFS from 0:      levels [0] [1,2] [3] [4]      dist = [0,1,1,2,3]
-SCCs:            {0}  {2}  {1,3,4}             (cycle 1 -> 3 -> 4 -> 1; 2 cannot be re-entered)
+SCCs:            {1,3,4}  {2}  {0}             (reverse topological order, as 21.5 emits them; cycle 1 -> 3 -> 4 -> 1; 2 cannot be re-entered)
 Topological:     not a DAG (cycle exists); condensation DAG has 3 nodes
 Weakly connected components: 1
 
@@ -3382,9 +3382,9 @@ DSL. Two builtins (section 7.6), both effectful so that replay is exact:
 fn similar(e: Entity, k: Int) -> List<Entity> !{read}        // effect kind 12: similarity_query
 fn embed(text: String)        -> Vector      !{llm}         // effect kind 11: embed (recorded)
 
-// Example: find look-alikes of an in-scope asset, keep only those that are in scope
+// Example: find look-alikes of an in-scope asset, keep those the pinned scope allows (scope.check them before acting)
 let hits = similar(entity, 20);
-let in_scope_hits = hits |> filter(|h| scope_check(h) is InScope(_));
+let in_scope_hits = hits |> filter(h => scope.allows(h));
 
 ### 22.10 Evaluation, operations, security
 
@@ -3935,7 +3935,7 @@ Each row lists the minimum cases. Ids are prefixes (scope_001 and so on). Add mo
 
  | 004 | BFS levels and distances on the 21.3 graph; with label filter; reverse direction | As listed in the data file
 
- | 005 | SCC on the 21.3 graph; on a 200,000-node path (no stack overflow) | {0} {2} {1,3,4}; one component per node
+ | 005 | SCC on the 21.3 graph; on a 200,000-node path (no stack overflow) | {1,3,4} {2} {0} (compared as sets; the reverse topological order is checked separately); one component per node
 
  | 006 | PageRank on a star, a cycle and the two-cliques-with-bridge graph | Cycle gives equal scores; star centre highest; results within 1e-5 of the reference; scores sum to 1
 
@@ -4382,6 +4382,7 @@ Part II (v2)
 39. Invariant register
 40. Error codes
 41. Where the brief and the code differ
+42. Part I errata
 
 # Part II. Flowforge v2: content capture, change diffs and diff search
 
@@ -4393,7 +4394,7 @@ Version 0.4 (draft)Date 2026-11-13Sources: docs/V2_DESIGN.md (the brief), the v2
 
 ### 26.1 How Part II relates to Part I and to the brief
 
-Part II uses the conventions of 1.2 and the module rules of 24 and 25 unchanged. Sections 26 to 41 continue the numbering of Part I. They replace docs/V2_DESIGN.md as the normative text: the brief stays as the design record, and where it and the code disagree the code was followed and the difference is listed in section 41. Byte formats are given byte by byte; where a package ships a FORMAT.md (chunkstore, textindex) that file is the same contract in more detail and MUST agree with this text.
+Part II uses the conventions of 1.2 and the module rules of 24 and 25 unchanged. Sections 26 to 42 continue the numbering of Part I; section 42 corrects Part I where its text did not describe the code. They replace docs/V2_DESIGN.md as the normative text: the brief stays as the design record, and where it and the code disagree the code was followed and the difference is listed in section 41. Byte formats are given byte by byte; where a package ships a FORMAT.md (chunkstore, textindex) that file is the same contract in more detail and MUST agree with this text.
 
  | Section | Covers | Go packages
 
@@ -4419,7 +4420,7 @@ Part II uses the conventions of 1.2 and the module rules of 24 and 25 unchanged.
 
  | 38 | Lab and end-to-end acceptance | services/internal/lab, conformance/lab, conformance/workflows/monitor.ff
 
- | 39, 40, 41 | Invariant register, error codes, deviations from the brief | all
+ | 39, 40, 41, 42 | Invariant register, error codes, deviations from the brief, Part I errata | all
 
 ### 26.2 Status of v2
 
@@ -4465,7 +4466,7 @@ The bounds below are identical in every implementation. A document that hits one
 
  | HTML input (library default) | 256 MiB; content passes 8 MiB | htmlparse.DefaultMaxInputSize | input-size-limit-exceeded
 
- | JavaScript syntactic nesting | 4000 (statements, expressions, binary-operator chains) | jsparse.DefaultMaxDepth; content uses the default | too-deep
+ | JavaScript syntactic nesting | 4000 (statements, expressions, binary-operator chains; each member, call and tagged-template subscript of a chain counts one level) | jsparse.DefaultMaxDepth; content uses the default | too-deep
 
  | XML and CSS nesting | 64 | content.MaxParseDepth, xmlparse, cssparse MaxDepth | depth_limit
 
@@ -4563,7 +4564,7 @@ All additions are Flowforge extensions ff. OAM import and export keep working be
 
 source is not part of the key and merges last-writer-wins. The method is upper-cased although RFC 9110 methods are case-sensitive. NormalizeURLTemplate MUST apply these steps, and its result is a fixed point:
 
-- Trim Unicode white space; reject an empty string.
+- Trim Unicode white space; reject an empty string, one longer than 4,096 bytes (MaxURLTemplateLen), and any ASCII control character (U+0000 to U+001F, U+007F) left after trimming.
 
 - Recognize placeholders left to right: a JS template substitution ${...} (braces nest; unterminated is an error) becomes {expr}; {name} with name matching [A-Za-z_][A-Za-z0-9_.-]* is kept as {id}, {uuid}, {hex} or {expr} when it is one of those and becomes {expr} otherwise. Other braces are literal text; percent-encoded braces are never placeholders.
 
@@ -4653,7 +4654,7 @@ Event order within one observation (event ids derive from the emission index, so
 {
   "snapshot_from": "snp_...",          // optional; absent for a baseline
   "snapshot_to": "snp_...",            // required; != snapshot_from; ids at most 256 printable bytes
-  "diff_id": "dif_...",                // optional
+  "diff_id": "cdf_...",                // optional: the content store diff id
   "levels": ["hash", "text", "semantic"],   // at least one; canonical order, duplicates removed
   "summary": { "endpoints_added": 1 }, // lower-case identifier keys, counts >= 0
   "cause": "target",                   // target | parser | normalizer (empty means target)
@@ -4759,7 +4760,7 @@ Language-neutral store-level cases, run against every store implementation (Test
 
 - Preprocessing on the fly so spans stay offsets into the original buffer: CR LF and CR become LF; ill-formed UTF-8 becomes U+FFFD per maximal subpart; surrogate, noncharacter and control-character input-stream errors are reported once per character, before the tokenizer error for it.
 
-- Tokenizer: one enum constant per spec state, 84 in all (the 79 states of 13.2.5 plus five processing-instruction states of the 2025 standard). Character data is emitted as one coalesced token per run. Named references use longest match over the 2231-entry WHATWG table (conformance/htmlparse/entities.json); two lookup strategies (trie, the default, and sorted search) MUST agree with brute force (HTML-INV-11). Numeric references saturate (no wrap-around into valid code points).
+- Tokenizer: one enum constant per spec state, 84 in all: 79 of the 80 classic states of 13.2.5 (the decimal character reference start state, 13.2.5.77, is folded into the numeric character reference state, with identical behaviour) plus the five processing-instruction states of the 2025 standard, which have no section number and are cited by name. Character data is emitted as one coalesced token per run. Named references use longest match over the 2231-entry WHATWG table (conformance/htmlparse/entities.json); two lookup strategies (trie, the default, and sorted search) MUST agree with brute force (HTML-INV-11). Numeric references saturate (no wrap-around into valid code points).
 
 - Tree construction: every insertion mode, the stack of open elements with the default, list-item, button and table scopes (no select scope; select is a default-scope boundary in the current standard), active formatting elements with markers and Noah's Ark (3 per family), the adoption agency algorithm (outer loop 8, inner 3), foster parenting, template contents with the template insertion-mode stack, foreign content with SVG and MathML adjustments and integration points, quirks and limited-quirks from the DOCTYPE, fragment parsing with a context element, and the 2025 changes (processing instructions, customizable <select> rules, <search>, selectedcontent mirroring as an end-of-parse pass). The scripting flag is off: noscript parses as markup.
 
@@ -4779,7 +4780,7 @@ Language-neutral store-level cases, run against every store implementation (Test
 
 - AST: Program{Nodes, Children, Strings, Root, SourceType, ...}, each node 64 bytes and pointer-free: Kind u8 | Op u8 | Flags u32 | Span{Start,End int32} | A,B,C,D NodeID | List, List2 {Start,Len int32} | Str, Str2 u32 | Num f64. Which slot is which ESTree field is defined once by the schemas table (for example ForStatement: init=A, test=B, update=C, body=D); the canonical JSON writer (sorted keys, no positions), the walker, the printer and the integrity invariant all read it. Parentheses are not nodes.
 
-- Bound: MaxDepth 4000 (statements, expressions and binary chains), code too-deep.
+- Bound: MaxDepth 4000 (statements, expressions and binary chains; each member, call and tagged-template subscript of a chain such as a.b(c)`t` counts one level, so a long chain cannot overflow the recursive JSON writer or printer), code too-deep.
 
 - Conformance: tc39/test262-parser-tests: 1983/1983 pass files parse; 722/729 fail and 663/668 early files are rejected (the 7 + 5 exceptions are valid ES2024 and listed); pass and pass-explicit ASTs equal except 36 listed upstream mismatches. conformance/jsparse/extract/*.json pins the extraction helpers (string literals with callee paths, module references, sourceMappingURL, literal tables).
 
@@ -5122,7 +5123,7 @@ TRIGRAMS  12-byte entries (trigram b0<<16|b1<<8|b2 | df | off), doc-delta blocks
 STORED    blocks of <= 16 docs or 16 KiB raw, one zstd frame each (level 3, no checksum),
           compared decompressed across implementations
 
-Documents are ordered by external id inside a segment, so segment bytes do not depend on insertion order (TIDX-INV-08). Readers check the footer CRC first, then the section CRCs (ErrChecksum), then structure (ErrCorrupt), never reading outside the file.
+Documents are ordered by external id inside a segment, so segment bytes do not depend on insertion order (TIDX-INV-08). Readers check, in this order: the size, the two magics, the version and the posting codec (ErrCorrupt, so a damaged magic or version byte is ErrCorrupt, not ErrChecksum); then the footer CRC (ErrChecksum); then each section’s extent (ErrCorrupt) and CRC (ErrChecksum) in id order; then the structure of each section (ErrCorrupt), never reading outside the file.
 
 ### 32.7 Tombstones "FFTD" and commit point "FFTC"
 
@@ -5167,11 +5168,11 @@ Each normalizer has normalizer_version = "<name>@<n>" and a rule table: a list o
 
  | Version | Kinds | Rule table SHA-256 | Rules (summary)
 
- | html@1 | html | db7c52c2f2bbe0510f992a29792ed3770273f12223f7e60bfa65385988928f21 | WHATWG parse (valid UTF-8 as is, else sniffed decoding); one line per start tag, end tag and text run; re-parsed to a fixed point (at most 4 rounds, html_not_converged); comments and PIs dropped; text collapsed and trimmed; attributes sorted, class tokens sorted and deduplicated; inline scripts, styles and handlers become derived documents; masks: nonce, CSRF inputs and meta, hidden values unless short numeric or boolean, integrity, cache-bust and build hashes in URL attributes, volatile data-*, ISO date-times in text
+ | html@2 | html | 77ba7985a873c5be69148966427d129c8b4f228120abd12f4b766480ad14f764 | WHATWG parse (valid UTF-8 as is, else sniffed decoding); one line per start tag, end tag and text run; re-parsed to a fixed point (at most 4 rounds, html_not_converged); comments and PIs dropped; text collapsed and trimmed; attributes sorted, class tokens sorted and deduplicated; inline scripts, styles and handlers become derived documents; masks: nonce, CSRF inputs and meta, hidden values unless short numeric or boolean, integrity, cache-bust and build hashes in URL attributes (an asset-name part of 8 to 64 [0-9A-Za-z_-] that is all hex or mixes letters and digits; html@1 wanted a digit in an all-hex part), volatile data-* (timestamp, UUID and build-id values; else by attribute name: time → timestamp, nonce → nonce, csrf or token → csrf, request-id, requestid or trace → random_id), ISO date-times in text
 
- | js@1 | js | 7965e46bd07aeb144eb81f5767bc2cf1e4594b4d5748912f8ba3756a3da28ec8 | tolerant parse (script goal, module goal when only it parses cleanly); readable printer, one statement per line, directives re-quoted; masks: timestamp, UUID and build-id strings that are not keys, directives or path-like, ISO date-times in strings and templates, 13-digit epoch-ms numbers; any diagnostic → line normalization, grade partial
+ | js@1 | js | 7965e46bd07aeb144eb81f5767bc2cf1e4594b4d5748912f8ba3756a3da28ec8 | tolerant parse (script goal, module goal when only it parses cleanly); readable printer, one statement per line, directives re-quoted; masks: timestamp, UUID and build-id strings that are not keys, directives or path-like, ISO date-times in strings and templates, epoch-ms integer numbers from 946,684,800,000 to 4,102,444,800,000 (2000-01-01 to 2100-01-01 UTC: 13 digits, and 12 digits for 2000-01-01 to 2001-09-09; the rule line says "13-digit"); any diagnostic → line normalization, grade partial
 
- | css@1 | css | c75df612bd0d5c448d749a2cbe7e7c0869f1c15a9d192311de08944d4cf5476e | tokens re-emitted from source; comments dropped; canonical spacing; one declaration per line; redundant ; dropped; strings and url() re-quoted when no escape is needed; invalid tokens stabilized; masks in url()
+ | css@2 | css | 07e0601c21ce48549015654605d1777c7e3dd8c7656a6c58938afc70b0a63c8e | tokens re-emitted from source; comments dropped; canonical spacing; one declaration per line; redundant ; dropped; strings and url() re-quoted when no escape is needed; invalid tokens stabilized; masks in url() (build hashes as in html@2; css@1 wanted a digit in an all-hex part)
 
  | json@1 | json, sourcemap | 16a8ff48e6987ac43aa63e329fa62983facd2bdd2fa7ddb53c170fd8bfa3e0bb | canonical JSON, members sorted, two-space indent, numbers verbatim, no HTML or U+2028 escaping; volatile keys masked; invalid → text fallback
 
@@ -5207,13 +5208,13 @@ A feature is typed and keyed (kind|key) and has the family of its graph label or
 
  | html.links@1 | html | link (links) | links_to URL→URL
 
- | html.scripts@1 | html | script with lineage key, sri, third_party (scripts) | loads_script URL→File
+ | html.scripts@2 | html | script with lineage key, sri, third_party (scripts) | loads_script URL→File
 
- | html.styles@1 | html | style (styles) | loads_style
+ | html.styles@2 | html | style (styles) | loads_style
 
  | html.frames@1 | html | frame (frames) | embeds
 
- | html.forms@1 | html | form → Endpoint html_form, parameter (forms, parameters) | form_action, ParameterProperty
+ | html.forms@2 | html | form → Endpoint html_form, parameter (forms, parameters): the form’s own submission, plus one per further distinct (action, method, enctype) that a submit button (button of type submit or in the auto state, input type=submit|image) produces with formaction, formmethod and formenctype, which override the form’s (WHATWG §4.10.21.3, §4.10.18.6); a dialog method does not submit | form_action, ParameterProperty
 
  | html.meta@1 | html | generator (libraries) | feature only
 
@@ -5221,13 +5222,13 @@ A feature is typed and keyed (kind|key) and has the family of its graph label or
 
  | js.graphql@1 | js | graphql_operation (parameters) | ParameterProperty when its endpoint is known
 
- | js.sourcemap@1 | js | sourcemap (sourcemaps) | source_map
+ | js.sourcemap@2 | js | sourcemap (sourcemaps) | source_map
 
  | js.libraries@1 | js | library from banners and known globals (libraries) | includes_library
 
- | js.modules@1 | js | module_import (scripts) | feature only
+ | js.modules@2 | js | module_import (scripts) | feature only
 
- | css.urls@1 | css | css_import (styles), css_asset (links) | loads_style File→File
+ | css.urls@2 | css | css_import (styles), css_asset (links) | loads_style File→File
 
  | headers.security@1 | headers | header (headers) | HTTPHeaderProperty
 
@@ -5249,7 +5250,7 @@ A feature is typed and keyed (kind|key) and has the family of its graph label or
 
 ### 33.7 Secrets and redaction
 
-- Detection is by named, structured rules: aws_access_key_id, aws_secret_access_key, github_token, github_fine_grained_pat, gitlab_token, slack_token, slack_webhook, stripe_secret_key, google_api_key, openai_api_key, anthropic_api_key, sendgrid_api_key, npm_token, azure_storage_key, jwt, private_key, connection_string (password only), url_credentials (password only). Bare entropy (generic_high_entropy) is a low-confidence tier: never a finding on its own, still redacted.
+- Detection is by named, structured rules: aws_access_key_id, aws_secret_access_key, github_token, github_fine_grained_pat, gitlab_token, slack_token, slack_webhook (https://hooks.slack.com/services/ followed by any three /-separated alphanumeric segments: Slack issues T…/B…/ and a 24-character secret, but the scan checks neither the prefixes nor the lengths, which redacts more, never less), stripe_secret_key, google_api_key, openai_api_key, anthropic_api_key, sendgrid_api_key, npm_token, azure_storage_key, jwt, private_key, connection_string (password only), url_credentials (password only). Bare entropy (generic_high_entropy) is a low-confidence tier: never a finding on its own, still redacted.
 
 - Findings carry the rule id, the redacted preview (28.3) and the keyed-hash input; the HMAC is computed by the caller with the tenant's hash data key. Observe emits exposed_secret tags only with a keyed hasher.
 
@@ -5283,13 +5284,13 @@ A feature is typed and keyed (kind|key) and has the family of its graph label or
 
 - Diff policy: size (default; Myers linear space on tokens up to 16 KiB of normalized text, histogram on lines above), myers, histogram, patience, all through BoundedDiff (30.2).
 
-- Re-derive (normative; in progress on feat_v2, G-CST-04): upgrading a parser, normalizer or extractor triggers a job that, before new captures of the affected kind are accepted, re-reads stored raw snapshots with the new version and records the resulting changes with cause = parser or normalizer.
+- Re-derive (normative; contentstore.Store.Rederive, G-CST-04): upgrading a parser, normalizer, extractor or rule table changes the derivation stamp (34.2); the maintenance sweep re-derives the stored snapshots from their raw bodies, predecessor first (an ingest re-derives a stale predecessor before diffing against it), rewriting their normalized text, features and derived columns in place and recomputing the diffs between snapshots of the new derivation (a diff whose other side is still stale keeps its old content until that side is re-derived; the diff into a re-derived snapshot is always recomputed). Re-derivation is not a change: it records no diff, event or alert and keeps every id and sequence number (contentstore OPEN_QUESTIONS 11; CSTORE-INV-14..16). cause = parser or normalizer is what Compare reports when two derivations of identical bodies are diffed on demand.
 
 - Noise metric: false_change_rate per program, text-level changes with zero level-3 changes on pages whose features are stable; target below 5 % (NoiseCounter).
 
 ### 33.11 Scores: rank, never send
 
-A change's score in [0, 1] and its score_features (named, weighted reasons) are stored with it, so every rank is explainable. The model is additive and hand-set. Contributions are summed per reason name, the sum clamped to [−1, 1] and rounded to 4 decimals; reasons are sorted by name; the score is the sum of the reason weights in that order, clamped to [0, 1] and rounded to 4 decimals. Weights:
+A change's score in [0, 1] and its score_features (named, weighted reasons) are stored with it, so every rank is explainable. The model is additive and hand-set. Contributions are summed per reason name, the sum clamped to [−1, 1] and rounded to 4 decimals; a reason whose weight rounds to 0 is dropped (it is not stored); reasons are sorted by name; the score is the sum of the reason weights in that order, clamped to [0, 1] and rounded to 4 decimals. Weights:
 
  | Feature kind (added) | Reason | Weight | Feature kind (added) | Reason | Weight
 
@@ -5315,7 +5316,7 @@ Scores rank, never send. No code path leads from a score to a request: the scori
 
 ### 33.12 Decoded blobs for the index
 
-DecodeBlobs(text) returns the text inside base64, base64-then-gzip and hex blobs found in content (through codec.DecodeLayers, bounded by 8 MiB and 200 layers), with the outer span and the encoding path, redacted for every secret rule. Blobs inside secrets (JWT segments) are never decoded; binary payloads and plain text give nothing (CONTENT-INV-17). It is used by the content store's indexing step only, not by Process; secrets found inside decoded blobs are redacted but not reported as findings.
+DecodeBlobs(text) returns the text inside base64 (standard or URL-safe alphabet), hex, gzip, zlib and zstd blobs found in content, nested up to three levels (path for example base64>gzip; through codec.DecodeLayers, bounded by 8 MiB decoded and 200 layers; a text layer that only encodes a deeper one, such as base64 of base64, is skipped for that layer), with the outer span and the encoding path, redacted for every secret rule. Blobs inside secrets (JWT segments) are never decoded; binary payloads and plain text give nothing (CONTENT-INV-17). It is used by the content store's indexing step only, not by Process; secrets found inside decoded blobs are redacted but not reported as findings.
 
 ## 34. Content store
 
@@ -5325,7 +5326,9 @@ IngestRequest{program, Capture, entity, run, effect_path, page_url}
   signature = SHA-256(body hash, status, media type, headers@1 block of every hop)
   ├─ same (url, profile, signature, fetched_at) already stored ─▶ duplicate: nothing written
   ├─ the open version has the signature ─▶ unchanged: last_seen moves, the capture is counted and
-  │                                        the stored observation is re-published byte for byte
+  │                                        the open version's observation is re-published with the
+  │                                        re-fetch's fetch time (as processing the re-fetch afresh would
+  │                                        give, byte for byte: CSTORE-INV-13)
   ├─ older than the open version ─▶ CAPTURE_OUT_OF_ORDER
   └─ new version
        content.Process(learned volatility, tenant keyed hasher, previous capture, host bodies, page url)
@@ -5340,7 +5343,7 @@ IngestRequest{program, Capture, entity, run, effect_path, page_url}
 
 Degraded captures are stored closed with an empty validity interval, get no diff and never become the open version. Validity is [valid_from, valid_to) per (URL, profile), contiguous and disjoint with one open version, so an as-of lookup is one index probe (CSTORE-INV-09). Versions cited by a reviewed or alerted change are pinned and skipped by retention.
 
-### 34.2 Schema (migration 0031, schema content)
+### 34.2 Schema (migrations 0031 and 0032, schema content)
 
 Owned by role ff_content, subject to RLS: every table with tenant_id gets forced RLS and the tenant_isolation policy; the store sets app.tenant_id in every transaction; only content.programs has the cross-tenant svc_ff_content policy (background sweeps enumerate tenants there). The *_ref and *_manifest columns hold chunk-store ManifestIDs (hex) of the tenant's chunk store.
 
@@ -5402,7 +5405,13 @@ CREATE TABLE content.data_keys (tenant_id uuid, purpose text, version int, kek_i
 CREATE TABLE content.outbox (id bigserial PRIMARY KEY, event_id uuid NOT NULL UNIQUE, topic text NOT NULL,
   ordering_key text, payload jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), published_at timestamptz);
 
-(Column types and nullability as in the migration file, which is authoritative; the abbreviated tables above omit NOT NULL on composite key columns.)
+-- 0032_content_rederive: the pipeline stamp that derived each snapshot (re-derive, 33.10)
+ALTER TABLE content.snapshots ADD COLUMN derive_stamp text NOT NULL DEFAULT '';
+CREATE INDEX snapshots_derive ON content.snapshots (tenant_id, program_id, valid_from, id, derive_stamp);
+
+derive_stamp names the derivation (contentstore.DerivationStamp: a SHA-256 over every normalizer’s version and rule-table hash and every extractor’s version); a snapshot whose stamp is not the running pipeline’s is re-derived from its stored raw body. Rows from before 0032 have the empty stamp, so the first pass visits each once and, with an unchanged pipeline, writes only the stamps (CSTORE-INV-14). The index serves the job’s ordered scan of one program in (valid_from, id) order and filters fresh rows inside the index.
+
+(Column types and nullability as in the migration files, which are authoritative; the abbreviated tables above omit NOT NULL on composite key columns.)
 
 ### 34.3 Records, blob codecs and ids
 
@@ -5518,7 +5527,7 @@ Webhook and Slack deliveries are not program targets. They carry X-Flowforge-Egr
 
  | crawl 1.0.0 | (InScope<Url>, Int) -> List<Url> (fetch budget, at most 500) | active | Breadth-first frontier: every URL canonicalized and scope-checked before queueing; robots.txt per origin (2xx parsed, 4xx allow all, 5xx, unreachable or out of scope disallow all; agent token flowforge); links, frames and sitemap entries; revisit policy per (program, URL, profile): adaptive by default (halve on change, double on no change, clamped to [1 h, 7 d], first interval 24 h). Returns every in-scope, robots-allowed URL reached
 
- | wellknown 1.0.0 | (InScope<Host>) -> List<Url> | active | robots.txt, /.well-known/security.txt then /security.txt, the sitemaps robots.txt names (else /sitemap.xml; an index followed one level, at most 10), OpenAPI at /openapi.json, /swagger.json, /v3/api-docs, /api-docs, /.well-known/openapi.json, GraphQL GET /graphql?query={__typename}. Probes store 2xx answers whose sniffed kind is the expected one
+ | wellknown 1.0.0 | (InScope<Host>) -> List<Url> | active | robots.txt, /.well-known/security.txt then /security.txt, the sitemaps robots.txt names (else /sitemap.xml; sitemap indexes followed to any depth, at most 10 sitemaps per origin in all), OpenAPI at /openapi.json, /swagger.json, /v3/api-docs, /api-docs, /.well-known/openapi.json, GraphQL GET /graphql?query={__typename}. Probes store 2xx answers whose sniffed kind is the expected one
 
  | extract 1.0.0 | (Snapshot) -> Features | read | The stored features grouped by kind; no graph facts (36.6)
 
@@ -6000,6 +6009,10 @@ Every v2 package's numbered invariants, each with its test (Test<Pkg>Inv<NN>_<Na
 
  | CHUNK-INV-23 | TestChunkInv23_MetricsConsistency | Metrics equal the sums of Put stats and the backend's object sizes; ratios follow from the counters.
 
+ | CHUNK-INV-24 | TestChunkInv24_MixedChunkers | One namespace written by every chunker in turn serves every blob; each manifest records its chunker, and re-cutting the blob with it reproduces the chunk list; the same content dedupes under one chunker and is stored apart under another; fsck is clean and flags lengths the recorded chunker cannot produce (MANIFEST_CHUNKING_MISMATCH); GC keeps every named blob.
+
+ | CHUNK-INV-25 | TestChunkInv25_ManifestChunkerDescriptor | Every canonical chunker encodes as manifest version 2 and decodes to itself; an unset chunker is version 1 (the bytes written before version 2); unknown algorithms are MANIFEST_UNSUPPORTED, bad reserved bytes or descriptors MANIFEST_MALFORMED; the descriptor is part of the manifest id.
+
 #### textindex
 
  | Id | Test | Statement
@@ -6106,7 +6119,13 @@ Every v2 package's numbered invariants, each with its test (Test<Pkg>Inv<NN>_<Na
 
  | CSTORE-INV-12 | TestCStoreInv12_VolatilityLearned | A non-feature attribute changing on every capture of a stable page is frozen once (version 1), later captures use the learned normalizer and diff masked-only; feature paths are never counted.
 
- | CSTORE-INV-13 | TestCStoreInv13_ObservationReplay | The re-published observation of an unchanged re-fetch equals processing the capture afresh, byte for byte.
+ | CSTORE-INV-13 | TestCStoreInv13_ObservationReplay | The re-published observation of an unchanged re-fetch (the open version’s stored processed capture and decrypted findings, observed at the re-fetch’s fetch time) equals processing the re-fetched capture afresh, byte for byte.
+
+ | CSTORE-INV-14 | TestCStoreInv14_RederiveIdempotent (+Postgres) | After a normalizer upgrade, re-deriving in batches of one, in one batch, and with three concurrent jobs reach the same state, every snapshot carries the new stamp, and a second run re-derives nothing and changes nothing; a new stamp with an unchanged pipeline rewrites no record.
+
+ | CSTORE-INV-15 | TestCStoreInv15_RederiveNoChange (+Postgres) | Re-derive inserts no snapshot, diff, finding or outbox event, allocates no diff seq, closes or touches no version and learns no volatility; ids, sides, validity, lineage and seqs are kept and the new normalizer_version recorded; an ingest after the upgrade re-derives its predecessor first, so its diff is between snapshots of one derivation.
+
+ | CSTORE-INV-16 | TestCStoreInv16_RederiveEqualsFreshIngest (+Postgres) | After re-derive, every snapshot's normalized text, features record and derived columns, every diff's levels, stats, hunks and change set, and the search and first-appeared answers of a query set equal those of a store that ingested the same captures under the new pipeline; this holds for a normalizer upgrade that changes every page and for one under which a snapshot's own records do not change after a predecessor whose records did (the diff into it is recomputed; TestRegress_RederiveUnchangedSuccessorDiff).
 
 #### oam
 
@@ -6202,7 +6221,7 @@ The wellknown list above is the diagnostic vocabulary of conformance/wellknown/*
 
  | UNBALANCED_PAREN | ( never closed | ( to end
 
- | EXPECTED_TERM | missing operand after -, AND, OR, ( | the token found
+ | EXPECTED_TERM | missing operand after -, AND, OR, ( | after AND, OR, (: the token found; after -: the - token (also when a clause follows with white space between, - x)
 
  | EXPECTED_VALUE | field: not followed directly by a value | the position
 
@@ -6270,11 +6289,67 @@ Each row is a place where docs/V2_DESIGN.md (§ numbers are the brief's) and the
 
  | Lineage threshold | SimHash ≤ 6, ties by size ratio | Same, after a unique lineage-key match; candidates also include the host's open versions (34.1) | Lazily loaded chunks have no page reference
 
- | Catalog class, re-derive, KMS adapter, hybrid search | specified as v2 features | Catalog and the KMS adapter are v3; re-derive is specified here and in progress (G-CST-04); hybrid ships only after the labelled-set comparison and is not enabled | D4 defers advisories; the KEK port is in place
+ | Catalog class, re-derive, KMS adapter, hybrid search | specified as v2 features | Catalog and the KMS adapter are v3; re-derive is built (34.2, G-CST-04) and is not itself a change (no cause = parser rows); hybrid ships only after the labelled-set comparison and is not enabled | D4 defers advisories; the KEK port is in place
 
  | Quotas (§11.18) | per-tenant limits, unquantified | three limits per tenant, zero = unlimited, no defaults (34.6) | Pricing decides values, not the code
 
  | Score weights (§12.4) | named kinds, unquantified | The table of 33.11 | Pinned so ranks are reproducible
+
+## 42. Part I errata
+
+Corrections to Part I where its text did not describe the code. Part I keeps its line numbers (docs/spec.txt lines 1 to 4367 are stable), so each correction there is made within the existing line and points here when the full statement needs more room. The code is the reference.
+
+### 42.1 Bytecode module details (8.3, 8.7, 8.8; G-LANG-06)
+
+The module layout of 8.3 with every field the encoder writes (bytecode/encode.go; all integers little-endian):
+
+magic "FFBC" | format_version u16 = 1 | flags u16
+CONSTS  u32 count, then (tag u8, len u32, payload)*
+          tag 1 Int, 4 Duration (ns), 5 Time (Unix ns): len 8, i64 two's complement
+          tag 2 Float: len 8, IEEE 754 bits, finite only; tag 3 String: UTF-8, at most 1 MiB
+TYPES   u32 count, then per entry: kind u8, name u32, and
+          record:    nfields u16, (name u32, type u32)*
+          enum:      nvariants u16, (name u32, arity u8, type u32 * arity)*
+          signature: func u16, nparams u16, (name u32, type u32)*, result u32
+          (a type reference is a String constant holding DSL type text; 0xFFFFFFFF is none)
+FUNCS   u32 count, then per function: name u32, arity u8, nlocals u16, ncaps u8,
+          code_len u32, code, nspans u32, (code_offset u32, source_offset u32, len u32)*
+          (spans strictly increasing and inside the code)
+EFFECTS u16 mask
+TOOLS   u16 count, then (name u32, spec_sha256 [32]byte)*
+META    compiler_version (u32 len, bytes), source_sha256 [32]byte,
+          program_policy_sha256 [32]byte, workflow_name (u32 len, bytes)
+ANNOTS  only when flags has bit 1 (value 2, FlagAnnotations): timeout_ns i64, max_effects u32,
+          flags u8 (bit 0 on_unknown_retry, bit 1 idempotent), nsites u32, then per site:
+          func u16, code_offset u32, source_offset u32, source_len u32, timeout_ns i64,
+          retry_max u32, backoff_initial_ns i64, backoff_max_ns i64, flags u8 (bit 0 idempotent)
+entry   u16
+
+- Flags: bit 1 (FlagAnnotations) is the only flag format version 1 defines; bit 0 is reserved and every other bit MUST be 0. Without the flag the layout is exactly that of 8.3. ANNOTS carries the annotations the engine enforces (workflow #[timeout], #[effects(max)], #[on_unknown(retry)], #[idempotent]; per EFFECT instruction the #[timeout] and #[retry] of the enclosing let statement), keyed by (function, code offset); sites are sorted and unique and each names an EFFECT instruction (verifier rule annotations).
+
+- Reserved type ids: Option 0, Result 1, Host 2, Severity 3, Tuple 4, ScopeDenied 5, Approval 6, Denied 7, PlanError 8, TaskError 9, LogLevel 10, Budget 11, Plan 12; 13 to 31 are reserved and rejected; user types start at 32 (bytecode/types.go). The VM numbers Option’s variants None = 0, Some = 1 while the DSL declares Some | None; the compiler maps them, and every other enum keeps declaration order.
+
+- Failure codes (8.7) are numbered 1 to 15 in the order 8.7 lists them; code 16 type_mismatch is added: the verifier checks stack shape, not value types, so a module not produced by a correct compiler can apply an instruction to the wrong kind of value, and the VM fails the run with this code.
+
+- Stack bound (8.8): the module stores no per-function maximum stack depth. The verifier computes each function’s maximum operand depth and requires nlocals + max_depth ≤ 65,536; the VM checks the total once per call. “Each local assigned once” is per path and per iteration: a LOOP back edge contributes no local definitions, a local written before a loop cannot be written in it, and loop state lives on the stack.
+
+- Tool calls: EFFECT has no tool operand; the tool name is the last argument, pushed by the CONST immediately before the EFFECT (which must not be a jump target), and the VM moves it to args[0] of the suspension. The effect mask is u16 with bits 8 to 11 for the engine effects scope, approval, alert and plan.
+
+### 42.2 Other corrections
+
+ | Part I | Was | Now (the code) | Gap
+
+ | 5.5 Relations, ptr_record | relation type BasicDNS | BasicDNS is Flowforge’s listing; OAM upstream makes ptr_record a SimpleRelation. Label validation checks endpoint types only (IPAddress → FQDN), so either relation type is accepted; no v1 adapter emits the label. | G-SPEC-10
+
+ | 5.6 Properties, SimpleProperty | fields name, value | Kept: Flowforge encodes SimpleProperty as {"type": "SimpleProperty", "name": ..., "value": ...}. OAM upstream names the fields property_name and property_value; an exporter to upstream OAM renames them (oam OPEN_QUESTIONS). | G-SPEC-10
+
+ | 12.7 Examples, fuzzy graph search | score 0.78 for jenkin against jenkins.acme.com | The trigram similarity of that pair is 6/18 (graphstore OPEN_QUESTIONS 22); the example shows 0.33333. | G-DOC-14
+
+ | 21.3 Test vector, SCCs; 25.3 csr_005 | {0} {2} {1,3,4} (topological order) | {1,3,4} {2} {0}: Tarjan’s reverse topological order, as 21.5 requires; conformance data compares the groups as sets and the tests check the order separately (csr OPEN_QUESTIONS 8). | G-VEC-08
+
+ | 22.9 Contract, DSL example | filter(|h| scope_check(h) is InScope(_)) | Neither the |h| lambda nor is patterns are in the grammar of 7.3; the example is filter(h => scope.allows(h)), a passive pre-filter, and results still go through scope.check before an active call (dsl OPEN_QUESTIONS 33). | G-LANG-05
+
+ | 8.3, 8.7, 8.8 | bytecode layout without nspans, string encoding, TYPES layout, ANNOTS; 15 failure codes; a declared per-function maximum stack | 42.1 | G-LANG-06
 
 Flowforge specification, version 0.4 draft (Part II: v2). Graph model aligned to the OWASP Amass Open Asset Model; see the Open Asset Model and asset-db documentation for the upstream definitions.
 
