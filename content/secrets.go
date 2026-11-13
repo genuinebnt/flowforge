@@ -3,12 +3,12 @@ package content
 import (
 	"bytes"
 	"cmp"
-	"encoding/base64"
 	"math"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/genuinebnt/flowforge/codec"
 	"github.com/genuinebnt/flowforge/oam"
 )
 
@@ -313,7 +313,10 @@ func jwtScan(s string) [][2]int {
 		if k != 3 || !strings.HasPrefix(s[parts[1][0]:], "eyJ") {
 			continue
 		}
-		hdr, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(s[parts[0][0]:parts[0][1]], "="))
+		// The segment holds only URL-alphabet characters; lenient decoding
+		// ignores non-zero trailing bits, as JWT libraries do.
+		hdr, err := codec.DecodeBase64([]byte(s[parts[0][0]:parts[0][1]]),
+			codec.Base64Options{Alphabet: codec.Base64URL, NoPadding: true, Mode: codec.Lenient})
 		if err != nil || !bytes.Contains(hdr, []byte(`"alg"`)) {
 			continue
 		}

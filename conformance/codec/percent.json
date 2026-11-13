@@ -1,0 +1,211 @@
+{
+  "description": "Percent-encoding: canonical (strict) decoding against a percent-encode set, WHATWG percent-decode (lenient), the RFC 3986 syntax check (reject_invalid), and encoding with every set. Every set also escapes U+0025 so encoding round-trips.",
+  "source": "RFC 3986 §2.1, §2.3; WHATWG URL Standard §1.3 (percent-encode sets, percent-decode)",
+  "cases": [
+    {
+      "name": "escaped space",
+      "codec": "percent-component",
+      "mode": "both",
+      "encoded": "a%20b",
+      "decoded": "a b"
+    },
+    {
+      "name": "lower-case escape",
+      "codec": "percent-component",
+      "mode": "strict",
+      "encoded": "%2f",
+      "error": "non_canonical",
+      "offset": 0
+    },
+    {
+      "name": "lenient lower-case escape",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "encoded": "%2f",
+      "decoded": "/"
+    },
+    {
+      "name": "escaped unreserved byte",
+      "codec": "percent-component",
+      "mode": "strict",
+      "encoded": "%41",
+      "error": "non_canonical",
+      "offset": 0
+    },
+    {
+      "name": "lenient escaped unreserved byte",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "encoded": "%41",
+      "decoded": "A"
+    },
+    {
+      "name": "raw byte of the set",
+      "codec": "percent-component",
+      "mode": "strict",
+      "encoded": "a b",
+      "error": "non_canonical",
+      "offset": 1
+    },
+    {
+      "name": "raw slash is fine in the path set",
+      "codec": "percent-path",
+      "mode": "strict",
+      "encoded": "/a/b%20c",
+      "decoded": "/a/b c"
+    },
+    {
+      "name": "invalid escape kept (WHATWG)",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "encoded": "%zz",
+      "decoded": "%zz"
+    },
+    {
+      "name": "invalid escape strict",
+      "codec": "percent-component",
+      "mode": "strict",
+      "encoded": "%zz",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "truncated escape kept",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "encoded": "%4",
+      "decoded": "%4"
+    },
+    {
+      "name": "truncated escape strict",
+      "codec": "percent-component",
+      "mode": "strict",
+      "encoded": "ab%4",
+      "error": "invalid_escape",
+      "offset": 2
+    },
+    {
+      "name": "percent before an escape",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "encoded": "%%41",
+      "decoded": "%A"
+    },
+    {
+      "name": "RFC 3986 syntax check",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "reject_invalid": true,
+      "encoded": "a%zz",
+      "error": "invalid_escape",
+      "offset": 1
+    },
+    {
+      "name": "syntax check accepts non-canonical",
+      "codec": "percent-component",
+      "mode": "lenient",
+      "reject_invalid": true,
+      "encoded": "a b%2f",
+      "decoded": "a b/"
+    },
+    {
+      "name": "UTF-8 escapes",
+      "codec": "percent-component",
+      "mode": "both",
+      "encoded": "%E2%82%AC",
+      "decoded": "€"
+    },
+    {
+      "name": "encode path set",
+      "codec": "percent-path",
+      "op": "encode",
+      "decoded": "/a b?c#d^`{}",
+      "encoded": "/a%20b%3Fc%23d%5E%60%7B%7D"
+    },
+    {
+      "name": "encode component set",
+      "codec": "percent-component",
+      "op": "encode",
+      "decoded": "a+b/c&d=e!~*'()",
+      "encoded": "a%2Bb%2Fc%26d%3De!~*'()"
+    },
+    {
+      "name": "encode unreserved set",
+      "codec": "percent-unreserved",
+      "op": "encode",
+      "decoded": "!~*-._",
+      "encoded": "%21~%2A-._"
+    },
+    {
+      "name": "encode form set without plus",
+      "codec": "percent-form",
+      "op": "encode",
+      "decoded": "~ !*",
+      "encoded": "%7E%20%21*"
+    },
+    {
+      "name": "encode query set",
+      "codec": "percent-query",
+      "op": "encode",
+      "decoded": "a b\"#<>'",
+      "encoded": "a%20b%22%23%3C%3E'"
+    },
+    {
+      "name": "encode special-query set",
+      "codec": "percent-specialquery",
+      "op": "encode",
+      "decoded": "a'b",
+      "encoded": "a%27b"
+    },
+    {
+      "name": "encode C0 control set",
+      "codec": "percent-c0control",
+      "op": "encode",
+      "decoded": "é\u0001 ",
+      "encoded": "%C3%A9%7F%01 "
+    },
+    {
+      "name": "encode fragment set",
+      "codec": "percent-fragment",
+      "op": "encode",
+      "decoded": "` <#",
+      "encoded": "%60%20%3C#"
+    },
+    {
+      "name": "encode userinfo set",
+      "codec": "percent-userinfo",
+      "op": "encode",
+      "decoded": "u@h:p",
+      "encoded": "u%40h%3Ap"
+    },
+    {
+      "name": "percent is always escaped",
+      "codec": "percent-path",
+      "op": "both",
+      "decoded": "100%",
+      "encoded": "100%25"
+    },
+    {
+      "name": "form component encode",
+      "codec": "form-component",
+      "op": "both",
+      "decoded": "a b+c~",
+      "encoded": "a+b%2Bc%7E"
+    },
+    {
+      "name": "form component %20 is not canonical",
+      "codec": "form-component",
+      "mode": "strict",
+      "encoded": "a%20b",
+      "error": "non_canonical",
+      "offset": 1
+    },
+    {
+      "name": "form component lenient %20",
+      "codec": "form-component",
+      "mode": "lenient",
+      "encoded": "a%20b+c",
+      "decoded": "a b c"
+    }
+  ]
+}

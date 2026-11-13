@@ -1,0 +1,96 @@
+{
+  "description": "Blob detection: `candidates` are exactly Sniff's output for `encoded` (default SniffOptions).",
+  "source": "this package (codec README, Sniff); V2_DESIGN §12.14",
+  "cases": [
+    {
+      "name": "base64 run in text",
+      "codec": "sniff",
+      "encoded": "token=ZmV0Y2goJy9hcGkvdjIvcHJpdmF0ZS9leHBvcnQ/Zm9ybWF0PWNzdicp;",
+      "candidates": [
+        {
+          "kind": "base64",
+          "start": 6,
+          "end": 62
+        }
+      ]
+    },
+    {
+      "name": "hex digest",
+      "codec": "sniff",
+      "encoded": "sha=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad end",
+      "candidates": [
+        {
+          "kind": "hex",
+          "start": 4,
+          "end": 68
+        }
+      ]
+    },
+    {
+      "name": "PEM-style wrapped base64",
+      "codec": "sniff",
+      "encoded": "-----BEGIN DATA-----\r\nVGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZzsgVGhl\r\nIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZzsgVGhlIHF1\r\n-----END DATA-----",
+      "candidates": [
+        {
+          "kind": "base64",
+          "start": 22,
+          "end": 152
+        }
+      ]
+    },
+    {
+      "name": "URL alphabet",
+      "codec": "sniff",
+      "encoded": "{\"blob\":\"-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_c29tZSB0ZXh0IGhlcmUh\"}",
+      "candidates": [
+        {
+          "kind": "base64url",
+          "start": 9,
+          "end": 77
+        }
+      ]
+    },
+    {
+      "name": "identifiers are not base64",
+      "codec": "sniff",
+      "encoded": "function addEventListenerForTheComponent() { return getElementsByTagNameFromDocument }",
+      "candidates": []
+    },
+    {
+      "name": "paths and decimal numbers are neither",
+      "codec": "sniff",
+      "encoded": "/api/v1/users/profile/settings/notifications?page=1234567890123456789012345678901234",
+      "candidates": []
+    },
+    {
+      "name": "gzip magic",
+      "codec": "sniff",
+      "encoded_hex": "1f8b08000000000000ffca48cdc9c9d75140a614caf38b7252b800010000ffff875d462b1a000000",
+      "candidates": [
+        {
+          "kind": "gzip",
+          "start": 0,
+          "end": 40
+        }
+      ]
+    },
+    {
+      "name": "zlib-looking text that does not inflate",
+      "codec": "sniff",
+      "encoded": "x^2 + y^2",
+      "candidates": []
+    },
+    {
+      "name": "padded run",
+      "codec": "sniff",
+      "encoded": "v='H4sIAAAAAAAA/6pWSizIVLJS0s/MK0ktykvM0U9Myc3M0y8tTi0qVtJRKsnPTs1TslLKy89LVaoFBAAA//+u2pSkLgAAAA=='",
+      "candidates": [
+        {
+          "kind": "base64",
+          "start": 3,
+          "end": 99
+        }
+      ]
+    }
+  ]
+}

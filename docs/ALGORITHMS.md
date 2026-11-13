@@ -237,3 +237,32 @@ candidate. See `content/README.md` for throughput per content kind.
   (pstest), compared on latency and throughput.
 * **chunkstore** alternatives (fixed-size chunking, Rabin, whole-blob),
   tracked as G-ALG-06.
+
+### Base64 decoding (`codec`)
+* **Candidates** (`codec.Base64Options.Algo`, `codec.ParseBase64Algo`:
+  `statemachine`, `swar`, `stdlib`): the RFC 4648 §4 state machine, byte by
+  byte (the reference); a table-driven word-at-a-time decoder (four
+  256-entry tables give each character's sextet pre-shifted, with an
+  "invalid" bit above bit 23, so eight characters decode with eight
+  lookups, one test and one 8-byte store); and `encoding/base64` on inputs
+  it can take unchanged. The fast candidates hand every quantum that is not
+  four plain alphabet characters (white space, padding, the end, an error)
+  to the state machine, so all three return the same bytes and the same
+  error code and offset (CODEC-INV-06). Benchmark:
+  `go test -run '^$' -bench CodecAlgo -benchmem ./codec`
+  (`BenchmarkCodecAlgo/<candidate>/<size>[-mime]`).
+* **Measured** 2026-11-13, 4-vCPU Xeon (Go 1.26), two runs, decoded MB/s;
+  strict canonical input, and lenient MIME input wrapped at 76 characters:
+  | Candidate | 64 B | 4 KiB | 1 MiB | 1 MiB MIME |
+  |---|---|---|---|---|
+  | swar | 1,303-1,306 | 1,804-1,958 | 1,853-2,035 | 963-1,066 |
+  | statemachine | 595-598 | 753-760 | 579-753 | 480-493 |
+  | stdlib | 562-639 | 817-864 | 749-836 | 491-494 |
+* **Default:** `swar`. It is 2.2-2.5× the stdlib on canonical input and 2×
+  on MIME input (the stdlib candidate falls back to the state machine for
+  white space and for the lenient mode's mixed alphabets), and it is our
+  own portable code with the state machine's semantics, so the Rust port
+  reproduces it directly.
+* **When to pick others:** `statemachine` as the reference and when
+  reading the code; `stdlib` to compare against Go's decoder (it gives no
+  benefit otherwise).

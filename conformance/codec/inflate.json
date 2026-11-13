@@ -1,0 +1,150 @@
+{
+  "description": "Bounded decompression. `encoded_hex` is the compressed stream; `max_output` and `max_ratio` set InflateOptions (max_ratio -1 disables the guard). On output_limit the returned prefix is `decoded`.",
+  "source": "RFC 1950, RFC 1951 §3.2.4 (stored blocks), RFC 1952, RFC 8878; vectors from Go compress/* and klauspost/compress",
+  "cases": [
+    {
+      "name": "gzip",
+      "codec": "gzip",
+      "encoded_hex": "1f8b08000000000000ffca48cdc9c9d75140a614caf38b7252b800010000ffff875d462b1a000000",
+      "decoded": "hello, hello, hello world\n"
+    },
+    {
+      "name": "gzip two members",
+      "codec": "gzip",
+      "encoded_hex": "1f8b08000000000000ff4a4c4a06040000ffffc2412435030000001f8b08000000000000ff4a494d03040000ffff61e1c40c03000000",
+      "decoded": "abcdef"
+    },
+    {
+      "name": "zlib",
+      "codec": "zlib",
+      "encoded_hex": "789cca48cdc9c9d75140a614caf38b7252b800010000ffff7dae0927",
+      "decoded": "hello, hello, hello world\n"
+    },
+    {
+      "name": "deflate",
+      "codec": "deflate",
+      "encoded_hex": "ca48cdc9c9d75140a614caf38b7252b800010000ffff",
+      "decoded": "hello, hello, hello world\n"
+    },
+    {
+      "name": "zstd",
+      "codec": "zstd",
+      "encoded_hex": "28b52ffd0400d1000068656c6c6f2c2068656c6c6f2c2068656c6c6f20776f726c640a1cd5e7a0",
+      "decoded": "hello, hello, hello world\n"
+    },
+    {
+      "name": "deflate stored block",
+      "codec": "deflate",
+      "encoded_hex": "010300fcff616263",
+      "decoded": "abc"
+    },
+    {
+      "name": "zlib stored block",
+      "codec": "zlib",
+      "encoded_hex": "7801010300fcff616263024d0127",
+      "decoded": "abc"
+    },
+    {
+      "name": "gzip unknown compression method",
+      "codec": "gzip",
+      "encoded_hex": "1f8b09000000000000ff",
+      "error": "bad_header",
+      "offset": 0
+    },
+    {
+      "name": "gzip checksum mismatch",
+      "codec": "gzip",
+      "encoded_hex": "1f8b08000000000000ffca48cdc9c9d75140a614caf38b7252b800010000ffff885d462b1a000000",
+      "error": "corrupt"
+    },
+    {
+      "name": "gzip truncated",
+      "codec": "gzip",
+      "encoded_hex": "1f8b08000000000000ffca48cdc9c9d75140a614",
+      "error": "corrupt"
+    },
+    {
+      "name": "gzip trailing garbage",
+      "codec": "gzip",
+      "encoded_hex": "1f8b08000000000000ffca48cdc9c9d75140a614caf38b7252b800010000ffff875d462b1a00000000ff",
+      "error": "corrupt"
+    },
+    {
+      "name": "zlib checksum mismatch",
+      "codec": "zlib",
+      "encoded_hex": "789cca48cdc9c9d75140a614caf38b7252b800010000ffff7dae0928",
+      "error": "corrupt"
+    },
+    {
+      "name": "zlib bad FCHECK",
+      "codec": "zlib",
+      "encoded_hex": "789dca48",
+      "error": "bad_header",
+      "offset": 0
+    },
+    {
+      "name": "zlib preset dictionary",
+      "codec": "zlib",
+      "encoded_hex": "78bbdeadbeef00",
+      "error": "unsupported",
+      "offset": 0
+    },
+    {
+      "name": "deflate reserved block type",
+      "codec": "deflate",
+      "encoded_hex": "07",
+      "error": "corrupt",
+      "offset": 0
+    },
+    {
+      "name": "zstd bad magic",
+      "codec": "zstd",
+      "encoded_hex": "28b52ffe0400d100",
+      "error": "bad_header",
+      "offset": 0
+    },
+    {
+      "name": "zstd checksum mismatch",
+      "codec": "zstd",
+      "encoded_hex": "28b52ffd0400d1000068656c6c6f2c2068656c6c6f2c2068656c6c6f20776f726c640a1cd5e7a1",
+      "error": "corrupt"
+    },
+    {
+      "name": "gzip output limit",
+      "codec": "gzip",
+      "encoded_hex": "1f8b08000000000000ffca48cdc9c9d75140a614caf38b7252b800010000ffff875d462b1a000000",
+      "max_output": 5,
+      "error": "output_limit",
+      "offset": 5,
+      "decoded": "hello"
+    },
+    {
+      "name": "zlib output limit",
+      "codec": "zlib",
+      "encoded_hex": "789cca48cdc9c9d75140a614caf38b7252b800010000ffff7dae0927",
+      "max_output": 12,
+      "error": "output_limit",
+      "offset": 12,
+      "decoded": "hello, hello"
+    },
+    {
+      "name": "zstd output limit",
+      "codec": "zstd",
+      "encoded_hex": "28b52ffd0400d1000068656c6c6f2c2068656c6c6f2c2068656c6c6f20776f726c640a1cd5e7a0",
+      "max_output": 5,
+      "error": "output_limit",
+      "offset": 5,
+      "decoded": "hello"
+    },
+    {
+      "name": "ratio limit with a small floor",
+      "codec": "deflate",
+      "encoded_hex": "ca48cdc9c9d75140a614caf38b7252b800010000ffff",
+      "max_ratio": 1,
+      "ratio_floor": 10,
+      "error": "ratio_limit",
+      "offset": 22,
+      "decoded": "hello, hello, hello wo"
+    }
+  ]
+}

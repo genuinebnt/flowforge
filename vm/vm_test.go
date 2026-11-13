@@ -231,6 +231,18 @@ func TestVM001_Arithmetic(t *testing.T) {
 			{"asn_parse", builtin(bc.BASNParse, s("as64500")), vm.Some(mustV(vm.Asn("AS64500"))), 0},
 			{"host_parse", builtin(bc.BHostParse, s("10.0.0.1")), vm.Some(mustV(vm.Host("10.0.0.1"))), 0},
 			{"scope_allows_without_snapshot", builtin(bc.BScopeAllows, s("a.com")), vm.Bool(false), 0},
+			{"base64_encode", builtin(bc.BBase64Encode, s("héllo")), vm.Str("aMOpbGxv"), 0},
+			{"base64_decode_lenient", builtin(bc.BBase64Decode, s("aMOp\nbGxv")), vm.Some(vm.Str("héllo")), 0},
+			{"base64_decode_url_unpadded", builtin(bc.BBase64Decode, s("Pz8-")), vm.Some(vm.Str("??>")), 0},
+			{"base64_decode_bad", builtin(bc.BBase64Decode, s("Zm9vY")), vm.None(), 0},
+			{"base64_decode_not_utf8", builtin(bc.BBase64Decode, s("/w==")), vm.None(), 0},
+			{"url_encode", builtin(bc.BURLEncode, s("a b/c?d=é&e~*")), vm.Str("a%20b%2Fc%3Fd%3D%C3%A9%26e~*"), 0},
+			{"url_decode", builtin(bc.BURLDecode, s("a%20b+%2f%C3%A9")), vm.Some(vm.Str("a b+/é")), 0},
+			{"url_decode_bad_escape", builtin(bc.BURLDecode, s("100%")), vm.None(), 0},
+			{"url_decode_not_utf8", builtin(bc.BURLDecode, s("%FF")), vm.None(), 0},
+			{"hex_encode", builtin(bc.BHexEncode, s("Hi!")), vm.Str("486921"), 0},
+			{"hex_decode", builtin(bc.BHexDecode, s("48 69 21")), vm.Some(vm.Str("Hi!")), 0},
+			{"hex_decode_odd", builtin(bc.BHexDecode, s("486")), vm.None(), 0},
 		})
 	})
 	t.Run("lists", func(t *testing.T) {

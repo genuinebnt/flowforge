@@ -1,0 +1,17 @@
+{
+  "value": [
+    "aMOpbGxv",
+    "some héllo",
+    "none",
+    "none",
+    "a%20b%2Fc%3Fd%3D%C3%A9%26e~*",
+    "some a b+/é",
+    "none",
+    "486921",
+    "some Hi!",
+    "none",
+    "some round trip ✓"
+  ],
+  "display": "[\"aMOpbGxv\", \"some héllo\", \"none\", \"none\", \"a%20b%2Fc%3Fd%3D%C3%A9%26e~*\", \"some a b+/é\", \"none\", \"486921\", \"some Hi!\", \"none\", \"some round trip ✓\"]",
+  "trace": []
+}

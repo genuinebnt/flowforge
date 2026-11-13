@@ -145,3 +145,27 @@ is pinned by a test or conformance file named in its entry.
     before falling back (`BenchmarkContentAlgo/diff`).
 33. **docs/ALGORITHMS.md** needs the "Choosing an algorithm" entries of
     README.md; that file is outside this package's write scope.
+
+## Decoding (codec)
+
+34. **Decoding goes through `codec`** with unchanged behaviour. Gzip
+    sitemaps (xml@1) inflate with `codec.Inflate` capped at
+    `MaxResponseBytes` and the ratio guard off: the cap already bounds the
+    work and the xml@1 rule text ("inflated to 8 MiB") is pinned by
+    `normalizers.json`, so a guard would need a version bump. A bad gzip
+    header still grades failed, a stream broken later partial
+    (`gzip_invalid`) with the inflated prefix, and a stream over the bound
+    partial (`input_truncated`) with exactly the bound's prefix. JWT headers
+    decode with lenient unpadded base64url, which, like
+    `RawURLEncoding`, ignores non-zero trailing bits; the segment scanner
+    only passes URL-alphabet characters, so the remaining lenient
+    allowances (white space, '+', '/') never apply. Content has no
+    percent-decoding of its own: URLs go through `net/url` parsing and
+    query parameter names are kept as written, so nothing else moved.
+35. **`DecodeBlobs` is new and not wired into `Process`.** V2 §12.14 asks
+    for blobs to be decoded before indexing; that is the content store's
+    indexing step, so `DecodeBlobs` returns the decoded, redacted text for
+    it and leaves `Processed`, the normalized snapshots and their
+    conformance hashes alone. Secrets found inside decoded blobs are
+    redacted but not reported as findings (a new finding source would
+    change scores and observations); pinned by CONTENT-INV-17.

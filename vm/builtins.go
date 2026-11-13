@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/genuinebnt/flowforge/bytecode"
+	"github.com/genuinebnt/flowforge/codec"
 )
 
 // builtinInputSize is the n of the BUILTIN fuel rule (1 + n/16): the total
@@ -489,6 +490,45 @@ func (vm *VM) callBuiltin(id bytecode.BuiltinID, a []Value) (Value, *fault) {
 		if list1 {
 			return vm.listAppend(a[0], a[1])
 		}
+	case bytecode.BBase64Decode, bytecode.BURLDecode, bytecode.BHexDecode:
+		if str1 {
+			return vm.decodeText(id, a[0].Str())
+		}
+	case bytecode.BBase64Encode:
+		if str1 {
+			return vm.newStr(string(codec.EncodeBase64([]byte(a[0].Str()), codec.Base64Options{})))
+		}
+	case bytecode.BURLEncode:
+		if str1 {
+			return vm.newStr(string(codec.EncodePercent([]byte(a[0].Str()), codec.SetComponent)))
+		}
+	case bytecode.BHexEncode:
+		if str1 {
+			return vm.newStr(string(codec.EncodeHex([]byte(a[0].Str()), codec.HexOptions{})))
+		}
 	}
 	return bad()
+}
+
+// decodeText runs a codec decoder and returns Some(text), or None when the
+// input does not decode or the bytes are not UTF-8 (DSL strings are text).
+func (vm *VM) decodeText(id bytecode.BuiltinID, s string) (Value, *fault) {
+	var out []byte
+	var err error
+	switch id {
+	case bytecode.BBase64Decode:
+		out, err = codec.DecodeBase64([]byte(s), codec.Base64Options{Mode: codec.Lenient})
+	case bytecode.BURLDecode:
+		out, err = codec.DecodePercent([]byte(s), codec.PercentOptions{Mode: codec.Lenient, RejectInvalidEscapes: true})
+	default:
+		out, err = codec.DecodeHex([]byte(s), codec.HexOptions{Mode: codec.Lenient})
+	}
+	if err != nil || !utf8.Valid(out) {
+		return None(), nil
+	}
+	v, f := vm.newStr(string(out))
+	if f != nil {
+		return Value{}, f
+	}
+	return vm.some(v)
 }

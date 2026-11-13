@@ -1,0 +1,204 @@
+{
+  "description": "base32, base32hex and base16 decoding edge cases. Decoding is case-insensitive in both modes; strict otherwise requires the canonical structure.",
+  "source": "RFC 4648 §3.2, §3.5, §6, §7, §8",
+  "cases": [
+    {
+      "name": "base32 lower case",
+      "codec": "base32",
+      "mode": "both",
+      "encoded": "mzxw6ytboi======",
+      "decoded": "foobar"
+    },
+    {
+      "name": "base32 mixed case",
+      "codec": "base32",
+      "mode": "both",
+      "encoded": "MzXw6YtB",
+      "decoded": "fooba"
+    },
+    {
+      "name": "base32 missing padding",
+      "codec": "base32",
+      "mode": "strict",
+      "encoded": "MY",
+      "error": "bad_padding",
+      "offset": 2
+    },
+    {
+      "name": "base32 lenient missing padding",
+      "codec": "base32",
+      "mode": "lenient",
+      "encoded": "MZXW6",
+      "decoded": "foo"
+    },
+    {
+      "name": "base32 partial padding",
+      "codec": "base32",
+      "mode": "strict",
+      "encoded": "MY===",
+      "error": "bad_padding",
+      "offset": 5
+    },
+    {
+      "name": "base32 lenient partial padding",
+      "codec": "base32",
+      "mode": "lenient",
+      "encoded": "MY===",
+      "decoded": "f"
+    },
+    {
+      "name": "base32 impossible length 1",
+      "codec": "base32-nopad",
+      "mode": "both",
+      "encoded": "M",
+      "error": "truncated",
+      "offset": 1
+    },
+    {
+      "name": "base32 impossible length 3",
+      "codec": "base32-nopad",
+      "mode": "both",
+      "encoded": "MZX",
+      "error": "truncated",
+      "offset": 3
+    },
+    {
+      "name": "base32 impossible length 6",
+      "codec": "base32-nopad",
+      "mode": "both",
+      "encoded": "MZXW6Y",
+      "error": "truncated",
+      "offset": 6
+    },
+    {
+      "name": "base32 padding after 3 characters",
+      "codec": "base32",
+      "mode": "both",
+      "encoded": "MZX=====",
+      "error": "bad_padding",
+      "offset": 3
+    },
+    {
+      "name": "base32 trailing bits",
+      "codec": "base32",
+      "mode": "strict",
+      "encoded": "MZ======",
+      "error": "trailing_bits",
+      "offset": 1
+    },
+    {
+      "name": "base32 lenient trailing bits",
+      "codec": "base32",
+      "mode": "lenient",
+      "encoded": "MZ======",
+      "decoded": "f"
+    },
+    {
+      "name": "base32 digit outside the alphabet",
+      "codec": "base32",
+      "mode": "both",
+      "encoded": "MZXW6YT1",
+      "error": "invalid_byte",
+      "offset": 7
+    },
+    {
+      "name": "base32 surplus padding",
+      "codec": "base32",
+      "mode": "strict",
+      "encoded": "MZXW6YQ===",
+      "error": "bad_padding",
+      "offset": 8
+    },
+    {
+      "name": "base32 lenient surplus padding",
+      "codec": "base32",
+      "mode": "lenient",
+      "encoded": "MZXW6YQ===",
+      "decoded": "foob"
+    },
+    {
+      "name": "base32 data after padding",
+      "codec": "base32",
+      "mode": "both",
+      "encoded": "MY======MY======",
+      "error": "bad_padding",
+      "offset": 8
+    },
+    {
+      "name": "base32 white space",
+      "codec": "base32",
+      "mode": "strict",
+      "encoded": "MZXW 6YTB",
+      "error": "invalid_byte",
+      "offset": 4
+    },
+    {
+      "name": "base32 lenient white space",
+      "codec": "base32",
+      "mode": "lenient",
+      "encoded": "MZXW\r\n6YTB",
+      "decoded": "fooba"
+    },
+    {
+      "name": "base32hex lower case",
+      "codec": "base32hex",
+      "mode": "both",
+      "encoded": "cpnmuoj1",
+      "decoded": "fooba"
+    },
+    {
+      "name": "base32hex letter outside the alphabet",
+      "codec": "base32hex",
+      "mode": "both",
+      "encoded": "CPNMUOJW",
+      "error": "invalid_byte",
+      "offset": 7
+    },
+    {
+      "name": "hex mixed case",
+      "codec": "hex",
+      "mode": "both",
+      "encoded": "DeadBEEF",
+      "decoded_hex": "deadbeef"
+    },
+    {
+      "name": "hex odd length",
+      "codec": "hex",
+      "mode": "both",
+      "encoded": "abc",
+      "error": "truncated",
+      "offset": 3
+    },
+    {
+      "name": "hex invalid byte",
+      "codec": "hex",
+      "mode": "both",
+      "encoded": "0g",
+      "error": "invalid_byte",
+      "offset": 1
+    },
+    {
+      "name": "hex strict white space",
+      "codec": "hex",
+      "mode": "strict",
+      "encoded": "de ad",
+      "error": "invalid_byte",
+      "offset": 2
+    },
+    {
+      "name": "hex lenient white space between pairs",
+      "codec": "hex",
+      "mode": "lenient",
+      "encoded": " de ad\n be ef ",
+      "decoded_hex": "deadbeef"
+    },
+    {
+      "name": "hex lenient white space inside a pair",
+      "codec": "hex",
+      "mode": "lenient",
+      "encoded": "d e",
+      "error": "invalid_byte",
+      "offset": 1
+    }
+  ]
+}

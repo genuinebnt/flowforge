@@ -6,7 +6,8 @@ change classifications with scored reasons, redaction, and oam
 observations with coverage-gated authority. Layer 2: imports `core`,
 `core/netnorm` (through `oam`), the layer-1 parsers (`htmlparse`,
 `jsparse`, `cssparse`, `xmlparse` + `sitemap`, `sourcemap`, `wellknown`),
-`diff`, `sketch` and `oam`. Pure: no I/O, clock, randomness or goroutines.
+`diff`, `sketch`, `codec` (base64, gzip and blob decoding) and `oam`. Pure:
+no I/O, clock, randomness or goroutines.
 
 **Spec:** `docs/V2_DESIGN.md` §5 with the §12 amendments (which win:
 gated authority and coverage §3.4/§12.1, cause and baseline §12.2–3,
@@ -59,6 +60,7 @@ them with what it keeps.
 | Diff, classification | `DiffArtifacts`, `Compare`, `DiffOptions`, `DiffPolicy`, `ArtifactDiff`, `Hunk`, `FeatureChange`, `ChangeSet` (+`Patch`, `IsChange`), `ClassOf`, `NoiseCounter`, `AuditSample` |
 | Scores | `ScoreChanges`, `ScoreChange`, `Score`, `ScoreReason` (score*.go import only pure stdlib) |
 | Graph | `Observe`, `ObserveOptions`, `ObservationJSON` |
+| Blobs for the index (V2 §12.14) | `DecodeBlobs`, `DecodedBlob` (through `codec.DecodeLayers`; not part of `Process`, OPEN_QUESTIONS 35) |
 
 Errors wrap `ErrInvalidProfile`, `ErrInvalidCapture`, `ErrInvalidRule`,
 `ErrMaskOnFeaturePath`, `ErrIncomparable`, `ErrUnknownAlgorithm`. Content
@@ -190,6 +192,7 @@ only), `url_credentials` (password only), and the low tier
 | CONTENT-INV-14 | `TestContentInv14_CoverageCompleteIff` | Coverage is complete iff the outcome and body normalization are complete, every extractor that ran is complete and none applicable is canary-disabled. |
 | CONTENT-INV-15 | `TestContentInv15_Cause` | Identical bodies with another normalizer version give cause normalizer, with another extractor set cause parser; changed bodies give target; the first complete capture is the baseline. |
 | CONTENT-INV-16 | `TestContentInv16_Canaries` | Every extractor has exactly one passing canary; a disabled extractor's families are never covered. |
+| CONTENT-INV-17 | `TestContentInv17_DecodedBlobsRedacted` | `DecodeBlobs` returns the text inside base64, base64>gzip and hex blobs with the outer span and encoding path, redacted for every secret rule; blobs inside secrets (JWT segments) are never decoded; binary payloads and plain text give nothing; the output is bounded by `MaxResponseBytes` and deterministic. |
 
 Fuzz targets assert the invariants on arbitrary input: `FuzzContentSniff`
 (13), `FuzzContentNormalize` (01 for every kind, 10's idempotence),

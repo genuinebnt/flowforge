@@ -1,0 +1,258 @@
+{
+  "description": "JavaScript string-literal bodies (the text between the quotes). Strict is ECMAScript strict mode code; lenient adds Annex B.1.2 and keeps malformed escapes. Unpaired surrogates are written as WTF-8.",
+  "source": "ECMA-262 15th ed. §12.9.4 (String Literals), §12.9.4.1 (SV), Annex B.1.2",
+  "cases": [
+    {
+      "name": "hex, unicode and code point escapes",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\x41\\u0042\\u{43}",
+      "decoded": "ABC"
+    },
+    {
+      "name": "surrogate pair",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\uD83D\\uDE00",
+      "decoded": "😀"
+    },
+    {
+      "name": "surrogate pair in code point escapes",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\u{D83D}\\u{DE00}",
+      "decoded": "😀"
+    },
+    {
+      "name": "lone high surrogate",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\uD800",
+      "decoded_hex": "eda080"
+    },
+    {
+      "name": "lone high surrogate before a letter",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\uD800x",
+      "decoded_hex": "eda08078"
+    },
+    {
+      "name": "reversed pair stays two surrogates",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\uDE00\\uD83D",
+      "decoded_hex": "edb880eda0bd"
+    },
+    {
+      "name": "null escape",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\0",
+      "decoded_hex": "00"
+    },
+    {
+      "name": "legacy octal",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\101",
+      "decoded": "A"
+    },
+    {
+      "name": "legacy octal in strict mode",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "a\\101",
+      "error": "invalid_escape",
+      "offset": 1
+    },
+    {
+      "name": "zero then digit is legacy",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\08",
+      "decoded": "\u00008"
+    },
+    {
+      "name": "zero then digit in strict mode",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "\\08",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "non-octal decimal escape",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\8\\9",
+      "decoded": "89"
+    },
+    {
+      "name": "non-octal decimal escape in strict mode",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "\\9",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "four-to-seven takes two digits",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\477",
+      "decoded": "'7"
+    },
+    {
+      "name": "zero-to-three takes three digits",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\377\\400",
+      "decoded": "ÿ 0"
+    },
+    {
+      "name": "line continuations",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "a\\\nb\\\r\nc\\\rd\\ e\\ f",
+      "decoded": "abcdef"
+    },
+    {
+      "name": "single and non-escape characters",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\q\\'\\\"\\\\\\b\\t\\n\\v\\f\\r\\é",
+      "decoded": "q'\"\\\b\t\n\u000b\f\ré"
+    },
+    {
+      "name": "raw LF in strict mode",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "a\nb",
+      "error": "invalid_byte",
+      "offset": 1
+    },
+    {
+      "name": "lenient raw LF",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "a\nb",
+      "decoded": "a\nb"
+    },
+    {
+      "name": "raw LS and PS are string characters",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "a b ",
+      "decoded": "a b "
+    },
+    {
+      "name": "malformed hex escape",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "\\x4G",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "lenient malformed hex escape kept",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\x4G\\uZ",
+      "decoded": "\\x4G\\uZ"
+    },
+    {
+      "name": "code point above U+10FFFF",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "\\u{110000}",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "lenient code point above U+10FFFF kept",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "\\u{110000}",
+      "decoded": "\\u{110000}"
+    },
+    {
+      "name": "empty code point",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "\\u{}",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "code point with leading zeros",
+      "codec": "js",
+      "mode": "both",
+      "encoded": "\\u{0000000041}",
+      "decoded": "A"
+    },
+    {
+      "name": "truncated unicode escape",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "ab\\u12",
+      "error": "truncated",
+      "offset": 6
+    },
+    {
+      "name": "lenient truncated unicode escape",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded": "ab\\u12",
+      "decoded": "ab\\u12"
+    },
+    {
+      "name": "trailing backslash",
+      "codec": "js",
+      "mode": "strict",
+      "encoded": "abc\\",
+      "error": "truncated",
+      "offset": 4
+    },
+    {
+      "name": "unescaped quote",
+      "codec": "js",
+      "mode": "strict",
+      "quote": "\"",
+      "encoded": "a\"b",
+      "error": "invalid_byte",
+      "offset": 1
+    },
+    {
+      "name": "other quote is fine",
+      "codec": "js",
+      "mode": "strict",
+      "quote": "\"",
+      "encoded": "a'b",
+      "decoded": "a'b"
+    },
+    {
+      "name": "invalid UTF-8 in strict mode",
+      "codec": "js",
+      "mode": "strict",
+      "encoded_hex": "61ff",
+      "error": "invalid_byte",
+      "offset": 1
+    },
+    {
+      "name": "lenient invalid UTF-8 passes",
+      "codec": "js",
+      "mode": "lenient",
+      "encoded_hex": "61ff",
+      "decoded_hex": "61ff"
+    },
+    {
+      "name": "encode",
+      "codec": "js",
+      "op": "both",
+      "quote": "\"",
+      "decoded": "a\"b'\\\n\u0000 é",
+      "encoded": "a\\\"b'\\\\\\n\\x00\\u2028é\\x7F"
+    }
+  ]
+}

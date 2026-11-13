@@ -69,6 +69,7 @@ var units = []unit{
 	{prefix: "chunkstore/fsstore", layer: layerAdapters, adapter: true},
 	{prefix: "chunkstore", layer: 1, thirdParty: []string{"github.com/klauspost/compress"}},
 	{prefix: "textindex", layer: 1, thirdParty: []string{"github.com/klauspost/compress"}},
+	{prefix: "codec", layer: 1, thirdParty: []string{"github.com/klauspost/compress"}},
 
 	{prefix: "content", layer: 2},
 	{prefix: "dsl", layer: 2},

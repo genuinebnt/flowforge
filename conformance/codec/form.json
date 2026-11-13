@@ -1,0 +1,201 @@
+{
+  "description": "application/x-www-form-urlencoded parsing and serialization. `pairs` lists [name, value]. Strict accepts exactly serializer output.",
+  "source": "WHATWG URL Standard §5.1 (parser), §5.2 (serializer); Encoding Standard §8.1.1 (UTF-8 decode with replacement)",
+  "cases": [
+    {
+      "name": "two pairs",
+      "codec": "form",
+      "mode": "both",
+      "encoded": "a=b&c=d",
+      "pairs": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "c",
+          "d"
+        ]
+      ]
+    },
+    {
+      "name": "empty input",
+      "codec": "form",
+      "mode": "both",
+      "encoded": "",
+      "pairs": []
+    },
+    {
+      "name": "sequence without =",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "a&b=",
+      "pairs": [
+        [
+          "a",
+          ""
+        ],
+        [
+          "b",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "sequence without = strict",
+      "codec": "form",
+      "mode": "strict",
+      "encoded": "a&b=",
+      "error": "non_canonical",
+      "offset": 1
+    },
+    {
+      "name": "empty sequences skipped",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "&&a=1&&",
+      "pairs": [
+        [
+          "a",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "empty sequence strict",
+      "codec": "form",
+      "mode": "strict",
+      "encoded": "&a=1",
+      "error": "non_canonical",
+      "offset": 0
+    },
+    {
+      "name": "split at the first =",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "a=b=c",
+      "pairs": [
+        [
+          "a",
+          "b=c"
+        ]
+      ]
+    },
+    {
+      "name": "raw = in a value strict",
+      "codec": "form",
+      "mode": "strict",
+      "encoded": "a=b=c",
+      "error": "non_canonical",
+      "offset": 3
+    },
+    {
+      "name": "plus is space",
+      "codec": "form",
+      "mode": "both",
+      "encoded": "q=a+b%2B",
+      "pairs": [
+        [
+          "q",
+          "a b+"
+        ]
+      ]
+    },
+    {
+      "name": "invalid escape kept",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "a=%zz",
+      "pairs": [
+        [
+          "a",
+          "%zz"
+        ]
+      ]
+    },
+    {
+      "name": "invalid UTF-8 replaced",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "x=%FF",
+      "pairs": [
+        [
+          "x",
+          "�"
+        ]
+      ]
+    },
+    {
+      "name": "invalid UTF-8 strict",
+      "codec": "form",
+      "mode": "strict",
+      "encoded": "x=%FF",
+      "error": "invalid_byte",
+      "offset": 2
+    },
+    {
+      "name": "truncated 3-byte sequence is one U+FFFD",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "x=%E2%82",
+      "pairs": [
+        [
+          "x",
+          "�"
+        ]
+      ]
+    },
+    {
+      "name": "truncated 4-byte sequence is one U+FFFD",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "x=%F0%9F%98!",
+      "pairs": [
+        [
+          "x",
+          "�!"
+        ]
+      ]
+    },
+    {
+      "name": "overlong is two U+FFFD",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "x=%C0%80",
+      "pairs": [
+        [
+          "x",
+          "��"
+        ]
+      ]
+    },
+    {
+      "name": "surrogate encoding is three U+FFFD",
+      "codec": "form",
+      "mode": "lenient",
+      "encoded": "x=%ED%A0%80",
+      "pairs": [
+        [
+          "x",
+          "���"
+        ]
+      ]
+    },
+    {
+      "name": "serializer",
+      "codec": "form",
+      "op": "both",
+      "encoded": "a+b=c%26d&%C3%A9=%7E",
+      "pairs": [
+        [
+          "a b",
+          "c&d"
+        ],
+        [
+          "é",
+          "~"
+        ]
+      ]
+    }
+  ]
+}

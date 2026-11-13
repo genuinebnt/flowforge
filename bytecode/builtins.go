@@ -58,6 +58,12 @@ const (
 	BIntToFloat
 	BFloatToInt
 	BListAppend
+	BBase64Decode
+	BBase64Encode
+	BURLDecode
+	BURLEncode
+	BHexDecode
+	BHexEncode
 
 	numBuiltins
 )
@@ -103,6 +109,14 @@ var builtins = [numBuiltins]Builtin{
 	BIntToFloat:  {BIntToFloat, "int_to_float", 1, "int_to_float(Int) -> Float"},
 	BFloatToInt:  {BFloatToInt, "float_to_int", 1, "float_to_int(Float) -> Int; truncates toward zero, arith_overflow when out of range"},
 	BListAppend:  {BListAppend, "list_append", 2, "list_append(List<A>, A) -> List<A>"},
+	// The codec builtins (codec package): decoders return None for invalid
+	// input and for bytes that are not UTF-8, since DSL strings are text.
+	BBase64Decode: {BBase64Decode, "base64_decode", 1, "base64_decode(String) -> Option<String>; RFC 4648 lenient: either alphabet, padding optional, ASCII white space skipped"},
+	BBase64Encode: {BBase64Encode, "base64_encode", 1, "base64_encode(String) -> String; RFC 4648 §4 standard alphabet, padded"},
+	BURLDecode:    {BURLDecode, "url_decode", 1, "url_decode(String) -> Option<String>; percent-decoding (RFC 3986 §2.1), None on a malformed escape; '+' stays '+'"},
+	BURLEncode:    {BURLEncode, "url_encode", 1, "url_encode(String) -> String; WHATWG component percent-encode set (encodeURIComponent), upper-case hex"},
+	BHexDecode:    {BHexDecode, "hex_decode", 1, "hex_decode(String) -> Option<String>; base16, either case, white space between pairs skipped"},
+	BHexEncode:    {BHexEncode, "hex_encode", 1, "hex_encode(String) -> String; lower-case base16 of the UTF-8 bytes"},
 }
 
 // LookupBuiltin returns the builtin with the given id.

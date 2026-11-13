@@ -1,0 +1,467 @@
+{
+  "module": "codec",
+  "date": "2026-11-13",
+  "commit": "b5c2534",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1s"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkCodecAlgo/statemachine/64B",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 11164357,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 556,
+        "allocs/op": 0,
+        "ns/op": 115.1
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/statemachine/64B-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 10122808,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 511.14,
+        "allocs/op": 0,
+        "ns/op": 125.2
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/statemachine/4KiB",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 221024,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 737.14,
+        "allocs/op": 0,
+        "ns/op": 5557
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/statemachine/4KiB-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 147973,
+      "metrics": {
+        "B/op": 5376,
+        "MB/s": 530.87,
+        "allocs/op": 1,
+        "ns/op": 7716
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/statemachine/1MiB",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 864,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 745.64,
+        "allocs/op": 0,
+        "ns/op": 1406270
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/statemachine/1MiB-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 549,
+      "metrics": {
+        "B/op": 1318915,
+        "MB/s": 495.87,
+        "allocs/op": 1,
+        "ns/op": 2114598
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/swar/64B",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 21941896,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 1297.25,
+        "allocs/op": 0,
+        "ns/op": 49.34
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/swar/64B-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 18593695,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 1038.85,
+        "allocs/op": 0,
+        "ns/op": 61.61
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/swar/4KiB",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 605596,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 2000.66,
+        "allocs/op": 0,
+        "ns/op": 2047
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/swar/4KiB-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 304732,
+      "metrics": {
+        "B/op": 5376,
+        "MB/s": 1005.86,
+        "allocs/op": 1,
+        "ns/op": 4072
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/swar/1MiB",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 2365,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 2000.03,
+        "allocs/op": 0,
+        "ns/op": 524279
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/swar/1MiB-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 1058,
+      "metrics": {
+        "B/op": 1318914,
+        "MB/s": 1017.08,
+        "allocs/op": 1,
+        "ns/op": 1030965
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/stdlib/64B",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 12047143,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 643.81,
+        "allocs/op": 0,
+        "ns/op": 99.41
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/stdlib/64B-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 5980252,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 316.11,
+        "allocs/op": 0,
+        "ns/op": 202.5
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/stdlib/4KiB",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 251079,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 829.72,
+        "allocs/op": 0,
+        "ns/op": 4937
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/stdlib/4KiB-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 144649,
+      "metrics": {
+        "B/op": 5376,
+        "MB/s": 488.64,
+        "allocs/op": 1,
+        "ns/op": 8382
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/stdlib/1MiB",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 966,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 774.98,
+        "allocs/op": 0,
+        "ns/op": 1353036
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecAlgo/stdlib/1MiB-mime",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 498,
+      "metrics": {
+        "B/op": 1318914,
+        "MB/s": 486.03,
+        "allocs/op": 1,
+        "ns/op": 2157409
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecEncode/base64",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 2001,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 1749.94,
+        "allocs/op": 0,
+        "ns/op": 599206
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecEncode/base32",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 380,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 339.65,
+        "allocs/op": 0,
+        "ns/op": 3087257
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecEncode/hex",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 1860,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 1594.3,
+        "allocs/op": 0,
+        "ns/op": 657703
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecEncode/percent",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 958,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 807.83,
+        "allocs/op": 0,
+        "ns/op": 1297986
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecEncode/qp",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 346,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 316.31,
+        "allocs/op": 0,
+        "ns/op": 3314975
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecEncode/js",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 428,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 364.25,
+        "allocs/op": 0,
+        "ns/op": 2878675
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/base32/strict",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 507,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 675.06,
+        "allocs/op": 0,
+        "ns/op": 2485284
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/base32/lenient",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 506,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 643.23,
+        "allocs/op": 0,
+        "ns/op": 2608297
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/hex/strict",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 712,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 1255.06,
+        "allocs/op": 0,
+        "ns/op": 1670959
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/hex/lenient",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 723,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 1258.68,
+        "allocs/op": 0,
+        "ns/op": 1666151
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/percent/strict",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 348,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 491.42,
+        "allocs/op": 0,
+        "ns/op": 3413956
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/percent/lenient",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 414,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 554.19,
+        "allocs/op": 0,
+        "ns/op": 3027241
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/qp/strict",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 542,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 492.38,
+        "allocs/op": 0,
+        "ns/op": 2214749
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/qp/lenient",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 501,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 465.14,
+        "allocs/op": 0,
+        "ns/op": 2344460
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/js/strict",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 349,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 343.63,
+        "allocs/op": 0,
+        "ns/op": 3295473
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecode/js/lenient",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 460,
+      "metrics": {
+        "B/op": 0,
+        "MB/s": 432.69,
+        "allocs/op": 0,
+        "ns/op": 2617219
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecInflate/gzip",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 403,
+      "metrics": {
+        "B/op": 3754307,
+        "MB/s": 349.5,
+        "allocs/op": 36,
+        "ns/op": 3000261
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecInflate/zlib",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 332,
+      "metrics": {
+        "B/op": 3753683,
+        "MB/s": 301.84,
+        "allocs/op": 37,
+        "ns/op": 3473993
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecInflate/deflate",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 409,
+      "metrics": {
+        "B/op": 3754335,
+        "MB/s": 366.15,
+        "allocs/op": 39,
+        "ns/op": 2863813
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecInflate/zstd",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 760,
+      "metrics": {
+        "B/op": 5198967,
+        "MB/s": 682.09,
+        "allocs/op": 30,
+        "ns/op": 1537297
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecInflate/zstd-bomb",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 296,
+      "metrics": {
+        "B/op": 7703935,
+        "allocs/op": 24,
+        "ns/op": 4068643
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecSniff",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 280,
+      "metrics": {
+        "B/op": 68064,
+        "MB/s": 248.26,
+        "allocs/op": 534,
+        "ns/op": 4223863
+      }
+    },
+    {
+      "bench_id": "BenchmarkCodecDecodeLayers",
+      "package": "github.com/genuinebnt/flowforge/codec",
+      "iterations": 192,
+      "metrics": {
+        "B/op": 5904511,
+        "MB/s": 166.2,
+        "allocs/op": 1298,
+        "ns/op": 6309261
+      }
+    }
+  ]
+}

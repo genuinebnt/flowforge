@@ -1,0 +1,98 @@
+{
+  "description": "Bounded recursive decoding: `layers` are exactly DecodeLayers' nodes (pre-order) for `encoded`; `max_depth` and `max_total` set LayersOptions.",
+  "source": "this package (codec README, DecodeLayers); V2_DESIGN §12.14",
+  "cases": [
+    {
+      "name": "base64 then gzip then text",
+      "codec": "layers",
+      "encoded": "v='H4sIAAAAAAAA/6pWSizIVLJS0s/MK0ktykvM0U9Myc3M0y8tTi0qVtJRKsnPTs1TslLKy89LVaoFBAAA//+u2pSkLgAAAA=='",
+      "layers": [
+        {
+          "kind": "base64",
+          "parent": -1,
+          "start": 3,
+          "end": 99,
+          "depth": 1,
+          "text": false,
+          "data_hex": "1f8b08000000000000ffaa564a2cc854b252d2cfcc2b492dca4bccd14f4cc9cdccd32f2d4e2d2a56d2512ac9cf4ecd53b252cacbcf4b55aa05040000ffffaeda94a42e000000"
+        },
+        {
+          "kind": "gzip",
+          "parent": 0,
+          "start": 0,
+          "end": 70,
+          "depth": 2,
+          "text": true,
+          "data": "{\"api\":\"/internal/admin/users\",\"token\":\"none\"}"
+        }
+      ]
+    },
+    {
+      "name": "depth limit 1 keeps the compressed layer only",
+      "codec": "layers",
+      "encoded": "v='H4sIAAAAAAAA/6pWSizIVLJS0s/MK0ktykvM0U9Myc3M0y8tTi0qVtJRKsnPTs1TslLKy89LVaoFBAAA//+u2pSkLgAAAA=='",
+      "max_depth": 1,
+      "layers": [
+        {
+          "kind": "base64",
+          "parent": -1,
+          "start": 3,
+          "end": 99,
+          "depth": 1,
+          "text": false,
+          "data_hex": "1f8b08000000000000ffaa564a2cc854b252d2cfcc2b492dca4bccd14f4cc9cdccd32f2d4e2d2a56d2512ac9cf4ecd53b252cacbcf4b55aa05040000ffffaeda94a42e000000"
+        }
+      ]
+    },
+    {
+      "name": "base64 of base64",
+      "codec": "layers",
+      "encoded": "a eD0iWm1WMFkyZ29KeTloY0drdmRqSXZjSEpwZG1GMFpTOWxlSEJ2Y25RL1ptOXliV0YwUFdOemRpY3Ai b",
+      "layers": [
+        {
+          "kind": "base64",
+          "parent": -1,
+          "start": 2,
+          "end": 82,
+          "depth": 1,
+          "text": true,
+          "data": "x=\"ZmV0Y2goJy9hcGkvdjIvcHJpdmF0ZS9leHBvcnQ/Zm9ybWF0PWNzdicp\""
+        },
+        {
+          "kind": "base64",
+          "parent": 0,
+          "start": 3,
+          "end": 59,
+          "depth": 2,
+          "text": true,
+          "data": "fetch('/api/v2/private/export?format=csv')"
+        }
+      ]
+    },
+    {
+      "name": "binary layers are dropped",
+      "codec": "layers",
+      "encoded": "sha=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "layers": []
+    },
+    {
+      "name": "total cap truncates",
+      "codec": "layers",
+      "encoded": "v='H4sIAAAAAAAA/6pWSizIVLJS0s/MK0ktykvM0U9Myc3M0y8tTi0qVtJRKsnPTs1TslLKy89LVaoFBAAA//+u2pSkLgAAAA=='",
+      "max_total": 40,
+      "truncated": true,
+      "layers": [
+        {
+          "kind": "base64",
+          "parent": -1,
+          "start": 3,
+          "end": 99,
+          "depth": 1,
+          "text": false,
+          "truncated": true,
+          "data_hex": "1f8b08000000000000ffaa564a2cc854b252d2cfcc2b492dca4bccd14f4cc9cdccd32f2d4e2d2a56"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "description": "Quoted-printable. Strict enforces the MUSTs of RFC 2045 §6.7; lenient is the robust decoder of rule 3 and of mime/quotedprintable.",
+  "source": "RFC 2045 §6.7 rules 1-5 and its examples",
+  "cases": [
+    {
+      "name": "RFC 2045 §6.7 rule 5 example (soft line breaks)",
+      "codec": "qp",
+      "mode": "both",
+      "encoded": "Now's the time =\r\nfor all folk to come=\r\n to the aid of their country.",
+      "decoded": "Now's the time for all folk to come to the aid of their country."
+    },
+    {
+      "name": "rule 1: equal sign",
+      "codec": "qp",
+      "mode": "both",
+      "encoded": "=3D",
+      "decoded": "="
+    },
+    {
+      "name": "rule 1: form feed",
+      "codec": "qp",
+      "mode": "both",
+      "encoded": "=0C",
+      "decoded": "\f"
+    },
+    {
+      "name": "rule 1: lower-case hex",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "=3d",
+      "error": "non_canonical",
+      "offset": 0
+    },
+    {
+      "name": "lenient lower-case hex",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "=3d",
+      "decoded": "="
+    },
+    {
+      "name": "rule 3: trailing space before a line break",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "a \r\nb",
+      "error": "non_canonical",
+      "offset": 1
+    },
+    {
+      "name": "rule 3: lenient deletes trailing white space",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "a \t\r\nb  ",
+      "decoded": "a\r\nb"
+    },
+    {
+      "name": "rule 4: bare LF",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "a\nb",
+      "error": "invalid_byte",
+      "offset": 1
+    },
+    {
+      "name": "lenient bare LF",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "a\nb",
+      "decoded": "a\nb"
+    },
+    {
+      "name": "rule 4: bare CR",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "a\rb",
+      "error": "invalid_byte",
+      "offset": 1
+    },
+    {
+      "name": "lenient bare CR",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "a\rb",
+      "decoded": "a\rb"
+    },
+    {
+      "name": "invalid escape",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "=XY",
+      "error": "invalid_escape",
+      "offset": 0
+    },
+    {
+      "name": "lenient literal =",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "a=XY=4",
+      "decoded": "a=XY=4"
+    },
+    {
+      "name": "= at the end of the data",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "a=",
+      "error": "truncated",
+      "offset": 2
+    },
+    {
+      "name": "lenient = at the end is a soft break",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "a=",
+      "decoded": "a"
+    },
+    {
+      "name": "white space after a soft break",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "a= \r\nb",
+      "error": "invalid_escape",
+      "offset": 1
+    },
+    {
+      "name": "lenient white space after a soft break",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded": "a= \t\r\nb",
+      "decoded": "ab"
+    },
+    {
+      "name": "rule 2: control byte",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "\u0001",
+      "error": "invalid_byte",
+      "offset": 0
+    },
+    {
+      "name": "rule 2: 8-bit byte",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded_hex": "c3a9",
+      "error": "invalid_byte",
+      "offset": 0
+    },
+    {
+      "name": "lenient 8-bit bytes pass",
+      "codec": "qp",
+      "mode": "lenient",
+      "encoded_hex": "c3a9",
+      "decoded": "é"
+    },
+    {
+      "name": "rule 5: 77-character line",
+      "codec": "qp",
+      "mode": "strict",
+      "encoded": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "error": "line_too_long",
+      "offset": 76
+    },
+    {
+      "name": "rule 5: 76-character line",
+      "codec": "qp",
+      "mode": "both",
+      "encoded": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decoded": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "encode escapes, trailing white space, hard break",
+      "codec": "qp",
+      "op": "both",
+      "decoded": "a=b \r\nc\t",
+      "encoded": "a=3Db=20\r\nc=09"
+    },
+    {
+      "name": "encode lone CR and LF",
+      "codec": "qp",
+      "op": "both",
+      "decoded": "\r\n\n\r",
+      "encoded": "\r\n=0A=0D"
+    },
+    {
+      "name": "encode 76 characters on one line",
+      "codec": "qp",
+      "op": "both",
+      "decoded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "encoded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "encode 80 characters with a soft break",
+      "codec": "qp",
+      "op": "both",
+      "decoded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "encoded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=\r\nxxxxx"
+    },
+    {
+      "name": "encode never splits an escape",
+      "codec": "qp",
+      "op": "both",
+      "decoded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=",
+      "encoded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=\r\n=3D"
+    }
+  ]
+}

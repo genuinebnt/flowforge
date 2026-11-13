@@ -1,0 +1,11 @@
+// Codec builtins: decoders return Option<String> (None for invalid input
+// or bytes that are not UTF-8); encoders return String.
+fn show(o: Option<String>) -> String {
+  match o { Some(v) => "some " + v, None => "none" }
+}
+workflow main() -> List<String> {
+  [base64_encode("héllo"), show(base64_decode("aMOp\nbGxv")), show(base64_decode("Zm9vY")),
+   show(base64_decode("/w==")), url_encode("a b/c?d=é&e~*"), show(url_decode("a%20b+%2f%C3%A9")),
+   show(url_decode("100%")), hex_encode("Hi!"), show(hex_decode("48 69 21")), show(hex_decode("486")),
+   show(base64_decode(base64_encode("round trip ✓")))]
+}

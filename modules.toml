@@ -314,7 +314,17 @@ layer = 2
 spec = ["V2_DESIGN 5, 12"]
 dir = "content"
 depends = ["core", "oam", "diff", "sketch", "htmlparse", "jsparse", "cssparse", "xmlparse", "sourcemap", "wellknown"]
-tests = { prefix = "ContentInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16"] }
+tests = { prefix = "ContentInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"] }
 conformance = ["content"]
 fuzz = ["FuzzContentNormalize", "FuzzContentSniff", "FuzzContentExtract"]
 bench = ["BenchmarkContentAlgo", "BenchmarkContentNormalize", "BenchmarkContentExtract", "BenchmarkContentPipeline"]
+
+[module.codec]
+layer = 1
+spec = ["V2_DESIGN 1, 12.14", "RFC 4648, RFC 3986, WHATWG URL 1.3 and 5, RFC 2045 6.7, ECMA-262 12.9.4, RFC 1950-1952, RFC 8878"]
+dir = "codec"
+depends = ["core"]
+tests = { prefix = "CodecInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11"] }
+conformance = ["codec"]
+fuzz = ["FuzzCodecBase64", "FuzzCodecBase32", "FuzzCodecHex", "FuzzCodecPercent", "FuzzCodecQP", "FuzzCodecJSString", "FuzzCodecInflate", "FuzzCodecSniff", "FuzzCodecDecodeLayers"]
+bench = ["BenchmarkCodecAlgo", "BenchmarkCodecEncode", "BenchmarkCodecDecode", "BenchmarkCodecInflate", "BenchmarkCodecSniff", "BenchmarkCodecDecodeLayers"]

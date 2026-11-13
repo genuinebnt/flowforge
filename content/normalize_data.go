@@ -2,13 +2,13 @@ package content
 
 import (
 	"bytes"
-	"compress/gzip"
-	"io"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/genuinebnt/flowforge/codec"
 	"github.com/genuinebnt/flowforge/diff"
 	"github.com/genuinebnt/flowforge/xmlparse"
 )
@@ -180,18 +180,19 @@ var xmlRules = []string{
 func normalizeXML(body []byte, lim Limits) normResult {
 	r := normResult{grade: GradeComplete}
 	if len(body) > 2 && body[0] == 0x1f && body[1] == 0x8b {
-		zr, err := gzip.NewReader(bytes.NewReader(body))
-		if err != nil {
-			return normResult{text: nil, grade: GradeFailed, diags: []string{"gzip_invalid"}}
-		}
-		// Never inflate past the response bound plus one byte.
-		out, err := io.ReadAll(io.LimitReader(zr, int64(lim.MaxResponseBytes)+1))
-		if err != nil {
-			r.grade, r.diags = GradePartial, append(r.diags, "gzip_invalid")
-		}
-		if len(out) > lim.MaxResponseBytes {
-			out = out[:lim.MaxResponseBytes]
+		// Never inflate past the response bound: codec stops reading one
+		// byte past it and returns exactly the bound's prefix. The ratio
+		// guard is off because the bound already caps the work, and the
+		// xml@1 rule table pins "inflated to 8 MiB".
+		out, err := codec.Inflate(body, codec.KindGzip, codec.InflateOptions{MaxOutput: lim.MaxResponseBytes, MaxRatio: -1})
+		switch {
+		case errors.Is(err, codec.ErrOutputLimit):
 			r.grade, r.diags = GradePartial, append(r.diags, "input_truncated")
+		case codec.CodeOf(err) == codec.CodeBadHeader:
+			return normResult{text: nil, grade: GradeFailed, diags: []string{"gzip_invalid"}}
+		case err != nil:
+			// A stream broken after its header: keep what inflated.
+			r.grade, r.diags = GradePartial, append(r.diags, "gzip_invalid")
 		}
 		body = out
 	}

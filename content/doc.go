@@ -22,8 +22,8 @@
 // goroutines. Every function is deterministic, so the same inputs give
 // byte-identical outputs (CONTENT-INV-12). Parsers are the layer-1
 // packages htmlparse, jsparse, cssparse, xmlparse (+ sitemap), sourcemap
-// and wellknown; diffs come from diff, sketches from sketch, graph types
-// from oam.
+// and wellknown; diffs come from diff, sketches from sketch, base64, gzip
+// and blob decoding from codec, graph types from oam.
 //
 // Pipeline (README.md has the diagram):
 //
