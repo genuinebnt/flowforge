@@ -83,3 +83,57 @@ stays light: `eventstore/pgstore` (pgx), `limiter/redislimiter` (go-redis),
 * Spec ambiguities: record them in `<package>/OPEN_QUESTIONS.md`, choose
   the most conservative behaviour (fail closed for anything touching scope)
   and pin the choice with a test.
+
+## Pluggable algorithms
+
+When several algorithms or strategies were benchmarked and one was chosen,
+**all candidates stay in the code**, so they can be swapped in and their
+behaviour compared:
+
+* One interface (or a small enum plus a constructor) in **non-test code**,
+  with each candidate as an implementation. Reference or brute-force
+  implementations used as test oracles are also non-test code when they
+  are a meaningful choice (for tiny inputs, or for learning). Pure test
+  doubles stay in tests.
+* Selection is by configuration (a `Config`/`Options` field, or a CLI or
+  env setting in services). The default is the chosen algorithm.
+* One comparative benchmark per decision point, named
+  `Benchmark<Pkg>Algo/<candidate>/<params>`, so
+  `go test -run=^$ -bench <Pkg>Algo ./<pkg>` prints a direct comparison.
+* Every decision point has an entry in `docs/ALGORITHMS.md`: the
+  candidates, the interface and config key, the benchmark, measured
+  results (with the machine and date), the default, why it won, and when
+  each alternative is the better choice. Package READMEs link to their
+  entries.
+* Conformance and invariant tests run against every candidate that claims
+  the same semantics. Approximate ones, such as ANN search or a sliding
+  window counter, are compared with stated tolerances.
+
+## Comments
+
+Comments exist to make the code understandable to someone porting or
+studying it. Every comment must be **correct, useful, and not a restatement
+of the code**.
+
+* **Doc comments** on every exported identifier say what it is or does,
+  its contract (inputs, outputs, errors, units, concurrency safety), and
+  the spec section, RFC or paper it implements.
+* **Inline comments** explain *why*: the invariant being kept, the
+  non-obvious reason for an ordering or bound, a tricky edge case, the
+  spec step being followed ("WHATWG 13.2.5.38: …", "Myers 1986 §4b:
+  middle snake"). State machines name each state after the spec and cite
+  it.
+* **Porting notes** use the prefix `PORT:` and explain anything
+  Go-specific a Rust port must reproduce or deliberately change. Examples:
+  "PORT: Go map iteration is random; keys are sorted here so output bytes
+  match", "PORT: encoding/json escapes U+2028; replicate it".
+* **Not allowed:**
+  * comments that repeat the code (`// increment i`);
+  * stale or speculative comments;
+  * commented-out code;
+  * TODOs without a GAPS.md id;
+  * comments that disagree with the code or the spec.
+
+  When code changes, its comments change in the same commit.
+* Comment review is part of every change: a reviewer checks each comment
+  against the code it describes.
