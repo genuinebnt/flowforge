@@ -5,8 +5,8 @@ import (
 	"io"
 )
 
-// MaxMessageLen is the largest DNS message (the TCP length prefix and
-// RDLENGTH are 16 bits).
+// MaxMessageLen is the largest DNS message in octets (the TCP length
+// prefix is 16 bits, RFC 1035 §4.2.2).
 const MaxMessageLen = 65535
 
 // encoder appends a message with canonical name compression. comp maps the
@@ -23,6 +23,8 @@ func newEncoder() *encoder {
 	return &encoder{buf: make([]byte, HeaderLen, 512), comp: map[string]int{}}
 }
 
+// mark is a rollback point: the buffer length and the number of
+// compression keys added.
 type mark struct{ n, added int }
 
 func (e *encoder) mark() mark { return mark{len(e.buf), len(e.added)} }
@@ -63,6 +65,8 @@ func (e *encoder) name(s string, compress bool) error {
 				break
 			}
 			k := string(w[i:])
+			// A pointer has 14 offset bits (RFC 1035 §4.1.4), so a suffix
+			// at 0x4000 or later cannot be pointed at.
 			if _, ok := e.comp[k]; !ok && base+i < 0x4000 {
 				e.comp[k] = base + i
 				e.added = append(e.added, k)
@@ -232,8 +236,9 @@ func Encode(m Message) ([]byte, error) {
 // 2181 §9). When m does not fit, the result keeps the header, the
 // questions, as many whole answer records as fit (in order) and the OPT
 // record, drops the authority and other additional records, and has TC
-// set; truncated reports that. It fails with CodeMessageTooLarge when not
-// even the header, questions and OPT fit (the OPT is dropped first).
+// set; truncated reports that. When the header and questions fit but the
+// OPT does not, the OPT is dropped too; when not even the header and
+// questions fit, it fails with CodeMessageTooLarge.
 func EncodeTruncated(m Message, max int) (b []byte, truncated bool, err error) {
 	full, err := Encode(m)
 	if err != nil {

@@ -15,5 +15,7 @@
 // result GradePartial, never GradeComplete.
 //
 // The package keeps no reference to the caller's slice; token values point
-// into a private copy of the input.
+// into a private copy of the input. The contract is spec 29.4 (codes 40.1).
+// A Document is not safe for concurrent use: ParseBlockContents and URLs
+// append nodes to it.
 package cssparse

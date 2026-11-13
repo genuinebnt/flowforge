@@ -65,7 +65,7 @@ func (k Kind) IsCompression() bool {
 // Inflate defaults.
 const (
 	// DefaultMaxOutput is the default output cap: 8 MiB, the content
-	// pipeline's response bound (V2_DESIGN §12.10).
+	// pipeline's response bound (spec 26.4, V2_DESIGN §12.10).
 	DefaultMaxOutput = 8 << 20
 	// DefaultMaxRatio is the default bomb guard: output may not exceed
 	// 100 times the compressed size once past RatioFloor. Real text
@@ -183,8 +183,9 @@ func AppendInflate(dst, src []byte, k Kind, o InflateOptions) ([]byte, error) {
 		// PORT: concurrency 1 makes klauspost's stream decoder
 		// synchronous (no goroutines, V2_DESIGN §1.5). The window bound
 		// keeps memory proportional to the cap; a frame that declares a
-		// larger window stops with the cap's code, as its output could
-		// exceed it. Rust: zstd::stream::Decoder with window_log_max.
+		// larger window stops with output_limit (offset: the bytes decoded
+		// so far), as its output could exceed the cap (OPEN_QUESTIONS 15).
+		// Rust: zstd::stream::Decoder with window_log_max.
 		win := uint64(max(lim, zstdMinWindow))
 		zr, err := zstd.NewReader(br, zstd.WithDecoderConcurrency(1), zstd.WithDecoderMaxWindow(win),
 			zstd.WithDecoderMaxMemory(win), zstd.WithDecoderLowmem(true))
@@ -221,9 +222,11 @@ func AppendInflate(dst, src []byte, k Kind, o InflateOptions) ([]byte, error) {
 	}
 }
 
-// streamErr maps a decompressor error to a code. Header errors of later
-// gzip members and of zstd frames surface during reading and are
-// CodeCorrupt unless nothing was decoded yet.
+// streamErr maps a decompressor error to a code. A zstd window or memory
+// refusal is CodeOutputLimit (never CodeRatioLimit, whichever cap applied).
+// Header errors of later gzip members and of zstd frames surface during
+// reading and are CodeCorrupt; only a zstd magic mismatch before any
+// output is CodeBadHeader.
 func streamErr(k Kind, err error, produced int) error {
 	if k == KindZstd && (errors.Is(err, zstd.ErrWindowSizeExceeded) || errors.Is(err, zstd.ErrDecoderSizeExceeded)) {
 		return errAt(CodeOutputLimit, produced)

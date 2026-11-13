@@ -40,6 +40,7 @@ const (
 	ConfidenceIrrelevant
 )
 
+// String returns "tentative", "certain" or "irrelevant".
 func (c Confidence) String() string {
 	switch c {
 	case ConfidenceCertain:

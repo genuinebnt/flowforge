@@ -126,9 +126,10 @@ func (c Code) Sentinel() error {
 // the decoder's input for text encodings (where the problem was found;
 // len(input) when the input ended early). For compressed streams it is the
 // number of output bytes returned with the error: the cap for the limit
-// codes; for CodeCorrupt it depends on how far the decompressor got before
-// it noticed, which is implementation-defined (OPEN_QUESTIONS.md), so only
-// Code is portable there.
+// codes (except a zstd frame refused for its window size, which stops
+// before the cap); for CodeCorrupt it depends on how far the decompressor
+// got before it noticed, which is implementation-defined
+// (OPEN_QUESTIONS.md), so only Code is portable there.
 type Error struct {
 	Code   Code
 	Offset int

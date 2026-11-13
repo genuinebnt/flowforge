@@ -21,11 +21,11 @@ const (
 type IndexEntry struct {
 	ID      ChunkID
 	Offset  uint64 // of the record header within the pack
-	CompLen uint32 // zstd frame length
+	CompLen uint32 // payload length (stored_len): the zstd frame, or the chunk itself for CodecRaw
 	RawLen  uint32 // uncompressed length
 }
 
-// RecordSize is the record's size in the pack (header plus frame).
+// RecordSize is the record's size in the pack (header plus payload).
 func (e IndexEntry) RecordSize() uint64 { return RecordHeaderSize + uint64(e.CompLen) }
 
 // Index is a decoded pack index: entries sorted by id with a git-style
@@ -53,6 +53,8 @@ func NewIndex(packID PackID, packSize uint64, packCRC uint32, entries []IndexEnt
 	return ix, nil
 }
 
+// buildFanout sets fanout[b] to the number of entries whose first id byte
+// is at most b (git's pack index v2 fan-out).
 func (ix *Index) buildFanout() {
 	ix.fanout = [256]uint32{}
 	for _, e := range ix.Entries {
@@ -169,6 +171,9 @@ func DecodeIndex(data []byte) (*Index, error) {
 	return ix, nil
 }
 
+// validate checks the decoded entries: strictly ascending ids, the
+// fan-out they imply, and records that tile no more than the pack body
+// (sorted by offset, non-overlapping, inside [header, size-footer)).
 func (ix *Index) validate() error {
 	const obj = "index"
 	var want [256]uint32

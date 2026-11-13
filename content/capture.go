@@ -66,6 +66,7 @@ func (o Outcome) rank() int {
 	return 3
 }
 
+// worseOutcome returns the worse of a and b.
 func worseOutcome(a, b Outcome) Outcome {
 	if b.rank() > a.rank() {
 		return b
@@ -94,7 +95,7 @@ func DefaultProfile() Profile {
 	return Profile{Name: "default", Method: "GET", FollowRedirects: true, Accept: "*/*"}
 }
 
-// Normalize validates p and returns it with the method upper-cased,
+// Normalize (spec 33.1) validates p and returns it with the method upper-cased,
 // header names lower-cased and headers sorted by (name, value).
 // Errors wrap ErrInvalidProfile. Authorization, cookie and
 // proxy-authorization headers are refused: a profile is stored and shown,
@@ -221,6 +222,8 @@ func mediaType(v string) string {
 	return strings.ToLower(strings.TrimSpace(mt))
 }
 
+// hasCtl reports an ASCII control character other than TAB (not allowed
+// in a header field).
 func hasCtl(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] < 0x20 && s[i] != '\t' || s[i] == 0x7f {

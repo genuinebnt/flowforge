@@ -26,6 +26,7 @@ const (
 
 var nodeKindNames = [...]string{"document", "doctype", "element", "text", "comment", "document-fragment", "processing-instruction"}
 
+// String returns the kind's stable lower-case name.
 func (k NodeKind) String() string {
 	if int(k) < len(nodeKindNames) {
 		return nodeKindNames[k]
@@ -76,6 +77,7 @@ const (
 	LimitedQuirks
 )
 
+// String returns "no-quirks", "quirks" or "limited-quirks".
 func (m QuirksMode) String() string {
 	switch m {
 	case Quirks:
@@ -123,6 +125,7 @@ type Node struct {
 	PublicID  string
 	SystemID  string
 
+	// Tree links (None when absent): children form a doubly linked list.
 	Parent, FirstChild, LastChild, PrevSibling, NextSibling NodeID
 
 	// Content is the template contents DocumentFragment of an HTML
@@ -140,7 +143,7 @@ type Node struct {
 type Document struct {
 	Nodes []Node
 	Root  NodeID
-	Mode  QuirksMode
+	Mode  QuirksMode // from the DOCTYPE (§13.2.6.4.1; Quirks when it is missing); for a fragment, the context's Mode
 }
 
 // Node returns a pointer to the node id, or nil if id is out of range.

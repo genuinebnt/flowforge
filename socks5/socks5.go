@@ -6,7 +6,8 @@ import (
 	"strconv"
 )
 
-// Protocol versions.
+// Protocol versions: the VER octet of every RFC 1928 message and of the
+// RFC 1929 sub-negotiation.
 const (
 	Version     = 5 // RFC 1928
 	AuthVersion = 1 // RFC 1929 sub-negotiation
@@ -15,7 +16,8 @@ const (
 // Method is an authentication method (RFC 1928 §3).
 type Method uint8
 
-// Methods.
+// Methods (RFC 1928 §3). MethodGSSAPI is listed for parsing only; the
+// handshakes never select it.
 const (
 	MethodNoAuth       Method = 0x00
 	MethodGSSAPI       Method = 0x01
@@ -121,6 +123,8 @@ type Error struct {
 	Reply ReplyCode
 }
 
+// Error returns "socks5: <code>", with the Need or the reply text where
+// set.
 func (e *Error) Error() string {
 	switch e.Code {
 	case CodeShort:
@@ -156,7 +160,8 @@ type Addr struct {
 	Port   uint16
 }
 
-// Host returns the domain or the IP text.
+// Host returns the domain octets as given, or the IP in netip text form.
+// A zero Addr returns "invalid IP".
 func (a Addr) Host() string {
 	if a.Type == AddrDomain {
 		return a.Domain
@@ -164,7 +169,7 @@ func (a Addr) Host() string {
 	return a.IP.String()
 }
 
-// String returns host:port.
+// String returns host:port, with an IPv6 host in brackets.
 func (a Addr) String() string {
 	h := a.Host()
 	if a.Type == AddrIPv6 {
@@ -173,7 +178,11 @@ func (a Addr) String() string {
 	return h + ":" + strconv.Itoa(int(a.Port))
 }
 
-// AddrFrom returns the Addr for host (an IP literal or a domain) and port.
+// AddrFrom returns the Addr for host and port: AddrIPv4 or AddrIPv6 for an
+// IP literal (an IPv4-mapped IPv6 literal stays IPv6), AddrDomain for
+// anything else. A zoned IPv6 literal has no RFC 1928 encoding, so it is
+// sent as a domain name and the server resolves (or refuses) it. host is
+// not validated; AppendRequest rejects an empty or over-long domain.
 func AddrFrom(host string, port uint16) Addr {
 	if ip, err := netip.ParseAddr(host); err == nil && ip.Zone() == "" {
 		if ip.Is4() {
@@ -184,25 +193,30 @@ func AddrFrom(host string, port uint16) Addr {
 	return Addr{Type: AddrDomain, Domain: host, Port: port}
 }
 
-// Greeting is the client's version identifier/method selection message.
+// Greeting is the client's version identifier/method selection message
+// (RFC 1928 §3): the methods it offers, 1..255 of them.
 type Greeting struct{ Methods []Method }
 
-// MethodSelection is the server's choice.
+// MethodSelection is the server's METHOD choice (RFC 1928 §3); 0xFF means
+// none of the offered methods is acceptable.
 type MethodSelection struct{ Method Method }
 
-// UserPass is the RFC 1929 username/password request.
+// UserPass is the RFC 1929 §2 username/password request; each field is
+// 1..255 raw octets.
 type UserPass struct{ Username, Password string }
 
-// AuthReply is the RFC 1929 status (0 = success).
+// AuthReply is the RFC 1929 §2 status: 0 is success, anything else is
+// failure and the server closes the connection.
 type AuthReply struct{ Status uint8 }
 
-// Request is a client request.
+// Request is a client request (RFC 1928 §4): the command and DST.ADDR,
+// DST.PORT.
 type Request struct {
 	Command Command
 	Addr    Addr
 }
 
-// Reply is a server reply.
+// Reply is a server reply (RFC 1928 §6): REP and BND.ADDR, BND.PORT.
 type Reply struct {
 	Code ReplyCode
 	Addr Addr
@@ -230,7 +244,9 @@ func ParseGreeting(b []byte) (Greeting, int, error) {
 	return Greeting{Methods: ms}, 2 + n, nil
 }
 
-// AppendGreeting encodes g (1..255 methods).
+// AppendGreeting appends the encoding of g to dst. It fails with
+// CodeNoMethods or CodeTooLong (and leaves dst unchanged) unless g has
+// 1..255 methods.
 func AppendGreeting(dst []byte, g Greeting) ([]byte, error) {
 	if len(g.Methods) == 0 {
 		return dst, fail(CodeNoMethods)
@@ -256,7 +272,8 @@ func ParseMethodSelection(b []byte) (MethodSelection, int, error) {
 	return MethodSelection{Method: Method(b[1])}, 2, nil
 }
 
-// AppendMethodSelection encodes s.
+// AppendMethodSelection appends the encoding of s to dst; every method
+// octet encodes.
 func AppendMethodSelection(dst []byte, s MethodSelection) []byte {
 	return append(dst, Version, byte(s.Method))
 }
@@ -287,7 +304,9 @@ func ParseUserPass(b []byte) (UserPass, int, error) {
 	return UserPass{Username: string(b[2 : 2+ul]), Password: string(b[3+ul : n])}, n, nil
 }
 
-// AppendUserPass encodes u (each field 1..255 octets).
+// AppendUserPass appends the encoding of u to dst. Each field must be
+// 1..255 octets (CodeEmptyUsername, CodeEmptyPassword, CodeTooLong); on
+// error dst is returned unchanged.
 func AppendUserPass(dst []byte, u UserPass) ([]byte, error) {
 	switch {
 	case u.Username == "":
@@ -314,7 +333,7 @@ func ParseAuthReply(b []byte) (AuthReply, int, error) {
 	return AuthReply{Status: b[1]}, 2, nil
 }
 
-// AppendAuthReply encodes r.
+// AppendAuthReply appends the encoding of r to dst.
 func AppendAuthReply(dst []byte, r AuthReply) []byte { return append(dst, AuthVersion, r.Status) }
 
 // parseAddr parses ATYP ADDR PORT at b[off:] (RFC 1928 §5; the domain is
@@ -358,6 +377,9 @@ func parseAddr(b []byte, off int) (Addr, int, error) {
 	return a, n, nil
 }
 
+// appendAddr appends ATYP ADDR PORT. Fields that do not belong to a.Type
+// must be zero (CodeBadAddress), so Parse(Append(a)) == a holds
+// (SOCKS-INV-01).
 func appendAddr(dst []byte, a Addr) ([]byte, error) {
 	switch a.Type {
 	case AddrIPv4:
@@ -389,8 +411,10 @@ func appendAddr(dst []byte, a Addr) ([]byte, error) {
 	return binary.BigEndian.AppendUint16(dst, a.Port), nil
 }
 
-// ParseRequest parses VER CMD RSV ATYP DST.ADDR DST.PORT (RFC 1928 §4). Commands 1-3
-// parse (the server refuses 2 and 3); others fail with CodeBadCommand.
+// ParseRequest parses VER CMD RSV ATYP DST.ADDR DST.PORT (RFC 1928 §4).
+// Commands 1-3 parse (ServerHandshake refuses 2 and 3); others fail with
+// CodeBadCommand. Fields are checked in wire order, so the first bad octet
+// decides the code.
 func ParseRequest(b []byte) (Request, int, error) {
 	if len(b) < 3 {
 		return Request{}, 0, short(3)
@@ -412,7 +436,8 @@ func ParseRequest(b []byte) (Request, int, error) {
 	return Request{Command: cmd, Addr: a}, n, nil
 }
 
-// AppendRequest encodes r.
+// AppendRequest appends the encoding of r to dst; it fails with
+// CodeBadCommand or an address error from the rules of appendAddr.
 func AppendRequest(dst []byte, r Request) ([]byte, error) {
 	if r.Command < CmdConnect || r.Command > CmdUDPAssociate {
 		return dst, fail(CodeBadCommand)
@@ -420,7 +445,8 @@ func AppendRequest(dst []byte, r Request) ([]byte, error) {
 	return appendAddr(append(dst, Version, byte(r.Command), 0), r.Addr)
 }
 
-// ParseReply parses VER REP RSV ATYP BND.ADDR BND.PORT (RFC 1928 §6).
+// ParseReply parses VER REP RSV ATYP BND.ADDR BND.PORT (RFC 1928 §6). A
+// REP above 8 (not assigned by RFC 1928) fails with CodeBadReplyCode.
 func ParseReply(b []byte) (Reply, int, error) {
 	if len(b) < 3 {
 		return Reply{}, 0, short(3)
@@ -442,7 +468,8 @@ func ParseReply(b []byte) (Reply, int, error) {
 	return Reply{Code: code, Addr: a}, n, nil
 }
 
-// AppendReply encodes r. A reply without a bound address carries 0.0.0.0:0.
+// AppendReply appends the encoding of r to dst. A reply whose Addr is the
+// zero value carries 0.0.0.0:0, the conventional "no bound address".
 func AppendReply(dst []byte, r Reply) ([]byte, error) {
 	if r.Code > AddressTypeNotSupported {
 		return dst, fail(CodeBadReplyCode)

@@ -34,8 +34,8 @@ import (
 
 // AsOfState is the change-event-determined state of one record.
 type AsOfState struct {
-	Exists  bool
-	Content map[string]any
+	Exists  bool           // created and not deleted as of the seq
+	Content map[string]any // asset or edge content
 	Scope   oam.ScopeStatus
 	State   oam.State
 	Tags    map[[2]string]map[string]any // (type, name) -> content
@@ -181,7 +181,10 @@ func ValidateNeighborsAsOf(req NeighborsAsOfRequest) (NeighborsAsOfRequest, erro
 // EventSource is what AsOf reads need from a store besides a Reader:
 // the change events of given records with seq <= at, in seq order.
 type EventSource interface {
+	// EntityEvents returns the events of the entities ids (keyed by id;
+	// an id without events is absent).
 	EntityEvents(ctx context.Context, ids []string, at int64) (map[string][]ChangeEvent, error)
+	// EdgeEvents is EntityEvents for edges.
 	EdgeEvents(ctx context.Context, ids []string, at int64) (map[string][]ChangeEvent, error)
 }
 
@@ -189,9 +192,9 @@ type EventSource interface {
 // current rows from cur and replays their events from ev, dropping
 // records that did not exist yet.
 type AsOfReader struct {
-	Cur Reader
-	Ev  EventSource
-	At  int64
+	Cur Reader      // current rows (identity)
+	Ev  EventSource // change events
+	At  int64       // the change-event seq to read as of (inclusive)
 }
 
 // Entities implements Reader.

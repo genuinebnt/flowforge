@@ -19,14 +19,16 @@ const (
 	Lenient
 )
 
-// HeaderLen is the length of the fixed header.
+// HeaderLen is the length of the fixed header in octets.
 const HeaderLen = 12
 
 // minRRLen is the smallest possible resource record: root owner, type,
 // class, TTL and RDLENGTH.
 const minRRLen = 11
 
-// section names the part of the message the decoder is reading.
+// section names the part of the message the decoder is reading (RFC 1035
+// §4.1: header, question, answer, authority, additional); Decode advances
+// through them in order.
 type section uint8
 
 const (
@@ -38,6 +40,7 @@ const (
 	sectionDone
 )
 
+// decoder is the state of one Decode call.
 type decoder struct {
 	msg   []byte
 	mode  Mode
@@ -50,7 +53,8 @@ func (d *decoder) diag(c Code, off int) { d.diags = append(d.diags, Diagnostic{C
 // Decode parses one DNS message (RFC 1035 §4.1). It never panics; work is
 // linear in len(b) because each name is bounded by MaxNameLen octets and
 // MaxPointerHops pointers. In Lenient mode the diagnostics list what was
-// recovered from.
+// recovered from; Strict mode never returns diagnostics. On error the
+// Message is zero.
 func Decode(b []byte, mode Mode) (Message, []Diagnostic, error) {
 	d := &decoder{msg: b, mode: mode}
 	var (

@@ -16,8 +16,7 @@ type Options struct {
 	MaxInputBytes int
 }
 
-// Default limits, identical in every port (V2_DESIGN parser assurance
-// bounds).
+// Default limits, identical in every port (spec 26.4, 29.5).
 const (
 	DefaultMaxDepth      = 64
 	DefaultMaxInputBytes = 8 << 20
@@ -130,6 +129,8 @@ const (
 	stateDone
 )
 
+// phase is the document part ([1] document ::= prolog element Misc*):
+// before the root, inside it, after it.
 type phase uint8
 
 const (
@@ -138,14 +139,21 @@ const (
 	phaseEpilog
 )
 
+// binding is one in-scope namespace declaration; "" is the default
+// namespace.
 type binding struct{ prefix, uri string }
 
+// openElem is one entry of the open-element stack; nsMark is the length
+// of Decoder.ns before the element's own declarations.
 type openElem struct {
 	raw    []byte // the QName as written, for ETag matching
 	name   Name
 	nsMark int
 }
 
+// rawAttr is an attribute of the start tag being read, before namespace
+// resolution: offsets of its QName (and colon, -1 none) and its whole
+// name="value" span, with the normalized value.
 type rawAttr struct {
 	qStart, qEnd, colon int
 	value               string
@@ -156,25 +164,30 @@ type rawAttr struct {
 // concurrent use.
 type Decoder struct {
 	src       []byte
-	n         int // readable length (after the input limit)
-	truncated bool
-	utf16     bool
-	pos       int
-	st        state
-	ph        phase
-	docStart  int
-	atStart   bool
-	doctype   bool
-	maxDepth  int
-	err       *SyntaxError
-	open      []openElem
-	ns        []binding
-	raws      []rawAttr
-	attrs     []Attr
-	buf       []byte
-	pending   *Event
-	mstart    int // start of the markup being read
-	steps     int
+	n         int  // readable length (after the input limit)
+	truncated bool // MaxInputBytes cut the input: running out is input_too_large
+	// cut reports UTF-16 input that ends inside a character (an odd final
+	// byte or a high surrogate without its pair). The partial character
+	// is not transcoded, so the decoder sees the end of input there and
+	// must not report a complete document.
+	cut      bool
+	utf16    bool
+	pos      int
+	st       state
+	ph       phase
+	docStart int
+	atStart  bool
+	doctype  bool
+	maxDepth int
+	err      *SyntaxError
+	open     []openElem
+	ns       []binding
+	raws     []rawAttr
+	attrs    []Attr
+	buf      []byte
+	pending  *Event
+	mstart   int // start of the markup being read
+	steps    int
 }
 
 // NewDecoder returns a decoder over src. UTF-8 (with or without BOM) is
@@ -195,8 +208,8 @@ func NewDecoder(src []byte, opts Options) *Decoder {
 	}
 	switch {
 	case len(src) >= 2 && ((src[0] == 0xFE && src[1] == 0xFF) || (src[0] == 0xFF && src[1] == 0xFE)):
-		u, bad := transcodeUTF16(src)
-		d.utf16 = true
+		u, bad, cut := transcodeUTF16(src)
+		d.utf16, d.cut = true, cut
 		if bad >= 0 {
 			d.src, d.n = u, len(u)
 			d.fail(ErrInvalidUTF8, len(u))
@@ -212,10 +225,12 @@ func NewDecoder(src []byte, opts Options) *Decoder {
 
 // transcodeUTF16 converts BOM-prefixed UTF-16 to UTF-8 (without the BOM).
 // It returns the source byte offset of the first unpaired surrogate, or
-// -1; a high surrogate cut by the end is dropped (an EOF condition). On a
-// bad surrogate the caller reports invalid_utf8 at the end of the UTF-8
-// produced so far.
-func transcodeUTF16(src []byte) ([]byte, int) {
+// -1, and whether the input ends inside a character (an odd final byte,
+// or a high surrogate cut by the end): that partial character is dropped
+// and the caller treats the end of the transcoded buffer as an EOF
+// condition. On a bad surrogate the caller reports invalid_utf8 at the end
+// of the UTF-8 produced so far.
+func transcodeUTF16(src []byte) ([]byte, int, bool) {
 	be := src[0] == 0xFE
 	units := make([]uint16, 0, len(src)/2)
 	for i := 2; i+1 < len(src); i += 2 {
@@ -225,6 +240,7 @@ func transcodeUTF16(src []byte) ([]byte, int) {
 			units = append(units, uint16(src[i+1])<<8|uint16(src[i]))
 		}
 	}
+	oddByte := len(src)%2 != 0
 	out := make([]byte, 0, len(units)*2)
 	for i := 0; i < len(units); i++ {
 		u := units[i]
@@ -236,15 +252,15 @@ func transcodeUTF16(src []byte) ([]byte, int) {
 				continue
 			}
 			if i+1 >= len(units) {
-				return out, -1 // truncated pair: an EOF condition
+				return out, -1, true // truncated pair: an EOF condition
 			}
-			return out, 2 + 2*i
+			return out, 2 + 2*i, false
 		case u >= 0xDC00 && u <= 0xDFFF:
-			return out, 2 + 2*i
+			return out, 2 + 2*i, false
 		}
 		out = utf8.AppendRune(out, rune(u))
 	}
-	return out, -1
+	return out, -1, oddByte
 }
 
 // UTF16 reports whether the input was UTF-16 (offsets then index the
@@ -260,6 +276,8 @@ func (d *Decoder) Depth() int { return len(d.open) }
 // Err returns the sticky error, if any.
 func (d *Decoder) Err() *SyntaxError { return d.err }
 
+// fail records the sticky error code at offset at (the first one wins),
+// computing its line and column.
 func (d *Decoder) fail(code ErrorCode, at int) {
 	if d.err != nil {
 		return
@@ -357,6 +375,8 @@ func (d *Decoder) Next() (Event, error) {
 
 // Character classification.
 
+// asciiChar[c] reports whether ASCII c is a Char [2] (TAB, LF, CR and
+// 0x20-0x7F).
 var asciiChar = func() (t [128]bool) {
 	t[0x09], t[0x0A], t[0x0D] = true, true, true
 	for c := 0x20; c < 0x80; c++ {
@@ -365,6 +385,7 @@ var asciiChar = func() (t [128]bool) {
 	return
 }()
 
+// isSpace is S [3].
 func isSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
 // isNameStart is [4] NameStartChar.
@@ -390,6 +411,7 @@ func isNameChar(r rune) bool {
 		(r >= 0x300 && r <= 0x36F) || (r >= 0x203F && r <= 0x2040)
 }
 
+// isXMLChar is Char [2].
 func isXMLChar(r rune) bool {
 	return r == 0x9 || r == 0xA || r == 0xD || (r >= 0x20 && r <= 0xD7FF) ||
 		(r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF)
@@ -461,6 +483,7 @@ func (d *Decoder) char(i int) (rune, int) {
 	return r, need + 1
 }
 
+// nameMode selects the name production scanName enforces.
 type nameMode uint8
 
 const (
@@ -536,7 +559,10 @@ func (d *Decoder) misc() bool {
 	i := d.skipSpace(d.pos)
 	d.pos = i
 	if i >= d.n {
-		if d.ph == phaseEpilog && !d.truncated {
+		// A UTF-16 input cut inside a character is not complete even when
+		// the epilog has been reached, as for a UTF-8 sequence cut by the
+		// end (char returns width 0 and the state's EOF error follows).
+		if d.ph == phaseEpilog && !d.truncated && !d.cut {
 			d.st = stateDone
 			return true
 		}
@@ -932,6 +958,8 @@ func (d *Decoder) xmlDecl(i int) (Event, bool) {
 	}
 }
 
+// encodings lists the EncName values the detected encoding allows, in
+// lower case.
 func (d *Decoder) encodings() []string {
 	if d.utf16 {
 		return []string{"utf-16", "utf-16le", "utf-16be"}
@@ -1072,6 +1100,7 @@ func (d *Decoder) doctypedecl() (Event, bool) {
 	return Event{}, false
 }
 
+// splitName splits a QName at colon (relative to q; < 0 for none).
 func splitName(q []byte, colon int) Name {
 	if colon < 0 {
 		return Name{Local: string(q)}
@@ -1331,6 +1360,8 @@ func (d *Decoder) resolve(nameStart, nameEnd, colon, at int) bool {
 	return true
 }
 
+// closeElement pops the open element and its namespace bindings; closing
+// the root moves to the epilog.
 func (d *Decoder) closeElement() {
 	top := d.open[len(d.open)-1]
 	d.ns = d.ns[:top.nsMark]

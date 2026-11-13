@@ -77,6 +77,7 @@ type QueryError struct {
 	Msg  string
 }
 
+// Error returns "textindex: <CODE> at [start,end): <message>".
 func (e *QueryError) Error() string {
 	return fmt.Sprintf("textindex: %s at [%d,%d): %s", e.Code, e.Span.Start, e.Span.End, e.Msg)
 }

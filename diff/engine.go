@@ -20,6 +20,8 @@ type work struct {
 	lo1, hi1, lo2, hi2 int
 }
 
+// newEngine returns an engine with an empty work stack; limit < 0 is
+// unlimited.
 func newEngine(a, b []uint32, limit int) *engine {
 	return &engine{a: a, b: b, limit: limit}
 }

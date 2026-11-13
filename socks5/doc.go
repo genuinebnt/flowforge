@@ -2,7 +2,7 @@
 // username/password authentication (RFC 1929): every message of the
 // handshake as a parser over bytes and a canonical encoder, plus server and
 // client handshakes over an io.ReadWriter. The egress proxy serves it and
-// the tool runner speaks it (V2_DESIGN §9).
+// the tool runner speaks it (spec 29.10, 35.1; V2_DESIGN §9).
 //
 // Each Parse function takes the bytes received so far and returns the
 // message and the number of octets it used, or an *Error. An *Error with
@@ -16,4 +16,8 @@
 // Only CONNECT is served. BIND and UDP ASSOCIATE parse, but ServerHandshake
 // always refuses them with reply 7 (command not supported); unknown
 // commands also get 7 and unknown address types 8 (RFC 1928 §6).
+//
+// PORT: Go strings hold arbitrary octets. Usernames, passwords and domain
+// names are kept exactly as received (RFC 1928 and 1929 do not require
+// UTF-8), so a Rust port stores them as Vec<u8>, not String.
 package socks5

@@ -41,7 +41,8 @@ import (
 // the content service in the tenant's chunk store (raw snapshots).
 
 // ContentClient is the part of ContentService the content tools call
-// (pb.ContentServiceClient implements it).
+// (pb.ContentServiceClient implements it); the methods are the RPCs of
+// the same names (spec 37.1).
 type ContentClient interface {
 	IngestCapture(ctx context.Context, in *pb.IngestCaptureRequest, opts ...grpc.CallOption) (*pb.IngestCaptureResponse, error)
 	GetSnapshot(ctx context.Context, in *pb.GetSnapshotRequest, opts ...grpc.CallOption) (*pb.ContentSnapshot, error)

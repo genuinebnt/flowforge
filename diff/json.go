@@ -115,6 +115,7 @@ func ParseJSON(b []byte) (Value, error) {
 	return v, nil
 }
 
+// parseValue reads one value at nesting depth from dec's token stream.
 func parseValue(dec *json.Decoder, depth int) (Value, error) {
 	tok, err := dec.Token()
 	if err != nil {
@@ -228,6 +229,7 @@ func encodeValue(buf *bytes.Buffer, v Value) {
 	}
 }
 
+// encodeString writes s as encoding/json does with SetEscapeHTML(false).
 func encodeString(buf *bytes.Buffer, s string) {
 	var tmp bytes.Buffer
 	enc := json.NewEncoder(&tmp)

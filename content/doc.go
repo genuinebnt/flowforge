@@ -7,14 +7,15 @@
 // with stored reasons, redacts credential-shaped strings, and emits oam
 // observations with coverage-gated authority.
 //
-// It implements docs/V2_DESIGN.md §5 (content) together with the §12
-// amendments, which win over §5 where they differ: gated authority and
-// coverage (§3.4, §12.1), cause and baseline (§12.2, §12.3), scores with
-// reasons that rank but never send (§12.4), noise and collection
-// integrity (§12.5), module-level lineage "level 2.5" (§12.6), documents
-// inside documents (§12.7), headers as artifacts (§12.8), sniffing
-// (§12.9), parser assurance grades and amplification bounds (§12.10),
-// redaction (§12.11) and change classes and newness (§12.13). Decision D2
+// It implements spec 33: docs/V2_DESIGN.md §5 (content) together with
+// the §12 amendments, which win over §5 where they differ: gated
+// authority and coverage (§3.4, §12.1), cause and baseline (§12.2,
+// §12.3), scores with reasons that rank but never send (§12.4), noise and
+// collection integrity (§12.5), module-level lineage "level 2.5" (§12.6),
+// documents inside documents (§12.7), headers as artifacts (§12.8),
+// sniffing (§12.9), parser assurance grades and amplification bounds
+// (§12.10), redaction (§12.11) and change classes and newness (§12.13).
+// Decision D2
 // (docs/DECISIONS.md) holds: TypeScript, TSX and JSX sources are
 // normalized and diffed as text and never handed to the JS parser.
 //

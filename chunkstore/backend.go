@@ -7,9 +7,10 @@ import (
 	"sync"
 )
 
-// Backend is the storage port: a flat namespace of named, immutable-ish
-// objects. Names are validated by ValidName ("ref", "packs/<hex>.pack",
-// "packs/<hex>.idx").
+// Backend is the storage port: a flat namespace of named objects that are
+// written whole and replaced, never modified in place. Names are validated
+// by ValidName; a Store uses "t/<ns>/ref", "t/<ns>/packs/<hex>.pack" and
+// "t/<ns>/packs/<hex>.idx".
 //
 // Contract (every implementation, checked by the backend conformance
 // tests):
@@ -24,10 +25,15 @@ import (
 //
 // The Store assumes a single writer per backend (one Store process).
 type Backend interface {
+	// Put stores data as name, atomically replacing any object there.
 	Put(ctx context.Context, name string, data []byte) error
+	// Get returns the whole object.
 	Get(ctx context.Context, name string) ([]byte, error)
+	// GetRange returns exactly n bytes of the object from offset off.
 	GetRange(ctx context.Context, name string, off int64, n int) ([]byte, error)
+	// List returns the names starting with prefix, sorted bytewise.
 	List(ctx context.Context, prefix string) ([]string, error)
+	// Delete removes the object; a missing object is not an error.
 	Delete(ctx context.Context, name string) error
 }
 
@@ -53,6 +59,7 @@ func ValidName(name string) bool {
 	return true
 }
 
+// checkName is ValidName as a CodeInvalidName error.
 func checkName(name string) error {
 	if !ValidName(name) {
 		return errf(CodeInvalidName, name, "invalid object name")

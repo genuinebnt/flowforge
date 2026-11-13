@@ -56,10 +56,12 @@ type Tx interface {
 	// SnapshotBySignature returns a snapshot of k with this signature and
 	// fetch time (the exact re-send of a stored capture).
 	SnapshotBySignature(ctx context.Context, k Key, signature string, fetchedAt time.Time) (Snapshot, bool, error)
+	// GetSnapshot returns a snapshot by id.
 	GetSnapshot(ctx context.Context, id core.UUID) (Snapshot, bool, error)
 	// SnapshotAsOf returns the version of k valid at t: valid_from <= t <
 	// valid_to (or open). One index probe in Postgres (V2 §12.12).
 	SnapshotAsOf(ctx context.Context, k Key, t time.Time) (Snapshot, bool, error)
+	// ListSnapshots pages a program's snapshots in SnapshotFilter order.
 	ListSnapshots(ctx context.Context, f SnapshotFilter) ([]Snapshot, error)
 	// KeySnapshots returns every snapshot of k, newest first.
 	KeySnapshots(ctx context.Context, k Key) ([]Snapshot, error)
@@ -70,11 +72,14 @@ type Tx interface {
 	HostOpenVersions(ctx context.Context, program core.UUID, host, profile, url string, limit int) ([]Snapshot, error)
 	// OpenVersionsByURL returns the open versions of the given URLs.
 	OpenVersionsByURL(ctx context.Context, program core.UUID, profile string, urls []string) ([]Snapshot, error)
+	// InsertSnapshot stores a new snapshot row.
 	InsertSnapshot(ctx context.Context, s Snapshot) error
 	// CloseVersion sets valid_to of an open version.
 	CloseVersion(ctx context.Context, id core.UUID, validTo time.Time) error
 	// Touch moves last_seen (never backwards).
 	Touch(ctx context.Context, id core.UUID, lastSeen time.Time) error
+	// SetPinned pins or unpins a snapshot (pinned versions survive
+	// retention and are GC roots), recording why.
 	SetPinned(ctx context.Context, id core.UUID, pinned bool, reason string) error
 	// DeltaDependents returns the snapshots whose delta base is one of ids.
 	DeltaDependents(ctx context.Context, ids []core.UUID) ([]Snapshot, error)
@@ -105,6 +110,7 @@ type Tx interface {
 
 	// NextDiffSeq allocates the program's next diff sequence number.
 	NextDiffSeq(ctx context.Context, program core.UUID) (int64, error)
+	// InsertDiff stores a new diff row; GetDiff returns one by id.
 	InsertDiff(ctx context.Context, d Diff) error
 	GetDiff(ctx context.Context, id core.UUID) (Diff, bool, error)
 	// RewriteDiff replaces a stored diff's derived columns from d (Levels,
@@ -120,29 +126,40 @@ type Tx interface {
 	// DiffsTouching lists the diffs whose either side is one of ids.
 	DiffsTouching(ctx context.Context, ids []core.UUID) ([]Diff, error)
 
+	// InsertFindings stores encrypted secret findings; Findings returns a
+	// snapshot's.
 	InsertFindings(ctx context.Context, fs []Finding) error
 	Findings(ctx context.Context, snapshot core.UUID) ([]Finding, error)
 
 	// Volatility returns the rows of one (url template, profile).
 	Volatility(ctx context.Context, program core.UUID, urlTemplate, profile string) ([]VolatilityRow, error)
+	// PutVolatility upserts volatility rows by (program, url template,
+	// profile, feature path).
 	PutVolatility(ctx context.Context, rows []VolatilityRow) error
 
 	// Usage returns the tenant's usage row (zero when none).
 	Usage(ctx context.Context) (Usage, error)
+	// PutUsage replaces the tenant's usage row.
 	PutUsage(ctx context.Context, u Usage) error
 	// Limits returns the tenant's quota override, if any.
 	Limits(ctx context.Context) (Limits, bool, error)
+	// PutLimits sets the tenant's quota override.
 	PutLimits(ctx context.Context, l Limits) error
 
+	// IndexState returns a program's text-index progress (zero when
+	// none); PutIndexState replaces it.
 	IndexState(ctx context.Context, program core.UUID) (IndexState, error)
 	PutIndexState(ctx context.Context, s IndexState) error
 
+	// DataKeys returns the tenant's wrapped data keys.
 	DataKeys(ctx context.Context) ([]DataKey, error)
 	// InsertDataKey stores a new wrapped key; a key with the same
 	// (purpose, version) already present is not replaced and the call
 	// reports false.
 	InsertDataKey(ctx context.Context, k DataKey) (bool, error)
 
+	// AppendOutbox writes an event in the transaction (published after
+	// commit); an event id already in the outbox is ignored.
 	AppendOutbox(ctx context.Context, e OutboxEvent) error
 
 	// Manifests returns every chunk-store manifest the tenant's rows

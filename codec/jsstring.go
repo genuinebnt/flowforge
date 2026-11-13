@@ -64,7 +64,7 @@ const (
 
 // DecodeJSString decodes the body of a JavaScript string literal (the
 // text between the quotes) to UTF-8. Escaped surrogate pairs
-// (😀, in any escape form) combine into one code point.
+// (\uD83D\uDE00, in any escape form) combine into one code point.
 func DecodeJSString(src []byte, o JSOptions) ([]byte, error) {
 	out, err := AppendDecodeJSString(nil, src, o)
 	if err != nil {
@@ -323,7 +323,7 @@ func (d *jsDec) lone(r rune) {
 // (strict, same quote) decodes back to src when src is UTF-8 or WTF-8:
 // backslash and the quote are escaped (quote 0 escapes both ' and "),
 // \b \t \n \v \f \r for those controls, \xHH for other C0 controls and
-// DEL,   and   for LS and PS, \uDXXX for WTF-8 surrogates, and
+// DEL, \u2028 and \u2029 for LS and PS, \uDXXX for WTF-8 surrogates, and
 // \xHH for bytes that are not UTF-8 (which therefore do not round-trip).
 func EncodeJSString(src []byte, quote byte) []byte { return AppendEncodeJSString(nil, src, quote) }
 

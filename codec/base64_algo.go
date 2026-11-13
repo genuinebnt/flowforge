@@ -66,6 +66,7 @@ func ParseBase64Algo(name string) (Base64Algo, error) {
 	return 0, ErrUnknownAlgorithm
 }
 
+// resolve maps the default (and any unknown value) to Base64AlgoSWAR.
 func (a Base64Algo) resolve() Base64Algo {
 	switch a {
 	case Base64AlgoStateMachine, Base64AlgoSWAR, Base64AlgoStdlib:
@@ -96,6 +97,8 @@ var b64Fast = func() (f [3][4][256]uint32) {
 	return f
 }()
 
+// decodeBase64SWAR decodes whole quanta (eight characters, then four) by
+// table lookup and hands everything else to the b64Dec state machine.
 func decodeBase64SWAR(dst, src []byte, o Base64Options) ([]byte, error) {
 	d := newB64Dec(dst, src, o)
 	// Eight bytes of headroom let the 8-byte store write 6 bytes at a
@@ -155,6 +158,9 @@ func stdEncoding(o Base64Options, padded bool) *base64.Encoding {
 	return base64.RawStdEncoding
 }
 
+// decodeBase64Stdlib tries encoding/base64 and falls back to the state
+// machine for white space and for every stdlib error, so codes and offsets
+// are always the state machine's.
 func decodeBase64Stdlib(dst, src []byte, o Base64Options) ([]byte, error) {
 	var enc *base64.Encoding
 	if o.Mode == Strict {

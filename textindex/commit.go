@@ -17,6 +17,7 @@ const (
 	tombVersion   = 1
 )
 
+// commitSeg is one segment entry of the FFTC commit point.
 type commitSeg struct {
 	name     string
 	docCount uint32
@@ -25,6 +26,9 @@ type commitSeg struct {
 	delCount uint32
 }
 
+// commitPoint is the decoded FFTC file (FORMAT.md): commit generation,
+// largest document generation, next segment number and the live segments
+// in commit order.
 type commitPoint struct {
 	gen     uint64
 	maxGen  uint64

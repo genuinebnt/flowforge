@@ -19,9 +19,9 @@ const (
 
 // LayersOptions bounds DecodeLayers. Zero fields take the defaults.
 type LayersOptions struct {
-	MaxDepth int
-	MaxTotal int
-	MaxNodes int
+	MaxDepth int // nesting levels decoded (DefaultMaxDepth)
+	MaxTotal int // bytes of all kept layers together (DefaultMaxTotal)
+	MaxNodes int // layers kept (DefaultMaxNodes)
 	// Sniff tunes candidate detection at every level.
 	Sniff SniffOptions
 	// Inflate bounds each decompression; its MaxOutput is further
@@ -55,7 +55,9 @@ type Layers struct {
 	Nodes []Layer
 	// Total is the sum of len(Data) over Nodes; never above MaxTotal.
 	Total int
-	// Truncated reports that a limit (depth excluded) stopped decoding.
+	// Truncated reports that a limit (depth excluded) stopped decoding or
+	// cut a layer short, or that a compressed stream broke after some
+	// output; it is set even when the cut layer was then dropped.
 	Truncated bool
 }
 
@@ -95,6 +97,8 @@ func DecodeLayers(b []byte, o LayersOptions) Layers {
 	return st.res
 }
 
+// layersState is the state of one DecodeLayers call; stopped is set once
+// MaxTotal or MaxNodes is reached, ending every level of the recursion.
 type layersState struct {
 	o       LayersOptions
 	res     Layers
@@ -118,8 +122,8 @@ func (st *layersState) expand(parent int, data []byte, depth int) {
 		}
 		out, truncated, ok := st.decode(data[c.Start:c.End], c.Kind, left)
 		if truncated && ok {
-			// Reported even when the prefix is dropped below: a limit cut
-			// the decoding short.
+			// Reported even when the prefix is dropped below: a limit or a
+			// corrupt stream cut the decoding short.
 			st.res.Truncated = true
 		}
 		if !ok {

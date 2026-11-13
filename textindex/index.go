@@ -56,14 +56,16 @@ const (
 )
 
 // Searcher is the API shared by Index and ScanIndex.
+// Both engines return the same matches and scores for the same writes
+// (TIDX-INV-01); the methods are documented on Index.
 type Searcher interface {
-	Add(Document) error
-	Update(Document) error
-	Delete(id uint64) error
-	Refresh() error
-	Search(q string, opts SearchOptions) (Result, error)
-	SearchQuery(q *Query, opts SearchOptions) (Result, error)
-	Get(id uint64) (Document, bool, error)
+	Add(Document) error                                       // buffer a new document
+	Update(Document) error                                    // buffer a replacement
+	Delete(id uint64) error                                   // buffer a deletion
+	Refresh() error                                           // make buffered writes visible
+	Search(q string, opts SearchOptions) (Result, error)      // parse and run q
+	SearchQuery(q *Query, opts SearchOptions) (Result, error) // run a parsed query
+	Get(id uint64) (Document, bool, error)                    // stored document
 	Close() error
 }
 
@@ -118,6 +120,7 @@ type Index struct {
 	x         execParams
 }
 
+// pendingDoc is a buffered write with its generation.
 type pendingDoc struct {
 	gen uint64
 	doc *docFields // nil: delete
@@ -281,6 +284,8 @@ func (ix *Index) Update(d Document) error {
 	return ix.write(d, true)
 }
 
+// write buffers d with the next generation (Add when !replace, Update
+// otherwise).
 func (ix *Index) write(d Document, replace bool) error {
 	f, err := normalize(ix.schema, d)
 	if err != nil {

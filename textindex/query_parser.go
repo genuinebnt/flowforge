@@ -27,6 +27,7 @@ const (
 
 var nodeKindNames = [...]string{"and", "or", "not", "term", "phrase", "regex", "since", "until"}
 
+// String returns the JSON name of k ("and", "term", ...).
 func (k NodeKind) String() string {
 	if int(k) < len(nodeKindNames) {
 		return nodeKindNames[k]

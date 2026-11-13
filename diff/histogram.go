@@ -5,18 +5,21 @@ package diff
 // line present in a is extended to the longest common region around each
 // of its occurrences, and a region replaces the current best when it is
 // longer or its rarest line is rarer (git's order-dependent rule); the
-// best region splits the range. Lines occurring more than
-// histMaxChain (git's max_chain_length, 64) times are never anchors; if a range has common lines
-// but all are that frequent, it falls back to Myers. A range with no common
-// line is a replacement. Like git, histogram works on the whole input (no
-// prefix/suffix trimming), and git's hash-bucket chain limit has no
-// counterpart here because records are keyed by exact token id.
+// best region splits the range. Lines occurring more than histMaxChain
+// (git's max_chain_length, 64) times are never anchors; if a range has
+// common lines but all are that frequent, it falls back to Myers. A range
+// with no common line is a replacement. Like git, histogram works on the
+// whole input (no prefix/suffix trimming), and git's hash-bucket chain
+// limit has no counterpart here because records are keyed by exact token
+// id.
 
+// histMaxChain is git's max_chain_length (xhistogram.c).
 const histMaxChain = 64
 
+// histRecord is git's struct record: one distinct line of the range.
 type histRecord struct {
 	ptr int // first occurrence in a (index), chained through next
-	cnt int
+	cnt int // occurrences in a[lo1:hi1]
 }
 
 // histIndex is the per-range histogram. Its arrays are allocated once per
@@ -34,8 +37,12 @@ type histIndex struct {
 	next    []int32 // a index -> next occurrence (absolute), -1 none
 }
 
-type region struct{ begin1, end1, begin2, end2 int } // inclusive ends
+// region is a common run a[begin1:end1+1] == b[begin2:end2+1] (inclusive
+// ends, as in git).
+type region struct{ begin1, end1, begin2, end2 int }
 
+// histogram is one step of git's histogram_diff over a[lo1:hi1] and
+// b[lo2:hi2]: split at the best region, or fall back.
 func (e *engine) histogram(lo1, hi1, lo2, hi2 int) {
 	if lo1 >= hi1 && lo2 >= hi2 {
 		return

@@ -7,6 +7,8 @@ import (
 	"slices"
 )
 
+// storedBlock is one entry of the STORED section's block table: docs
+// [first, first+count) compressed at off (clen bytes, rlen raw).
 type storedBlock struct {
 	first, count, off, clen, rlen uint32
 }

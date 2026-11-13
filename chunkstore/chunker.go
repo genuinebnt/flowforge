@@ -195,6 +195,7 @@ func Boundaries(c Cutter, data []byte) []int {
 // fixedCutter cuts every size bytes.
 type fixedCutter struct{ size int }
 
+// Cut and Config implement Cutter.
 func (f fixedCutter) Cut(data []byte) int { return min(len(data), f.size) }
 
 func (f fixedCutter) Config() ChunkerConfig {
@@ -205,6 +206,7 @@ func (f fixedCutter) Config() ChunkerConfig {
 // holds at most MaxRecordRaw, and the streaming chunker buffers a chunk).
 type wholeCutter struct{ max int }
 
+// Cut and Config implement Cutter.
 func (w wholeCutter) Cut(data []byte) int { return min(len(data), w.max) }
 
 func (w wholeCutter) Config() ChunkerConfig { return ChunkerConfig{Algo: ChunkWhole, MaxSize: w.max} }

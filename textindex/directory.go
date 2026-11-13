@@ -11,16 +11,21 @@ import (
 	"sync"
 )
 
-// Directory is the storage port of an index: a flat namespace of
-// immutable files. WriteFile must be atomic (readers and a crash see the
-// old content or the new, never a mix); that is how the commit point is
-// swapped. ReadFile of a missing file returns an error wrapping
-// fs.ErrNotExist.
+// Directory is the storage port of an index: a flat namespace of files
+// written whole. Segment and tombstone files are written once; only the
+// commit file is ever replaced. WriteFile must be atomic (readers and a
+// crash see the old content or the new, never a mix); that is how the
+// commit point is swapped.
 type Directory interface {
+	// ReadFile returns the file's bytes; a missing file is an error
+	// wrapping fs.ErrNotExist. Callers must not modify the result.
 	ReadFile(name string) ([]byte, error)
+	// WriteFile atomically creates or replaces the file.
 	WriteFile(name string, data []byte) error
+	// Remove deletes the file; removing a missing file succeeds.
 	Remove(name string) error
-	List() ([]string, error) // sorted
+	// List returns the file names, sorted.
+	List() ([]string, error)
 }
 
 // MemDirectory is the in-memory Directory (tests, ephemeral indexes).
@@ -32,7 +37,8 @@ type MemDirectory struct {
 // NewMemDirectory returns an empty in-memory directory.
 func NewMemDirectory() *MemDirectory { return &MemDirectory{files: map[string][]byte{}} }
 
-// ReadFile implements Directory.
+// ReadFile implements Directory. The stored slice is returned without a
+// copy.
 func (m *MemDirectory) ReadFile(name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -83,6 +89,8 @@ func NewFSDirectory(path string) (*FSDirectory, error) {
 	return &FSDirectory{path: path}, nil
 }
 
+// full maps a flat file name to its path, refusing separators and dot
+// names.
 func (d *FSDirectory) full(name string) (string, error) {
 	if name == "" || strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
 		return "", fmt.Errorf("%w: bad file name %q", ErrInvalidConfig, name)

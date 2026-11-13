@@ -11,8 +11,9 @@ import (
 	"github.com/genuinebnt/flowforge/sketch"
 )
 
-// Diff outcomes (V2 §12.5 counted outcomes). Only OutcomeChanged is a
-// change; the others are counted for the noise metric.
+// Diff outcomes (spec 33.10; V2 §12.5 counted outcomes). DiffChanged and
+// DiffStructural are changes (ChangeSet.IsChange); the others are counted
+// for the noise metric (masked_only and reordered are not changes).
 const (
 	DiffNoChange        = "no_change"        // identical bytes
 	DiffNormalizedEqual = "normalized_equal" // bytes differ, normalized text equal, same masked values
@@ -23,7 +24,9 @@ const (
 	DiffDegraded        = "degraded"         // the new capture is degraded: no diff
 )
 
-// Newness of a change (V2 §12.13).
+// Newness of a change (spec 33.10; V2 §12.13): likely_new against a
+// complete previous capture, first_seen_only without one, pre_existing for
+// the baseline and for returns.
 const (
 	NewnessLikelyNew     = "likely_new"
 	NewnessPreExisting   = "pre_existing"
@@ -35,9 +38,9 @@ type FeatureChange struct {
 	// Op is added, removed, modified or returned (added again after it
 	// was absent from the previous version but present in history).
 	Op      string   `json:"op"`
-	Feature Feature  `json:"feature"`
-	Old     *Feature `json:"old,omitempty"`
-	Newness string   `json:"newness"`
+	Feature Feature  `json:"feature"`       // the new version (the old one for removed)
+	Old     *Feature `json:"old,omitempty"` // the previous version, for modified
+	Newness string   `json:"newness"`       // a Newness* value
 }
 
 // Hunk is one presented hunk: the unified header and the changed lines.
@@ -77,8 +80,9 @@ type DiffOptions struct {
 	// Bounds are the §5 caps (zero fields: diff's defaults).
 	Bounds  diff.Bounds
 	Context int // hunk context lines (0: 3)
-	// History holds the feature ids seen in any version before the
-	// previous one, for "returned".
+	// History holds the feature ids (kind|key) seen in any version before
+	// the previous one, for "returned". It must be sorted ascending
+	// (featureChanges binary-searches it).
 	History []string
 	// Comparable says the previous version was a complete capture of the
 	// same (URL, profile), so an absence there is a real negative
@@ -138,6 +142,8 @@ func DiffArtifacts(old, new *Artifact, opts DiffOptions) (ArtifactDiff, error) {
 	return d, nil
 }
 
+// textDiff runs the bounded text diff of a and b and fills the presented
+// hunks and side-by-side form (nothing past the hash level).
 func (d *ArtifactDiff) textDiff(a, b []byte, opts DiffOptions) error {
 	bounds := opts.Policy.Bounds(max(len(a), len(b)), opts.Bounds)
 	r, err := diff.BoundedDiff(a, b, bounds)

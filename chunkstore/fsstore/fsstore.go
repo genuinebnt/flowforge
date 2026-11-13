@@ -35,6 +35,9 @@ import (
 	"github.com/genuinebnt/flowforge/chunkstore"
 )
 
+// tmpMarker marks temporary files. chunkstore.ValidName allows '.' and '-',
+// so path also refuses names containing it: an object can never be
+// mistaken for (or Clean'ed as) a temporary file.
 const tmpMarker = ".tmp-"
 
 // Options configures a Dir.
@@ -65,6 +68,7 @@ func New(root string, opts Options) (*Dir, error) {
 	return &Dir{root: abs, opts: opts}, nil
 }
 
+// path maps a valid object name to its file path under the root.
 func (d *Dir) path(name string) (string, error) {
 	if !chunkstore.ValidName(name) || strings.Contains(name, tmpMarker) {
 		return "", &chunkstore.Error{Code: chunkstore.CodeInvalidName, Object: name, Detail: "invalid object name"}
@@ -72,10 +76,12 @@ func (d *Dir) path(name string) (string, error) {
 	return filepath.Join(d.root, filepath.FromSlash(name)), nil
 }
 
+// notFound is the chunkstore.ErrObjectNotFound error for name.
 func notFound(name string) error {
 	return &chunkstore.Error{Code: chunkstore.CodeObjectNotFound, Object: name, Detail: "no such object"}
 }
 
+// syncDir fsyncs a directory so a rename or removal in it is durable.
 func syncDir(dir string) error {
 	f, err := os.Open(dir)
 	if err != nil {

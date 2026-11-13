@@ -201,6 +201,8 @@ func AppendDecodeQP(dst, src []byte, mode Mode) ([]byte, error) {
 	return out, nil
 }
 
+// decodeQPStrict is AppendDecodeQP in Strict mode; lineStart is the offset
+// of the current encoded line, for the rule 5 length check.
 func decodeQPStrict(dst, src []byte) ([]byte, error) {
 	out := slices.Grow(dst, len(src))
 	state := qpText

@@ -1,10 +1,12 @@
 // Package chunkstore is Flowforge's content-addressed, deduplicating,
-// compressed blob store (V2_DESIGN §6.1, §6.3; layer 1: stdlib, core and
-// github.com/klauspost/compress/zstd only).
+// compressed blob store (spec 31; V2_DESIGN §6.1, §6.3; layer 1: stdlib,
+// core and github.com/klauspost/compress/zstd only).
 //
 // A blob is split by FastCDC (Xia et al., USENIX ATC 2016, normalized
 // chunking level 2, gear table from core.SplitMix64 seeded 0x46464344)
-// into chunks of 2 KiB to 64 KiB, averaging about 8 KiB. Each chunk is
+// into chunks of 2 KiB to 64 KiB, averaging about 8 KiB; Config.Chunking
+// can select the Rabin, fixed-size or whole-blob candidates instead
+// (docs/ALGORITHMS.md), and each manifest records its chunker. Each chunk is
 // identified by the SHA-256 of its bytes, stored once per tenant
 // namespace, and kept zstd-compressed (or raw when zstd saves less than
 // 1/8) in packfiles ("FFPK") with a binary-searchable index ("FFPI"). A
@@ -28,9 +30,10 @@
 // Backend is the only port (named objects: Put/Get/GetRange/List/Delete);
 // MemBackend is the in-memory implementation, chunkstore/fsstore the
 // directory adapter and chunkstore/gcsstore the Cloud Storage adapter;
-// chunkstore/backendtest is the contract suite all three run. FastCDC, the format codecs (DecodePack, DecodeIndex,
-// DecodeManifest, DecodeRef and their encoders) and the error codes are
-// usable on their own.
+// chunkstore/backendtest is the contract suite all three run. The
+// chunkers, the format codecs (DecodePack, DecodeIndex, DecodeManifest,
+// DecodeRef, EncodeDelta/DecodeDelta and their encoders) and the error
+// codes are usable on their own.
 //
 // Every error is an *Error with a stable Code from a closed list; fsck
 // reports problems with the same codes. Nothing panics on input.

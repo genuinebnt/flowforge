@@ -50,7 +50,8 @@ type GCReport struct {
 //
 //  1. seal the open pack;
 //  2. mark: read and verify each live and pinned manifest; a missing
-//     manifest or a missing chunk aborts GC with nothing changed;
+//     manifest or a missing chunk aborts GC with nothing deleted (only
+//     the seal of step 1 has happened);
 //  3. plan: per pack (ascending id) compute live/total record bytes;
 //  4. write the new packs and their indexes holding the live records of
 //     the rewritten packs (each record fully verified, then recompressed
@@ -61,9 +62,9 @@ type GCReport struct {
 //     earlier crashes).
 //
 // Besides live and pinned, GC keeps the GC-grace set described at
-// Store.Put. A crash before step 5 leaves the old ref, so every old pack is still
-// there; a crash after it leaves only orphans. GC holds the store's
-// write lock throughout.
+// Store.Put. A crash before step 5 leaves the old ref, so every old pack
+// is still there; a crash after it leaves only orphans. GC holds the
+// store's write lock throughout.
 func (s *Store) GC(ctx context.Context, live, pinned []ManifestID, opts GCOptions) (GCReport, error) {
 	var rep GCReport
 	pct := opts.LiveThresholdPercent
@@ -340,6 +341,7 @@ func (s *Store) isLiveCopy(marked map[ChunkID]struct{}, i int, id ChunkID) bool 
 	return s.locs[id].pack == int32(i)
 }
 
+// cmpU64 is cmp.Compare for record offsets.
 func cmpU64(a, b uint64) int {
 	switch {
 	case a < b:

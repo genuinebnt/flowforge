@@ -10,6 +10,7 @@ import (
 // Severity grades an fsck problem.
 type Severity uint8
 
+// Severities.
 const (
 	// SeverityError: data is missing or damaged.
 	SeverityError Severity = iota
@@ -18,6 +19,7 @@ const (
 	SeverityWarning
 )
 
+// String returns "error" or "warning".
 func (s Severity) String() string {
 	if s == SeverityWarning {
 		return "warning"
@@ -57,6 +59,8 @@ func (r *FsckReport) Has(code Code) bool {
 	return slices.ContainsFunc(r.Problems, func(p Problem) bool { return p.Code == code })
 }
 
+// add records err against object, keeping its code (CodeBackend for a
+// foreign error).
 func (r *FsckReport) add(sev Severity, object string, err error) {
 	var e *Error
 	if errors.As(err, &e) {
@@ -108,11 +112,15 @@ func (s *Store) Fsck(ctx context.Context, manifests []ManifestID) (FsckReport, e
 	return fsck(ctx, s.b, s.ns, s.codec, manifests)
 }
 
+// fsckLoc is where fsck found a chunk first: the pack object name and the
+// index entry.
 type fsckLoc struct {
 	pack string
 	e    IndexEntry
 }
 
+// getOptional reads name, reporting a missing object as ok = false rather
+// than an error.
 func getOptional(ctx context.Context, b Backend, name string) ([]byte, bool, error) {
 	data, err := b.Get(ctx, name)
 	if errors.Is(err, ErrObjectNotFound) {
@@ -127,6 +135,7 @@ func getOptional(ctx context.Context, b Backend, name string) ([]byte, bool, err
 	return data, true, nil
 }
 
+// fsck is Fsck over a validated namespace with the given codec.
 func fsck(ctx context.Context, b Backend, ns namespace, c *codec, manifests []ManifestID) (FsckReport, error) {
 	var rep FsckReport
 	defer func() {
@@ -264,6 +273,9 @@ func fsck(ctx context.Context, b Backend, ns namespace, c *codec, manifests []Ma
 	return rep, nil
 }
 
+// checkIndexAgainstPack reports every disagreement between an index and
+// its decoded pack: size, footer CRC, record count, and each entry's
+// record (offset and lengths).
 func checkIndexAgainstPack(rep *FsckReport, in string, ix *Index, pk *Pack) {
 	if ix.PackSize != pk.Size || ix.PackCRC != pk.CRC {
 		rep.add(SeverityError, in, errf(CodeIndexPackMismatch, in, "index says size %d crc %08x, pack is %d crc %08x", ix.PackSize, ix.PackCRC, pk.Size, pk.CRC))

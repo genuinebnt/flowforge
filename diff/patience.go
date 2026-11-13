@@ -9,16 +9,21 @@ package diff
 // Myers. Like git, patience works on the whole input (no prefix/suffix
 // trimming), so a line repeated inside a common prefix is not unique.
 
+// patEntry.line2 markers: no occurrence in b yet, or more than one
+// occurrence in a or b.
 const (
 	patNone      = -1
 	patNonUnique = -2
 )
 
+// patEntry is git's struct entry: one distinct line of a's range.
 type patEntry struct {
 	line1, line2 int // line2: patNone, patNonUnique or the unique match in b
 	prev         int // index of the previous entry in the LIS, -1 none
 }
 
+// patience is one step of git's patience_diff over a[lo1:hi1] and
+// b[lo2:hi2]; the gaps between anchors are pushed as new work.
 func (e *engine) patience(lo1, hi1, lo2, hi2 int) {
 	a, b := e.a, e.b
 	if lo1 == hi1 || lo2 == hi2 {
@@ -135,6 +140,8 @@ func (e *engine) patience(lo1, hi1, lo2, hi2 int) {
 	e.pushOrdered(items)
 }
 
+// patienceDiff runs patience over the whole input; the bool reports a
+// capped Myers fallback.
 func patienceDiff(a, b []uint32, limit int) (EditScript, bool) {
 	e := newEngine(a, b, limit)
 	e.stack = append(e.stack, work{lo1: 0, hi1: len(a), lo2: 0, hi2: len(b)})

@@ -1,5 +1,5 @@
-// Package content is the content service (V2 design §6-§8, §11 items 13,
-// 14 and 18): flowforge.v1.ContentService over a contentstore.Store
+// Package content is the content service (spec 37; V2 design §6-§8, §11
+// items 13, 14 and 18): flowforge.v1.ContentService over a contentstore.Store
 // (Postgres or memory repository, per-tenant chunk stores, per-(tenant,
 // program) text indexes). Captures arrive through IngestCapture (the
 // collect tool's sink); every accepted capture publishes one
@@ -25,8 +25,8 @@ import (
 
 // Options configure a Server.
 type Options struct {
-	Store  *contentstore.Store
-	Logger *slog.Logger
+	Store  *contentstore.Store // required
+	Logger *slog.Logger        // nil: discard
 	// RederiveBatch bounds the snapshots each Sweep re-derives per tenant
 	// after a pipeline upgrade (contentstore.Rederive; default 64).
 	RederiveBatch int
@@ -49,6 +49,8 @@ func NewServer(o Options) *Server {
 // Store returns the underlying store.
 func (s *Server) Store() *contentstore.Store { return s.o.Store }
 
+// identity returns the caller's identity and checks its role holds need
+// ("" checks nothing).
 func identity(ctx context.Context, need auth.Permission) (platform.Identity, error) {
 	id, err := platform.MustIdentity(ctx)
 	if err != nil {
@@ -272,7 +274,7 @@ func (s *Server) PinSnapshot(ctx context.Context, req *pb.PinSnapshotRequest) (*
 	return s.pin(ctx, req.GetSnapshotId(), true, req.GetReason())
 }
 
-// UnpinSnapshot implements ContentService.
+// UnpinSnapshot implements ContentService (alerts:write, as PinSnapshot).
 func (s *Server) UnpinSnapshot(ctx context.Context, req *pb.UnpinSnapshotRequest) (*pb.ContentSnapshot, error) {
 	return s.pin(ctx, req.GetSnapshotId(), false, "")
 }

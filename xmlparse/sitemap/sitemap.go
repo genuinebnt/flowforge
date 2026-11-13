@@ -17,9 +17,9 @@ import (
 const Namespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
 
 // Limits. The protocol caps a sitemap at 50,000 entries and 50 MiB
-// (52,428,800 bytes) uncompressed; the defaults follow the V2 assurance
-// bounds (20,000 facts, 8 MiB per document) and options can raise them up
-// to, never past, the protocol limits.
+// (52,428,800 bytes) uncompressed; the defaults follow the v2 assurance
+// bounds (spec 26.4, 29.5: 20,000 facts, 8 MiB per document) and options
+// can raise them up to, never past, the protocol limits.
 const (
 	ProtocolMaxEntries = 50000
 	ProtocolMaxBytes   = 52428800
@@ -61,7 +61,10 @@ func (o Options) maxBytes() int {
 // Kind is the type of sitemap.
 type Kind uint8
 
+// Sitemap kinds.
 const (
+	// KindUnknown: no sitemap root was read (empty, refused or not a
+	// sitemap).
 	KindUnknown Kind = iota
 	KindURLSet       // <urlset>: entries are pages
 	KindIndex        // <sitemapindex>: entries are sitemaps
@@ -81,6 +84,8 @@ func (k Kind) String() string {
 // ChangeFreq is the <changefreq> value.
 type ChangeFreq uint8
 
+// ChangeFreq values: the protocol's seven, plus ChangeFreqNone for an
+// absent or invalid field.
 const (
 	ChangeFreqNone ChangeFreq = iota
 	ChangeFreqAlways
@@ -104,6 +109,8 @@ func (c ChangeFreq) String() string {
 
 // Entry is one <url> (urlset), <sitemap> (index) or text line.
 type Entry struct {
+	// Loc is the <loc> URL as written (whitespace-trimmed): absolute
+	// http(s), fewer than 2,048 characters.
 	Loc string
 	// LastMod is the W3C Datetime value in UTC; zero when absent or
 	// invalid.
@@ -119,6 +126,7 @@ type Entry struct {
 // Code is a stable diagnostic code.
 type Code uint8
 
+// Diagnostic codes; each says what happened to the entry or field.
 const (
 	CodeNone              Code = iota
 	CodeXMLError               // the XML was not well-formed or was refused (see Sitemap.XMLErr)
@@ -159,18 +167,22 @@ type Diag struct {
 
 // Sitemap is the result of reading one sitemap.
 type Sitemap struct {
-	Kind       Kind
-	Entries    []Entry
-	Diags      []Diag
+	Kind    Kind
+	Entries []Entry // valid entries, in document order
+	Diags   []Diag  // in document order
+	// Grade is complete, partial (a limit), unsupported (not a sitemap,
+	// or the XML refused) or failed (malformed XML or gzip).
 	Grade      xmlparse.Grade
-	Compressed bool
+	Compressed bool // the input was gzip
 	// XMLErr is the XML error behind CodeXMLError (or a limit), if any.
 	XMLErr *xmlparse.SyntaxError
 }
 
 func (s *Sitemap) diag(c Code, off int) { s.Diags = append(s.Diags, Diag{Code: c, Offset: off}) }
 
-// decompress returns the readable input, at most max+1 bytes of it.
+// decompress gunzips data when it starts with the gzip magic, reading at
+// most max+1 bytes (one past the limit proves the input is too large);
+// other data is returned as is. false means s already holds the failure.
 func decompress(data []byte, max int, s *Sitemap) ([]byte, bool) {
 	if len(data) < 2 || data[0] != 0x1f || data[1] != 0x8b {
 		return data, true
@@ -192,7 +204,9 @@ func decompress(data []byte, max int, s *Sitemap) ([]byte, bool) {
 	return out, true
 }
 
-// state is the sitemap reader state over XML events.
+// state is the sitemap reader state over XML events (sitemaps.org 0.9
+// schema: urlset > url > loc | lastmod | changefreq | priority, and
+// sitemapindex > sitemap > loc | lastmod).
 type state uint8
 
 const (
@@ -204,6 +218,8 @@ const (
 )
 
 // Parse reads an XML sitemap or sitemap index, gzip-compressed or not.
+// Unknown and extension elements are skipped; it never fails as a whole
+// (the result's Grade and Diags say what was read).
 func Parse(data []byte, opts Options) *Sitemap {
 	s := &Sitemap{}
 	maxBytes, maxEntries := opts.maxBytes(), opts.maxEntries()
@@ -351,6 +367,8 @@ func (s *Sitemap) missingNS() bool {
 	return false
 }
 
+// fieldIndex numbers the entry fields for the duplicate check (1 loc, 2
+// lastmod, 3 changefreq, 4 priority; index entries take 1 and 2 only).
 func fieldIndex(local string) int {
 	switch local {
 	case "lastmod":
@@ -367,6 +385,7 @@ func fieldIndex(local string) int {
 
 func trimSpace(s string) string { return strings.Trim(s, " \t\r\n") }
 
+// applyField validates one field value v (at offset off) into e.
 func applyField(s *Sitemap, e *Entry, field, v string, off int) {
 	switch field {
 	case "loc":
@@ -438,8 +457,8 @@ func parsePriority(v string) (float64, bool) {
 
 // ParseW3CDatetime parses a W3C Datetime value
 // (https://www.w3.org/TR/NOTE-datetime: YYYY, YYYY-MM, YYYY-MM-DD, or a
-// date with hh:mm, hh:mm:ss or hh:mm:ss.s and a TZD of Z or +hh:mm) into
-// UTC.
+// date with hh:mm, hh:mm:ss or hh:mm:ss.s and a TZD of Z, +hh:mm or
+// -hh:mm) into UTC.
 func ParseW3CDatetime(v string) (time.Time, bool) {
 	var layouts []string
 	switch {
@@ -450,7 +469,8 @@ func ParseW3CDatetime(v string) (time.Time, bool) {
 	case len(v) == 10:
 		layouts = []string{"2006-01-02"}
 	case len(v) > 10 && v[10] == 'T':
-		// time.Parse accepts a fractional second after the seconds field.
+		// PORT: time.Parse accepts a fractional second after the seconds
+		// field (W3C hh:mm:ss.s); the Rust port must too.
 		layouts = []string{"2006-01-02T15:04Z07:00", "2006-01-02T15:04:05Z07:00"}
 	}
 	for _, l := range layouts {

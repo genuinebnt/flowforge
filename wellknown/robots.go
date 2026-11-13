@@ -22,9 +22,9 @@ type RobotsOptions struct {
 // normalizeOctets); "*" matches any sequence and a final "$" anchors the
 // end (RFC 9309 §2.2.3).
 type Rule struct {
-	Allow   bool
+	Allow   bool // allow (true) or disallow
 	Pattern string
-	Line    int
+	Line    int // 1-based line of the rule
 }
 
 // Group is one group (RFC 9309 §2.1): the product tokens of its
@@ -35,12 +35,16 @@ type Group struct {
 	// CrawlDelayMillis is the non-standard crawl-delay extension in
 	// milliseconds, or -1 when absent.
 	CrawlDelayMillis int64
-	Line             int
+	// Line is the 1-based line of the group's first user-agent line.
+	Line int
 }
 
-// RobotsCode is a stable diagnostic code.
+// RobotsCode is a stable diagnostic code (conformance/wellknown/robots.json
+// holds the names). Diagnostics never fail the parse: RFC 9309 §2.2 has
+// crawlers skip what they cannot parse.
 type RobotsCode uint8
 
+// Robots diagnostic codes; each comment says what happened to the line.
 const (
 	RobotsNone              RobotsCode = iota
 	RobotsInvalidLine                  // no ":" separator: ignored
@@ -75,12 +79,16 @@ type RobotsDiag struct {
 
 // Robots is a parsed robots.txt.
 type Robots struct {
+	// Groups are in file order; Match combines the groups that apply.
 	Groups []Group
 	// Sitemaps lists sitemap URLs in file order (§2.2.4: other records
 	// are not part of any group).
 	Sitemaps []string
-	Diags    []RobotsDiag
-	Grade    Grade
+	// Diags are in line order; a byte-limit diagnostic comes first with
+	// Line 0.
+	Diags []RobotsDiag
+	// Grade is GradePartial when MaxBytes or MaxItems cut the read.
+	Grade Grade
 }
 
 // robotsState is the line-oriented parser state (RFC 9309 §2.2 grammar:
@@ -217,12 +225,15 @@ func productToken(v []byte) string {
 	return lowerASCII(v[:i])
 }
 
+// isTokenChar is the product-token alphabet of RFC 9309 §2.2.1.
 func isTokenChar(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-'
 }
 
-// parseDelay reads a non-negative decimal number of seconds into
-// milliseconds (fractions below a millisecond are truncated).
+// parseDelay reads a non-negative decimal number of seconds ("10", "0.5",
+// ".5", "2.") into milliseconds; fractions below a millisecond are
+// truncated and values above 2^40 seconds are refused, so the result
+// cannot overflow.
 func parseDelay(v string) (int64, bool) {
 	if v == "" {
 		return 0, false
@@ -255,6 +266,7 @@ func parseDelay(v string) (int64, bool) {
 	return ms, true
 }
 
+// isUnreserved is the RFC 3986 §2.3 unreserved set.
 func isUnreserved(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
 		c == '-' || c == '.' || c == '_' || c == '~'
@@ -272,6 +284,7 @@ func unhex(c byte) int {
 	return -1
 }
 
+// upperHex gives the upper-case digits RFC 3986 §2.1 recommends.
 const upperHex = "0123456789ABCDEF"
 
 // normalizeOctets puts a path or pattern in the form RFC 9309 §2.2.2
@@ -400,7 +413,7 @@ func (r *Robots) Match(userAgent, path string) (rule *Rule, allowed bool) {
 	return best, best.Allow
 }
 
-// Allowed reports whether userAgent may fetch path.
+// Allowed reports whether userAgent may fetch path; see Match.
 func (r *Robots) Allowed(userAgent, path string) bool {
 	_, ok := r.Match(userAgent, path)
 	return ok

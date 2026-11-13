@@ -24,8 +24,13 @@ func (f *cfile) n() int            { return len(f.recs) }
 func (f *cfile) ch(i int) bool     { return f.rchg[i+1] }
 func (f *cfile) set(i int, v bool) { f.rchg[i+1] = v }
 
+// cgroup is git's struct xdlgroup: the half-open range of a run of changed
+// lines (possibly empty, between two unchanged lines).
 type cgroup struct{ start, end int }
 
+// groupInit, groupNext, groupPrevious, slideDown and slideUp are git's
+// group_init, group_next, group_previous, group_slide_down and
+// group_slide_up.
 func (f *cfile) groupInit() cgroup {
 	g := cgroup{}
 	for f.ch(g.end) {

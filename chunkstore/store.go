@@ -62,6 +62,8 @@ type loc struct {
 	e    IndexEntry
 }
 
+// packState is one sealed, live pack: its id, decoded index and the
+// encoded index size (for Metrics.ObjectBytes).
 type packState struct {
 	id      PackID
 	idx     *Index
@@ -151,6 +153,8 @@ func Open(ctx context.Context, b Backend, ns string, cfg Config) (*Store, error)
 	return s, nil
 }
 
+// backendErr keeps a chunkstore error as it is and wraps anything else
+// (a backend's own error) as CodeBackend for name.
 func backendErr(name string, err error) error {
 	if CodeOf(err) != "" {
 		return err
@@ -158,6 +162,8 @@ func backendErr(name string, err error) error {
 	return wrapErr(CodeBackend, name, err)
 }
 
+// withObject returns a copy of a chunkstore error naming the object it
+// concerns.
 func withObject(err error, name string) error {
 	var e *Error
 	if errors.As(err, &e) {
@@ -168,6 +174,7 @@ func withObject(err error, name string) error {
 	return err
 }
 
+// load reads the ref and every live pack's index (Open).
 func (s *Store) load(ctx context.Context) error {
 	data, err := s.b.Get(ctx, s.ns.ref())
 	if errors.Is(err, ErrObjectNotFound) {
@@ -223,6 +230,7 @@ func (s *Store) rebuildLocs() {
 	}
 }
 
+// now is created_unix_ns for a new pack: 0 without a Clock.
 func (s *Store) now() int64 {
 	if s.cfg.Clock == nil {
 		return 0
@@ -394,6 +402,9 @@ func (s *Store) writeRef(ctx context.Context, packs []PackID) (Ref, int, error) 
 	return r, len(data), nil
 }
 
+// sealLocked writes the open pack, its index and a ref naming it (in that
+// order, FORMAT.md §7) and moves its entries to the sealed packs. The
+// caller holds the write lock.
 func (s *Store) sealLocked(ctx context.Context) error {
 	if s.open == nil || s.open.Count() == 0 {
 		return nil
@@ -457,6 +468,7 @@ func (s *Store) readChunk(ctx context.Context, id ChunkID, missing Code) ([]byte
 	return s.codec.openRecord(e, rec)
 }
 
+// readChunkLocked is readChunk for a caller that already holds s.mu.
 func (s *Store) readChunkLocked(ctx context.Context, id ChunkID, missing Code) ([]byte, error) {
 	e, rec, err := s.fetchLocked(ctx, id, missing)
 	if err != nil {
@@ -465,6 +477,7 @@ func (s *Store) readChunkLocked(ctx context.Context, id ChunkID, missing Code) (
 	return s.codec.openRecord(e, rec)
 }
 
+// decodeManifestChunk decodes a manifest record, naming id in errors.
 func decodeManifestChunk(id ManifestID, data []byte) (*Manifest, error) {
 	m, err := DecodeManifest(data)
 	if err != nil {
@@ -476,7 +489,7 @@ func decodeManifestChunk(id ManifestID, data []byte) (*Manifest, error) {
 // Get returns a reader of the blob. The manifest is read and verified
 // first, and every chunk must be present with lengths summing to the
 // manifest's total. Each chunk is then fetched on demand and verified
-// (record lengths against the index, CRC32C of the frame, decompression to
+// (record lengths against the index, the record CRC32C, decompression to
 // raw_len, SHA-256 against the id) before any of its bytes are returned:
 // a reader never yields bytes that differ from what was Put, it fails
 // instead. A blob not named live in a concurrent GC may vanish mid-read
@@ -507,6 +520,8 @@ func (s *Store) Get(ctx context.Context, id ManifestID) (io.ReadCloser, error) {
 	return &blobReader{ctx: ctx, s: s, m: m}, nil
 }
 
+// blobReader streams a blob chunk by chunk; it is not safe for concurrent
+// use. An error is sticky, and after Close every Read returns ErrClosed.
 type blobReader struct {
 	ctx  context.Context
 	s    *Store

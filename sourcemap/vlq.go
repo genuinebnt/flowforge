@@ -18,6 +18,7 @@ var base64Value = func() (t [256]int8) {
 	return
 }()
 
+// base64Digits is the inverse of base64Value, for AppendVLQ.
 const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 // Mapping is one decoded segment. GenLine and GenCol are 0-based
@@ -197,7 +198,9 @@ func AppendVLQ(b []byte, v int32) []byte {
 }
 
 // DecodeVLQ decodes one VLQ value from the start of s and returns it with
-// the number of bytes used.
+// the number of bytes used. Errors carry the offset in s: invalid_vlq_char,
+// vlq_overflow (more than 7 digits or outside int32) or vlq_truncated (at
+// len(s)). Non-minimal encodings are accepted.
 func DecodeVLQ(s string) (int32, int, *Error) {
 	var acc int64
 	var shift uint

@@ -4,7 +4,9 @@
 // supplied time. Both are line-oriented state machines that never fail as
 // a whole: malformed lines become diagnostics with stable codes, and
 // limits (robots.txt's 500 KiB of RFC 9309 §2.5, 8 MiB for security.txt,
-// 20,000 items each) make the result GradePartial.
+// 20,000 items each) make the result GradePartial. The contract is spec
+// 29.7. Parsing and matching are pure; a parsed value is read-only and
+// safe to share between goroutines.
 //
 // Sitemaps are read by xmlparse/sitemap: layer-1 packages may not import
 // each other, so the XML-based format lives with the XML parser.

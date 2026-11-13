@@ -141,6 +141,7 @@ func setRetry(h http.Header, d time.Duration) {
 // as redislimiter.Limiter (GCRA in Redis, shared by every proxy replica).
 type SharedLimiter interface {
 	limiter.ContextLimiter
+	// Configure sets the parameters of the keys matching pattern.
 	Configure(pattern string, p limiter.Params) error
 }
 
@@ -149,7 +150,7 @@ type SharedLimiter interface {
 // which the proxy treats as a refusal (fail closed).
 type ContextLimiter struct {
 	L       SharedLimiter
-	Timeout time.Duration
+	Timeout time.Duration // per call; 0 means 200 ms
 }
 
 func (c ContextLimiter) ctx() (context.Context, context.CancelFunc) {

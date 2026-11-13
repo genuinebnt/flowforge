@@ -249,9 +249,11 @@ const (
 // field. Unused NodeID slots are NoNode.
 type Node struct {
 	Kind  Kind
-	Op    Op
-	Flags NodeFlags
-	Span  Span
+	Op    Op        // operator or sub-kind (see Op)
+	Flags NodeFlags // N* flags
+	Span  Span      // source bytes, parentheses excluded
+	// A, B, C, D, List and List2 are the child slots; schemas names the
+	// ESTree field each one is for a given Kind.
 	A     NodeID
 	B     NodeID
 	C     NodeID
@@ -286,6 +288,7 @@ const (
 	SourceModule
 )
 
+// String returns "script" or "module" (the ESTree sourceType).
 func (s SourceType) String() string {
 	if s == SourceModule {
 		return "module"
@@ -297,10 +300,10 @@ func (s SourceType) String() string {
 // slice that NodeList ranges index.
 type Program struct {
 	Nodes    []Node
-	Children []NodeID
+	Children []NodeID // NodeList ranges index this slice
 	// Strings holds the node strings (Node.Str, Node.Str2); Strings[0] is "".
 	Strings    []string
-	Root       NodeID
+	Root       NodeID // the Program node (NoNode only if parsing produced nothing)
 	SourceType SourceType
 	// Source is the parsed text (a copy of the input bytes).
 	Source string

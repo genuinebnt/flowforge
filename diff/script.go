@@ -283,8 +283,8 @@ func Compose(s1, s2 EditScript) (EditScript, error) {
 // delTokens/insTokens; otherwise finish copies them from the sequences.
 type builder struct {
 	ops      []Op
-	o, n     int
-	pd, pi   int
+	o, n     int // old and new positions emitted so far
+	pd, pi   int // pending deleted and inserted counts of the open region
 	carry    bool
 	delBuf   []uint32
 	insBuf   []uint32
@@ -292,6 +292,7 @@ type builder struct {
 	inserted []uint32
 }
 
+// equal emits k equal tokens, merging with a preceding Equal op.
 func (b *builder) equal(k int) {
 	if k <= 0 {
 		return
@@ -320,6 +321,7 @@ func (b *builder) insTokens(t []uint32) {
 	b.insBuf = append(b.insBuf, t...)
 }
 
+// flush closes the open change region: one Delete, then one Insert.
 func (b *builder) flush() {
 	if b.pd > 0 {
 		b.ops = append(b.ops, Op{Kind: OpDelete, OldStart: b.o, OldEnd: b.o + b.pd, NewStart: b.n, NewEnd: b.n})

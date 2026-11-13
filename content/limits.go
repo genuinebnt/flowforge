@@ -1,6 +1,6 @@
 package content
 
-// Amplification bounds of V2 §12.10. They are identical in the Go and
+// Amplification bounds of spec 26.4 (V2 §12.10). They are identical in the Go and
 // Rust implementations; a document that hits one is read partially
 // (grade partial), never fatally.
 const (
@@ -21,7 +21,8 @@ const (
 	MaxHTMLDepth = 512
 )
 
-// Limits carries the bounds; the zero value means the defaults above.
+// Limits carries the bounds; each zero field means the default constant
+// of the same name above.
 type Limits struct {
 	MaxResponseBytes  int
 	MaxParseDepth     int
@@ -29,6 +30,7 @@ type Limits struct {
 	MaxInnerDocuments int
 }
 
+// withDefaults fills the zero fields.
 func (l Limits) withDefaults() Limits {
 	if l.MaxResponseBytes <= 0 {
 		l.MaxResponseBytes = MaxResponseBytes
@@ -59,6 +61,8 @@ const (
 	GradeFailed      Grade = "failed"
 )
 
+// rank orders grades from best (complete) to worst (failed); an unknown
+// grade ranks as failed.
 func (g Grade) rank() int {
 	switch g {
 	case GradeComplete:

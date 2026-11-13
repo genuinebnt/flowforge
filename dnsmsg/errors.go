@@ -21,8 +21,10 @@ const (
 	// CodePointerOutOfBounds: a compression pointer points past the end of
 	// the message.
 	CodePointerOutOfBounds Code = "pointer_out_of_bounds"
-	// CodePointerLoop: a compression pointer does not point strictly
-	// backwards, or a name follows more than MaxPointerHops pointers.
+	// CodePointerLoop: a compression pointer does not point strictly before
+	// the last pointer followed, the name runs into that pointer (or past
+	// the message end) after a jump, or it follows more than
+	// MaxPointerHops pointers.
 	CodePointerLoop Code = "pointer_loop"
 	// CodeBadRData: record data of a known type is malformed.
 	CodeBadRData Code = "bad_rdata"
@@ -57,6 +59,7 @@ type Error struct {
 	Offset int
 }
 
+// Error returns "dnsmsg: <code>" and the offset when there is one.
 func (e *Error) Error() string {
 	if e.Offset < 0 {
 		return "dnsmsg: " + string(e.Code)
@@ -81,7 +84,10 @@ func CodeOf(err error) Code {
 	return ""
 }
 
-// Diagnostic is a problem lenient decoding recovered from.
+// Diagnostic is a problem lenient decoding recovered from: the code strict
+// mode would have failed with and the offset of the record (bad_opt), its
+// data (bad_rdata, rdlength_mismatch and name codes) or the first trailing
+// octet.
 type Diagnostic struct {
 	Code   Code
 	Offset int

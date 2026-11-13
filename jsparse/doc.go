@@ -1,6 +1,6 @@
 // Package jsparse is an ECMAScript 2024 lexer and parser (ECMA-262 15th
 // edition, clauses 12-16 and Annex B) that produces an arena AST with
-// ESTree node kinds.
+// ESTree node kinds. The contract is spec 29.3 (codes 40.1).
 //
 // Lexer (clause 12): an explicit state machine over UTF-8 (lexer.go,
 // lexer_states.go) with the four lexical goals InputElementDiv,

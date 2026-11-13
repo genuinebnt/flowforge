@@ -104,6 +104,8 @@ func CountTokens(ids []uint32) []WeightedToken {
 	return out
 }
 
+// vote adds w to every counter whose bit is set in h and subtracts it from
+// the others (Charikar 2002).
 func vote(acc *[64]int64, h uint64, w int64) {
 	for i := range acc {
 		if h&(1<<i) != 0 {
@@ -114,6 +116,8 @@ func vote(acc *[64]int64, h uint64, w int64) {
 	}
 }
 
+// fold sets bit i iff counter i is strictly positive, so a tie (0) gives a
+// zero bit.
 func fold(acc *[64]int64) uint64 {
 	var out uint64
 	for i, v := range acc {
@@ -139,6 +143,9 @@ type Match[ID comparable] struct {
 // at least one block, so a lookup probes four hash tables and verifies the
 // candidates with a popcount. Ids are ordered by the comparator given to
 // NewSimHashIndex. It is not safe for concurrent use.
+//
+// PORT: the tables are Go maps, but their iteration order never reaches an
+// output: Near sorts its result.
 type SimHashIndex[ID comparable] struct {
 	cmp    func(a, b ID) int
 	tables [simBlocks]map[uint16][]ID
@@ -155,6 +162,7 @@ func NewSimHashIndex[ID comparable](cmp func(a, b ID) int) *SimHashIndex[ID] {
 	return x
 }
 
+// simBlock returns block i of h, block 0 being the low 16 bits.
 func simBlock(h uint64, i int) uint16 { return uint16(h >> (16 * i)) }
 
 // Add records id's hash, replacing an earlier one.

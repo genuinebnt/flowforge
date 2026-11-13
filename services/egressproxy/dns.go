@@ -25,6 +25,8 @@ type DNSAnswer struct {
 // Upstream resolves forwarded queries. It is the forwarder's only route to
 // the DNS; tests inject RecordsUpstream.
 type Upstream interface {
+	// Lookup resolves (name, t) recursively; an error means no answer
+	// (the forwarder replies SERVFAIL).
 	Lookup(ctx context.Context, name string, t dnsmsg.Type) (DNSAnswer, error)
 }
 

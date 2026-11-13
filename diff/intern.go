@@ -124,12 +124,15 @@ func SplitWords(s string) []string {
 	return out
 }
 
+// SplitWords token classes.
 const (
 	classWord = iota
 	classSpace
 	classOther
 )
 
+// wordClass classifies one decoded rune; an invalid byte is classOther, so
+// it is a token of its own.
 func wordClass(r rune, size int) int {
 	switch {
 	case r == utf8.RuneError && size == 1:

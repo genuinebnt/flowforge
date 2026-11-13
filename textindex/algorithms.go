@@ -10,6 +10,7 @@ import "math"
 // Scorer weights one term (or phrase) occurrence in one field. A phrase
 // uses the sum of its terms' IDF values (Lucene's PhraseQuery weight).
 type Scorer interface {
+	// Name is the stable configuration name ("bm25", "tfidf").
 	Name() string
 	// IDF of a term with document frequency df among n live documents.
 	IDF(n, df int) float64
@@ -54,6 +55,7 @@ func (TFIDFScorer) Score(idf float64, tf, dl int, _ float64) float64 {
 // closed: pick one of SkipIntersector, GallopIntersector,
 // LinearIntersector.
 type Intersector interface {
+	// Name is the stable configuration name ("skip", "gallop", "linear").
 	Name() string
 	intersect(its []docIter) docIter
 }
@@ -136,6 +138,7 @@ func (s *linearIter) advance(t uint32) uint32 {
 // depends on the regex, not on the strategy, so both strategies accept and
 // reject the same queries.
 type RegexStrategy interface {
+	// Name is the stable configuration name ("trigram", "fullscan").
 	Name() string
 	useTrigrams() bool
 }
@@ -166,6 +169,7 @@ type execParams struct {
 	regex                    RegexStrategy
 }
 
+// defaultsFor fills the nil algorithm choices of cfg with the defaults.
 func defaultsFor(cfg Config) (Scorer, Intersector, RegexStrategy) {
 	s, i, r := cfg.Scorer, cfg.Intersector, cfg.Regex
 	if s == nil {

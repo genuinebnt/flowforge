@@ -1,5 +1,5 @@
 // Package lab is the in-process target environment of the V2 end-to-end
-// acceptance test (V2_DESIGN §10), built to also back later evaluation
+// acceptance test (spec 38; V2_DESIGN §10), built to also back later evaluation
 // harnesses: TLS and plain HTTP servers for in-scope hosts on 127.0.0.1,
 // an HTTP server for out-of-scope hosts on 127.0.0.2, and a fake
 // authoritative DNS server for the lab zones. It serves a versioned site
@@ -53,7 +53,7 @@ type Hit struct {
 	SNI      string // TLS server name (https only)
 	Method   string
 	Path     string // path and query
-	Deploy   string
+	Deploy   string // the deploy live when the request arrived ("" before the first)
 }
 
 // Query is one DNS question the lab's server received.
@@ -64,8 +64,10 @@ type Query struct {
 
 // Lab is a running lab.
 type Lab struct {
-	m     *Manifest
-	fsys  fs.FS
+	m    *Manifest
+	fsys fs.FS
+	// Clock is the lab's time: Deploy sets it, and volatile time values
+	// and the Date header come from it (certificates have fixed dates).
 	Clock *Clock
 
 	ca      *x509.Certificate

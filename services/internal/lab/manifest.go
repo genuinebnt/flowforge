@@ -15,7 +15,7 @@ import (
 // the file system the lab is started with (the conformance directory),
 // so sites reuse other suites' data (conformance/content/sites/spa).
 type Manifest struct {
-	Description string `json:"description"`
+	Description string `json:"description"` // free text
 	// Seed seeds the per-response volatile values (core.SplitMix64).
 	Seed uint64 `json:"seed"`
 	// Start is the lab clock at the first deploy; each later deploy is
@@ -38,12 +38,13 @@ type Host struct {
 // Deploy is one version of the site: the files of the previous deploy,
 // with Files added or replaced and Remove taken away.
 type Deploy struct {
-	Name   string `json:"name"`
+	Name   string `json:"name"` // recorded on every Hit served while it is live
 	Files  []File `json:"files"`
 	Remove []Ref  `json:"remove,omitempty"`
 }
 
-// Ref names a served path.
+// Ref names a served path: a listener (ListenerHTTPS by default), a Host
+// header value and a path.
 type Ref struct {
 	Listener string `json:"listener,omitempty"`
 	Host     string `json:"host"`
@@ -103,14 +104,16 @@ type Planted struct {
 	Regex string `json:"regex"`
 }
 
-// Lineage is a renamed bundle linked to its predecessor.
+// Lineage is a renamed bundle (URL, first served in Deploy) linked to its
+// predecessor's URL (Parent).
 type Lineage struct {
 	Deploy string `json:"deploy"`
 	URL    string `json:"url"`
 	Parent string `json:"parent"`
 }
 
-// AlertRule is a notifier rule and its expected number of alerts.
+// AlertRule is a notifier rule (Name, rule Source text) and Count, the
+// number of alerts it must fire over the whole run.
 type AlertRule struct {
 	Name   string `json:"name"`
 	Source string `json:"source"`

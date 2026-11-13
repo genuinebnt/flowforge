@@ -24,7 +24,9 @@ it maps to a Rust enum.
 * **Strict vs lenient:** strict rejects trailing octets, malformed known
   data (`bad_rdata`, `rdlength_mismatch`), OPT outside the additional
   section / non-root / duplicated (`bad_opt`) and TXT without strings;
-  lenient keeps them (raw data or as-is) and returns `Diagnostic`s.
+  lenient keeps them (raw data or as-is) and returns `Diagnostic`s, except
+  that a TXT without strings is kept as an empty `KindTXT` with no
+  diagnostic (`txt_empty_lenient`).
 
 Error codes (closed list): `short_message`, `label_too_long`,
 `name_too_long`, `bad_label_type`, `pointer_out_of_bounds`,

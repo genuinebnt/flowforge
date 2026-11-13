@@ -116,6 +116,7 @@ func (d *Document) TokenOf(id NodeID) *Token {
 	return &d.Tokens[n.Token]
 }
 
+// parser consumes tokens d.Tokens[pos:end] into d.Nodes.
 type parser struct {
 	d        *Document
 	pos, end int32
@@ -123,9 +124,12 @@ type parser struct {
 	// when re-parsing a nested block's contents).
 	base     int
 	maxDepth int
-	scratch  []NodeID
-	stack    []NodeID
-	elide    []TokenKind
+	// scratch collects component values of the rule or declaration being
+	// built (callers truncate it back to their mark); stack and elide are
+	// reused buffers of consumeComponentValue and elideBlock.
+	scratch []NodeID
+	stack   []NodeID
+	elide   []TokenKind
 }
 
 func newDocument(src []byte, opts Options) (*Document, *parser) {

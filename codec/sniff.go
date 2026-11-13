@@ -23,9 +23,9 @@ const (
 
 // SniffOptions tunes Sniff. Zero fields take the defaults.
 type SniffOptions struct {
-	MinBase64     int
-	MinHex        int
-	MaxCandidates int
+	MinBase64     int // shortest base64 run, in data characters (DefaultMinBase64)
+	MinHex        int // shortest hex run, in digits (DefaultMinHex)
+	MaxCandidates int // candidates kept per call, before the decode check (DefaultMaxCandidates)
 }
 
 func (o SniffOptions) withDefaults() SniffOptions {
@@ -41,7 +41,8 @@ func (o SniffOptions) withDefaults() SniffOptions {
 	return o
 }
 
-// Candidate is one likely-encoded span b[Start:End] of a sniffed buffer.
+// Candidate is one likely-encoded span b[Start:End] of a sniffed buffer;
+// for base64 it includes the padding and any line breaks inside.
 type Candidate struct {
 	Kind       Kind
 	Start, End int
@@ -105,6 +106,7 @@ type runClass struct {
 	distinct      int
 }
 
+// add records one alphabet character (isB64Char) of the run.
 func (r *runClass) add(c byte) {
 	r.data++
 	switch {
@@ -145,6 +147,8 @@ const (
 	sniffPad
 )
 
+// sniffRaw is Sniff without the decode check: the candidates by the
+// heuristics alone, which DecodeLayers decodes itself.
 func sniffRaw(b []byte, o SniffOptions) []Candidate {
 	if k, ok := DetectCompression(b); ok {
 		return []Candidate{{Kind: k, Start: 0, End: len(b)}}

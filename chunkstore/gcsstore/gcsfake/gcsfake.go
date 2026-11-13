@@ -60,6 +60,7 @@ type Fault struct {
 	AfterCommit bool
 }
 
+// object is one stored object generation.
 type object struct {
 	data        []byte
 	gen         int64
@@ -73,6 +74,7 @@ type Server struct {
 	// Fault, if set, is consulted before every request.
 	Fault func(Op) Fault
 
+	// URL is the httptest server's base URL (set by New).
 	URL string
 
 	mu      sync.Mutex
@@ -156,6 +158,8 @@ func (s *Server) Requests() []string {
 	return slices.Clone(s.log)
 }
 
+// writeErr writes a JSON API error body (googleapi parses code and
+// reason from it).
 func writeErr(w http.ResponseWriter, code int, reason string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -163,12 +167,15 @@ func writeErr(w http.ResponseWriter, code int, reason string) {
 		"errors": []map[string]string{{"reason": reason, "message": reason}}}})
 }
 
+// crcString is the JSON API's crc32c field: base64 of the big-endian
+// CRC32C.
 func crcString(data []byte) string {
 	var b [4]byte
 	binary.BigEndian.PutUint32(b[:], crc32.Checksum(data, castagnoli))
 	return base64.StdEncoding.EncodeToString(b[:])
 }
 
+// resource is the object's JSON API metadata resource.
 func (o *object) resource(bucket, name string) map[string]any {
 	return map[string]any{"kind": "storage#object", "bucket": bucket, "name": name, "id": bucket + "/" + name + "/" + strconv.FormatInt(o.gen, 10),
 		"generation": strconv.FormatInt(o.gen, 10), "metageneration": "1", "size": strconv.Itoa(len(o.data)),
@@ -259,6 +266,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// record appends "<op> <object>[ -> status]" to the request log.
 func (s *Server) record(op Op, status int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -338,6 +346,8 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request, op Op) {
 	_ = json.NewEncoder(w).Encode(o.resource(op.Bucket, m.Name))
 }
 
+// list serves one page; the page token is the last name of the previous
+// page.
 func (s *Server) list(w http.ResponseWriter, r *http.Request, op Op) {
 	q := r.URL.Query()
 	prefix, token := q.Get("prefix"), q.Get("pageToken")
@@ -374,6 +384,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, op Op) {
 	_ = json.NewEncoder(w).Encode(out)
 }
 
+// lookup logs op and returns a copy of its object.
 func (s *Server) lookup(op Op) (*object, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

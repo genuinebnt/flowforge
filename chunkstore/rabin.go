@@ -62,10 +62,13 @@ type rabin struct {
 	mask          uint64
 }
 
+// newRabin builds the chunker for a canonical configuration: MinSize >=
+// MinChunkFloor (64) > RabinWindow, so hashing starts inside data.
 func newRabin(c ChunkerConfig) *rabin {
 	return &rabin{min: c.MinSize, avg: c.AvgSize, max: c.MaxSize, mask: uint64(c.AvgSize - 1)}
 }
 
+// Config implements Cutter.
 func (r *rabin) Config() ChunkerConfig {
 	return ChunkerConfig{Algo: ChunkRabin, MinSize: r.min, AvgSize: r.avg, MaxSize: r.max}
 }

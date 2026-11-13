@@ -16,6 +16,11 @@
    required). UTF-16 without a BOM is detected by a NUL at offset 0 or 1
    and reported as `unsupported_encoding` there. US-ASCII and
    ISO-8859-1 declarations are refused even when the bytes are ASCII.
+   UTF-16 input that ends inside a character (an odd final byte or a high
+   surrogate without its pair) is an EOF condition, as a UTF-8 sequence
+   cut by the end is: `unexpected_eof` (or `no_root_element` in the
+   prolog) at the end of the transcoded buffer, never a complete document
+   (`TestRegress_XMLUTF16PartialCharAtEOF`).
 4. **XML 1.1.** `version="1.x"` is accepted (XML 1.0 §2.8 lets 1.0
    processors do so) but parsed with 1.0 rules.
 5. **Text events.** A text event is emitted at EOF before the EOF error

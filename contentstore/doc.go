@@ -1,5 +1,5 @@
 // Package contentstore stores captured content as versioned snapshots and
-// serves their diffs and change search (docs/V2_DESIGN.md §6.2 snapshot
+// serves their diffs and change search (spec 34; docs/V2_DESIGN.md §6.2 snapshot
 // records, §6.3 compression points, §6.4 secrets, §7 search, §11 items 13,
 // 14 and 18, and the §12 amendments that win over them: no cross-tenant
 // dedupe, pinning, validity intervals and unchanged re-fetches (§12.12),
@@ -37,6 +37,6 @@
 // adding a version, diff, event or alert.
 //
 // PORT: no map iteration order reaches an output (keys are sorted before
-// they are); record encodings are canonical JSON (core.CanonicalJSON);
+// use); record encodings are canonical JSON (core.CanonicalJSON);
 // derived ids are SHA-256 over length-prefixed parts (derivedUUID).
 package contentstore

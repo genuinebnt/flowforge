@@ -49,7 +49,13 @@ var hexVal = func() (t [256]byte) {
 	return t
 }()
 
-const hexUpper = "0123456789ABCDEF"
-const hexLower = "0123456789abcdef"
+// Hex digit alphabets: upper case is the RFC 4648 §8 and RFC 3986 §2.1
+// form; lower case is how digests are usually written.
+const (
+	hexUpper = "0123456789ABCDEF"
+	hexLower = "0123456789abcdef"
+)
 
+// isUpperHexDigit is the strict-mode check for percent and quoted-printable
+// escapes, which must use upper-case hex.
 func isUpperHexDigit(c byte) bool { return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' }

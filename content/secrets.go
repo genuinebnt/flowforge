@@ -111,8 +111,8 @@ func alnumDashUnderscore(c byte) bool { return alnum(c) || c == '-' || c == '_' 
 func base64Char(c byte) bool          { return alnum(c) || c == '+' || c == '/' || c == '=' }
 func base64URLChar(c byte) bool       { return alnum(c) || c == '-' || c == '_' }
 
-// boundary reports that the byte before i (if any) cannot continue a
-// token, so "XAKIA..." is not an AWS key.
+// boundaryBefore reports that the byte before i (if any) cannot continue
+// a token, so "XAKIA..." is not an AWS key.
 func boundaryBefore(s string, i int) bool { return i == 0 || !alnumUnderscore(s[i-1]) }
 
 // prefixScan matches prefix + between lo and hi body characters, with a

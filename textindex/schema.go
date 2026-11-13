@@ -25,7 +25,7 @@ type Schema struct {
 	Stored []string
 }
 
-// Field types.
+// Field types, as Schema.lookup returns them.
 const (
 	fieldNone = iota
 	fieldText
@@ -48,6 +48,7 @@ func DefaultSchema() Schema {
 	}
 }
 
+// validFieldName is the naming rule of Schema.
 func validFieldName(s string) bool {
 	if len(s) == 0 || len(s) > 64 {
 		return false

@@ -1,7 +1,7 @@
 // Package dnsmsg is the DNS wire format (RFC 1035 §4, RFC 3596, RFC 2782,
 // RFC 6891, RFC 8659): an explicit decoder and a canonical encoder for DNS
 // messages, used by the egress proxy's DNS forwarder and by the tools that
-// speak DNS through it (V2_DESIGN §9).
+// speak DNS through it (spec 29.9, 35.3; V2_DESIGN §9).
 //
 // Decoding is total: any byte string yields a Message or an *Error with a
 // stable Code, never a panic or an unbounded loop. Names are decoded by an
@@ -24,8 +24,14 @@
 //
 // Strict mode rejects trailing octets, malformed data of a known type, OPT
 // records outside the rules of RFC 6891 §6.1.1 and TXT records without a
-// string. Lenient mode keeps such records as raw data and reports the
-// problem as a Diagnostic. The package performs no I/O except the TCP
-// framing helpers, which read from and write to the io interfaces they are
-// given (RFC 1035 §4.2.2).
+// string. Lenient mode ignores trailing octets, keeps malformed data as
+// KindRaw and misplaced OPT records as they are, each with a Diagnostic,
+// and keeps a TXT record without strings as KindTXT with no strings and no
+// diagnostic (conformance case txt_empty_lenient). The package performs no
+// I/O except the TCP framing helpers, which read from and write to the io
+// interfaces they are given (RFC 1035 §4.2.2). Every function is pure and
+// safe for concurrent use.
+//
+// Wire integers are big-endian (network order), unlike the little-endian
+// Flowforge file formats.
 package dnsmsg

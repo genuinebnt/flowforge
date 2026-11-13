@@ -18,7 +18,7 @@ valid ES2024, or an upstream explicit file that is not equivalent.
 | fail | e3fbcf63d7e43ead | `for (var x = 1 in o)` is allowed in sloppy code by B.3.5 |
 | early | 12a74c60f52a60de, 1aff49273f3e3a98, be7329119eaa3d47, ec31fa5e521c5df4 | duplicate sloppy-mode function declarations in a block are allowed (B.3.2.4) |
 | early | 0f5f47108da5c34e | `for (var e of ...)` may redeclare a simple catch parameter since ES2020 (B.3.4; test262 `annexB/language/statements/try/catch-redeclared-for-of-var.js`) |
-| explicit | 36 files (listed in the JSON) | the upstream pass-explicit file renames identifiers or numbers, turns `'0x20'` into `0`, prints `a((x, y))` as two arguments, drops the parentheses of `(' ')` (turning it into a directive), or prints `09.5` as `9` |
+| explicit | 36 files (listed in the JSON) | the upstream pass-explicit file renames identifiers or numbers, turns `'0x20'` into `0`, prints `a((x, y))` as two arguments, drops the parentheses of `('<U+2028>')` (turning it into a directive), or prints `09.5` as `9` |
 
 The pass/pass-explicit comparison applies the suite's own equivalence
 (the explicit files were generated from the Shift AST): non-computed

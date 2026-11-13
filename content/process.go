@@ -129,9 +129,13 @@ func (p *Processed) Findings() []SecretFinding {
 
 // ProcessOptions configures Process.
 type ProcessOptions struct {
+	// Learned is the frozen learned volatility set (NormalizeOptions).
 	Learned VolatilitySet
-	Hasher  KeyedHasher
-	Limits  Limits
+	// Hasher keys the ids of secret features (ExtractInput.Hasher; nil:
+	// rule, preview and length).
+	Hasher KeyedHasher
+	// Limits are the amplification bounds (zero: the defaults).
+	Limits Limits
 	// Previous and HostBodies feed the integrity checks.
 	Previous   *PreviousCapture
 	HostBodies []HostBody
@@ -139,13 +143,16 @@ type ProcessOptions struct {
 	// (DisabledByCanaries): they run, but their families are never
 	// covered, so they cannot withdraw.
 	DisabledExtractors []string
-	Splitter           SplitOptions
-	Lineage            LineageAlgo
+	// Splitter configures bundle module splitting; Lineage selects the
+	// predecessor-matching algorithm (zero values: the defaults).
+	Splitter SplitOptions
+	Lineage  LineageAlgo
 	// PageURL is the page that loads a script capture: relative fetch()
 	// URLs resolve against it. Empty: the capture URL.
 	PageURL string
 }
 
+// sha256Hex is the lower-case hex SHA-256 of b.
 func sha256Hex(b []byte) string {
 	s := sha256.Sum256(b)
 	return hex.EncodeToString(s[:])

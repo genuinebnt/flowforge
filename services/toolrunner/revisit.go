@@ -117,7 +117,10 @@ func (s RevisitState) Visit(p RevisitPolicy, now time.Time, changed bool) Revisi
 // RevisitStore keeps revisit states. Implementations are safe for
 // concurrent use.
 type RevisitStore interface {
+	// Get returns the state of key, or false when the URL was never
+	// visited (it is then due).
 	Get(key string) (RevisitState, bool)
+	// Put replaces the state of key.
 	Put(key string, s RevisitState)
 }
 

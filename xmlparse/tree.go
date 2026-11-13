@@ -45,7 +45,10 @@ type Node struct {
 	// Document.Attrs.
 	AttrStart, AttrEnd int32
 	// Text is the content of text, CDATA, comment and PI nodes.
-	Text       string
+	Text string
+	// Start and End are the byte span of the construct (an element runs
+	// from its start tag to the end of its end tag). The document node
+	// spans [0, len(src)) of the input as given.
 	Start, End int32
 }
 
@@ -171,11 +174,15 @@ func (d *Document) Canonical(withComments bool) []byte {
 	return []byte(b.String())
 }
 
+// frame is one pending step of writeNode: a node to write, or the end tag
+// of an element already opened.
 type frame struct {
 	id    NodeID
 	close bool
 }
 
+// writeNode writes the subtree at root iteratively (no recursion, so depth
+// does not touch the call stack).
 func (d *Document) writeNode(b *strings.Builder, root NodeID, withComments bool) {
 	stack := []frame{{id: root}}
 	for len(stack) > 0 {
@@ -253,6 +260,8 @@ func attrLess(a, b *Attr) bool {
 	return a.Name.Local < b.Name.Local
 }
 
+// escapeText and escapeAttr are the C14N 1.0 §2.3 text and attribute
+// value escapes.
 func escapeText(b *strings.Builder, s string) {
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; c {

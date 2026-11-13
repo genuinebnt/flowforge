@@ -26,8 +26,7 @@ type Options struct {
 	MaxURLs int
 }
 
-// Default limits, identical in every port (V2_DESIGN parser assurance
-// bounds).
+// Default limits, identical in every port (spec 26.4, 29.4).
 const (
 	DefaultMaxDepth      = 64
 	DefaultMaxInputBytes = 8 << 20
@@ -100,8 +99,11 @@ const (
 	stateUnicodeRange
 )
 
+// eof is the EOF code point cpAt returns past the end (never a real rune).
 const eof rune = -1
 
+// tokenizer is the state of one tokenization: the (limited) source, the
+// read position and the tokens and diagnostics so far.
 type tokenizer struct {
 	src    string
 	pos    int
@@ -387,6 +389,7 @@ func (t *tokenizer) consumeNumber(i int) (float64, bool, int) {
 	return v, integer, i
 }
 
+// run drives the state machine from t.pos to the end of t.src.
 func (t *tokenizer) run() {
 	st := stateConsumeToken
 	start := 0
@@ -638,6 +641,8 @@ func (t *tokenizer) run() {
 	}
 }
 
+// map2 maps the first code point of a legacy two-character match token
+// ("~=", "|=", ...) to its kind.
 var map2 = [128]TokenKind{
 	'~': TokenIncludeMatch, '|': TokenDashMatch, '^': TokenPrefixMatch,
 	'$': TokenSuffixMatch, '*': TokenSubstringMatch,

@@ -19,5 +19,8 @@
 // 64, MaxInputBytes 8 MiB) stop the read with GradePartial; refused
 // features give GradeUnsupported; other errors GradeFailed.
 //
+// The contract is spec 29.5 (codes 40.1). Parse and the Decoder are pure;
+// a Decoder is used by one goroutine, a finished Document may be shared.
+//
 // Subpackage sitemap reads sitemaps.org documents on top of the Decoder.
 package xmlparse

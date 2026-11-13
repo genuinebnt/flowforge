@@ -175,7 +175,8 @@ func (c Code) Class() Class {
 
 // Span is a half-open byte range [Start, End) in the source.
 // PORT: offsets count UTF-8 bytes, not UTF-16 code units as acorn's
-// start/end do; positions in the canonical JSON are byte offsets too.
+// start/end do; positions in the canonical JSON (JSONOptions.Positions)
+// are byte offsets too.
 type Span struct {
 	Start, End int32
 }
@@ -193,6 +194,7 @@ type Diagnostic struct {
 	Message string
 }
 
+// String returns "start-end code: message".
 func (d Diagnostic) String() string {
 	return fmt.Sprintf("%d-%d %s: %s", d.Span.Start, d.Span.End, d.Code, d.Message)
 }
@@ -206,6 +208,7 @@ type Error struct {
 	Diagnostic
 }
 
+// Error returns "jsparse: " and the diagnostic.
 func (e *Error) Error() string {
 	return "jsparse: " + e.Diagnostic.String()
 }

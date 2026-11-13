@@ -17,9 +17,12 @@ func readMsg[T any](r io.Reader, parse func([]byte) (T, int, error)) (T, error) 
 			return v, err
 		}
 		need := e.Need
+		// Need always grows and the longest message (an RFC 1929 request,
+		// 3+255+255 octets) is below this bound; the check keeps a buggy
+		// parser from looping or allocating without limit.
 		if need <= len(buf) || need > 2+2*(MaxLen+1)+16 {
 			var zero T
-			return zero, err // impossible for the parsers of this package
+			return zero, err
 		}
 		old := len(buf)
 		buf = slices.Grow(buf, need-old)[:need]
@@ -50,7 +53,7 @@ func ReadRequest(r io.Reader) (Request, error) { return readMsg(r, ParseRequest)
 // ReadReply reads a reply from r.
 func ReadReply(r io.Reader) (Reply, error) { return readMsg(r, ParseReply) }
 
-// WriteReply writes r to w.
+// WriteReply encodes r and writes it to w in one Write call.
 func WriteReply(w io.Writer, r Reply) error {
 	b, err := AppendReply(nil, r)
 	if err != nil {
@@ -64,9 +67,12 @@ func WriteReply(w io.Writer, r Reply) error {
 // RFC 1929): it requires username/password authentication (a client that
 // does not offer it gets 0xFF), checks the credentials with auth, and reads
 // the request. It refuses BIND, UDP ASSOCIATE and unknown commands with
-// reply 7 and unknown address types with reply 8 (returning an *Error with
-// CodeCommandRefused, or the parse error). On success the caller decides
-// the CONNECT and must write the Reply itself.
+// reply 7 (returning an *Error with CodeCommandRefused), unknown address
+// types with reply 8 and other malformed requests with reply 1 (returning
+// the parse error); a short or failed read sends nothing. Failed credentials get
+// status 1 and CodeAuthFailed. On success the caller decides the CONNECT
+// and must write the Reply itself. Octets after the request stay unread
+// in rw.
 func ServerHandshake(rw io.ReadWriter, auth func(UserPass) bool) (Request, UserPass, error) {
 	g, err := ReadGreeting(rw)
 	if err != nil {
@@ -114,8 +120,10 @@ func ServerHandshake(rw io.ReadWriter, auth func(UserPass) bool) (Request, UserP
 
 // ClientConnect runs the client side of a CONNECT to addr with
 // username/password authentication (or no authentication when user is
-// empty) and returns the server's success reply. A failure reply is an
-// *Error with CodeRequestFailed and Reply set.
+// empty) and returns the server's success reply. A failure reply is
+// returned together with an *Error with CodeRequestFailed and Reply set; a
+// server that picks another method gives CodeNoAcceptableMethod and a
+// non-zero auth status gives CodeAuthFailed.
 func ClientConnect(rw io.ReadWriter, user, pass string, addr Addr) (Reply, error) {
 	method := MethodUserPass
 	if user == "" {

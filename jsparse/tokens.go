@@ -113,6 +113,8 @@ var tokenKindNames = [tokenKindCount]string{
 	THTMLCloseComment: "HTMLCloseComment", THashbang: "HashbangComment",
 }
 
+// String returns the punctuator text, or a name for other kinds
+// ("Identifier", "WhiteSpace", "SingleLineComment").
 func (k TokenKind) String() string {
 	if k < tokenKindCount {
 		return tokenKindNames[k]
@@ -143,6 +145,7 @@ const (
 	GoalTemplateTail                     // InputElementTemplateTail
 )
 
+// String returns the goal symbol's name.
 func (g Goal) String() string {
 	switch g {
 	case GoalDiv:
@@ -182,14 +185,14 @@ const (
 // expression flags.
 type Token struct {
 	Kind  TokenKind
-	Kw    Keyword
+	Kw    Keyword // the reserved or contextual word an identifier spells, or none
 	Flags TokenFlags
-	Goal  Goal // goal the token was lexed under
-	Start int32
+	Goal  Goal  // goal the token was lexed under
+	Start int32 // byte offsets: the token is Source[Start:End]
 	End   int32
-	Err   Code  // lexical error attached to this token, if any
-	ErrAt int32 // offset of the lexical error
-	Num   float64
+	Err   Code    // lexical error attached to this token, if any
+	ErrAt int32   // offset of the lexical error
+	Num   float64 // numeric literal value (BigInt: 0; the digits are in Value)
 	Value string
 	Raw   string
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/genuinebnt/flowforge/core"
 )
 
-// Envelope encryption (V2 §6.4): each tenant has data keys (DEKs), 32
+// Envelope encryption (spec 34.4; V2 §6.4): each tenant has data keys (DEKs), 32
 // random bytes each, stored only wrapped by a key-encryption key (KEK).
 // The KEK is the KeyEncrypter port: a local AES-256-GCM key in
 // development (LocalKEK), a KMS key in production (Cloud KMS
@@ -35,7 +35,10 @@ const (
 type KeyEncrypter interface {
 	// ID names the KEK (recorded with every wrapped key).
 	ID() string
+	// Wrap encrypts dek for tenant.
 	Wrap(ctx context.Context, tenant core.UUID, dek []byte) ([]byte, error)
+	// Unwrap reverses Wrap; a key wrapped for another tenant or under
+	// another KEK must fail (LocalKEK: ErrKeyUnwrap).
 	Unwrap(ctx context.Context, tenant core.UUID, wrapped []byte) ([]byte, error)
 }
 

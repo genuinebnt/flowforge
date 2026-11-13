@@ -3,10 +3,12 @@ package wellknown
 import "strconv"
 
 // Grade says how completely a result reflects its input, so callers can
-// tell "read fine, found nothing" from "could not read". The same four
-// grades, with the same names, exist in cssparse, xmlparse and sourcemap.
+// tell "read fine, found nothing" from "could not read" (spec 26.4). The
+// same four grades, with the same names, exist in cssparse, xmlparse and
+// sourcemap.
 type Grade uint8
 
+// Grades, in order of decreasing completeness.
 const (
 	// GradeComplete: the whole file was read.
 	GradeComplete Grade = iota
@@ -31,16 +33,17 @@ func (g Grade) String() string {
 	return "grade(" + strconv.Itoa(int(g)) + ")"
 }
 
-// Default limits, identical in every port (V2_DESIGN parser assurance
-// bounds): 20,000 facts per document, 8 MiB per document. robots.txt has
-// its own, smaller byte limit (RFC 9309 §2.5).
+// Default limits, identical in every port (spec 26.4): 20,000 facts per
+// document, 8 MiB per document. robots.txt has its own, smaller byte limit
+// (RobotsMaxBytes, RFC 9309 §2.5).
 const (
 	DefaultMaxItems = 20000
 	DefaultMaxBytes = 8 << 20
 )
 
 // splitLines calls fn for each line of src (CR, LF or CR LF terminated)
-// with its 1-based number and byte offset.
+// with its 1-based number and byte offset, until fn returns false. A final
+// line break does not start an empty line.
 func splitLines(src []byte, fn func(line []byte, n, off int) bool) {
 	n, off := 1, 0
 	for off < len(src) {
@@ -59,6 +62,7 @@ func splitLines(src []byte, fn func(line []byte, n, off int) bool) {
 	}
 }
 
+// isWS is the WSP of RFC 9309 §2.2 and RFC 9116 §2.4: space or tab only.
 func isWS(c byte) bool { return c == ' ' || c == '\t' }
 
 func trimWS(b []byte) []byte {
@@ -71,6 +75,8 @@ func trimWS(b []byte) []byte {
 	return b
 }
 
+// lowerASCII folds A-Z only: field names and product tokens are ASCII, and
+// a Unicode fold would change non-ASCII octets.
 func lowerASCII(b []byte) string {
 	out := make([]byte, len(b))
 	for i, c := range b {

@@ -16,9 +16,13 @@ const NoNode NodeID = -1
 // next-sibling links, labels are interned uint32 ids. Root returns NoNode
 // for an empty tree.
 type Tree interface {
+	// Root returns the root, or NoNode for an empty tree.
 	Root() NodeID
+	// Label returns n's interned label.
 	Label(n NodeID) uint32
+	// FirstChild returns n's first child, or NoNode for a leaf.
 	FirstChild(n NodeID) NodeID
+	// NextSibling returns n's next sibling, or NoNode for the last child.
 	NextSibling(n NodeID) NodeID
 }
 
@@ -30,8 +34,8 @@ type ArenaTree struct {
 // ArenaNode is one node of an ArenaTree.
 type ArenaNode struct {
 	Label                           uint32
-	Parent, FirstChild, NextSibling NodeID
-	lastChild                       NodeID
+	Parent, FirstChild, NextSibling NodeID // NoNode when absent
+	lastChild                       NodeID // makes Add O(1)
 }
 
 // Add appends a node labelled label as the last child of parent (NoNode
@@ -66,6 +70,8 @@ func (t *ArenaTree) Root() NodeID {
 	return 0
 }
 
+// valid reports whether n indexes Nodes; the accessors answer NoNode (or
+// NoToken) for anything else.
 func (t *ArenaTree) valid(n NodeID) bool { return n >= 0 && int(n) < len(t.Nodes) }
 
 // Label implements Tree.
@@ -131,7 +137,10 @@ func ParseBracket(s string, in *Interner) (*ArenaTree, error) {
 	return t, nil
 }
 
-// FormatBracket renders t in bracket notation using in for labels.
+// FormatBracket renders t in bracket notation using in for labels (an
+// unknown label id renders as ""). Subtrees nested deeper than 2^16 levels
+// are cut, so a Tree whose first-child links form a cycle cannot recurse
+// without bound.
 func FormatBracket(t Tree, in *Interner) string {
 	var b strings.Builder
 	var rec func(n NodeID, depth int)
@@ -259,6 +268,8 @@ type zs struct {
 	w             int   // row width of fd
 }
 
+// relabel is the cost of mapping old node x onto new node y (postorder
+// indexes): 0 for equal labels.
 func (z *zs) relabel(x, y int) int {
 	if z.t1.label[x] == z.t2.label[y] {
 		return 0

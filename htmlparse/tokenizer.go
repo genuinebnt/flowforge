@@ -4,7 +4,8 @@ import "unicode/utf8"
 
 // state is a tokenizer state. There is exactly one constant per state in
 // HTML §13.2.5 "Tokenization" (including the processing instruction states
-// added in 2025), in the order the standard lists them. The constant stateFooBar is the spec's "foo bar state"; its handler is the
+// added in 2025), in the order the standard lists them: 84 in all. The
+// constant stateFooBar is the spec's "foo bar state"; its handler is the
 // method fooBarState (or a shared handler parameterized by state), and
 // stateNames holds the exact spec names.
 type state uint8

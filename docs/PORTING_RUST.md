@@ -738,7 +738,10 @@ extractor, 200 inner documents.
   namespace bindings at the closing `>` or `/`).
 * *PORT: Go strings are byte slices; Rust names should be &str into the
   input (or String after reference decoding).* UTF-16 input is transcoded
-  and offsets index the transcoded buffer.
+  and offsets index the transcoded buffer; input ending inside a UTF-16
+  character is an EOF condition (`unexpected_eof`), never complete.
+  *PORT: time.Parse accepts fractional seconds in W3C Datetime values
+  (sitemap lastmod); the Rust port must too.*
 * Sitemaps: gzip decompressed to at most MaxBytes + 1; defaults 20,000
   entries / 8 MiB.
 
@@ -782,8 +785,8 @@ extractor, 200 inner documents.
   (8 MiB, 100×, 1 MiB); at the cap exactly that prefix. *PORT:
   concurrency 1 makes klauspost's stream decoder synchronous. The window
   bound keeps memory proportional to the cap; a frame that declares a
-  larger window stops with the cap's code. Rust: zstd::stream::Decoder
-  with window_log_max.* gzip/zlib/DEFLATE come from `compress/flate`
+  larger window stops with output_limit (offset: the bytes decoded so
+  far). Rust: zstd::stream::Decoder with window_log_max.* gzip/zlib/DEFLATE come from `compress/flate`
   (Rust: `flate2` with the same caps); stream error offsets are the
   returned length.
 * Sniff thresholds (base64 ≥ 24 data chars, ≥ 16 distinct, hex ≥ 32) and
@@ -807,7 +810,10 @@ extractor, 200 inner documents.
 * Pure codec plus `server_handshake` / `client_connect`. Short input
   returns `short` with `need` (total length known to be required). Only
   CONNECT is served; BIND and UDP ASSOCIATE parse and are refused with
-  reply 7. Read helpers read exactly one message.
+  reply 7. Read helpers read exactly one message. *PORT: Go strings hold
+  arbitrary octets; usernames, passwords and domain names are kept as
+  received (the RFCs do not require UTF-8), so a Rust port stores them as
+  Vec<u8>, not String.*
 
 ### 5A.10 `ff-diff` (`diff`)
 
@@ -827,8 +833,9 @@ extractor, 200 inner documents.
   keeps number text verbatim; in Rust use serde_json with
   "arbitrary_precision" and "preserve_order" plus a duplicate-key check.*
   Output escaping: *\b \f \n \r \t, other control characters as \u00XX,
-  U+2028/U+2029 as  / , leaves <>& alone and replaces invalid
-  UTF-8 with �; reproduce that exactly for byte-identical patches.*
+  U+2028/U+2029 as `\u2028`/`\u2029`, leaves <>& alone and replaces invalid
+  UTF-8 with the escape `\ufffd`; reproduce that exactly for byte-identical
+  patches.*
   Hash-consed subtree ids feed Myers in first-seen order.
 * Bounds: `BoundedDiff` tokens (10,000 edits, 4 MiB) → lines (64 MiB) →
   hash, recording level and fallback names (`tokens|lines|hash`,

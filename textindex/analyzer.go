@@ -25,6 +25,7 @@ const (
 	TokenPart
 )
 
+// String returns "word", "compound" or "part".
 func (k TokenKind) String() string {
 	switch k {
 	case TokenWord:
@@ -77,6 +78,7 @@ const (
 	classDigit                      // Nd
 )
 
+// asciiClass is classOf for ASCII, as a table.
 var asciiClass = func() (t [128]runeClass) {
 	for c := 0; c < 128; c++ {
 		switch {
@@ -176,6 +178,7 @@ const (
 	stDigit
 )
 
+// span is a half-open byte range of the input.
 type span struct{ start, end int }
 
 // analyzer holds reusable buffers. It is not safe for concurrent use.
@@ -184,6 +187,7 @@ type analyzer struct {
 	buf   []byte
 }
 
+// emitFunc receives one token; term is only valid during the call.
 type emitFunc func(term []byte, pos, start, end int, kind TokenKind)
 
 // run segments text and calls emit for each token in output order
@@ -316,6 +320,8 @@ func Trigrams(text []byte) []uint32 {
 	return sortUnique32(t)
 }
 
+// lowerASCII folds A-Z: trigrams fold ASCII letters only (FORMAT.md),
+// so they work on raw bytes without decoding.
 func lowerASCII(c byte) byte {
 	if c >= 'A' && c <= 'Z' {
 		return c + 'a' - 'A'
@@ -323,6 +329,7 @@ func lowerASCII(c byte) byte {
 	return c
 }
 
+// appendTrigrams appends every trigram of text, duplicates included.
 func appendTrigrams(dst []uint32, text []byte) []uint32 {
 	if len(text) < 3 {
 		return dst

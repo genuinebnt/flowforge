@@ -23,6 +23,8 @@ type NormalizerInfo struct {
 // ID is the normalizer_version "<name>@<n>" (V2 §5).
 func (n NormalizerInfo) ID() string { return n.Name + "@" + strconv.Itoa(n.Version) }
 
+// ruleTableSHA is the hex SHA-256 of the rule lines joined by "\n" (spec
+// 33.3; pinned in conformance/content/normalizers).
 func ruleTableSHA(lines []string) string {
 	s := sha256.Sum256([]byte(strings.Join(lines, "\n")))
 	return hex.EncodeToString(s[:])

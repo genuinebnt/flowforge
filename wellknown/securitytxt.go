@@ -24,9 +24,11 @@ type SecurityField struct {
 	Line        int
 }
 
-// SecurityCode is a stable diagnostic code.
+// SecurityCode is a stable diagnostic code (conformance/wellknown/
+// securitytxt.json holds the names and levels); IsWarning gives the level.
 type SecurityCode uint8
 
+// security.txt diagnostic codes; sections are RFC 9116.
 const (
 	SecurityNone                  SecurityCode = iota
 	SecurityMissingContact                     // §2.5.3: at least one Contact is required (error)
@@ -81,7 +83,9 @@ type SecurityDiag struct {
 
 // SecurityTxt is a parsed security.txt (RFC 9116).
 type SecurityTxt struct {
-	Contact            []string // §2.5.3, in file order (order is preference)
+	Contact []string // §2.5.3, in file order (order is preference)
+	// Expires is the first Expires field in UTC; HasExpires is false when
+	// it is missing or not a valid RFC 3339 date-time.
 	Expires            time.Time
 	HasExpires         bool
 	Encryption         []string // §2.5.4
@@ -97,8 +101,12 @@ type SecurityTxt struct {
 	// Signed is set when the file is an OpenPGP cleartext signed message
 	// (§2.3); the signature is not verified.
 	Signed bool
-	Diags  []SecurityDiag
-	Grade  Grade
+	// Diags: a byte-limit diagnostic first (Line 0), then line
+	// diagnostics in line order, then the file-level findings (Line 0,
+	// except expired and expires_too_far, which point at Expires).
+	Diags []SecurityDiag
+	// Grade is GradePartial when MaxBytes or MaxItems cut the read.
+	Grade Grade
 }
 
 // Valid reports whether the file meets RFC 9116's requirements (no
@@ -142,6 +150,7 @@ const (
 	pgpTrailer
 )
 
+// Armor lines of RFC 4880 §7, compared after trimming WSP.
 const (
 	pgpBeginMessage   = "-----BEGIN PGP SIGNED MESSAGE-----"
 	pgpBeginSignature = "-----BEGIN PGP SIGNATURE-----"
@@ -150,7 +159,9 @@ const (
 
 // ParseSecurityTxt parses a security.txt body and checks it against now
 // (Expires must lie after now; the clock is never read). It never fails:
-// problems are diagnostics, and Valid tells whether the file conforms.
+// problems are diagnostics, and Valid tells whether the file conforms. A
+// field whose value fails its URI check is kept in Fields but not in the
+// typed list.
 func ParseSecurityTxt(data []byte, now time.Time, opts SecurityOptions) *SecurityTxt {
 	maxBytes, maxItems := opts.MaxBytes, opts.MaxItems
 	if maxBytes <= 0 {
@@ -317,9 +328,12 @@ func validFieldName(name string) bool {
 	return true
 }
 
-// checkURI validates a URI-valued field: an absolute URI, and https for
-// web URIs (§2.5: "MUST begin with https://"). webOnly fields must be
-// https URIs.
+// checkURI validates a URI-valued field: an absolute URI without white
+// space, and https with a host for web URIs (§2.5: "MUST begin with
+// https://"); http is insecure_uri. webOnly fields (all but Contact and
+// Encryption, which also take mailto:, tel:, dns: and similar) must be
+// https URIs; another scheme there is invalid_uri. It reports through diag
+// and returns whether the value is kept.
 func checkURI(v string, webOnly bool, n int, diag func(SecurityCode, int)) bool {
 	u, err := url.Parse(v)
 	if err != nil || u.Scheme == "" || strings.ContainsAny(v, " \t") {

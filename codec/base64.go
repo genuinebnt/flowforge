@@ -73,6 +73,8 @@ var b64Tables = func() (t [3][256]byte) {
 	return t
 }()
 
+// table picks the decode table: lenient takes both alphabets, strict only
+// the configured one.
 func (o Base64Options) table() b64Table {
 	switch {
 	case o.Mode == Lenient:
@@ -195,6 +197,8 @@ type b64Dec struct {
 	err    error
 }
 
+// newB64Dec returns a decoder appending to dst, with room for the longest
+// output src can produce.
 func newB64Dec(dst, src []byte, o Base64Options) b64Dec {
 	return b64Dec{
 		tab:    &b64Tables[o.table()],

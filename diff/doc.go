@@ -1,6 +1,6 @@
 // Package diff computes differences between token sequences, JSON
 // documents and ordered labelled trees (V2_DESIGN §2 and §5; Myers 1986;
-// RFC 6902; Zhang & Shasha 1989).
+// RFC 6902; Zhang & Shasha 1989), the contract of spec 30.1-30.3.
 //
 // Text is first interned (Interner, SplitLines, SplitWords) so every
 // sequence algorithm works on []uint32 and compares tokens as integers:
@@ -22,8 +22,9 @@
 // rendering and parsing (Unified, ParseUnified, ApplyUnified), a
 // structured side-by-side form with word-level refinement (SideBySideOf,
 // RefineLine) and diff-match-patch style semantic cleanup
-// (CleanupSemantic). BoundedDiff applies the §5 bounds: token Myers with a
-// D cap, then histogram on lines, then hash only, recording the level.
+// (CleanupSemantic). BoundedDiff applies the bounds of spec 30.2
+// (V2_DESIGN §5): token Myers with a D cap, then histogram on lines, then
+// hash only, recording the level.
 //
 // JSONDiff compares two ParseJSON trees and emits RFC 6902 add, remove and
 // replace operations (arrays aligned by Myers over hash-consed element

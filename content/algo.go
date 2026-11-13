@@ -63,6 +63,8 @@ func (p DiffPolicy) Bounds(size int, base diff.Bounds) diff.Bounds {
 	case DiffMyers:
 		b.TokenAlgorithm, b.LineAlgorithm = diff.MyersLinearSpace, diff.Histogram
 	case DiffHistogram:
+		// MaxInputBytes 1: every input longer than one byte skips the
+		// token level.
 		b.TokenAlgorithm, b.LineAlgorithm, b.MaxInputBytes = diff.Histogram, diff.Histogram, 1
 	case DiffPatience:
 		b.TokenAlgorithm, b.LineAlgorithm, b.MaxInputBytes = diff.Patience, diff.Patience, 1

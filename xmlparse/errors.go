@@ -41,6 +41,8 @@ const (
 	ErrMisplacedDoctype    // doctypedecl [28] after the root, twice, or in content
 	ErrUnboundPrefix       // Namespaces §5 "Namespace Constraint: Prefix Declared"
 	ErrReservedPrefix      // Namespaces §3 constraints on xml and xmlns
+	// ErrInvalidNamespaceDecl: Namespaces §3 declaration constraints
+	// (xmlns:p="", declaring xmlns, binding xml or its URI wrongly).
 	ErrInvalidNamespaceDecl
 	// Policy errors (grade "unsupported").
 	ErrUnsupportedEncoding // encoding other than UTF-8 / UTF-16 with BOM
@@ -96,8 +98,9 @@ func (c ErrorCode) Grade() Grade {
 // of the UTF-8 character starting at Offset (1 for a byte that starts no
 // valid sequence), and what follows does not change the error
 // (XML-INV-02). For invalid UTF-8 it is the first byte that makes the
-// sequence invalid. EOF-class errors carry Offset = input length. For UTF-16 input, offsets index the transcoded
-// UTF-8 buffer (Document.UTF16 is set).
+// sequence invalid. EOF-class errors carry Offset = input length. For
+// UTF-16 input, offsets index the transcoded UTF-8 buffer (Document.UTF16
+// is set).
 type SyntaxError struct {
 	Code   ErrorCode
 	Offset int
@@ -106,14 +109,16 @@ type SyntaxError struct {
 	Line, Column int
 }
 
+// Error returns "xmlparse: <code> at line L, column C (offset O)".
 func (e *SyntaxError) Error() string {
 	return fmt.Sprintf("xmlparse: %s at line %d, column %d (offset %d)", e.Code, e.Line, e.Column, e.Offset)
 }
 
-// Grade says how completely a result reflects its input. The same four
-// grades exist in cssparse, sourcemap and wellknown.
+// Grade says how completely a result reflects its input (spec 26.4). The
+// same four grades exist in cssparse, sourcemap and wellknown.
 type Grade uint8
 
+// Grades, in order of decreasing completeness.
 const (
 	// GradeComplete: the whole document was read and is well-formed.
 	GradeComplete Grade = iota

@@ -5,7 +5,8 @@
 // insertion mode of the current standard, foreign content, the adoption
 // agency algorithm, foster parenting, templates), the fragment parsing
 // algorithm (§13.4), the HTML fragment serialization algorithm (§13.3),
-// and the named character reference table (§13.5).
+// and the named character reference table (§13.5). The contract is spec
+// 29.2 (codes 40.1).
 //
 // The DOM is an arena (Document.Nodes, linked by NodeID indexes) so the
 // Rust port can mirror it as a Vec<Node>. The package never executes

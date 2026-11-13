@@ -1,6 +1,6 @@
 package content
 
-// Scoring (V2 §12.4): an additive, clamped, hand-set feature model in the
+// Scoring (spec 33.11; V2 §12.4): an additive, clamped, hand-set feature model in the
 // style of Sentinel's domain/analysis/changes.rs. Scores rank, never send:
 // this file (and every content/score*.go) imports only the standard
 // library's pure packages, so no code path leads from a score to a
@@ -32,8 +32,9 @@ type ScoreReason struct {
 	Weight float64 `json:"weight"`
 }
 
-// Score is a score in [0, 1] and its reasons. Score equals the sum of the
-// reason weights clamped to [0, 1] (CONTENT-INV-11).
+// Score is a score in [0, 1] and its reasons. Value equals the sum of the
+// reason weights (in name order) clamped to [0, 1] and rounded to 4
+// decimals (CONTENT-INV-11).
 type Score struct {
 	Value   float64       `json:"score"`
 	Reasons []ScoreReason `json:"score_features,omitempty"`
@@ -94,15 +95,16 @@ var boostWords = []struct {
 	{"word_debug", []string{"debug", "trace", "test", "dev"}, 0.15},
 }
 
-// secHeaders are the headers whose removal is a removed_security_header.
+// secHeaderNames are the headers whose removal is a removed_security_header.
 var secHeaderNames = []string{"content-security-policy", "strict-transport-security", "x-frame-options",
 	"x-content-type-options", "referrer-policy", "permissions-policy", "cross-origin-opener-policy",
 	"cross-origin-embedder-policy", "cross-origin-resource-policy"}
 
 // ScoreChanges scores a change set. Reasons are aggregated by name: each
 // name's weight is the sum of its contributions clamped to [−1, 1] and
-// rounded to 4 decimals; the score is the sum of the reason weights
-// clamped to [0, 1]. Reasons are sorted by name.
+// rounded to 4 decimals, and a reason whose weight rounds to 0 is dropped;
+// the score is the sum of the reason weights in name order, clamped to
+// [0, 1] and rounded to 4 decimals. Reasons are sorted by name.
 func ScoreChanges(cs []ScoreChange) Score {
 	acc := map[string]float64{}
 	add := func(name string, w float64) { acc[name] += w }
@@ -200,6 +202,8 @@ func ScoreChanges(cs []ScoreChange) Score {
 	return s
 }
 
+// round4 rounds half away from zero to 4 decimals (math.Round; Rust's
+// f64::round has the same rule).
 func round4(f float64) float64 { return math.Round(f*1e4) / 1e4 }
 
 func removedName(n string) string {

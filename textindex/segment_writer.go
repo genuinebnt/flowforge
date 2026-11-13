@@ -42,9 +42,9 @@ const (
 	maxDocBytes      = 16 << 20
 )
 
-// codec holds the pinned zstd encoder and decoder (level 3 =
-// SpeedDefault, no frame checksum, single-threaded). EncodeAll and
-// DecodeAll are safe for concurrent use.
+// codec holds the pinned zstd encoder (level 3 = SpeedDefault, no frame
+// checksum, one encoder goroutine) and a decoder bounded to maxStoredRaw.
+// EncodeAll and DecodeAll are safe for concurrent use.
 type codec struct {
 	enc *zstd.Encoder
 	dec *zstd.Decoder
@@ -110,6 +110,8 @@ func EncodeSegment(s Schema, docs []IndexedDoc, pc PostingCodec) ([]byte, error)
 	return encodeSegment(s, fs, c, pc)
 }
 
+// termBuf collects one (field, term) key's postings while a segment is
+// built; lastDoc is the last local doc appended (-1 none).
 type termBuf struct {
 	key     string
 	docs    []uint32

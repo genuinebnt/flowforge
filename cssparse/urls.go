@@ -79,6 +79,7 @@ func ExtractURLs(src []byte, opts Options) URLResult {
 	return ParseStylesheet(src, opts).URLs()
 }
 
+// urlFrame is one pending node of the URLs walk with its context.
 type urlFrame struct {
 	id      NodeID
 	ctx     URLContext
@@ -88,7 +89,8 @@ type urlFrame struct {
 // URLs returns every URL reference in the tree under d.Root, in source
 // order. @font-face blocks and the blocks of other at-rules are re-parsed
 // with ParseBlockContents (appending nodes to d); style-rule blocks are
-// walked as component values.
+// walked as component values. More than Options.MaxURLs references stop
+// the walk with one DiagLimitExceeded (GradePartial).
 func (d *Document) URLs() URLResult {
 	max := d.opts.maxURLs()
 	var refs []URLRef

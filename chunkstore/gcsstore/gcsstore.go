@@ -73,6 +73,7 @@ import (
 // process wrote or deleted it since this one observed it.
 var ErrConflict = errors.New("gcsstore: object changed by another writer (one writer per namespace, G-CST-03)")
 
+// castagnoli is the table of the CRC32C GCS checks uploads against.
 var castagnoli = crc32.MakeTable(crc32.Castagnoli)
 
 // objects is the generation-tracking object layer shared by Backend and
@@ -85,6 +86,7 @@ type objects struct {
 	gens map[string]int64 // last observed generation; 0 = observed absent
 }
 
+// newObjects returns an object layer on bucket with no observed objects.
 func newObjects(c *storage.Client, bucket string) (*objects, error) {
 	if c == nil || bucket == "" {
 		return nil, errors.New("gcsstore: a client and a bucket are required")
@@ -92,6 +94,8 @@ func newObjects(c *storage.Client, bucket string) (*objects, error) {
 	return &objects{b: c.Bucket(bucket), bucket: bucket, gens: map[string]int64{}}, nil
 }
 
+// seen returns the last observed generation of name (0: observed absent)
+// and whether name was observed at all.
 func (o *objects) seen(name string) (int64, bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -99,6 +103,7 @@ func (o *objects) seen(name string) (int64, bool) {
 	return g, ok
 }
 
+// observe records gen as the current generation of name.
 func (o *objects) observe(name string, gen int64) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -113,6 +118,7 @@ func (o *objects) cond(name string) storage.Conditions {
 	return storage.Conditions{DoesNotExist: true}
 }
 
+// status returns the HTTP status of a googleapi error, or 0.
 func status(err error) int {
 	var ge *googleapi.Error
 	if errors.As(err, &ge) {
@@ -121,6 +127,7 @@ func status(err error) int {
 	return 0
 }
 
+// conflict wraps ErrConflict for name with the service's error.
 func conflict(name string, cause error) error {
 	return fmt.Errorf("%w: %s: %v", ErrConflict, name, cause)
 }
@@ -256,6 +263,7 @@ func New(c *storage.Client, bucket string, opts Options) (*Backend, error) {
 	return &Backend{o: o, prefix: opts.Prefix}, nil
 }
 
+// object validates a chunkstore name and returns its full object name.
 func (b *Backend) object(name string) (string, error) {
 	if !chunkstore.ValidName(name) {
 		return "", &chunkstore.Error{Code: chunkstore.CodeInvalidName, Object: name, Detail: "invalid object name"}
@@ -263,6 +271,7 @@ func (b *Backend) object(name string) (string, error) {
 	return b.prefix + name, nil
 }
 
+// notFound is the chunkstore.ErrObjectNotFound error for name.
 func notFound(name string) error {
 	return &chunkstore.Error{Code: chunkstore.CodeObjectNotFound, Object: name, Detail: "no such object"}
 }

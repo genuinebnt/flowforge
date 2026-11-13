@@ -59,6 +59,7 @@ var maskBitOrder = [...]uint8{
 	41, 42, 45, 26, 27, 28, 29, // extension for avgBits up to 20
 }
 
+// maskWithBits returns the mask of the first k positions of maskBitOrder.
 func maskWithBits(k int) uint64 {
 	var m uint64
 	for _, p := range maskBitOrder[:k] {

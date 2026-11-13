@@ -1,5 +1,5 @@
 // Package sourcemap decodes Source Map v3 as specified by ECMA-426
-// (Source Map Format Specification): strict JSON fields, the "mappings"
+// (Source Map Format Specification), the contract of spec 29.6: strict JSON fields, the "mappings"
 // Base64 VLQ string (own state machine with 32-bit overflow checks), index
 // maps with ordered, non-overlapping sections (flattened into one Map),
 // sources resolution against sourceRoot and the map URL, sourcesContent,

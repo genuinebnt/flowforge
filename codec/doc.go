@@ -36,6 +36,7 @@
 // allocation-bounded by its input or by its stated limits; no function
 // starts a goroutine or reads a clock.
 //
-// The numbered invariants CODEC-INV-01..11 (README.md) are what the Rust
-// port reimplements.
+// The contract is spec 29.8 (error codes 40.1). The numbered invariants
+// CODEC-INV-01..11 (README.md) are what the Rust port reimplements. Every
+// function is safe for concurrent use; the package keeps no mutable state.
 package codec

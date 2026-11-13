@@ -32,6 +32,8 @@ type RecordHeader struct {
 	CRC uint32
 }
 
+// parseRecordHeader reads the 16-byte header at b; the bool reports that
+// the three reserved bytes are zero.
 func parseRecordHeader(b []byte) (RecordHeader, bool) {
 	h := RecordHeader{
 		RawLen:  binary.LittleEndian.Uint32(b[0:]),
@@ -57,6 +59,9 @@ func validRecordShape(h RecordHeader) bool {
 	case h.Codec == CodecRaw:
 		return h.CompLen == h.RawLen
 	case h.Codec == CodecZstd:
+		// A zstd frame of MaxRecordRaw incompressible bytes stays well
+		// under 64 KiB of overhead (raw blocks); anything longer cannot
+		// be a frame a writer kept (it would have stored raw).
 		return h.CompLen <= MaxRecordRaw+1<<16
 	}
 	return false
@@ -101,7 +106,7 @@ func (w *PackWriter) Size() int { return len(w.buf) }
 // Count returns the number of records.
 func (w *PackWriter) Count() int { return int(w.count) }
 
-// record returns the bytes of the record at off (header and frame).
+// record returns the bytes of the record at off (header and payload).
 func (w *PackWriter) record(off uint64, compLen uint32) []byte {
 	return w.buf[off : off+RecordHeaderSize+uint64(compLen)]
 }

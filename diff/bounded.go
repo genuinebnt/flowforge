@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// Bounds defaults (V2_DESIGN §5).
+// Bounds defaults (spec 30.2, V2_DESIGN §5).
 const (
 	// DefaultMaxEditDistance caps the token-level algorithm at 10,000 token
 	// edits (inserted plus deleted tokens).
@@ -82,9 +82,9 @@ func (f Fallback) String() string {
 // Bounds configures BoundedDiff. Zero fields take the defaults; negative
 // fields are invalid.
 type Bounds struct {
-	MaxEditDistance   int
-	MaxInputBytes     int
-	MaxLineInputBytes int
+	MaxEditDistance   int // token edits per level (DefaultMaxEditDistance)
+	MaxInputBytes     int // largest side diffed at token level (DefaultMaxInputBytes)
+	MaxLineInputBytes int // largest side diffed at line level (DefaultMaxLineInputBytes)
 	// TokenAlgorithm runs the token level (zero: MyersLinearSpace) and
 	// LineAlgorithm the line level (zero: Histogram). Any Algorithm may be
 	// plugged in; both honour MaxEditDistance as Options does.
@@ -92,6 +92,8 @@ type Bounds struct {
 	LineAlgorithm  Algorithm
 }
 
+// withDefaults fills zero fields and rejects negative bounds and unknown
+// algorithms.
 func (b Bounds) withDefaults() (Bounds, error) {
 	if b.MaxEditDistance < 0 || b.MaxInputBytes < 0 || b.MaxLineInputBytes < 0 {
 		return b, fmt.Errorf("%w: negative bound", ErrInvalidOptions)
@@ -121,7 +123,10 @@ func (b Bounds) withDefaults() (Bounds, error) {
 
 // BoundedResult is the outcome of BoundedDiff.
 type BoundedResult struct {
-	Level    Level
+	Level Level
+	// Fallback is why the token level was left: FallbackNone at
+	// LevelTokens, the token level's reason otherwise (FallbackInputSize
+	// also when the line level refused its input).
 	Fallback Fallback
 	// Capped reports that the line-level algorithm hit MaxEditDistance
 	// (for histogram: in a Myers fallback range, replaced as a whole). The

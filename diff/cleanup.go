@@ -61,6 +61,9 @@ func CleanupSemantic(old []uint32, s EditScript, opts CleanupOptions) (EditScrip
 
 // cleanupSemanticSegs runs cleanup rounds until a fixpoint.
 func cleanupSemanticSegs(segs []seg, score func(l, r []uint32) int) []seg {
+	// Every changing round removes or merges segments or shifts an edit to
+	// a strictly better boundary, so a fixpoint comes within a few rounds;
+	// the bound only guards against a scorer that is not a total order.
 	for iter := 0; iter < len(segs)+8; iter++ {
 		before := cloneSegs(segs)
 		segs = cleanupEliminate(segs)
@@ -75,6 +78,7 @@ func cleanupSemanticSegs(segs []seg, score func(l, r []uint32) int) []seg {
 	return segs
 }
 
+// toSegs expands s into runs carrying their tokens, checking it against old.
 func toSegs(old []uint32, s EditScript) ([]seg, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
@@ -103,6 +107,7 @@ func toSegs(old []uint32, s EditScript) ([]seg, error) {
 	return out, nil
 }
 
+// fromSegs rebuilds a canonical script from runs.
 func fromSegs(segs []seg, oldLen, newLen int) EditScript {
 	var b builder
 	b.carry = true
@@ -192,6 +197,9 @@ func cleanupMerge(segs []seg) []seg {
 	}
 }
 
+// mergePass is the first loop of diff_cleanupMerge: adjacent edits are
+// joined into one delete and one insert, and their common prefix and
+// suffix move into the surrounding equalities.
 func mergePass(in []seg) []seg {
 	var out []seg
 	var del, ins []uint32

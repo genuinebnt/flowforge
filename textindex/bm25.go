@@ -2,7 +2,7 @@ package textindex
 
 import "math"
 
-// BM25 parameters (V2_DESIGN §7).
+// BM25 parameters (spec 32.4, V2_DESIGN §7).
 const (
 	BM25K1 = 1.2
 	BM25B  = 0.75

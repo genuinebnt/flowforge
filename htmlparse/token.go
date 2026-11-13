@@ -16,6 +16,7 @@ const (
 
 var tokenKindNames = [...]string{"Character", "StartTag", "EndTag", "Comment", "DOCTYPE", "ProcessingInstruction", "EOF"}
 
+// String returns the html5lib token type name ("StartTag", "DOCTYPE", ...).
 func (k TokenKind) String() string {
 	if int(k) < len(tokenKindNames) {
 		return tokenKindNames[k]

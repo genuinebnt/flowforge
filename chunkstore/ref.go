@@ -98,6 +98,7 @@ func ValidNamespace(ns string) bool {
 	return true
 }
 
+// newNamespace validates ns (ValidNamespace) as a CodeInvalidConfig error.
 func newNamespace(ns string) (namespace, error) {
 	if !ValidNamespace(ns) {
 		return "", errf(CodeInvalidConfig, ns, "namespace must be 1-64 bytes of [a-z0-9_-]")
@@ -105,6 +106,8 @@ func newNamespace(ns string) (namespace, error) {
 	return namespace(ns), nil
 }
 
+// Object names of a namespace (FORMAT.md §7): "t/<ns>/ref" and
+// "t/<ns>/packs/<pack id hex>.pack|.idx".
 func (n namespace) root() string           { return NamespacePrefix + string(n) + "/" }
 func (n namespace) ref() string            { return n.root() + RefObject }
 func (n namespace) packs() string          { return n.root() + "packs/" }

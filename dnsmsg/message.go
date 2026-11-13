@@ -55,8 +55,9 @@ const (
 	RCodeRefused  RCode = 5
 )
 
-// Header is the 12-octet message header (RFC 1035 §4.1.1) without the
-// section counts, which the encoder derives from the sections.
+// Header is the 12-octet message header (RFC 1035 §4.1.1, the AD and CD
+// bits of RFC 4035 §3.2) without the section counts, which the encoder
+// derives from the sections.
 type Header struct {
 	ID                 uint16
 	Response           bool // QR
@@ -106,7 +107,8 @@ const (
 )
 
 // RData is the data of a record as a tagged struct: Kind names the fields
-// that are set; the others are zero.
+// that are set; the others are zero (Encode ignores them, Equal compares
+// them).
 type RData struct {
 	Kind       RDataKind
 	IP         netip.Addr
@@ -126,7 +128,9 @@ type RData struct {
 	Raw      []byte
 }
 
-// SOA is start-of-authority data (RFC 1035 §3.3.13).
+// SOA is start-of-authority data (RFC 1035 §3.3.13); MName and RName are
+// canonical presentation names, the five counters are seconds except
+// Serial.
 type SOA struct {
 	MName, RName                            string
 	Serial, Refresh, Retry, Expire, Minimum uint32
@@ -138,7 +142,8 @@ type Option struct {
 	Data []byte
 }
 
-// Message is a DNS message.
+// Message is a DNS message (RFC 1035 §4.1); the zero value encodes as an
+// empty query with ID 0.
 type Message struct {
 	Header     Header
 	Questions  []Question
@@ -210,7 +215,8 @@ type EDNS struct {
 	Options       []Option
 }
 
-// EDNS returns the first OPT record of the additional section.
+// EDNS returns the content of the first structured (KindOPT) OPT record of
+// the additional section, or false when there is none.
 func (m Message) EDNS() (EDNS, bool) {
 	for _, rr := range m.Additional {
 		if rr.Type == TypeOPT && rr.Data.Kind == KindOPT {
@@ -221,7 +227,8 @@ func (m Message) EDNS() (EDNS, bool) {
 	return EDNS{}, false
 }
 
-// OPT returns the OPT record carrying e.
+// OPT returns the OPT record carrying e: root owner, UDP size in CLASS and
+// extended RCODE, version and DO in TTL (RFC 6891 §6.1.3).
 func (e EDNS) OPT() RR {
 	ttl := uint32(e.ExtendedRCode)<<24 | uint32(e.Version)<<16
 	if e.DNSSECOK {
@@ -231,13 +238,15 @@ func (e EDNS) OPT() RR {
 }
 
 // SetEDNS replaces every OPT record of the additional section with one
-// carrying e (appended last).
+// carrying e (appended last). It filters m.Additional in place, so a
+// slice shared with another Message sees the change.
 func (m *Message) SetEDNS(e EDNS) {
 	m.Additional = slices.DeleteFunc(m.Additional, func(rr RR) bool { return rr.Type == TypeOPT })
 	m.Additional = append(m.Additional, e.OPT())
 }
 
-// Option returns the data of the first option with code.
+// Option returns the data of the first option with code (EDNS option codes,
+// RFC 6891 §6.1.2), or false.
 func (e EDNS) Option(code uint16) ([]byte, bool) {
 	for _, o := range e.Options {
 		if o.Code == code {

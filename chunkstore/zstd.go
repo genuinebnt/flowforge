@@ -25,11 +25,17 @@ const (
 	DefaultRecompressLevel = 19
 )
 
+// codec holds the pinned zstd encoder and a decoder bounded to
+// MaxRecordRaw; both are safe for concurrent use (EncodeAll, DecodeAll).
 type codec struct {
 	enc *zstd.Encoder
 	dec *zstd.Decoder
 }
 
+// encoderOptions are the pinned writer settings of FORMAT.md §2.
+//
+// PORT: klauspost's frames differ from the C library's for the same level;
+// only frame validity is shared across languages, not the bytes.
 func encoderOptions(level zstd.EncoderLevel) []zstd.EOption {
 	return []zstd.EOption{
 		zstd.WithEncoderLevel(level),

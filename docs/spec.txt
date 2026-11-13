@@ -4853,7 +4853,7 @@ DEFLATE, gzip and zlib come from the standard library's compress/flate rather th
 
 - Encoding is canonical: owner, question and NS/CNAME/PTR/MX/SOA names are compressed against the first earlier occurrence of the longest suffix (exact octets); SRV targets are never compressed. Equal messages give equal bytes (DNS-INV-05); the conformance encoder is independent, so Encode must match it byte for byte.
 
-- Strict rejects trailing octets, malformed known data, OPT outside the additional section, non-root or duplicated, and TXT without strings; lenient keeps them and returns diagnostics. Strict success implies the same lenient result (DNS-INV-09).
+- Strict rejects trailing octets, malformed known data, OPT outside the additional section, non-root or duplicated, and TXT without strings; lenient keeps them and returns diagnostics (a TXT without strings is kept as an empty TXT record without one). Strict success implies the same lenient result (DNS-INV-09).
 
 - EncodeTruncated(limit) keeps a prefix of the answers and the OPT record and sets TC exactly when records were dropped (RFC 2181 9). TCP framing is a u16 big-endian length prefix; frames above the limit are refused.
 
@@ -6166,7 +6166,7 @@ Every list is closed: a new code is a specification change. Codes are returned a
 
  | sourcemap | invalid_json, invalid_field, unsupported_version, missing_mappings, missing_sources, ambiguous_map, invalid_vlq_char, vlq_truncated, vlq_overflow, invalid_segment, index_out_of_range, negative_value, invalid_section_offset, section_order, section_overlap, nested_index_map, section_url, invalid_ignore_list, unsorted_mappings, input_too_large, limit_exceeded
 
- | wellknown | robots: invalid_line, rule_outside_group, invalid_user_agent, invalid_pattern, invalid_crawl_delay, invalid_utf8, input_too_large, limit_exceeded; security.txt: missing_contact, missing_expires, multiple_expires, invalid_expires, expired, expires_too_far (warning), insecure_uri, invalid_uri, multiple_preferred_languages, unknown_key, content_after_signature, unterminated_signature
+ | wellknown | robots: invalid_line, unknown_key, rule_outside_group, invalid_user_agent, invalid_pattern, invalid_crawl_delay, input_too_large, limit_exceeded; security.txt: missing_contact, missing_expires, multiple_expires, invalid_expires, expired, expires_too_far (warning), multiple_preferred_languages, invalid_uri, insecure_uri, invalid_line, invalid_utf8, unterminated_signature (warning), content_after_signature (warning), input_too_large, limit_exceeded
 
  | codec | ErrInvalid: invalid_byte, bad_padding, trailing_bits, truncated, invalid_escape, non_canonical, line_too_long; ErrCorrupt: bad_header, corrupt; ErrOutputLimit: output_limit, ratio_limit; ErrUnsupported: unsupported. Offsets: bytes into the input for text codecs, output bytes returned for streams
 

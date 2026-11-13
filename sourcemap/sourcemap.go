@@ -20,16 +20,17 @@ type Options struct {
 	MaxSources int
 }
 
-// Default limits, identical in every port (V2_DESIGN parser assurance
-// bounds).
+// Default limits, identical in every port (spec 26.4, 29.6).
 const (
 	DefaultMaxInputBytes = 8 << 20
 	DefaultMaxSources    = 20000
 )
 
-// Code is a stable error code.
+// Code is a stable error code; the list (spec 40.1) is closed and String
+// gives the stable names.
 type Code uint8
 
+// Error codes. CodeNone is the zero value and never appears in an Error.
 const (
 	CodeNone                 Code = iota
 	CodeInvalidJSON               // not JSON text
@@ -40,10 +41,10 @@ const (
 	CodeAmbiguousMap              // both "sections" and "mappings"/"sources"
 	CodeInvalidVLQChar            // a byte outside the Base64 alphabet and separators
 	CodeVLQTruncated              // a VLQ ending in a continuation digit
-	CodeVLQOverflow               // a VLQ (or line count) beyond 32 bits
+	CodeVLQOverflow               // a VLQ, line count or section-shifted position beyond 32 bits
 	CodeInvalidSegment            // a segment with 0 (between commas), 2, 3 or more than 5 fields
 	CodeIndexOutOfRange           // a source or name index past the list
-	CodeNegativeValue             // a column, line or index that resolves below 0
+	CodeNegativeValue             // a column, line or index that resolves below 0 or above 2^31-1
 	CodeInvalidSectionOffset      // a section without a valid offset
 	CodeSectionOrder              // section offsets not strictly increasing
 	CodeSectionOverlap            // a section's mappings reach the next section's offset
@@ -102,6 +103,8 @@ func errf(c Code, format string, args ...any) *Error {
 	return &Error{Code: c, Offset: -1, Section: -1, Detail: fmt.Sprintf(format, args...)}
 }
 
+// Error returns "sourcemap: <code>" with the section, offset and detail
+// where set.
 func (e *Error) Error() string {
 	s := "sourcemap: " + e.Code.String()
 	if e.Section >= 0 {
@@ -116,10 +119,11 @@ func (e *Error) Error() string {
 	return s
 }
 
-// Grade says how completely a result reflects its input. The same four
-// grades exist in cssparse, xmlparse and wellknown.
+// Grade says how completely a result reflects its input (spec 26.4). The
+// same four grades exist in cssparse, xmlparse and wellknown.
 type Grade uint8
 
+// Grades, in order of decreasing completeness.
 const (
 	GradeComplete    Grade = iota // the whole map was read
 	GradePartial                  // a limit cut the read (the map may be nil for input_too_large)
@@ -151,10 +155,13 @@ func GradeOf(err error) Grade {
 
 // Source is one entry of "sources" with its "sourcesContent".
 type Source struct {
-	// URL is the source as written ("" when Null).
-	URL  string
+	// URL is the source as written ("" when Null). For a section of an
+	// index map the section's own sourceRoot is already joined in.
+	URL string
+	// Null is set for a JSON null entry of "sources".
 	Null bool
-	// Content is the embedded source text when HasContent.
+	// Content is the embedded source text when HasContent; HasContent is
+	// false for a null or missing "sourcesContent" entry.
 	Content    string
 	HasContent bool
 	// Ignored is set when the source is listed in "ignoreList" (or the
@@ -166,10 +173,15 @@ type Source struct {
 // names of all sections are concatenated in section order and mapping
 // positions are shifted by the section offsets.
 type Map struct {
-	File       string
+	// File is the top-level "file" ("" when absent).
+	File string
+	// SourceRoot is the top-level "sourceRoot", applied by ResolveSources
+	// (always "" for an index map, whose sections' roots are applied to
+	// their own sources while flattening).
 	SourceRoot string
-	Sources    []Source
-	Names      []string
+	// Sources and Names are indexed by Mapping.Source and Mapping.Name.
+	Sources []Source
+	Names   []string
 	// Mappings are sorted by (GenLine, GenCol), stable, with all indices
 	// in range (SMAP-INV-04).
 	Mappings []Mapping
@@ -208,8 +220,11 @@ type rawSection struct {
 
 // Parse decodes a Source Map v3 (ECMA-426) JSON text, regular or index
 // map. A leading ")]}'" line (the XSSI guard of ECMA-426 §"JSON over
-// HTTP transport") is skipped. On a limit it returns the partial map with
-// the error; otherwise either a complete map or nil and the error.
+// HTTP transport") is skipped. With more than MaxSources sources it
+// returns the truncated map (GradePartial) with a CodeLimitExceeded error;
+// otherwise either a complete map and nil, or nil and the error (input
+// over MaxInputBytes included: nothing is parsed then). Parse is a pure
+// function and safe for concurrent use.
 func Parse(data []byte, opts Options) (*Map, error) {
 	maxIn := opts.MaxInputBytes
 	if maxIn <= 0 {
@@ -263,6 +278,8 @@ func decodeJSON(data []byte, v *rawMap) *Error {
 	return nil
 }
 
+// checkVersion requires the JSON number 3 exactly; "3.0" and "\"3\"" are
+// refused (ECMA-426: version is the integer 3).
 func checkVersion(v json.RawMessage) *Error {
 	if string(bytes.TrimSpace(v)) != "3" {
 		return errf(CodeUnsupportedVersion, "version %s", v)
@@ -399,7 +416,9 @@ func (m *Map) fromIndex(raw *rawMap, maxSrc int) *Error {
 			return e
 		}
 		if len(m.Sources) > maxSrc {
-			return nil // Parse truncates and reports limit_exceeded
+			// Later sections are not read; Parse truncates and reports
+			// limit_exceeded.
+			return nil
 		}
 	}
 	return nil
@@ -419,6 +438,8 @@ func (m *Map) truncateSources(n int) {
 	m.Grade = GradePartial
 }
 
+// sortMappings sorts by generated position; the common already-sorted
+// case costs one pass.
 func sortMappings(ms []Mapping) {
 	if sort.SliceIsSorted(ms, func(i, j int) bool { return lessPos(ms[i], ms[j]) }) {
 		return
@@ -466,6 +487,7 @@ func joinRoot(root, src string) string {
 	return root + src
 }
 
+// isAbsoluteURL reports whether s parses as a URL with a scheme.
 func isAbsoluteURL(s string) bool {
 	u, err := url.Parse(s)
 	return err == nil && u.Scheme != ""

@@ -11,5 +11,7 @@
 // conformance/vecindex/minhash): changing any of them changes every stored
 // sketch.
 //
-// sketch is layer 1: it imports only the standard library and core.
+// The bit-exact contract is spec 30.4 (MinHash and LSH parameters also
+// spec 22.8). sketch is layer 1: it imports only the standard library and
+// core.
 package sketch

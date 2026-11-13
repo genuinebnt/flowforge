@@ -1,5 +1,5 @@
 // Package textindex is Flowforge's full-text search over change history
-// (V2_DESIGN §7): an inverted index with positions and a trigram index in
+// (spec 32; V2_DESIGN §7): an inverted index with positions and a trigram index in
 // immutable "FFTX" segments, its own query language, BM25 ranking, and
 // regex search through a trigram prefilter.
 //

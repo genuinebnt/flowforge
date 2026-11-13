@@ -90,6 +90,8 @@ func MulAddMod61(a, x, b uint64) uint64 {
 	return r
 }
 
+// empty returns the signature of the empty set: every value MaxUint64,
+// above any MulAddMod61 result.
 func (m *MinHasher) empty() []uint64 {
 	sig := make([]uint64, len(m.a))
 	for i := range sig {
@@ -98,6 +100,7 @@ func (m *MinHasher) empty() []uint64 {
 	return sig
 }
 
+// update lowers each signature value to permutation i of h where smaller.
 func (m *MinHasher) update(sig []uint64, h uint64) {
 	x := h % Mersenne61
 	for i := range sig {
@@ -189,7 +192,8 @@ func BandKey(sig []uint64, b, rows int) uint64 {
 // LSH is a banded locality-sensitive hash index over MinHash signatures:
 // two signatures are candidates when they agree on every row of at least
 // one band (BandKey equality). Ids are ordered by the comparator given to
-// NewLSH. It is not safe for concurrent use.
+// NewLSH. It is not safe for concurrent use. Map iteration order never
+// reaches an output: Candidates sorts.
 type LSH[ID comparable] struct {
 	bands, rows int
 	cmp         func(a, b ID) int
