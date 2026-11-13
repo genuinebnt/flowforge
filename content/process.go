@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,8 +17,12 @@ import (
 // Artifact is one normalized, extracted document of a capture: the
 // response body, a derived document, or a headers block.
 type Artifact struct {
-	// DocID is the URL, plus "#script-n", "#style-n", "#handlers",
-	// "#src/<path>" or "#headers" for inner documents and header blocks.
+	// DocID is the requested URL, plus "#script-n", "#style-n",
+	// "#handlers" or "#src/<path>" for inner documents, "#headers" for the
+	// final response's header block, and "#hop/<n>/headers" for the n-th
+	// redirect response (1-based). Hops need their own suffix: the first
+	// hop's URL is the requested URL, so "<hop url>#headers" would collide
+	// with the final block and pair the two in the next version's diff.
 	DocID      string `json:"doc_id"`
 	Kind       Kind   `json:"kind"`
 	BodySHA256 string `json:"body_sha256"`
@@ -170,9 +175,13 @@ func Process(c *Capture, opts ProcessOptions) (*Processed, error) {
 	}
 	p := &Processed{URL: c.URL, Profile: prof.Name, FetchedAt: c.FetchedAt, Status: c.Status}
 	p.Sniff = Sniff(body, ct, c.URL)
+	// RFC 3986 §5.1.3: the base URI of a retrieved document is the URI it
+	// was retrieved from, which after redirects is the final one, not the
+	// requested one (http://h/ -> https://h/ must resolve "/a" against
+	// https). A script's references resolve against the page that loads it.
 	base := opts.PageURL
 	if base == "" {
-		base = c.URL
+		base = c.FinalURL()
 	}
 	main := buildArtifact(c.URL, base, p.Sniff.Kind, body, charset, p.Sniff.Disclosure, c.FetchedAt, opts)
 	if len(c.Body) > lim.MaxResponseBytes || c.Truncated {
@@ -190,8 +199,8 @@ func Process(c *Capture, opts ProcessOptions) (*Processed, error) {
 		p.Artifacts = append(p.Artifacts, buildArtifact(c.URL+d.Suffix, base, d.Kind, d.Body, "", "", c.FetchedAt, opts))
 	}
 	p.Artifacts = append(p.Artifacts, buildArtifact(c.URL+"#headers", base, KindHeaders, HeaderBlock(c.Headers), "", "", c.FetchedAt, opts))
-	for _, h := range c.RedirectChain {
-		p.Artifacts = append(p.Artifacts, buildArtifact(h.URL+"#headers", h.URL, KindHeaders, HeaderBlock(h.Headers), "", "", c.FetchedAt, opts))
+	for i, h := range c.RedirectChain {
+		p.Artifacts = append(p.Artifacts, buildArtifact(c.URL+"#hop/"+strconv.Itoa(i+1)+"/headers", h.URL, KindHeaders, HeaderBlock(h.Headers), "", "", c.FetchedAt, opts))
 		if loc, ok := headerValue(h.Headers, "location"); ok {
 			if to, ok := resolveRef(h.URL, loc); ok {
 				p.Redirects = append(p.Redirects, Redirect{From: h.URL, To: to, Status: h.Status})

@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"google.golang.org/grpc"
+
+	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 )
@@ -14,6 +17,12 @@ import (
 // by the content service. Without a content backend they answer 503.
 
 const prefixSnapshot core.Prefix = "snp"
+
+// contentMaxMessage is the receive limit for content-service replies that
+// can carry a capture body or a diff of one: up to content.MaxResponseBytes
+// (8 MiB, V2 §12.10) plus headers and framing, above gRPC's 4 MiB default.
+// The content service already accepts messages this large.
+const contentMaxMessage = content.MaxResponseBytes + 4<<20
 
 func (s *Server) content() (pb.ContentServiceClient, error) {
 	if s.cfg.Backends.Content == nil {
@@ -118,7 +127,7 @@ func (s *Server) getSnapshot(c *call) error {
 			return errValidation("include: unknown value %q (body, normalized, features)", inc)
 		}
 	}
-	sn, err := cl.GetSnapshot(c.ctx, req)
+	sn, err := cl.GetSnapshot(c.ctx, req, grpc.MaxCallRecvMsgSize(contentMaxMessage))
 	if err != nil {
 		return err
 	}
@@ -183,7 +192,7 @@ func (s *Server) diffSnapshots(c *call) error {
 	default:
 		return errValidation("format: unified, side_by_side or both")
 	}
-	d, err := cl.DiffSnapshots(c.ctx, &pb.DiffSnapshotsRequest{FromSnapshotId: from, ToSnapshotId: to, Format: format})
+	d, err := cl.DiffSnapshots(c.ctx, &pb.DiffSnapshotsRequest{FromSnapshotId: from, ToSnapshotId: to, Format: format}, grpc.MaxCallRecvMsgSize(contentMaxMessage))
 	if err != nil {
 		return err
 	}

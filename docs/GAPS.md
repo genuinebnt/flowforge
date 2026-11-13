@@ -229,7 +229,7 @@ assumptions it was written against.
 | G-CST-02 | The content chunk store has no GCS backend; it uses a local directory (`FF_CONTENT_DIR`) or memory, so Cloud Run instances lose it | v2 (with G-CORE-04) |
 | G-CST-03 | chunkstore allows one writer per tenant namespace, so the content service must run one replica per tenant set | v3 (writer leases or per-tenant ownership via placement) |
 | G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | v2 |
-| G-CST-05 | The §10 "less than 25 % of raw" target is met on raw snapshots (21.4 %), not on all stored records (59.8 % including normalized texts, features and diffs); meeting it on the total means re-deriving features instead of storing them (contentstore OPEN_QUESTIONS 1) | operator decision (accept the raw-snapshot reading, or make derived records re-derivable and drop them) |
+| G-CST-05 | The §10 "less than 25 % of raw" target: on the tiny SPA fixture all records take 59.8 %, because each version carries about 300 bytes of fixed records | **closed** (the §10 lab, with realistic page sizes, stores raw snapshots at 6.8 % and all records including diffs at 18.4 %; TestLabAcceptance_*) |
 | G-LANG-04 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | v2 (spec Part II) |
 
 ## Doc and code conflicts to resolve with the fixes

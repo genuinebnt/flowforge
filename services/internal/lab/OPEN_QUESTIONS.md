@@ -3,7 +3,10 @@
 Findings the lab made about the packages it exercises, and the choices it
 makes because of them.
 
-1. **References of a redirected capture resolve against the requested
+1. **Fixed in `content` (TestRegress_RedirectBase):** references now
+   resolve against the final URL. The tool workarounds below are kept
+   because they are also correct behaviour. Original finding:
+   **References of a redirected capture resolve against the requested
    URL.** `content.Process` resolves a capture's links, scripts and forms
    against `ProcessOptions.PageURL` or `Capture.URL`, never the final URL
    of the redirect chain (RFC 3986 §5.1.3: the base is the retrieval URI,
@@ -12,7 +15,9 @@ makes because of them.
    it: crawl expands a redirected capture's target instead of its links;
    collect's subresources of such a page are fetched through the original
    origin (and its redirect). The fix belongs in `content`.
-2. **A redirected capture's final headers and its first hop share a doc
+2. **Fixed in `content` (TestRegress_HopHeaderDocIDs):** hop header
+   blocks are now `<url>#hop/<n>/headers`. Original finding:
+   **A redirected capture's final headers and its first hop share a doc
    id.** `content.Process` names the final response's header block
    `Capture.URL + "#headers"` and each hop's `Hop.URL + "#headers"`; the
    first hop's URL is the requested URL, so both artifacts are
