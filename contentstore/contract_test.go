@@ -27,3 +27,10 @@ func TestCStoreInv15_RederiveNoChange(t *testing.T) { storetest.RederiveNoChange
 func TestCStoreInv16_RederiveEqualsFreshIngest(t *testing.T) {
 	storetest.RederiveEqualsFresh(t, memRepo)
 }
+
+// TestRegress_RederiveUnchangedSuccessorDiff: the diff into a snapshot
+// whose re-derived records do not change is still recomputed when its
+// predecessor's did (storetest.RederiveUnchangedSuccessor).
+func TestRegress_RederiveUnchangedSuccessorDiff(t *testing.T) {
+	storetest.RederiveUnchangedSuccessor(t, memRepo)
+}

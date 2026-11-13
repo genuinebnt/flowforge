@@ -163,3 +163,9 @@ func TestCStoreInv15_RederiveNoChangePostgres(t *testing.T) { storetest.Rederive
 func TestCStoreInv16_RederiveEqualsFreshIngestPostgres(t *testing.T) {
 	storetest.RederiveEqualsFresh(t, pgRepo)
 }
+
+// TestRegress_RederiveUnchangedSuccessorDiffPostgres:
+// storetest.RederiveUnchangedSuccessor on Postgres.
+func TestRegress_RederiveUnchangedSuccessorDiffPostgres(t *testing.T) {
+	storetest.RederiveUnchangedSuccessor(t, pgRepo)
+}

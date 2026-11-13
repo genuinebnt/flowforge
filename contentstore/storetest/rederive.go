@@ -30,8 +30,21 @@ const UpgradedStamp = "test/normalizers-v2"
 // table hash. It changes most normalized lines of the SPA fixture's
 // bundles and some of its pages, and leaves the HTML attribute layout
 // volatility learning reads intact.
-func UpgradedPipeline() contentstore.Pipeline {
-	return contentstore.Pipeline{Stamp: UpgradedStamp, Process: func(c *content.Capture, o content.ProcessOptions) (*content.Processed, error) {
+func UpgradedPipeline() contentstore.Pipeline { return upgradedPipeline(UpgradedStamp, true) }
+
+// ScriptsUpgradedStamp is the stamp of ScriptsUpgradedPipeline.
+const ScriptsUpgradedStamp = "test/js-v2"
+
+// ScriptsUpgradedPipeline is UpgradedPipeline with only the js@2 part:
+// pages keep their html@1 records and only their inline scripts (derived
+// documents) and bundles change, so a page version without a script is
+// re-derived with no change while the one before it changes.
+func ScriptsUpgradedPipeline() contentstore.Pipeline {
+	return upgradedPipeline(ScriptsUpgradedStamp, false)
+}
+
+func upgradedPipeline(stamp string, html bool) contentstore.Pipeline {
+	return contentstore.Pipeline{Stamp: stamp, Process: func(c *content.Capture, o content.ProcessOptions) (*content.Processed, error) {
 		p, err := content.Process(c, o)
 		if err != nil {
 			return nil, err
@@ -39,10 +52,10 @@ func UpgradedPipeline() contentstore.Pipeline {
 		for i := range p.Artifacts {
 			a := &p.Artifacts[i]
 			n := &a.Normalized
-			switch a.Kind {
-			case content.KindHTML:
+			switch {
+			case a.Kind == content.KindHTML && html:
 				n.Text = bytes.ReplaceAll(n.Text, []byte("<script"), []byte("<SCRIPT"))
-			case content.KindJS:
+			case a.Kind == content.KindJS:
 				n.Text = bytes.ReplaceAll(n.Text, []byte("="), []byte(" = "))
 			default:
 				continue
@@ -70,14 +83,14 @@ func withPipeline(t *testing.T, s *contentstore.Store, p contentstore.Pipeline) 
 	return n
 }
 
-// aboutPage is a page whose first version loads a script and whose
-// second does not: UpgradedPipeline changes the first's normalized text
-// (html@2 upper-cases script start tags) and leaves the second's derived
-// records as they were, so the diff between them must be recomputed when
-// its new side is re-derived although that side's records do not change.
+// aboutPage is a page whose first version has an inline script and whose
+// second has none. Under ScriptsUpgradedPipeline the first's records
+// change (its #script-1 document is re-normalized by js@2) and the
+// second's do not, so the diff between them must be recomputed when the
+// second is re-derived although its own records do not change.
 func aboutPage(v string, at time.Time) content.Capture {
 	body := "<!doctype html><html><head><title>About</title></head><body><h1>About us</h1>\n" +
-		"<p>We sell things.</p>\n<script src=\"/static/js/about.js\"></script>\n</body></html>\n"
+		"<p>We sell things.</p>\n<script>var team=\"/api/team\";fetch(team)</script>\n</body></html>\n"
 	if v == "v2" {
 		body = "<!doctype html><html><head><title>About</title></head><body><h1>About us</h1>\n" +
 			"<p>We sell many things.</p>\n</body></html>\n"
@@ -465,17 +478,27 @@ func RederiveNoChange(t *testing.T, open func(t *testing.T) contentstore.Repo) {
 // coverage, simhash and normalizer_version; every diff's levels, stats,
 // hunks and change set; and the search and first-appeared answers of a
 // query set.
+//
+// It runs for UpgradedPipeline and for ScriptsUpgradedPipeline, under which
+// some snapshots (aboutPage v2, pages without inline scripts) re-derive
+// with no change of their own after a predecessor that changed.
 func RederiveEqualsFresh(t *testing.T, open func(t *testing.T) contentstore.Repo) {
+	for _, p := range []contentstore.Pipeline{UpgradedPipeline(), ScriptsUpgradedPipeline()} {
+		t.Run(p.Stamp, func(t *testing.T) { rederiveEqualsFresh(t, open, p) })
+	}
+}
+
+func rederiveEqualsFresh(t *testing.T, open func(t *testing.T) contentstore.Repo, p contentstore.Pipeline) {
 	clock := testkit.NewFakeClock(t0.AddDate(0, 0, 30))
 	reqs := spaCaptures(t)
 	old := harness(t, open(t), clock, contentstore.Limits{})
 	res := ingestAll(t, old, reqs)
-	up := withPipeline(t, old, UpgradedPipeline())
+	up := withPipeline(t, old, p)
 	rederiveAll(t, up, 4)
 	got := readState(t, up, res)
 
 	fresh := harness(t, open(t), clock, contentstore.Limits{})
-	fresh = withPipeline(t, fresh, UpgradedPipeline())
+	fresh = withPipeline(t, fresh, p)
 	fres := ingestAll(t, fresh, reqs)
 	want := readState(t, fresh, fres)
 	for i := range got.diffs {
@@ -587,4 +610,61 @@ func ids(ss []contentstore.Snapshot) []string {
 		out = append(out, s.PublicID())
 	}
 	return out
+}
+
+// RederiveUnchangedSuccessor is a regression case of CSTORE-INV-16: a
+// snapshot whose own derivation does not change (aboutPage v2 under
+// ScriptsUpgradedPipeline) after a predecessor whose derivation did still
+// has the diff into it recomputed under the new pipeline. The
+// predecessor's re-derive rewrites that diff verbatim (old derivation,
+// successor still stale); before the fix the successor's re-derive wrote
+// only its stamp, so the diff kept the predecessor's old script text
+// between two snapshots of the new stamp.
+func RederiveUnchangedSuccessor(t *testing.T, open func(t *testing.T) contentstore.Repo) {
+	ctx := context.Background()
+	clock := testkit.NewFakeClock(t0.AddDate(0, 0, 30))
+	reqs := []contentstore.IngestRequest{{Program: programP, Capture: aboutPage("v1", t0)},
+		{Program: programP, Capture: aboutPage("v2", t0.AddDate(0, 0, 1))}}
+	old := harness(t, open(t), clock, contentstore.Limits{})
+	res := ingestAll(t, old, reqs)
+	before := readState(t, old, res)
+	up := withPipeline(t, old, ScriptsUpgradedPipeline())
+	rep, _ := rederiveAll(t, up, 1)
+	got := readState(t, up, res)
+	if got.features[0] == before.features[0] || got.features[1] != before.features[1] || got.texts[1] != before.texts[1] {
+		t.Fatal("fixture: v1's records must change and v2's must not")
+	}
+	if rep.Snapshots != 2 || rep.Rewritten != 1 || rep.Diffs != 2 || rep.HunksVerbatim != 1 {
+		t.Fatalf("report %+v", rep)
+	}
+	_, hunks, _, err := up.StoredDiff(ctx, tenantA, res[1].Diff.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	removed := false
+	for _, a := range hunks {
+		for _, h := range a.Hunks {
+			for _, l := range h.Lines {
+				// js@1 prints "team = "; js@2 adds a space on each side
+				// of every '=': "team = " is the old derivation of v1's
+				// inline script.
+				if strings.Contains(l, "team = ") {
+					t.Fatalf("diff into the unchanged successor keeps the old derivation: %q", l)
+				}
+				removed = removed || strings.Contains(l, "team  =  ")
+			}
+		}
+	}
+	if !removed {
+		t.Fatalf("diff into v2 does not show the removed script in its new derivation: %s", got.hunks[0])
+	}
+	fresh := withPipeline(t, harness(t, open(t), clock, contentstore.Limits{}), ScriptsUpgradedPipeline())
+	want := readState(t, fresh, ingestAll(t, fresh, reqs))
+	sameStrings(t, "hunks, re-derived vs fresh", got.hunks, want.hunks)
+	sameStrings(t, "change sets, re-derived vs fresh", got.changes, want.changes)
+	sameStrings(t, "hits, re-derived vs fresh", got.hits, want.hits)
+	again, err := up.Rederive(ctx, tenantA, contentstore.RederiveOptions{})
+	if err != nil || again.Snapshots != 0 {
+		t.Fatalf("second run %+v %v", again, err)
+	}
 }

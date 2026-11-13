@@ -393,15 +393,19 @@ func (s *Store) rederiveOnce(ctx context.Context, tenant, id core.UUID) (core.UU
 			depRefs[d.ID] = BlobRefs{HeadersRef: n.HeadersRef, BodyManifest: n.BodyManifest, NormalizedManifest: n.NormalizedManifest,
 				FeaturesRef: n.FeaturesRef, Codec: d.Codec, DeltaBase: d.DeltaBase, DeltaDepth: d.DeltaDepth}
 		}
-		if diffs, err = s.rederiveDiffs(ctx, tc, st, upd, prev, prevHist, cur, history, &added); err != nil {
-			return core.Nil, rep, err
-		}
-		for _, d := range diffs {
-			if d.docs != nil {
-				rep.Diffs++
-			} else {
-				rep.HunksVerbatim++
-			}
+	}
+	// The diff into snap is recomputed even when snap's own records did
+	// not change: its predecessor's may have (that re-derive rewrote the
+	// diff verbatim, with the old predecessor text), and a diff between
+	// two new-stamp snapshots must be of the new derivation (CSTORE-INV-16).
+	if diffs, err = s.rederiveDiffs(ctx, tc, st, upd, prev, prevHist, cur, history, changed, &added); err != nil {
+		return core.Nil, rep, err
+	}
+	for _, d := range diffs {
+		if d.docs != nil {
+			rep.Diffs++
+		} else {
+			rep.HunksVerbatim++
 		}
 	}
 
@@ -448,18 +452,20 @@ func (s *Store) rederiveOnce(ctx context.Context, tenant, id core.UUID) (core.UU
 					return err
 				}
 			}
-			for _, d := range diffs {
-				cd, ok, err := tx.GetDiff(ctx, d.old.ID)
-				if err != nil {
-					return err
-				}
-				if !ok || cd.HunksRef != d.old.HunksRef || cd.SemanticRef != d.old.SemanticRef {
-					return conflict("diff %s changed during a re-derive", d.old.PublicID())
-				}
-				if err := tx.RewriteDiff(ctx, d.new); err != nil {
-					return err
-				}
+		}
+		for _, d := range diffs {
+			cd, ok, err := tx.GetDiff(ctx, d.old.ID)
+			if err != nil {
+				return err
 			}
+			if !ok || cd.HunksRef != d.old.HunksRef || cd.SemanticRef != d.old.SemanticRef {
+				return conflict("diff %s changed during a re-derive", d.old.PublicID())
+			}
+			if err := tx.RewriteDiff(ctx, d.new); err != nil {
+				return err
+			}
+		}
+		if changed || len(diffs) > 0 {
 			u, err := tx.Usage(ctx)
 			if err != nil {
 				return err
@@ -474,19 +480,24 @@ func (s *Store) rederiveOnce(ctx context.Context, tenant, id core.UUID) (core.UU
 	if err != nil {
 		return core.Nil, rep, internal("re-derive write", err)
 	}
-	if !changed {
+	if changed {
+		s.cache.drop(tenant, id)
+	} else if len(diffs) == 0 {
 		return core.Nil, rep, nil
 	}
-	s.cache.drop(tenant, id)
 	return core.Nil, rep, s.reindex(ctx, tc, tenant, upd, nb, diffs)
 }
 
-// rederiveDiffs rewrites the diffs touching a re-derived snapshot: the
-// diff into it is recomputed (its predecessor is re-derived), as is a
-// diff out of it whose successor is; a diff out of it into a stale
-// successor keeps its content with its hunks inlined.
+// rederiveDiffs returns the diffs touching a re-derived snapshot that the
+// re-derive rewrites. The diff into it is recomputed (its predecessor is
+// re-derived). When the snapshot's own records changed, that diff is
+// always rewritten, as is a diff out of it whose successor is re-derived
+// (recomputed) or still stale (old content, hunks inlined). When they did
+// not change, the diffs out of it still match its records and only the
+// diff into it is returned, if its recomputed records or derived columns
+// differ from the stored ones (a predecessor that changed).
 func (s *Store) rederiveDiffs(ctx context.Context, tc *tenantChunks, st rederiveState, upd Snapshot, prev *content.Processed,
-	prevHist []string, cur *content.Processed, history []string, added *int64) ([]rewrittenDiff, error) {
+	prevHist []string, cur *content.Processed, history []string, changed bool, added *int64) ([]rewrittenDiff, error) {
 	put := func(b []byte) (string, int64, error) {
 		eb, err := encodeDiffBlob(s.cfg.Codec, b)
 		if err != nil {
@@ -496,32 +507,41 @@ func (s *Store) rederiveDiffs(ctx context.Context, tc *tenantChunks, st rederive
 		*added += n
 		return ref, n, err
 	}
-	recompute := func(d Diff, to Snapshot, from, into *content.Processed, hist []string, lineage bool) (rewrittenDiff, error) {
+	// recompute returns d recomputed between from and into; with
+	// onlyIfDiffers it returns ok false, and stores nothing, when the
+	// records and derived columns equal the stored ones.
+	recompute := func(d Diff, to Snapshot, from, into *content.Processed, hist []string, lineage, onlyIfDiffers bool) (rewrittenDiff, bool, error) {
 		baseline := d.From.IsZero()
 		opts := s.cfg.Diff
 		opts.History = hist
 		cs, err := content.Compare(from, into, opts)
 		if err != nil {
-			return rewrittenDiff{}, invalid("%v", err)
+			return rewrittenDiff{}, false, invalid("%v", err)
 		}
 		if baseline {
 			if err := baselineArtifacts(&cs, into, opts); err != nil {
-				return rewrittenDiff{}, err
+				return rewrittenDiff{}, false, err
 			}
 		}
 		hb, sb, err := diffRecords(&cs, baseline, from, into)
 		if err != nil {
-			return rewrittenDiff{}, err
+			return rewrittenDiff{}, false, err
 		}
 		n := d
 		n.Levels, n.Algorithm, n.NormalizerVersion = slices.Clone(cs.Levels), diffAlgorithm(s.cfg.Diff.Policy, &cs), into.Main().Normalized.Version
 		n.Stats = diffStats(&cs, lineage)
+		if onlyIfDiffers {
+			same, err := s.sameDiff(ctx, tc, d, n, hb, sb)
+			if err != nil || same {
+				return rewrittenDiff{}, false, err
+			}
+		}
 		var a, b int64
 		if n.HunksRef, a, err = put(hb); err != nil {
-			return rewrittenDiff{}, err
+			return rewrittenDiff{}, false, err
 		}
 		if n.SemanticRef, b, err = put(sb); err != nil {
-			return rewrittenDiff{}, err
+			return rewrittenDiff{}, false, err
 		}
 		n.StoredSize = a + b
 		hr, sr := fullRecords(&cs, baseline)
@@ -530,7 +550,7 @@ func (s *Store) rederiveDiffs(ctx context.Context, tc *tenantChunks, st rederive
 		if docs == nil {
 			docs = []textindex.Document{}
 		}
-		return rewrittenDiff{old: d, new: n, docs: docs}, nil
+		return rewrittenDiff{old: d, new: n, docs: docs}, true, nil
 	}
 	var out []rewrittenDiff
 	if st.in != nil {
@@ -539,11 +559,16 @@ func (s *Store) rederiveDiffs(ctx context.Context, tc *tenantChunks, st rederive
 		if !st.in.From.IsZero() {
 			from, hist = prev, prevHist
 		}
-		r, err := recompute(*st.in, upd, from, cur, hist, !upd.LineageParentID.IsZero())
+		r, ok, err := recompute(*st.in, upd, from, cur, hist, !upd.LineageParentID.IsZero(), !changed)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, r)
+		if ok {
+			out = append(out, r)
+		}
+	}
+	if !changed {
+		return out, nil
 	}
 	for _, d := range st.out {
 		succ := st.succ[d.To]
@@ -556,7 +581,7 @@ func (s *Store) rederiveDiffs(ctx context.Context, tc *tenantChunks, st rederive
 			if succ.URL != upd.URL {
 				from = rebase(cur, succ.URL)
 			}
-			r, err := recompute(d, succ, from, into, history, !succ.LineageParentID.IsZero())
+			r, _, err := recompute(d, succ, from, into, history, !succ.LineageParentID.IsZero(), false)
 			if err != nil {
 				return nil, err
 			}
@@ -578,6 +603,42 @@ func (s *Store) rederiveDiffs(ctx context.Context, tc *tenantChunks, st rederive
 		out = append(out, rewrittenDiff{old: d, new: n})
 	}
 	return out, nil
+}
+
+// sameDiff reports whether the recomputed diff n with plain records hb, sb
+// equals the stored diff d: the same plain hunks and semantic records
+// (refs differ when only the encoding did) and the same derived columns.
+func (s *Store) sameDiff(ctx context.Context, tc *tenantChunks, d, n Diff, hb, sb []byte) (bool, error) {
+	if !slices.Equal(d.Levels, n.Levels) || d.Algorithm != n.Algorithm || d.NormalizerVersion != n.NormalizerVersion {
+		return false, nil
+	}
+	ds, err := core.CanonicalJSON(d.Stats)
+	if err != nil {
+		return false, internal("encode diff stats", err)
+	}
+	ns, err := core.CanonicalJSON(n.Stats)
+	if err != nil {
+		return false, internal("encode diff stats", err)
+	}
+	if !bytes.Equal(ds, ns) {
+		return false, nil
+	}
+	for _, r := range []struct {
+		ref   string
+		plain []byte
+	}{{d.HunksRef, hb}, {d.SemanticRef, sb}} {
+		b, err := tc.get(ctx, r.ref)
+		if err != nil {
+			return false, err
+		}
+		if b, err = decodeDiffBlob(b); err != nil {
+			return false, err
+		}
+		if !bytes.Equal(b, r.plain) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // verbatimHunks encodes a full hunks record with every hunk's lines
