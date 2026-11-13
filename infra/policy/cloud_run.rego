@@ -18,12 +18,20 @@ live_changes contains rc if {
 
 public_members := {"allUsers", "allAuthenticatedUsers"}
 
-# Cloud Run v2 services must not accept traffic from the internet directly.
+# Cloud Run v2 services must not accept traffic from the internet directly,
+# except the lab gateway: the lab has no load balancer and serves the API on
+# the gateway's run.app URL (see cost.rego for how a lab plan is recognised).
 deny contains msg if {
 	some rc in live_changes
 	rc.type == "google_cloud_run_v2_service"
 	rc.change.after.ingress == "INGRESS_TRAFFIC_ALL"
-	msg := sprintf("%s: ingress INGRESS_TRAFFIC_ALL is not allowed; use INGRESS_TRAFFIC_INTERNAL_ONLY, or INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER for the gateway", [rc.address])
+	not lab_gateway(rc)
+	msg := sprintf("%s: ingress INGRESS_TRAFFIC_ALL is not allowed; use INGRESS_TRAFFIC_INTERNAL_ONLY, or INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER for the gateway (INGRESS_TRAFFIC_ALL only for the lab gateway)", [rc.address])
+}
+
+lab_gateway(rc) if {
+	is_lab
+	is_gateway(rc.change.after.name)
 }
 
 deny contains msg if {

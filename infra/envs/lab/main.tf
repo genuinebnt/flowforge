@@ -145,10 +145,10 @@ locals {
         {
           FF_TICK_OIDC_AUDIENCE   = local.run_url["engine"]
           FF_TICK_SERVICE_ACCOUNT = google_service_account.scheduler.email
-          FF_LLM_ENDPOINT      = var.llm_endpoint
-          FF_LLM_MODEL         = var.llm_model
-          FF_FUEL_DEFAULT      = tostring(var.fuel_default)
-          FF_PLAN_FUEL_DEFAULT = tostring(var.plan_fuel_default)
+          FF_LLM_ENDPOINT         = var.llm_endpoint
+          FF_LLM_MODEL            = var.llm_model
+          FF_FUEL_DEFAULT         = tostring(var.fuel_default)
+          FF_PLAN_FUEL_DEFAULT    = tostring(var.plan_fuel_default)
       })
       secret_env = merge(local.secret_db, local.secret_redis, local.llm_env, local.signing_key_env)
     }

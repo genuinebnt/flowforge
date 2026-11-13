@@ -38,6 +38,13 @@ type memData struct {
 	audit       []AuditRecord
 	outbox      []OutboxEvent
 	idem        map[idemKey]IdemRecord
+	groups      map[groupKey]time.Time // (tenant, name, user) -> added at
+}
+
+type groupKey struct {
+	tenant core.UUID
+	name   string
+	user   core.UUID
 }
 
 type idemKey struct {
@@ -54,7 +61,7 @@ func NewMemStore() *MemStore {
 		members: map[[2]core.UUID]Membership{}, invites: map[core.UUID]Invite{},
 		verifs: map[[32]byte]auth.Verification{}, refresh: map[core.UUID]auth.RefreshToken{},
 		refreshHash: map[[32]byte]core.UUID{}, keys: map[core.UUID]APIKeyRecord{}, keyPrefix: map[string]core.UUID{},
-		signing: map[string]SigningKeyRecord{}, idem: map[idemKey]IdemRecord{},
+		signing: map[string]SigningKeyRecord{}, idem: map[idemKey]IdemRecord{}, groups: map[groupKey]time.Time{},
 	}}
 }
 
@@ -258,6 +265,64 @@ func (s *MemStore) SetMemberRole(_ context.Context, tenant, user core.UUID, role
 	m.Role = role
 	s.d.members[k] = m
 	return nil
+}
+
+// AddRoleGroupMember implements Store.
+func (s *MemStore) AddRoleGroupMember(_ context.Context, tenant core.UUID, name string, user core.UUID, at time.Time) error {
+	defer s.lock()()
+	if _, ok := s.d.members[[2]core.UUID{tenant, user}]; !ok {
+		return notFound("membership")
+	}
+	k := groupKey{tenant, name, user}
+	if _, ok := s.d.groups[k]; !ok {
+		s.d.groups[k] = at
+	}
+	return nil
+}
+
+// RemoveRoleGroupMember implements Store.
+func (s *MemStore) RemoveRoleGroupMember(_ context.Context, tenant core.UUID, name string, user core.UUID) (bool, error) {
+	defer s.lock()()
+	k := groupKey{tenant, name, user}
+	_, ok := s.d.groups[k]
+	delete(s.d.groups, k)
+	return ok, nil
+}
+
+// ListRoleGroups implements Store.
+func (s *MemStore) ListRoleGroups(_ context.Context, tenant core.UUID) ([]RoleGroup, error) {
+	defer s.lock()()
+	by := map[string][]core.UUID{}
+	for k := range s.d.groups {
+		// A removed membership removes its group rows (the FK cascade of
+		// migration 0015); here stale rows are skipped instead.
+		if _, ok := s.d.members[[2]core.UUID{k.tenant, k.user}]; k.tenant == tenant && ok {
+			by[k.name] = append(by[k.name], k.user)
+		}
+	}
+	out := make([]RoleGroup, 0, len(by))
+	for n, us := range by {
+		slices.SortFunc(us, func(a, b core.UUID) int { return strings.Compare(a.String(), b.String()) })
+		out = append(out, RoleGroup{Name: n, Members: us})
+	}
+	slices.SortFunc(out, func(a, b RoleGroup) int { return strings.Compare(a.Name, b.Name) })
+	return out, nil
+}
+
+// UserRoleGroups implements Store.
+func (s *MemStore) UserRoleGroups(_ context.Context, tenant, user core.UUID) ([]string, error) {
+	defer s.lock()()
+	if _, ok := s.d.members[[2]core.UUID{tenant, user}]; !ok {
+		return nil, nil
+	}
+	var out []string
+	for k := range s.d.groups {
+		if k.tenant == tenant && k.user == user {
+			out = append(out, k.name)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // CountOwners implements Store.

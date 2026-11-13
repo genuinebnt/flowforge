@@ -341,6 +341,29 @@ type Limiter interface {
 	AcquireAll(reqs []limiter.Request, now time.Duration) (limiter.Result, error)
 }
 
+// WorkLimiter is a Limiter that applies the outage policy of spec 14.4 and
+// 23.8 per kind of work (limiter.Failover over a distributed store): when
+// the store is unavailable, passive work continues on conservative local
+// budgets and active work fails closed. When Deps.Limiter implements it,
+// the engine passes the work kind of each tool call (WorkOf); otherwise it
+// calls AcquireAll and any limiter error waits (fail closed for both).
+type WorkLimiter interface {
+	Limiter
+	AcquireAllWork(reqs []limiter.Request, work limiter.Work, now time.Duration) (limiter.Result, error)
+}
+
+// WorkOf classifies a tool's effect class (spec 7.5) for WorkLimiter:
+// passive and read tools are passive work (they read third-party
+// sources); every other class, including unknown ones, is active, so an
+// outage never lets it run on local budgets.
+func WorkOf(effectClass string) limiter.Work {
+	switch effectClass {
+	case "passive", "read":
+		return limiter.WorkPassive
+	}
+	return limiter.WorkActive
+}
+
 // ---- Publisher ----
 
 // Outbox topics (spec 23.7).

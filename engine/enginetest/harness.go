@@ -55,9 +55,11 @@ type Harness struct {
 	// Publisher, when set, replaces Pub (for example the pgrepo outbox).
 	Publisher engine.Publisher
 	Compiler  *FakeCompiler
-	Config    engine.Config
-	Engine    *engine.Engine
-	ctx       context.Context
+	// Limiter is the optional rate-limit port (nil: none).
+	Limiter engine.Limiter
+	Config  engine.Config
+	Engine  *engine.Engine
+	ctx     context.Context
 }
 
 // New returns an initialized harness with MemStore, MemRepo and MemTools,
@@ -106,7 +108,7 @@ func (h *Harness) Deps(store eventstore.Store) engine.Deps {
 	}
 	return engine.Deps{
 		Store: store, Repo: h.Repo, Compiler: h.Compiler, Scope: h.Scope, Tools: h.Tools,
-		Executor: h.Exec, Ingester: h.Ingester, Publisher: pub, Clock: h.Clock,
+		Executor: h.Exec, Ingester: h.Ingester, Publisher: pub, Limiter: h.Limiter, Clock: h.Clock,
 		Rng: core.NewSplitMix64(h.Seed),
 	}
 }

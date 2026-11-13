@@ -148,6 +148,11 @@ func (v *Verifier) checkClaims(c *Claims) error {
 	if c.SessionVersion < 0 {
 		return fmt.Errorf("%w: sv %d", ErrClaimInvalid, c.SessionVersion)
 	}
+	if !validGroups(c.Groups) || (len(c.Groups) > 0 && c.Audience != AudienceInternal) {
+		// groups only ever travel in internal tokens; an access token with
+		// groups was not minted by Minter.Access.
+		return fmt.Errorf("%w: groups", ErrClaimInvalid)
+	}
 	return nil
 }
 

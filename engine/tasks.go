@@ -37,6 +37,7 @@ const (
 	haltTimeout
 	haltPause
 	haltNondeterminism
+	haltDrain // the worker is shutting down: release the run now
 )
 
 type stepResult struct {
@@ -284,6 +285,11 @@ func (r *runner) schedule(s vm.Suspended, path, hash string) error {
 // version change, a pause, or a kill switch (eng_006: once a kill switch
 // is engaged no further effect starts and the run is cancelled).
 func (r *runner) boundary(s vm.Suspended, path string) (*stepResult, error) {
+	// Checked first: a draining worker must not start anything, and the
+	// conditions below are re-checked by the next owner.
+	if r.draining != nil && r.draining() {
+		return halt(haltDrain, ""), nil
+	}
 	if r.cancelRequested() {
 		return halt(haltCancel, ""), nil
 	}

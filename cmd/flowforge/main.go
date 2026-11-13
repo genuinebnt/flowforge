@@ -92,6 +92,8 @@ func dev(args []string) error {
 		for name, v := range backendVar {
 			backends[v] = st.Addrs[name]
 		}
+		// auth.events go onto the stack's bus, where the notifier consumes them.
+		gw.UseBus(st.Bus)
 		go func() { gwErr <- gw.Serve(ctx, backends) }()
 	}
 

@@ -108,6 +108,9 @@ type Outcome struct {
 	Alerts        []AlertRecord
 	Notifications []Notification
 	Errors        []RuleError
+	// State lists the throttle windows and digests this event changed,
+	// to persist with the alert events (G-LIM-06).
+	State StateChange
 }
 
 // ProcessorConfig configures a Processor.
@@ -181,6 +184,9 @@ func (p *Processor) Process(ctx context.Context, ev *Event) (Outcome, error) {
 			Status: StatusPending, Severity: m.Severity, Payload: m.Payload, CreatedAt: now,
 		}
 		dec := p.throttle.Admit(m.DedupeKey, throttle, now)
+		if w, ok := p.throttle.window(m.DedupeKey); ok && throttle > 0 {
+			out.State.Throttle = append(out.State.Throttle, w)
+		}
 		if !dec.Fire {
 			rec.Status = StatusSuppressed
 			out.Alerts = append(out.Alerts, rec)
@@ -192,6 +198,9 @@ func (p *Processor) Process(ctx context.Context, ev *Event) (Outcome, error) {
 			m.Payload = rec.Payload
 			p.digests.Add(m, digest, now)
 			p.quiet[m.RuleID] = quiet
+			dg := *p.digests.open[m.RuleID]
+			dg.Items = append([]Payload(nil), dg.Items...)
+			out.State.Digests = append(out.State.Digests, dg)
 			out.Alerts = append(out.Alerts, rec)
 			continue
 		}

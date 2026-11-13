@@ -98,7 +98,7 @@ locals {
   }
 
   unit = {
-    "ff-data" = <<-EOT
+    "ff-data"         = <<-EOT
       [Unit]
       Description=Flowforge data disk
       After=local-fs.target
@@ -107,7 +107,7 @@ locals {
       RemainAfterExit=yes
       ExecStart=/bin/bash /etc/ff/ff-data.sh
     EOT
-    "ff-firewall" = <<-EOT
+    "ff-firewall"     = <<-EOT
       [Unit]
       Description=Flowforge host firewall openings
       [Service]
@@ -115,7 +115,7 @@ locals {
       RemainAfterExit=yes
       ExecStart=/bin/bash /etc/ff/ff-firewall.sh
     EOT
-    "ff-secrets" = <<-EOT
+    "ff-secrets"      = <<-EOT
       [Unit]
       Description=Flowforge secrets from Secret Manager
       Wants=network-online.target
@@ -127,7 +127,7 @@ locals {
       Restart=on-failure
       RestartSec=30
     EOT
-    "ff-postgres" = <<-EOT
+    "ff-postgres"     = <<-EOT
       [Unit]
       Description=Flowforge Postgres 16
       Requires=docker.service ff-data.service ff-secrets.service
@@ -140,7 +140,7 @@ locals {
       Restart=always
       RestartSec=10
     EOT
-    "ff-redis" = <<-EOT
+    "ff-redis"        = <<-EOT
       [Unit]
       Description=Flowforge Redis 7
       Requires=docker.service ff-data.service ff-secrets.service
@@ -163,7 +163,7 @@ locals {
       Restart=always
       RestartSec=15
     EOT
-    "ff-image-watch" = <<-EOT
+    "ff-image-watch"  = <<-EOT
       [Unit]
       Description=Restart the egress proxy when its image metadata changes
       Wants=network-online.target

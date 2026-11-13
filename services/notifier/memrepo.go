@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/genuinebnt/flowforge/alerts"
 	"github.com/genuinebnt/flowforge/core"
 )
 
@@ -19,12 +20,15 @@ type MemRepo struct {
 	alerts     map[core.UUID]AlertEvent
 	deliveries map[core.UUID]Delivery
 	processed  map[[2]string]bool
+	throttle   map[[2]core.UUID]map[string]alerts.ThrottleWindow
+	digests    map[[2]core.UUID]map[string]alerts.Digest
 }
 
 // NewMemRepo returns an empty repository.
 func NewMemRepo() *MemRepo {
 	return &MemRepo{rules: map[core.UUID]Rule{}, channels: map[core.UUID]Channel{}, alerts: map[core.UUID]AlertEvent{},
-		deliveries: map[core.UUID]Delivery{}, processed: map[[2]string]bool{}}
+		deliveries: map[core.UUID]Delivery{}, processed: map[[2]string]bool{},
+		throttle: map[[2]core.UUID]map[string]alerts.ThrottleWindow{}, digests: map[[2]core.UUID]map[string]alerts.Digest{}}
 }
 
 var _ Repo = (*MemRepo)(nil)
@@ -158,6 +162,68 @@ type memTx struct {
 	marks      [][2]string
 	alerts     []AlertEvent
 	deliveries []Delivery
+	state      []func() // applied with the other writes
+}
+
+func (t *memTx) SaveAlertState(_ context.Context, tenant, program core.UUID, c alerts.StateChange) error {
+	k := [2]core.UUID{tenant, program}
+	t.state = append(t.state, func() {
+		if t.r.throttle[k] == nil {
+			t.r.throttle[k] = map[string]alerts.ThrottleWindow{}
+		}
+		if t.r.digests[k] == nil {
+			t.r.digests[k] = map[string]alerts.Digest{}
+		}
+		for _, w := range c.Throttle {
+			t.r.throttle[k][w.Key] = w
+		}
+		for _, d := range c.Digests {
+			d.Items = slices.Clone(d.Items)
+			d.Actions = nil
+			t.r.digests[k][d.RuleID] = d
+		}
+	})
+	return nil
+}
+
+func (t *memTx) CloseDigest(_ context.Context, tenant, program core.UUID, rule string) error {
+	t.state = append(t.state, func() { delete(t.r.digests[[2]core.UUID{tenant, program}], rule) })
+	return nil
+}
+
+// LoadAlertState implements Repo.
+func (r *MemRepo) LoadAlertState(_ context.Context, tenant, program core.UUID) (alerts.ProcessorState, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	k := [2]core.UUID{tenant, program}
+	var s alerts.ProcessorState
+	for _, w := range r.throttle[k] {
+		s.Throttle = append(s.Throttle, w)
+	}
+	for _, d := range r.digests[k] {
+		d.Items = slices.Clone(d.Items)
+		s.Digests = append(s.Digests, d)
+	}
+	return s, nil
+}
+
+// PruneAlertState implements Repo.
+func (r *MemRepo) PruneAlertState(_ context.Context, now time.Time, limit int) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var n int64
+	for _, m := range r.throttle {
+		for key, w := range m {
+			if n >= int64(limit) {
+				return n, nil
+			}
+			if !now.Before(w.Until) {
+				delete(m, key)
+				n++
+			}
+		}
+	}
+	return n, nil
 }
 
 func (t *memTx) MarkProcessed(_ context.Context, consumer, id string) (bool, error) {
@@ -201,6 +267,9 @@ func (r *MemRepo) InTx(ctx context.Context, f func(context.Context, Tx) error) e
 	}
 	for _, d := range tx.deliveries {
 		r.deliveries[d.ID] = d
+	}
+	for _, f := range tx.state {
+		f()
 	}
 	return nil
 }

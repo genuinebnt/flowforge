@@ -35,6 +35,50 @@ func RunStoreContract(t *testing.T, newStore func(t *testing.T) identity.Store) 
 		return tn, u
 	}
 
+	t.Run("role_groups", func(t *testing.T) {
+		st := newStore(t)
+		tn, u := seed(t, st)
+		other := identity.Tenant{ID: gen.New(), Name: "Other", Slug: "other-groups", Plan: "free", CreatedAt: now}
+		if err := st.CreateTenant(ctx, other); err != nil {
+			t.Fatal(err)
+		}
+		v := gen.New() // a user id that is no member of tn
+		if err := st.AddRoleGroupMember(ctx, tn.ID, "finance_ap", u.ID, now); err != nil {
+			t.Fatal(err)
+		}
+		if err := st.AddRoleGroupMember(ctx, tn.ID, "finance_ap", u.ID, now); err != nil {
+			t.Fatalf("re-adding is a no-op: %v", err)
+		}
+		if err := st.AddRoleGroupMember(ctx, tn.ID, "lead", u.ID, now); err != nil {
+			t.Fatal(err)
+		}
+		// Only members of the tenant can join its groups.
+		if err := st.AddRoleGroupMember(ctx, tn.ID, "lead", v, now); !errors.Is(err, identity.ErrNotFound) {
+			t.Fatalf("non-member added: %v", err)
+		}
+		if gs, err := st.UserRoleGroups(ctx, tn.ID, u.ID); err != nil || len(gs) != 2 || gs[0] != "finance_ap" || gs[1] != "lead" {
+			t.Fatalf("user groups %v %v", gs, err)
+		}
+		if gs, _ := st.UserRoleGroups(ctx, other.ID, u.ID); len(gs) != 0 {
+			t.Fatalf("groups leak across tenants: %v", gs)
+		}
+		if l, err := st.ListRoleGroups(ctx, tn.ID); err != nil || len(l) != 2 || l[0].Name != "finance_ap" || len(l[0].Members) != 1 || l[0].Members[0] != u.ID {
+			t.Fatalf("list %+v %v", l, err)
+		}
+		if ok, err := st.RemoveRoleGroupMember(ctx, tn.ID, "lead", u.ID); !ok || err != nil {
+			t.Fatalf("remove: %v %v", ok, err)
+		}
+		if ok, _ := st.RemoveRoleGroupMember(ctx, tn.ID, "lead", u.ID); ok {
+			t.Fatal("removed twice")
+		}
+		if l, _ := st.ListRoleGroups(ctx, tn.ID); len(l) != 1 {
+			t.Fatalf("empty group listed: %+v", l)
+		}
+		if l, _ := st.ListRoleGroups(ctx, other.ID); len(l) != 0 {
+			t.Fatalf("other tenant sees groups: %+v", l)
+		}
+	})
+
 	t.Run("users", func(t *testing.T) {
 		st := newStore(t)
 		tn, u := seed(t, st)

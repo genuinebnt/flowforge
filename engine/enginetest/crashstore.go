@@ -135,6 +135,14 @@ func (c *CrashStore) LoadSnapshot(ctx context.Context, run eventstore.RunID) (ev
 	return c.Store.LoadSnapshot(ctx, run)
 }
 
+// DeleteSnapshots implements eventstore.Store.
+func (c *CrashStore) DeleteSnapshots(ctx context.Context, run eventstore.RunID) error {
+	if err := c.check(); err != nil {
+		return err
+	}
+	return c.Store.DeleteSnapshots(ctx, run)
+}
+
 // AcquireLease implements eventstore.Store.
 func (c *CrashStore) AcquireLease(ctx context.Context, run eventstore.RunID, owner eventstore.WorkerID, ttl time.Duration) (eventstore.Lease, error) {
 	if err := c.check(); err != nil {

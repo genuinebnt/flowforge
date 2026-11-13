@@ -54,15 +54,19 @@ variable "allow_billable" {
       "min_instances"    Cloud Run min instances > 0
       "max_instances"    Cloud Run max instances > 2
       "cpu_always"       CPU always allocated (instance-based billing)
-      "vm_size"          a machine type other than e2-micro
+      "vm_size"          a machine type other than e2-micro, or a second VM
+      "vm_region"        a VM outside us-west1, us-central1, us-east1 (policy)
       "disk_size"        VM disks over 30 GB in total, or not pd-standard
       "secret_versions"  more than 6 Secret Manager secrets (one version each)
+      "scheduler_jobs"   more than 3 Cloud Scheduler jobs (policy)
       and resource types the lab never creates by default:
       google_compute_router_nat, google_compute_global_forwarding_rule,
       google_compute_forwarding_rule, google_compute_security_policy,
       google_redis_instance, google_sql_database_instance,
       google_container_cluster, google_vpc_access_connector,
-      google_compute_address (external), containerscanning (API).
+      google_compute_address / google_compute_global_address (external),
+      google_redis_cluster, google_alloydb_instance, and "containerscanning"
+      (the API, billed per scanned image).
   EOT
   type        = list(string)
   default     = []

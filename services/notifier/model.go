@@ -14,6 +14,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/genuinebnt/flowforge/alerts"
 	"github.com/genuinebnt/flowforge/core"
 )
 
@@ -94,6 +95,12 @@ type Tx interface {
 	MarkProcessed(ctx context.Context, consumer, eventID string) (bool, error)
 	InsertAlert(ctx context.Context, a AlertEvent) error
 	InsertDelivery(ctx context.Context, d Delivery) error
+	// SaveAlertState upserts the throttle windows and open digests one
+	// event changed (alerts.Outcome.State) for the processor of (tenant,
+	// program), so they survive a restart (G-LIM-06).
+	SaveAlertState(ctx context.Context, tenant, program core.UUID, c alerts.StateChange) error
+	// CloseDigest deletes a flushed digest of rule (a public alr_ id).
+	CloseDigest(ctx context.Context, tenant, program core.UUID, rule string) error
 }
 
 // Repo is the notifier's storage. Tenant-scoped methods never return
@@ -118,4 +125,11 @@ type Repo interface {
 	DeliveriesOf(ctx context.Context, alert core.UUID) ([]Delivery, error)
 	UpdateDelivery(ctx context.Context, d Delivery) error
 	Ping(ctx context.Context) error
+
+	// LoadAlertState returns the persisted throttle windows and digests of
+	// the processor of (tenant, program); a new processor restores them.
+	LoadAlertState(ctx context.Context, tenant, program core.UUID) (alerts.ProcessorState, error)
+	// PruneAlertState deletes throttle windows that ended before now, at
+	// most limit (maintenance; expired windows are also skipped on load).
+	PruneAlertState(ctx context.Context, now time.Time, limit int) (int64, error)
 }

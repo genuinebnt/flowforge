@@ -20,6 +20,8 @@ import (
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	"github.com/genuinebnt/flowforge/migrations"
+	"github.com/genuinebnt/flowforge/services/internal/blob"
+	"github.com/genuinebnt/flowforge/services/internal/bus/busconfig"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
 	"github.com/genuinebnt/flowforge/services/internal/platform/smsecrets"
 	"github.com/genuinebnt/flowforge/services/internal/wire"
@@ -75,9 +77,24 @@ func Run(ctx context.Context, service string, getenv func(string) string) error 
 		defer pool.Close()
 		env.DB = pool
 	}
-	if cfg.PubSubProject != "" {
-		log.Warn("config.no_pubsub", "detail", "the Pub/Sub adapter is not implemented; events stay in the outboxes (see services/README.md)")
+	// The bus (G-SVC-01): FF_BUS, else Pub/Sub with FF_PUBSUB_PROJECT,
+	// else the Postgres bus with FF_DB_DSN, else in process (a lone
+	// process: its outbox relay and consumers talk only to themselves).
+	b, closeBus, err := busconfig.Open(ctx, busconfig.Config{Kind: cfg.Bus, Pool: env.DB, Project: cfg.PubSubProject,
+		Prefix: cfg.TopicPrefix, CreateMissing: cfg.PubSubCreate, Logger: log, Metrics: env.Metrics})
+	if err != nil {
+		return err
 	}
+	defer closeBus()
+	env.Bus = b
+	kind, _ := busconfig.Resolve(busconfig.Config{Kind: cfg.Bus, Pool: env.DB, Project: cfg.PubSubProject})
+	blobs, closeBlobs, err := blob.Open(ctx, blob.Config{Bucket: cfg.ArtifactBucket, Dir: cfg.BlobDir})
+	if err != nil {
+		return err
+	}
+	defer closeBlobs()
+	env.Blobs = blobs
+	log.Info("config.adapters", "bus", kind, "blobs", blob.Kind(blob.Config{Bucket: cfg.ArtifactBucket, Dir: cfg.BlobDir}))
 	c, err := build(ctx, cfg, env, getenv)
 	if err != nil {
 		return err
@@ -95,9 +112,13 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		c, _ := wire.Scope(env, wire.ScopeOptions{})
 		return c, nil
 	case "engine":
+		drain, err := drainTimeout(getenv)
+		if err != nil {
+			return nil, err
+		}
 		c, _, err := wire.Engine(ctx, env, wire.EngineOptions{ScopeAddr: cfg.ScopeAddr, ToolRunnerAddr: cfg.ToolRunnerAddr,
 			GraphAddr: cfg.GraphAddr, RedisAddr: cfg.RedisAddr, RedisAuth: cfg.RedisAuth, RedisCA: cfg.RedisCA, Workers: cfg.Workers,
-			Engine: engine.Config{FuelLimit: cfg.FuelDefault}})
+			Engine: engine.Config{FuelLimit: cfg.FuelDefault, DrainTimeout: drain}})
 		return c, err
 	case "tool-runner":
 		if cfg.EgressProxy == "" && cfg.Env == "prod" {
@@ -122,6 +143,23 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		return c, nil
 	}
 	return nil, fmt.Errorf("unknown service %q", cfg.Service)
+}
+
+// drainTimeout reads FF_DRAIN_TIMEOUT (a Go duration; "-1s" disables the
+// drain), the engine's graceful-shutdown bound (engine.Config.DrainTimeout,
+// default 20 s). It must stay below the platform's termination grace
+// period (Cloud Run: the time between SIGTERM and SIGKILL), or in-flight
+// effects are killed before they are recorded.
+func drainTimeout(getenv func(string) string) (time.Duration, error) {
+	v := getenv("FF_DRAIN_TIMEOUT")
+	if v == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d == 0 {
+		return 0, fmt.Errorf("FF_DRAIN_TIMEOUT %q: want a non-zero duration such as 20s", v)
+	}
+	return d, nil
 }
 
 // Migrate applies the database migrations (cmd/migrate, the Cloud Run job).

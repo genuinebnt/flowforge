@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -14,11 +15,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
+	"github.com/genuinebnt/flowforge/limiter"
+	"github.com/genuinebnt/flowforge/limiter/redislimiter"
 	"github.com/genuinebnt/flowforge/services/devstack"
 	enginesvc "github.com/genuinebnt/flowforge/services/engine"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
@@ -137,5 +141,57 @@ func TestRegress_G_OPS_04_ApprovalLogLine(t *testing.T) {
 		if l["msg"] != enginesvc.ApprovalLogMsg || l["service"] != "engine" || l["env"] != "dev" || l["status"] != want || l["role"] != "finance_ap" {
 			t.Errorf("line %d = %v, want msg %q service engine status %q role finance_ap", i, l, enginesvc.ApprovalLogMsg, want)
 		}
+	}
+}
+
+// TestRegress_G_LIM_02_FailoverLimiter wires the engine's limiter as
+// services/internal/wire does with Redis configured, against a Redis that
+// refuses connections: passive work is admitted on the reduced local
+// budget (and denied once it is spent), active work gets
+// limiter.ErrUnavailable, which the engine turns into a wait.
+func TestRegress_G_LIM_02_FailoverLimiter(t *testing.T) {
+	rc := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1", MaxRetries: -1, DialTimeout: 100 * time.Millisecond})
+	t.Cleanup(func() { _ = rc.Close() })
+	rl, err := redislimiter.New(rc, redislimiter.Options{}, enginesvc.DefaultLimitRules()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := enginesvc.NewFailoverLimiter(rl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lim engine.Limiter = enginesvc.MeteredLimiter{Next: f, Metrics: platform.NewMetrics(nil)}
+	wl, ok := lim.(engine.WorkLimiter)
+	if !ok {
+		t.Fatal("the metered limiter hides the work kind from the engine")
+	}
+	reqs, err := limiter.ToolCall{Class: "passive", TenantID: "t", ProgramID: "p", Target: "acme.com", Tool: "subfinder"}.Requests(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// rl:h burst 20 at the 0.1 local fraction: 2 calls, then denied.
+	allowed := 0
+	for i := range 5 {
+		res, err := wl.AcquireAllWork(reqs, limiter.WorkPassive, time.Duration(i)*time.Microsecond)
+		if err != nil {
+			t.Fatalf("passive call %d: %v", i, err)
+		}
+		if res.Allowed {
+			allowed++
+		} else if res.RetryAfter <= 0 {
+			t.Fatalf("denied without retry_after: %+v", res)
+		}
+	}
+	if allowed != 2 {
+		t.Errorf("local budget admitted %d passive calls, want 2 (reduced rates)", allowed)
+	}
+	if _, err := wl.AcquireAllWork(reqs, limiter.WorkActive, 0); !errors.Is(err, limiter.ErrUnavailable) {
+		t.Errorf("active work during the outage: %v, want ErrUnavailable (fail closed)", err)
+	}
+	if _, err := lim.AcquireAll(reqs, 0); !errors.Is(err, limiter.ErrUnavailable) {
+		t.Errorf("AcquireAll without a work kind: %v, want ErrUnavailable (treated as active)", err)
+	}
+	if engine.WorkOf("passive") != limiter.WorkPassive || engine.WorkOf("intrusive") != limiter.WorkActive || engine.WorkOf("") != limiter.WorkActive {
+		t.Error("WorkOf must treat only passive and read as passive work")
 	}
 }

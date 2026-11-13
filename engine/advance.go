@@ -56,6 +56,10 @@ type runner struct {
 
 	execMu     sync.Mutex
 	execCancel context.CancelFunc
+
+	// draining, when set and true, makes the body stop at its next effect
+	// boundary so the worker can release the run (graceful shutdown).
+	draining func() bool
 }
 
 func newRunner(ctx context.Context, e *Engine, lease eventstore.Lease, info eventstore.RunInfo) *runner {
@@ -123,6 +127,13 @@ func (r *runner) finish(next eventstore.Next) (eventstore.Next, error) {
 		next = eventstore.Next{Status: StatusRunning, WakeAt: r.now().Add(r.e.cfg.IdleBackoff)}
 	}
 	r.flushProjection()
+	if Terminal(next.Status) {
+		// Spec 10.7: a finished run keeps no snapshots (G-ENG-04); replay
+		// of a terminal run is never needed for progress. Best effort: the
+		// maintenance job sweeps snapshots of finished runs a failure here
+		// leaves behind, so the error must not hold the run open.
+		_ = r.e.d.Store.DeleteSnapshots(r.ctx, r.run)
+	}
 	if len(r.applied) > 0 {
 		ids := make([]int64, 0, len(r.applied))
 		for id := range r.applied {
@@ -293,6 +304,10 @@ func (r *runner) afterBody(st stepResult) (eventstore.Next, error) {
 			return eventstore.Next{Status: StatusPaused}, nil
 		case haltNondeterminism:
 			return r.failNondeterministic(st.msg)
+		case haltDrain:
+			// Nothing is appended: the log already ends at a boundary, and
+			// the next owner resumes from it at once.
+			return eventstore.Next{Status: StatusRunning, WakeAt: r.now()}, nil
 		}
 		return eventstore.Next{}, fmt.Errorf("engine: unexpected halt %d", st.halt)
 	}

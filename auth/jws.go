@@ -110,5 +110,5 @@ func decodeObject(b []byte, v any, known ...string) error {
 
 var (
 	headerNames = []string{"alg", "typ", "kid", "crit"}
-	claimNames  = []string{"iss", "aud", "sub", "tid", "role", "sid", "sv", "jti", "iat", "exp", "nbf"}
+	claimNames  = []string{"iss", "aud", "sub", "tid", "role", "sid", "sv", "jti", "iat", "exp", "nbf", "groups"}
 )

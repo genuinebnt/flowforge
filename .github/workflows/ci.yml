@@ -4,6 +4,7 @@
 #                per-module contract (xtask verify-module)
 #   integration  every PR: Postgres 16, Redis 7 and the Pub/Sub emulator;
 #                adapter, service and EventStore tests
+#   sim          every push: ff-sim, FF_SIM_SEEDS=200 seeds per fault profile
 #   fuzz-smoke   every PR: 60 s per fuzz target
 #   docker       every PR: build every cmd/<service> image, SBOM, vulnerability
 #                scan that blocks high-severity findings (spec 18.2)
@@ -76,6 +77,22 @@ jobs:
             go run ./cmd/xtask verify-module "$m"
             echo "::endgroup::"
           done
+
+  sim:
+    name: deterministic simulation (200 seeds per profile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FF_SIM_SEEDS: "200"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: sim (ff-sim, spec 23.8)
+        run: go test -count=1 -timeout 25m -run 'TestSim' ./sim
 
   integration:
     name: integration

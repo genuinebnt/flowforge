@@ -132,7 +132,11 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 			return nil, nil, err
 		}
 		closers = append(closers, func() { rc.Close() })
-		d.Limiter = enginesvc.ContextLimiter{L: rl}
+		// Spec 23.8: on a Redis outage passive work continues on local
+		// budgets and active work waits (G-LIM-02).
+		if d.Limiter, err = enginesvc.NewFailoverLimiter(rl); err != nil {
+			return nil, nil, err
+		}
 	} else {
 		g, err := limiter.NewAtomicGCRA(enginesvc.DefaultLimitRules()...)
 		if err != nil {
