@@ -1,14 +1,10 @@
 package contentstore
 
 import (
-	"bytes"
 	"cmp"
-	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -71,11 +67,14 @@ func ParseIndexMode(s string) (IndexMode, error) {
 
 // Schema is the search schema: §7's fields plus the §12 classification
 // (vendor, class, newness, cause, profile, baseline) as keyword filters,
-// and stored references back to the diff.
+// the decoded text of embedded blobs as its own text field (searched by
+// unqualified queries; decoded_from names the encodings, e.g.
+// "base64>gzip"), and stored references back to the diff.
 func Schema() textindex.Schema {
 	return textindex.Schema{
-		Text:    []string{"text", "url"},
-		Keyword: []string{"program", "url_template", "kind", "side", "feature", "mime", "vendor", "class", "newness", "cause", "profile", "baseline"},
+		Text: []string{"text", "url", "decoded"},
+		Keyword: []string{"program", "url_template", "kind", "side", "feature", "mime", "vendor", "class", "newness", "cause", "profile",
+			"baseline", "decoded_from"},
 		Numeric: []string{"at"},
 		Stored:  []string{"diff", "snapshot", "from", "doc", "header", "score"},
 	}
@@ -93,10 +92,8 @@ const (
 const (
 	maxDocText    = 64 << 10 // bytes of text per document
 	maxDiffDocs   = 1 << 20  // documents per diff (the id's low bits)
-	maxBlobExtra  = 64 << 10 // decoded blob bytes appended per document
+	maxBlobExtra  = 64 << 10 // decoded blob bytes per document
 	maxBlobs      = 16       // decoded blobs per document
-	maxGunzip     = 256 << 10
-	minBase64Run  = 32
 	firstHitLimit = 10000
 )
 
@@ -223,9 +220,9 @@ func diffDocuments(d Diff, to Snapshot, hr hunksRecord, sr semanticRecord) []tex
 		if len(out) >= maxDiffDocs {
 			return
 		}
-		out = append(out, textindex.Document{ID: docID(d.Seq, len(out)),
-			Text:    []textindex.FieldValue{{Name: "text", Value: indexText(text)}, {Name: "url", Value: url}},
-			Keyword: kw, Numeric: []textindex.NumericValue{{Name: "at", Value: d.At.UnixMilli()}}, Stored: st})
+		tf, from := textFields(indexText(text), url)
+		out = append(out, textindex.Document{ID: docID(d.Seq, len(out)), Text: tf, Keyword: append(kw, from),
+			Numeric: []textindex.NumericValue{{Name: "at", Value: d.At.UnixMilli()}}, Stored: st})
 	}
 	for _, a := range hr.Artifacts {
 		for _, h := range a.Hunks {
@@ -266,95 +263,52 @@ func diffDocuments(d Diff, to Snapshot, hr hunksRecord, sr semanticRecord) []tex
 	return out
 }
 
-// indexText bounds a document's text, appends the decoded form of
-// base64 and gzip blobs found in it (V2 §12.14, bounded) and redacts the
-// result (V2 §12.11: nothing credential-shaped is indexed).
-func indexText(s string) string {
+// indexedText is a document's text fields: the (bounded, redacted)
+// text, and the decoded text of base64, hex, gzip, zlib and zstd blobs
+// found in it (V2 §12.14, content.DecodeBlobs: bounded, never inside a
+// secret, redacted) with the encodings it was decoded from.
+type indexedText struct {
+	text, decoded, from string
+}
+
+// indexText bounds a document's text, decodes the blobs in it and redacts
+// both (V2 §12.11: nothing credential-shaped is indexed).
+func indexText(s string) indexedText {
 	if len(s) > maxDocText {
 		s = s[:maxDocText]
 		for !utf8.ValidString(s) && len(s) > 0 {
 			s = s[:len(s)-1]
 		}
 	}
-	if extra := decodeBlobs(s); extra != "" {
-		s += "\n" + extra
-	}
 	r, _ := content.Redact([]byte(s))
-	return string(r)
-}
-
-func base64Byte(c byte) bool {
-	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '/' || c == '-' || c == '_'
-}
-
-// decodeBlobs finds runs of at least minBase64Run base64 characters
-// (standard or URL alphabet; '=' only as up to two padding characters at
-// the end), decodes them, inflates gzip payloads, and keeps results that
-// are printable UTF-8 text; bounded by maxBlobs and maxBlobExtra.
-func decodeBlobs(s string) string {
-	var out []string
+	out := indexedText{text: string(r)}
+	var texts, paths []string
 	total := 0
-	for i := 0; i < len(s) && len(out) < maxBlobs && total < maxBlobExtra; {
-		if !base64Byte(s[i]) {
-			i++
+	for _, b := range content.DecodeBlobs([]byte(s), content.Limits{MaxResponseBytes: maxBlobExtra, MaxInnerDocuments: maxBlobs}) {
+		if b.Text == "" || total >= maxBlobExtra {
 			continue
 		}
-		j := i
-		for j < len(s) && base64Byte(s[j]) {
-			j++
-		}
-		for k := 0; k < 2 && j < len(s) && s[j] == '='; k++ {
-			j++
-		}
-		if j-i >= minBase64Run {
-			if t, ok := decodeTextBlob(s[i:j]); ok {
-				if total+len(t) > maxBlobExtra {
-					t = t[:maxBlobExtra-total]
-				}
-				out = append(out, t)
-				total += len(t)
+		t := b.Text
+		if total+len(t) > maxBlobExtra {
+			t = t[:maxBlobExtra-total]
+			for !utf8.ValidString(t) && len(t) > 0 {
+				t = t[:len(t)-1]
 			}
 		}
-		i = j
+		texts, paths, total = append(texts, t), append(paths, b.Path), total+len(t)
 	}
-	return strings.Join(out, "\n")
+	if len(texts) > 0 {
+		d, _ := content.Redact([]byte(strings.Join(texts, "\n")))
+		slices.Sort(paths)
+		out.decoded, out.from = string(d), strings.Join(slices.Compact(paths), ",")
+	}
+	return out
 }
 
-func decodeTextBlob(run string) (string, bool) {
-	trimmed := strings.TrimRight(run, "=")
-	var b []byte
-	var err error
-	if strings.ContainsAny(trimmed, "-_") {
-		b, err = base64.RawURLEncoding.DecodeString(trimmed)
-	} else {
-		b, err = base64.RawStdEncoding.DecodeString(trimmed)
-	}
-	if err != nil || len(b) == 0 {
-		return "", false
-	}
-	if len(b) > 2 && b[0] == 0x1f && b[1] == 0x8b {
-		zr, err := gzip.NewReader(bytes.NewReader(b))
-		if err != nil {
-			return "", false
-		}
-		b, err = io.ReadAll(io.LimitReader(zr, maxGunzip))
-		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
-			return "", false
-		}
-	}
-	if !utf8.Valid(b) {
-		return "", false
-	}
-	printable := 0
-	for _, r := range string(b) {
-		if r >= 0x20 && r != 0x7f || r == '\n' || r == '\t' || r == '\r' {
-			printable++
-		}
-	}
-	if printable*10 < utf8.RuneCount(b)*9 {
-		return "", false
-	}
-	return string(b), true
+// textFields are a document's text fields and its decoded_from flag.
+func textFields(it indexedText, url string) ([]textindex.FieldValue, textindex.FieldValue) {
+	return []textindex.FieldValue{{Name: "text", Value: it.text}, {Name: "url", Value: url}, {Name: "decoded", Value: it.decoded}},
+		textindex.FieldValue{Name: "decoded_from", Value: it.from}
 }
 
 // IndexReport is what IndexPending did.
@@ -481,9 +435,9 @@ func (s *Store) saveIndexState(ctx context.Context, tenant core.UUID, st IndexSt
 
 // latestDocument is a key's latest-snapshot document.
 func latestDocument(to Snapshot, normalized []byte) textindex.Document {
-	return textindex.Document{ID: latestDocID(to.URL, to.Profile),
-		Text: []textindex.FieldValue{{Name: "text", Value: indexText(string(normalized))}, {Name: "url", Value: to.URL}},
-		Keyword: []textindex.FieldValue{{Name: "program", Value: core.PublicID(core.PrefixProgram, to.Program)},
+	tf, from := textFields(indexText(string(normalized)), to.URL)
+	return textindex.Document{ID: latestDocID(to.URL, to.Profile), Text: tf,
+		Keyword: []textindex.FieldValue{from, {Name: "program", Value: core.PublicID(core.PrefixProgram, to.Program)},
 			{Name: "url_template", Value: to.URLTemplate}, {Name: "kind", Value: DocKindSnapshot}, {Name: "mime", Value: to.Kind},
 			{Name: "vendor", Value: boolKW(vendorURL(to.URL))}, {Name: "profile", Value: to.Profile}},
 		Numeric: []textindex.NumericValue{{Name: "at", Value: to.FetchedAt.UnixMilli()}},
@@ -602,6 +556,9 @@ type ChangeHit struct {
 	Newness     string
 	Cause       string
 	Vendor      bool
+	// DecodedFrom names the encodings of blobs decoded into the
+	// document's "decoded" field ("" when none).
+	DecodedFrom string
 	// Text is the matched document's text (redacted), cut at 1 KiB.
 	Text string
 }
@@ -735,6 +692,7 @@ func hitOf(ix *textindex.Index, h textindex.Hit) (ChangeHit, error) {
 	hit.Kind, hit.Side, hit.Feature, hit.Mime = val(d.Keyword, "kind"), val(d.Keyword, "side"), val(d.Keyword, "feature"), val(d.Keyword, "mime")
 	hit.URLTemplate, hit.Class, hit.Newness, hit.Cause = val(d.Keyword, "url_template"), val(d.Keyword, "class"), val(d.Keyword, "newness"), val(d.Keyword, "cause")
 	hit.Vendor = val(d.Keyword, "vendor") == "1"
+	hit.DecodedFrom = val(d.Keyword, "decoded_from")
 	hit.DiffID, hit.SnapshotID, hit.FromID = val(d.Stored, "diff"), val(d.Stored, "snapshot"), val(d.Stored, "from")
 	hit.Doc, hit.Header = val(d.Stored, "doc"), val(d.Stored, "header")
 	return hit, nil

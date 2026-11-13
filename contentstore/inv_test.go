@@ -12,9 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/klauspost/compress/zstd"
-
 	"github.com/genuinebnt/flowforge/chunkstore"
+	"github.com/genuinebnt/flowforge/codec"
 	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/oam"
@@ -633,8 +632,6 @@ func storedBytes(t testing.TB, h *harness, tenant core.UUID) *scanner {
 	snaps, diffs, findings, vol, keys := h.mem.Dump(tenant)
 	sc.add("rows", canonical(t, []any{snaps, diffs, findings, vol, keys}))
 	names, _ := h.backend.List(bg, "")
-	dec, _ := zstd.NewReader(nil)
-	defer dec.Close()
 	for _, n := range names {
 		b, _ := h.backend.Get(bg, n)
 		sc.add("object:"+n, b)
@@ -642,7 +639,7 @@ func storedBytes(t testing.TB, h *harness, tenant core.UUID) *scanner {
 			for _, r := range p.Records {
 				pl := r.Payload(b)
 				if r.Codec == chunkstore.CodecZstd {
-					pl, _ = dec.DecodeAll(pl, nil)
+					pl, _ = codec.Inflate(pl, codec.KindZstd, codec.InflateOptions{MaxRatio: -1})
 				}
 				sc.add("record:"+n, pl)
 			}
@@ -945,8 +942,14 @@ func TestCStoreInv10_SearchDefaults(t *testing.T) {
 	// A base64 blob of text is searchable by its decoded words.
 	blob := "cGF5bG9hZCBpbmNsdWRlcyBwbGF0eXB1c21hcmtlciBhbmQgbW9yZSB0ZXh0"
 	h.ingest(tenantA, capture("https://shop.example/data.txt", []byte("data="+blob+"\n"), []content.Header{{Name: "Content-Type", Value: "text/plain"}}, t0.AddDate(0, 0, 3)), "")
-	if r, err := h.store.Search(bg, tenantA, programP, "platypusmarker", SearchOptions{}); err != nil || r.Total == 0 {
-		t.Fatalf("decoded base64 blob not searchable: %v %+v", err, r)
+	for _, q := range []string{"platypusmarker", "decoded:platypusmarker"} {
+		r, err := h.store.Search(bg, tenantA, programP, q, SearchOptions{})
+		if err != nil || r.Total == 0 || r.Hits[0].DecodedFrom == "" {
+			t.Fatalf("%s: decoded base64 blob not searchable: %v %+v", q, err, r)
+		}
+	}
+	if r, _ := h.store.Search(bg, tenantA, programP, "text:platypusmarker", SearchOptions{}); r.Total != 0 {
+		t.Fatal("decoded text leaked into the text field")
 	}
 	if _, err := h.store.Search(bg, tenantA, programP, "kind:(", SearchOptions{}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("bad query: %v", err)

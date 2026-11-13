@@ -87,6 +87,7 @@ var units = []unit{
 	{prefix: "engine/pgrepo", layer: layerAdapters, adapter: true, thirdParty: []string{"github.com/jackc/"}},
 	{prefix: "engine", layer: 4},
 	{prefix: "agent", layer: 4},
+	{prefix: "contentstore/storetest", layer: 4, testSupport: true},
 	{prefix: "contentstore/pg", layer: layerAdapters, adapter: true, thirdParty: []string{"github.com/jackc/"}},
 	{prefix: "contentstore", layer: 4},
 	{prefix: "graphstore/pg", layer: layerAdapters, adapter: true, thirdParty: []string{"github.com/jackc/"}},

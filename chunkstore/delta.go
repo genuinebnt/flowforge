@@ -34,15 +34,23 @@ import (
 // with_dictionary takes it as raw content because it lacks the dictionary
 // magic.
 const (
-	deltaMagic      = "FFZB"
-	deltaVersion    = 1
+	deltaMagic     = "FFZB"
+	deltaVersion   = 1
+	deltaDictFlag  = 1
+	deltaBestLimit = 1 << 20
+	deltaWindowLog = 27
+	deltaRawDictID = 1
+)
+
+// Delta frame bounds.
+const (
+	// DeltaHeaderSize is the fixed FFZB header length.
 	DeltaHeaderSize = 16
-	deltaDictFlag   = 1
-	deltaBestLimit  = 1 << 20
-	deltaWindowLog  = 27
-	MaxDeltaRaw     = 256 << 20
-	deltaRawDictID  = 1
-	MaxDeltaDict    = 128 << 20
+	// MaxDeltaRaw bounds the raw bytes of one frame.
+	MaxDeltaRaw = 256 << 20
+	// MaxDeltaDict bounds the dictionary; a longer one is cut to its last
+	// MaxDeltaDict bytes (the same cut on encode and decode).
+	MaxDeltaDict = 128 << 20
 )
 
 // EncodeDelta encodes raw as one FFZB frame whose zstd raw dictionary is
