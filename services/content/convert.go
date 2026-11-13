@@ -98,7 +98,7 @@ func changesProto(cs []content.FeatureChange) []*pb.FeatureChangeRef {
 
 func summaryProto(cs content.ChangeSet) *pb.ChangeSummary {
 	out := &pb.ChangeSummary{Outcome: cs.Outcome, Levels: cs.Levels, Class: cs.Class, Newness: cs.Newness, Cause: cs.Cause,
-		Baseline: cs.Baseline, Score: cs.Score.Value, Changes: changesProto(cs.Changes)}
+		Baseline: cs.Baseline, Score: cs.Score.Value, Changes: changesProto(cs.Changes), Alertable: contentstore.Alertable(cs)}
 	for _, r := range cs.Score.Reasons {
 		out.ScoreFeatures = append(out.ScoreFeatures, &pb.ContentScoreFeature{Name: r.Name, Weight: r.Weight})
 	}

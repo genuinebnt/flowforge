@@ -5,7 +5,7 @@
 #   docker build -f deploy/Dockerfile --build-arg SERVICE=engine -t ff-engine .
 #
 # SERVICE selects ./cmd/<SERVICE> (gateway, engine, scope, graph, notifier,
-# similarity, tool-runner, egress-proxy, migrate). The final image is
+# similarity, content, tool-runner, egress-proxy, migrate). The final image is
 # distroless static, runs as nonroot (65532), holds a single static binary and
 # writes nothing to its filesystem, so it runs with a read-only root
 # (docker run --read-only, Kubernetes readOnlyRootFilesystem).

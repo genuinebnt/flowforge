@@ -31,6 +31,9 @@ type Backends struct {
 	// Schedules is the engine's schedule API (nil: /v1/schedules answers
 	// 503).
 	Schedules Schedules
+	// Content is the content service (nil: /v1/snapshots and /v1/changes
+	// answer 503).
+	Content flowforgev1.ContentServiceClient
 }
 
 // CookieConfig controls the console cookies (spec 13.5).

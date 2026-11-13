@@ -113,6 +113,16 @@ func (s *Server) routes() []route {
 		r(get, "/programs/{pid}/graph/snapshots", read, s.snapshots),
 		r(get, "/programs/{pid}/similarity/index", programs, s.similarityIndex),
 
+		// Content (V2 design §7, §11 items 13, 14, 18).
+		r(get, "/snapshots", read, s.listSnapshots),
+		r(get, "/snapshots/{id}", read, s.getSnapshot),
+		r(get, "/snapshots/{a}/diff/{b}", read, s.diffSnapshots),
+		r(post, "/snapshots/{id}/:pin", alerts, s.pinSnapshot),
+		r(post, "/snapshots/{id}/:unpin", alerts, s.unpinSnapshot),
+		r(get, "/changes/search", read, s.searchChanges),
+		r(get, "/changes/first-appeared", read, s.firstAppeared),
+		r(get, "/content/quota", read, s.contentQuota),
+
 		// Alerts.
 		r(get, "/alerts/rules", read, s.listRules),
 		r(post, "/alerts/rules", alerts, s.createRule),

@@ -40,6 +40,10 @@ _ = s.Flush(ctx); _ = s.Close(ctx)
   `NewChunker`), `PackWriter`/`DecodePack`, `NewIndex`/`Index.Encode`/
   `DecodeIndex`/`Index.Lookup`, `Manifest.Encode`/`DecodeManifest`,
   `Ref.Encode`/`DecodeRef`.
+* **Delta frames:** `EncodeDelta(raw, dict)`, `DecodeDelta`, `IsDelta`
+  ("FFZB", `delta.go`): one zstd frame against a raw dictionary (the
+  previous version), stored by callers as ordinary blobs; the content
+  store's delta codec. Test: `TestChunkDeltaFrames`.
 * **Errors:** `*Error{Code, Object, Detail}` with a closed list of codes
   (`errors.go`); `Code.Kind()` maps to `core.Kind`. Fsck reports
   `Problem{Code, Severity, Object, Detail}` sorted deterministically.

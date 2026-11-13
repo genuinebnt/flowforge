@@ -118,7 +118,14 @@ func eventPayload(p EventPayload, cs *content.ChangeSet, from, to, diffID string
 		}
 		p.ContentChange = &patch
 	}
-	p.Alertable = cs.IsChange() && !cs.Baseline && cs.Cause == oam.CauseTarget && cs.Outcome != content.DiffDegraded &&
-		cs.Newness != content.NewnessPreExisting
+	p.Alertable = Alertable(*cs)
 	return p, nil
+}
+
+// Alertable reports a change set default feeds and alerts show: a change
+// (structural or level 3) that is not a baseline, has cause target, is not
+// degraded and is not pre-existing content (V2 §12.2, §12.3, §12.13).
+func Alertable(cs content.ChangeSet) bool {
+	return cs.IsChange() && !cs.Baseline && cs.Cause == oam.CauseTarget && cs.Outcome != content.DiffDegraded &&
+		cs.Newness != content.NewnessPreExisting
 }

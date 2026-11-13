@@ -50,7 +50,7 @@ func (s *Server) HandleContentEvent(ctx context.Context, env *pb.EventEnvelope) 
 	res, err := s.o.Store.IngestObservation(ctx, graphstore.IngestRequest{TenantID: tid, ProgramID: program, RunID: p.RunID,
 		EffectPath: p.EffectPath, ToolName: obs.Tool.Name, ToolVersion: obs.Tool.Version, Observation: obs})
 	if err != nil {
-		if errors.Is(err, oam.ErrInvalidObservation) {
+		if poison(err) {
 			s.o.Logger.WarnContext(ctx, "graph.content_event_rejected", "event_id", env.GetEventId(), "error", err.Error())
 			return nil
 		}
@@ -70,7 +70,7 @@ func (s *Server) HandleContentEvent(ctx context.Context, env *pb.EventEnvelope) 
 	ev, err := s.o.Store.RecordContentChange(ctx, graphstore.Caller{TenantID: tid},
 		graphstore.ContentChange{EntityID: entity, RunID: p.RunID, At: obs.ObservedAt, Patch: *p.ContentChange})
 	if err != nil {
-		if errors.Is(err, oam.ErrInvalidObservation) {
+		if poison(err) {
 			s.o.Logger.WarnContext(ctx, "graph.content_change_rejected", "event_id", env.GetEventId(), "error", err.Error())
 			return nil
 		}
@@ -102,4 +102,12 @@ func (s *Server) sourceEntity(ctx context.Context, tenant, program string, obs o
 		}
 	}
 	return "", nil
+}
+
+// poison reports an error redelivery cannot fix (an invalid observation
+// or request): the event is logged and dropped instead of dead-lettered
+// after retries.
+func poison(err error) bool {
+	k := core.KindOf(err)
+	return errors.Is(err, oam.ErrInvalidObservation) || k == core.KindInvalidArgument || k == core.KindNotFound
 }

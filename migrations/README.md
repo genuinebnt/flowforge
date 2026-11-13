@@ -24,6 +24,7 @@ and a Go runner (`migrations.Apply`).
 | `0017_v1_maintenance.sql` | `notifier.throttle_windows`, `notifier.digest_buffers` (durable alert state), `engine.schedules`, `engine.run_archives`; `engine.forbid_mutation` lets only the archival transaction delete one archived run's events | 15.3, 17, 10.7 (addition; G-LIM-06, G-OPS-10, G-OPS-03) |
 | `0018_v1_db_roles.sql` | per-service roles and grants, forced RLS on tenant, partition and child tables, `ff_sync_roles()`; `graph.pending_observations` (pending references, G-CORE-03) | 10.7, 17.2, 23.5 (addition) |
 | `0030_graph_v2.sql` | `change_events`: types `content_changed`, `tag_changed`; columns `tag_type`, `tag_name`, `base`, `cause`, `baseline` with checks; `(entity_id, seq)` and `(edge_id, seq)` indexes for AsOf reads. Idempotent. | V2 design 3.4 |
+| `0031_content.sql` | `content` schema (V2 design §6.2): `programs` (diff sequence), `snapshots` (validity `[valid_from, valid_to)` with a partial unique index on the open version, chunk-store refs, delta codec columns, seals, pinning), `diffs` (cascade with snapshots), `findings` (encrypted), `volatility`, `quota_limits`, `quota_usage`, `index_state`, `data_keys`, `outbox`; redefines the 0018 role functions with the `content` schema and role `ff_content` (RLS-bound; cross-tenant only on `content.programs`) | V2 design 6.2, 6.4, 7, 11, 12.12 |
 
 Versions 0015-0029 are reserved for v1 fixes merged forward (0015-0018
 are used); v2 migrations start at 0030. The runner allows gaps but
@@ -66,6 +67,7 @@ when a file after 0018 was applied).
 | `ff_notifier` | `notifier` | cross-tenant policy `svc_ff_notifier` (delivery worker) |
 | `ff_graph` | `graph` | **subject to RLS**: graphstore/pg sets `app.tenant_id` per transaction; only `graph.change_events` (relay) has `svc_ff_graph` |
 | `ff_similarity` | `graph.embeddings`, `vector_indexes`, `vector_segments` (when 0012 applied) | subject to RLS |
+| `ff_content` | `content` (0031) | **subject to RLS**: contentstore/pg sets `app.tenant_id` per transaction; only `content.programs` (tenant enumeration for sweeps) has `svc_ff_content` |
 | `ff_maintenance` | every service schema | `svc_ff_maintenance` on every RLS table (retention, partitions, archival); NOLOGIN, the migrator is made a member |
 
 Every service role also gets the shared `bus` schema when it exists (the

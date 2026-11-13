@@ -44,6 +44,7 @@ var backendVar = map[string]string{
 	devstack.NotifierName:   "FF_NOTIFIER_ADDR",
 	devstack.ToolRunnerName: "FF_TOOL_RUNNER_ADDR",
 	devstack.SimilarityName: "FF_SIMILARITY_ADDR",
+	devstack.ContentName:    "FF_CONTENT_ADDR",
 }
 
 func dev(args []string) error {
@@ -59,7 +60,7 @@ func dev(args []string) error {
 	ports := map[string]int{}
 	if *base > 0 {
 		for i, n := range []string{devstack.ScopeName, devstack.EngineName, devstack.ToolRunnerName, devstack.EgressName,
-			devstack.GraphName, devstack.SimilarityName, devstack.NotifierName} {
+			devstack.GraphName, devstack.SimilarityName, devstack.NotifierName, devstack.ContentName} {
 			ports[n] = *base + i
 		}
 	}

@@ -328,3 +328,13 @@ tests = { prefix = "CodecInv", required = ["01", "02", "03", "04", "05", "06", "
 conformance = ["codec"]
 fuzz = ["FuzzCodecBase64", "FuzzCodecBase32", "FuzzCodecHex", "FuzzCodecPercent", "FuzzCodecQP", "FuzzCodecJSString", "FuzzCodecInflate", "FuzzCodecSniff", "FuzzCodecDecodeLayers"]
 bench = ["BenchmarkCodecAlgo", "BenchmarkCodecEncode", "BenchmarkCodecDecode", "BenchmarkCodecInflate", "BenchmarkCodecSniff", "BenchmarkCodecDecodeLayers"]
+
+[module.contentstore]
+layer = 4
+spec = ["V2_DESIGN 6.2, 6.3, 6.4, 7, 11, 12"]
+dir = "contentstore"
+depends = ["core", "oam", "content", "chunkstore", "textindex", "diff", "sketch"]
+tests = { prefix = "CStoreInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"] }
+conformance = ["content"]
+fuzz = ["FuzzCStoreSealRoundTrip", "FuzzCStoreHunkRoundTrip", "FuzzCStoreRecordDecode"]
+bench = ["BenchmarkCStoreAlgo", "BenchmarkCStoreIngest", "BenchmarkCStoreSearch"]

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/genuinebnt/flowforge/auth"
 	"github.com/genuinebnt/flowforge/core"
+	flowforgev1 "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/limiter"
 	"github.com/genuinebnt/flowforge/limiter/redislimiter"
 	"github.com/genuinebnt/flowforge/migrations"
@@ -104,6 +106,11 @@ type Config struct {
 
 // BackendVars are the environment variables naming the internal services.
 var BackendVars = []string{"FF_SCOPE_ADDR", "FF_ENGINE_ADDR", "FF_GRAPH_ADDR", "FF_NOTIFIER_ADDR", "FF_TOOL_RUNNER_ADDR", "FF_SIMILARITY_ADDR"}
+
+// OptionalBackendVars name internal services the gateway uses when they
+// are configured: FF_CONTENT_ADDR (the content service; without it the
+// /v1/snapshots and /v1/changes routes answer 503).
+var OptionalBackendVars = []string{"FF_CONTENT_ADDR"}
 
 func boolEnv(v string) bool {
 	b, _ := strconv.ParseBool(v)
@@ -188,6 +195,11 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 	if len(missing) > 0 {
 		return c, fmt.Errorf("missing internal service addresses: %s", strings.Join(missing, ", "))
+	}
+	for _, v := range OptionalBackendVars {
+		if addr := getenv(v); addr != "" {
+			c.Backends[v] = addr
+		}
 	}
 	return c, nil
 }
@@ -420,7 +432,13 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 		ids = gcpauth.New()
 	}
 	conns := map[string]*grpc.ClientConn{}
-	for _, v := range BackendVars {
+	vars := slices.Clone(BackendVars)
+	for _, v := range OptionalBackendVars {
+		if backends[v] != "" {
+			vars = append(vars, v)
+		}
+	}
+	for _, v := range vars {
 		t, err := platform.ParseTarget(backends[v])
 		if err != nil {
 			return fmt.Errorf("%s: %w", v, err)
@@ -447,6 +465,9 @@ func (g *Gateway) Serve(ctx context.Context, backends map[string]string) error {
 	}
 	be := gateway.BackendsFromConns(conns["FF_SCOPE_ADDR"], conns["FF_ENGINE_ADDR"], conns["FF_GRAPH_ADDR"],
 		conns["FF_NOTIFIER_ADDR"], conns["FF_TOOL_RUNNER_ADDR"], conns["FF_SIMILARITY_ADDR"])
+	if cc := conns["FF_CONTENT_ADDR"]; cc != nil {
+		be.Content = flowforgev1.NewContentServiceClient(cc)
+	}
 	// The engine serves its schedule API as HTTP on its gRPC port (h2c
 	// locally, TLS on Cloud Run, where the ID token goes in
 	// X-Serverless-Authorization as for gRPC).

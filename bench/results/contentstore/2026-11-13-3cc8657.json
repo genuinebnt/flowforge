@@ -1,0 +1,105 @@
+{
+  "module": "contentstore",
+  "date": "2026-11-13",
+  "commit": "3cc8657",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "3x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkCStoreAlgo/codec/delta/versions50",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 11212775325,
+        "allocs/op": 42462991,
+        "ms/version": 180.1,
+        "ns/op": 9002952453,
+        "stored%": 4.703
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreAlgo/codec/delta/spa",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 476925488,
+        "allocs/op": 278270,
+        "ns/op": 175460126,
+        "stored%": 59.81
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreAlgo/codec/chunk/versions50",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 8270672093,
+        "allocs/op": 42494316,
+        "ms/version": 159.2,
+        "ns/op": 7960253689,
+        "stored%": 9.872
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreAlgo/codec/chunk/spa",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 74164757,
+        "allocs/op": 275060,
+        "ns/op": 71179300,
+        "stored%": 95.08
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreAlgo/index/inline/spa",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 503564514,
+        "allocs/op": 355585,
+        "ns/op": 230900907
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreAlgo/index/batched/spa",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 495770618,
+        "allocs/op": 334351,
+        "ns/op": 247627953
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreIngest",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 235580832,
+        "MB/s": 1.09,
+        "allocs/op": 926111,
+        "ns/op": 279043360
+      }
+    },
+    {
+      "bench_id": "BenchmarkCStoreSearch",
+      "package": "github.com/genuinebnt/flowforge/contentstore",
+      "iterations": 3,
+      "metrics": {
+        "B/op": 615149,
+        "allocs/op": 2538,
+        "ns/op": 855528,
+        "µs/query": 213.9
+      }
+    }
+  ]
+}

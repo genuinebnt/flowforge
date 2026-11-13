@@ -24,8 +24,7 @@ import (
 //	            id 1 when flag bit 0 is set
 //
 // Encoder settings are pinned so output is reproducible: one encoder
-// goroutine, single-segment frames, level SpeedBestCompression (zstd 19)
-// for raw blobs up to 1 MiB and SpeedBetterCompression (zstd 7) above,
+// goroutine, single-segment frames, level SpeedBetterCompression,
 // window deltaWindow(len(dictionary) + len(raw)) (dictionary references
 // span the base version).
 //
@@ -37,7 +36,6 @@ const (
 	deltaMagic     = "FFZB"
 	deltaVersion   = 1
 	deltaDictFlag  = 1
-	deltaBestLimit = 1 << 20
 	deltaWindowLog = 27
 	deltaRawDictID = 1
 )
@@ -62,10 +60,10 @@ func EncodeDelta(raw, dict []byte) ([]byte, error) {
 	if len(dict) > MaxDeltaDict {
 		dict = dict[len(dict)-MaxDeltaDict:]
 	}
-	level := zstd.SpeedBestCompression
-	if len(raw) > deltaBestLimit {
-		level = zstd.SpeedBetterCompression
-	}
+	// SpeedBetterCompression (zstd level 7 in klauspost's mapping): within
+	// 2 % of SpeedBestCompression on the delta benchmarks at a quarter of
+	// the time and memory (contentstore BenchmarkCStoreAlgo).
+	level := zstd.SpeedBetterCompression
 	opts := []zstd.EOption{zstd.WithEncoderLevel(level), zstd.WithEncoderConcurrency(1), zstd.WithEncoderCRC(false),
 		zstd.WithSingleSegment(true), zstd.WithZeroFrames(true), zstd.WithWindowSize(deltaWindow(len(dict) + len(raw)))}
 	var flags byte

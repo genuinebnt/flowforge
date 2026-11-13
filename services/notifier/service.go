@@ -195,8 +195,15 @@ func EventFromEnvelope(env *pb.EventEnvelope) *alerts.Event {
 
 // contentHidden reports a content event that default alerting hides
 // (V2 §12.2, §12.3, §12.13: baselines, non-target causes, pre-existing
-// content and non-changes carry alertable=false).
+// content and non-changes carry alertable=false), and the graph's copy of
+// content changes.
 func contentHidden(env *pb.EventEnvelope) bool {
+	// The graph's own content_changed events (graph.changes) restate the
+	// content event without its classification; alerts come from
+	// content.changes only, so one change alerts once.
+	if env.GetType() == "graph.content_changed" {
+		return true
+	}
 	if !strings.HasPrefix(env.GetType(), "content.") {
 		return false
 	}

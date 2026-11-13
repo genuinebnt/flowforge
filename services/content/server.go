@@ -68,6 +68,12 @@ func (s *Server) IngestCapture(ctx context.Context, req *pb.IngestCaptureRequest
 	if err != nil {
 		return nil, err
 	}
+	if _, err := convert.OptionalID(core.PrefixRun, "run_id", req.GetRunId()); err != nil {
+		return nil, err
+	}
+	if _, err := convert.OptionalID(core.PrefixEntity, "entity_id", req.GetEntityId()); err != nil {
+		return nil, err
+	}
 	c := req.GetCapture()
 	if c == nil {
 		return nil, convert.Invalid("capture", "capture is required")

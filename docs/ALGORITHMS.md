@@ -227,6 +227,37 @@ reason) hold for every candidate.
 Conformance and invariant tests (CONTENT-INV-01..16) run against every
 candidate. See `content/README.md` for throughput per content kind.
 
+### Content store blob codec (`contentstore`)
+* **Candidates** (`contentstore.Config.Codec`, `ParseBlobCodec`:
+  `delta`, `chunk`; service `FF_CONTENT_CODEC`): delta frames (each blob
+  one zstd frame against its delta base's blob as raw dictionary,
+  chunkstore `EncodeDelta`, keyframes every 16 versions) or plain blobs
+  (chunkstore FastCDC dedupe and per-chunk zstd level 3). Benchmark:
+  `BenchmarkCStoreAlgo/codec/<candidate>/<versions50|spa>`.
+* **Measured** (2026-11-13, 3 runs): 50 versions of a ~300 KB bundle with
+  small edits: delta stores 4.70 % of raw at 180 ms/version, chunk 9.87 %
+  at 159 ms/version. SPA fixture, everything stored: delta 59.8 %, chunk
+  95.1 %; raw snapshots only (CSTORE-INV-08): delta 21.4 %, chunk 32.0 %.
+  zstd level: SpeedBetterCompression within 2 % of SpeedBestCompression
+  at about a quarter of the time and memory, so it is pinned.
+* **Default:** `delta`: the only candidate that meets V2 §10.7's 25 % on
+  small sites, and half the bytes on long histories.
+* **When to pick `chunk`:** CPU-bound ingest of large bundles where
+  storage is cheap, or when versions share long unchanged runs and
+  chains are undesirable (no keyframe rewrites on retention).
+
+### Content store indexing (`contentstore`)
+* **Candidates** (`contentstore.Indexes.Mode`, `ParseIndexMode`:
+  `inline`, `batched`; `FF_CONTENT_INDEX_MODE`): index each ingest's diff
+  before Ingest returns, or let a loop index pending diffs above the
+  watermark. Benchmark: `BenchmarkCStoreAlgo/index/<mode>/spa`.
+* **Measured:** 231 ms (inline) vs 248 ms (batched, one pass at the end)
+  for the SPA fixture: equal within noise; textindex's size-tiered merge
+  absorbs the per-ingest segments.
+* **Default:** `inline`: changes are searchable when Ingest returns, at
+  no measured cost. `batched` fits bursty bulk imports (fewer, larger
+  segments) at the price of search lag.
+
 ## v2 decisions (being measured)
 
 * **htmlparse** against `x/net/html`, and the lookup strategy for named

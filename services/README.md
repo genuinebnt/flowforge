@@ -34,9 +34,10 @@ separately and talks to these over gRPC.
 | `engine` | EngineService (+ the schedule API and `POST /internal/schedules:tick`, see below) | workflows, runs, events, approvals, schedules | publishes run.events, approval.events; consumes scope.events |
 | `toolrunner` | ToolRunnerService | tool adapters | none |
 | `egressproxy` | HTTP CONNECT / forward proxy, SOCKS5, DNS forwarder | tickets (in memory); records `intel_source` decisions | none |
-| `graph` | GraphService, GraphAnalytics | entities, edges, tags, change events | publishes graph.changes |
+| `graph` | GraphService, GraphAnalytics | entities, edges, tags, change events | publishes graph.changes; consumes content.changes |
 | `similarity` | Similarity | vector indexes | consumes graph.changes |
-| `notifier` | NotifierService | rules, channels, alert events, deliveries | consumes graph.changes, run.events, approval.events, auth.events |
+| `notifier` | NotifierService | rules, channels, alert events, deliveries | consumes graph.changes, run.events, approval.events, auth.events, content.changes |
+| `content` | ContentService | snapshots, diffs, encrypted findings, volatility, quotas, change search (contentstore) | publishes content.changes (content outbox) |
 | `devstack` | - | runs all of the above in one process | |
 | `app` | - | entry point of the `cmd/<service>` binaries | |
 | `internal/platform` | - | config, interceptors, errors, tracing, logging, metrics, health, serve | |
@@ -46,6 +47,55 @@ separately and talks to these over gRPC.
 | `maintenance` | - | spec 10.7 retention, partitions, run archival (in process, `migrate maintain`, the tick) | |
 | `internal/wire` | - | builds each service from an `Env` (shared by cmd and devstack) | |
 | `internal/servicetest` | - | test helpers (fresh Postgres DB, counting resolver, webhook receiver) | |
+
+## Content (V2 design §6-§8)
+
+`services/content` serves `ContentService` (`proto/flowforge/v1/content.proto`)
+over `contentstore` (Postgres `content` schema, migration 0031, or memory;
+chunk store and text indexes under `FF_CONTENT_DIR`). Authorization: ingest
+needs `runs:submit` (analysts and service identities acting for a run), raw
+reads (secrets restored) `programs:admin`, pinning `alerts:write`, the rest
+`read`; tenant from the internal token, RLS set per transaction.
+
+| RPC | Purpose |
+|---|---|
+| `IngestCapture` | store one capture (idempotent; unchanged re-fetches extend last_seen); returns the snapshot, diff id, change summary (`alertable`), lineage parent and event id |
+| `GetSnapshot` | metadata; optionally redacted body, normalized text, features JSON, finding previews; `raw` for admins |
+| `ListSnapshots` | per program / URL / profile, newest first, paged |
+| `DiffSnapshots` | unified and/or side-by-side JSON per artifact; `from` empty: the stored predecessor (or the baseline) |
+| `SearchChanges`, `FirstAppeared` | V2 §7 query language over hunks and change records; earliest snapshot adding a string |
+| `PinSnapshot`, `UnpinSnapshot`, `GetQuotaStatus` | retention pins; quotas and usage |
+
+Every accepted capture writes one `content.changes` event (type
+`content.changed` or `content.captured`; ordering key program) to the
+content outbox in the ingest transaction; the relay publishes it. The
+graph (consumer `graph`) ingests its oam observation and records
+`content_changed` on the source entity; the notifier alerts on it when
+`alertable` (baselines, non-target causes, pre-existing content and
+non-changes are hidden) and ignores the graph's own `graph.content_changed`
+copy. Background: retention + GC sweep (`FF_CONTENT_SWEEP_INTERVAL`), and
+the batched indexer in `batched` mode.
+
+Gateway REST: `GET /v1/snapshots?program_id=`, `GET /v1/snapshots/{id}`
+(`include=body,normalized,features`, `raw=true`), `GET
+/v1/snapshots/{a}/diff/{b}` (`format=unified|side_by_side|both`; `{a}` may
+be `previous`), `POST /v1/snapshots/{id}/:pin` and `:unpin`, `GET
+/v1/changes/search?program_id=&q=&limit=&include_vendor=`, `GET
+/v1/changes/first-appeared?program_id=&text=`, `GET /v1/content/quota`.
+
+For the v2 tools (collect, crawl, wellknown, extract, unpack_sourcemap,
+diff_latest, search_changes): `collect` fetches through the egress proxy
+and calls `IngestCapture` (with `page_url` for scripts and styles, and the
+run id); `extract` reads `GetSnapshot(include_features)`;
+`unpack_sourcemap` reads the `#src/` artifacts in the features JSON;
+`diff_latest` calls `DiffSnapshots` with `from` empty; `search_changes`
+calls `SearchChanges`; `crawl` and `wellknown` read link and sitemap
+features from `GetSnapshot`.
+
+Not provisioned in Terraform (`infra/`): the Cloud Run service, its
+database user `ff_content`, the `FF_CONTENT_KEK` secret and the
+`content.changes` Pub/Sub topic with graph and notifier subscriptions are
+follow-ups; the local profiles (one process, `cmd/content` binary) work.
 
 ## Tools (tool runner)
 
@@ -91,7 +141,7 @@ test.
 ```sh
 go run ./cmd/flowforge dev                       # gateway on 127.0.0.1:8080 + every service, in-memory
 go run ./cmd/flowforge dev -base-port 7100       # scope 7100, engine 7101, tool-runner 7102,
-                                                 # egress-proxy 7103, graph 7104, similarity 7105, notifier 7106
+                                                 # egress-proxy 7103, graph 7104, similarity 7105, notifier 7106, content 7107
 eval "$(scripts/devpg.sh start)"
 go run ./cmd/flowforge dev -db "$FF_TEST_PG_DSN" # Postgres (migrations are applied first)
 ```
@@ -156,6 +206,12 @@ Background work uses `platform.AsService(ctx, tenant, "engine")` (actor
 | `FF_SECRET_PROJECT` | notifier | default project of short `sm://NAME` references (else `FF_PUBSUB_PROJECT`) |
 | `FF_ID_TOKEN_AUDIENCE_AUTO` | all callers | attach a Google ID token (`x-serverless-authorization`) to calls to `https://` addresses; defaults to on when `K_SERVICE` is set (Cloud Run) |
 | `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_NOTIFIER_ADDR`, `FF_SIMILARITY_ADDR` | callers | service addresses |
+| `FF_CONTENT_ADDR` | gateway (optional) | the content service; unset, the `/v1/snapshots` and `/v1/changes` routes answer 503 |
+| `FF_CONTENT_DIR` | content | chunk store (`chunks/`) and text indexes (`index/<tenant>/<program>`); unset: memory |
+| `FF_CONTENT_KEK`, `FF_CONTENT_KEK_ID` | content | the 32-byte key-encryption key (hex or base64) that wraps per-tenant data keys; required in prod (dev: an ephemeral key) |
+| `FF_CONTENT_CODEC`, `FF_CONTENT_INDEX_MODE`, `FF_CONTENT_INDEX_LATEST` | content | `delta`/`chunk`, `inline`/`batched`, index latest snapshots (docs/ALGORITHMS.md) |
+| `FF_CONTENT_QUOTA_CAPTURES_PER_DAY`, `FF_CONTENT_QUOTA_STORED_BYTES`, `FF_CONTENT_QUOTA_INDEX_BYTES` | content | default per-tenant quotas (0: unlimited; `QUOTA_EXCEEDED`) |
+| `FF_CONTENT_SWEEP_INTERVAL` | content | retention + chunk GC pass interval (default `1h`; negative disables) |
 | `FF_EGRESS_PROXY` | tool-runner, notifier | `http://host:port` or `https://host` of the egress proxy (required in prod) |
 | `FF_EGRESS_PORTS`, `FF_EGRESS_INTEL`, `FF_EGRESS_SOCKS_LISTEN`, `FF_EGRESS_SOCKS_ADVERTISE`, `FF_EGRESS_DNS_LISTEN`, `FF_EGRESS_DNS_ADVERTISE`, `FF_EGRESS_DNS_UPSTREAM` | egress-proxy | port policy, intel allowlist, SOCKS5 and DNS listeners (services/egressproxy/README.md) |
 | `FF_NOTIFY_ALLOWLIST` | egress-proxy | destination hosts of the notifier's webhook and Slack deliveries (notify path, G-SVC-08) |

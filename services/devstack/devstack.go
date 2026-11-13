@@ -1,6 +1,6 @@
 // Package devstack runs every internal service in one process on loopback
 // ports (flowforge dev, end-to-end tests): scope, engine, tool runner,
-// egress proxy, graph (+ analytics), similarity and notifier, wired over
+// egress proxy, graph (+ analytics), similarity, notifier and content, wired over
 // real gRPC with one shared internal signing key, one in-process event bus
 // and in-memory stores, or Postgres when Options.DBDSN is set (migrations
 // are applied first).
@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/genuinebnt/flowforge/auth"
+	"github.com/genuinebnt/flowforge/contentstore"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	graphv1 "github.com/genuinebnt/flowforge/gen/flowforge/graph/v1"
@@ -37,6 +38,7 @@ import (
 	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/migrations"
 	"github.com/genuinebnt/flowforge/scope"
+	contentsvc "github.com/genuinebnt/flowforge/services/content"
 	"github.com/genuinebnt/flowforge/services/egressproxy"
 	enginesvc "github.com/genuinebnt/flowforge/services/engine"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
@@ -56,6 +58,7 @@ const (
 	GraphName      = "graph"
 	SimilarityName = "similarity"
 	NotifierName   = "notifier"
+	ContentName    = "content"
 	// SOCKSName and DNSName are the egress proxy's SOCKS5 listener and DNS
 	// forwarder (UDP and TCP on the same port).
 	SOCKSName = "egress-socks5"
@@ -104,6 +107,9 @@ type Options struct {
 	// EgressClock drives the proxy's per-target limiter (tests inject a
 	// fake clock; default the system clock).
 	EgressClock core.Clock
+	// ContentLimits are the content service's default quotas (zero:
+	// unlimited).
+	ContentLimits contentstore.Limits
 	// TrustKeys, when set, is trusted for internal tokens in addition to
 	// the stack's own dev key. cmd/flowforge dev passes the gateway's key
 	// manager so tokens the gateway mints verify; they must carry Issuer.
@@ -122,6 +128,7 @@ type Stack struct {
 	Analytics  graphv1.GraphAnalyticsClient
 	Notifier   pb.NotifierServiceClient
 	Similarity simv1.SimilarityClient
+	Content    pb.ContentServiceClient
 	// Conns are the client connections by service name.
 	Conns map[string]*grpc.ClientConn
 	// Keys signs and verifies internal tokens; Tokens mints them (the
@@ -136,6 +143,7 @@ type Stack struct {
 	// EngineService and Proxy expose internals for tests.
 	EngineService *enginesvc.Service
 	Proxy         *egressproxy.Proxy
+	ContentServer *contentsvc.Server
 	DB            *pgxpool.Pool
 
 	cancel context.CancelFunc
@@ -216,7 +224,7 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 		}
 	}
 	// Listen first so every address is known before services dial.
-	names := []string{ScopeName, GraphName, ToolRunnerName, EgressName, EngineName, SimilarityName, NotifierName, SOCKSName, DNSName}
+	names := []string{ScopeName, GraphName, ToolRunnerName, EgressName, EngineName, SimilarityName, NotifierName, ContentName, SOCKSName, DNSName}
 	lis := map[string]net.Listener{}
 	closeAll := func() {
 		for _, x := range lis {
@@ -309,10 +317,17 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	}
 	serve(SimilarityName, simC)
 
+	contC, csrv, err := wire.Content(env(ContentName), wire.ContentOptions{Limits: o.ContentLimits, SweepInterval: -1})
+	if err != nil {
+		return fail(err)
+	}
+	st.ContentServer = csrv
+	serve(ContentName, contC)
+
 	notC, _ := wire.Notifier(env(NotifierName), wire.NotifierOptions{Secrets: o.Secrets, Resolver: o.Resolver, AllowInsecureLoopback: o.AllowInsecureWebhooks})
 	serve(NotifierName, notC)
 
-	for _, n := range []string{ScopeName, EngineName, ToolRunnerName, GraphName, SimilarityName, NotifierName} {
+	for _, n := range []string{ScopeName, EngineName, ToolRunnerName, GraphName, SimilarityName, NotifierName, ContentName} {
 		c, err := platform.Dial(st.Addrs[n], platform.ClientOptions{Tokens: tokens})
 		if err != nil {
 			return fail(err)
@@ -326,6 +341,7 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	st.Analytics = graphv1.NewGraphAnalyticsClient(st.Conns[GraphName])
 	st.Notifier = pb.NewNotifierServiceClient(st.Conns[NotifierName])
 	st.Similarity = simv1.NewSimilarityClient(st.Conns[SimilarityName])
+	st.Content = pb.NewContentServiceClient(st.Conns[ContentName])
 
 	select {
 	case <-esvc.ToolsReady():
