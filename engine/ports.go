@@ -369,6 +369,16 @@ type Publisher interface {
 
 // ---- Optional ports ----
 
+// Observer receives measurements the engine domain cannot export itself
+// (metrics belong to services, spec 18.1). Calls are synchronous on the
+// worker; implementations must not block.
+type Observer interface {
+	// RunStarted reports a run that just appended run_started, with the
+	// time since its run_submitted event (both event times, so a
+	// replayed or re-claimed run reports the same value).
+	RunStarted(tenant core.UUID, submitToStart time.Duration)
+}
+
 // Embedder computes text embeddings (effect embed, spec 22.9).
 type Embedder interface {
 	Embed(ctx context.Context, tenant core.UUID, text string) ([]float64, error)

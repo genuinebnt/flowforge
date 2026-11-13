@@ -143,6 +143,8 @@ locals {
         local.addr["scope"], local.addr["graph"], local.addr["tool-runner"],
         {
           FF_EGRESS_PROXY      = local.run_url["egress-proxy"]
+          FF_TICK_OIDC_AUDIENCE   = local.run_url["engine"]
+          FF_TICK_SERVICE_ACCOUNT = google_service_account.scheduler.email
           FF_LLM_ENDPOINT      = var.llm_endpoint
           FF_LLM_MODEL         = var.llm_model
           FF_FUEL_DEFAULT      = tostring(var.fuel_default)

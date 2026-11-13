@@ -190,7 +190,7 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 		ads = toolrunner.DefaultAdapters(toolrunner.HTTPProbe{Ports: o.ProbePorts})
 	}
 	srv := toolrunner.NewServer(toolrunner.Options{Adapters: ads, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "tool-runner"),
-		Egress: eg, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger})
+		Egress: eg, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger, Raw: env.Blobs})
 	return &Component{Register: func(g *grpc.Server) { pb.RegisterToolRunnerServiceServer(g, srv) }, Close: func() { conn.Close() }}, nil
 }
 
@@ -273,6 +273,10 @@ func Graph(env *Env, o GraphOptions) (*Component, graphstore.Store, error) {
 	}
 	srv := graphsvc.NewServer(graphsvc.Options{Store: store, Bus: env.Bus, PublishInline: env.DB == nil, Logger: env.Logger, Metrics: env.Metrics, Clock: env.Clock})
 	an := graphsvc.NewAnalytics(store, env.Clock)
+	an.Blobs = env.Blobs
+	an.OnWriteError = func(ctx context.Context, program string, err error) {
+		env.Logger.WarnContext(ctx, "graph.snapshot_write_failed", "program_id", program, "error", err.Error())
+	}
 	c.Register = func(g *grpc.Server) {
 		pb.RegisterGraphServiceServer(g, srv)
 		graphv1.RegisterGraphAnalyticsServer(g, an)

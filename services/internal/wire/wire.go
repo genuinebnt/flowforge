@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/genuinebnt/flowforge/core"
+	"github.com/genuinebnt/flowforge/graphstore"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
 )
@@ -36,6 +37,10 @@ type Env struct {
 	// Bus is nil when no event bus is available (standalone binaries: no
 	// Pub/Sub adapter yet); outboxes then keep their rows unpublished.
 	Bus bus.Bus
+	// Blobs is the object store for raw tool output, snapshot files and
+	// run archives (services/internal/blob); nil keeps raw output out of
+	// storage and snapshots in memory.
+	Blobs graphstore.BlobStore
 }
 
 // Dial opens a client connection with env's token source.

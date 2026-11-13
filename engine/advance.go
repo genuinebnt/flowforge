@@ -221,6 +221,9 @@ func (r *runner) main() (eventstore.Next, error) {
 		if err := r.append(ev(EvRunStarted, ActorEngine, RunStartedPayload{ModuleSHA256: hash, FuelLimit: r.e.cfg.FuelLimit})); err != nil {
 			return eventstore.Next{}, err
 		}
+		if o := r.e.d.Observer; o != nil {
+			o.RunStarted(r.rec.Tenant, r.log.startedAt.Sub(r.log.submittedAt))
+		}
 	}
 	root, err := r.newRoot()
 	if err != nil {

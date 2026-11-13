@@ -226,6 +226,36 @@ func (p MemPublisher) Publish(_ context.Context, envs []engine.Envelope) error {
 type MeteredPublisher struct {
 	Next    engine.Publisher
 	Metrics *platform.Metrics
+	// Logger receives one ApprovalLogMsg line per approval state change,
+	// which the ff_approvals log-based metric of infra/modules/monitoring
+	// counts (filter: service="engine", msg="approval.changed"; labels
+	// status and role). Nil logs nothing.
+	Logger *slog.Logger
+}
+
+// ApprovalLogMsg is the msg of the approval state-change log line; it must
+// equal infra/modules/monitoring's approval_msg variable.
+const ApprovalLogMsg = "approval.changed"
+
+// approvalLogStatus maps engine approval statuses to the status label the
+// monitoring metric documents (requested, approved, rejected, expired;
+// cancelled is kept as is).
+func approvalLogStatus(s string) string {
+	switch s {
+	case engine.ApprovalPending:
+		return "requested"
+	case engine.ApprovalDenied:
+		return "rejected"
+	}
+	return s
+}
+
+// EngineObserver exports engine.Observer measurements as metrics.
+type EngineObserver struct{ Metrics *platform.Metrics }
+
+// RunStarted implements engine.Observer (ff_run_submit_to_start_seconds).
+func (o EngineObserver) RunStarted(_ core.UUID, d time.Duration) {
+	o.Metrics.RunSubmitToStart.Observe(max(d, 0).Seconds())
 }
 
 // Publish implements engine.Publisher.
@@ -250,6 +280,16 @@ func (p MeteredPublisher) Publish(ctx context.Context, envs []engine.Envelope) e
 			p.Metrics.ApprovalsPending.Add(1)
 		case "approval.approved", "approval.denied", "approval.expired", "approval.cancelled":
 			p.Metrics.ApprovalsPending.Add(-1)
+		}
+		if p.Logger != nil && strings.HasPrefix(e.Type, "approval.") {
+			var a struct {
+				ApprovalID string `json:"approval_id"`
+				RunID      string `json:"run_id"`
+				Role       string `json:"role"`
+			}
+			_ = json.Unmarshal(e.Payload, &a)
+			p.Logger.InfoContext(ctx, ApprovalLogMsg, "status", approvalLogStatus(strings.TrimPrefix(e.Type, "approval.")),
+				"role", a.Role, "approval_id", a.ApprovalID, "run_id", a.RunID)
 		}
 	}
 	return nil

@@ -380,6 +380,9 @@ func (s *Server) GetKillSwitches(ctx context.Context, _ *pb.GetKillSwitchesReque
 // recorded before it is returned; any internal failure is an error, which
 // every caller treats as deny (fail closed, spec 2.4).
 func (s *Server) Check(ctx context.Context, req *pb.CheckRequest) (*pb.Decision, error) {
+	// Includes recording the decision: Check answers only after the decision
+	// log accepted it (record fails closed), so callers wait for both.
+	defer s.o.Metrics.ScopeCheck.Since(time.Now())
 	id, err := platform.MustIdentity(ctx)
 	if err != nil {
 		return nil, err

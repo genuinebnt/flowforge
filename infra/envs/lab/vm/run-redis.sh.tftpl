@@ -1,0 +1,9 @@
+#!/bin/bash
+# Redis 7 on the host network (port 6379): AUTH on, plaintext on the private
+# network (G-OPS-13: FF_REDIS_CA is not set in the lab), AOF on the data disk.
+set -euo pipefail
+docker container rm --force ff-redis >/dev/null 2>&1 || true
+exec docker run --rm --name ff-redis --network host --memory 96m \
+  -v /mnt/disks/ff/redis:/data \
+  -v /run/ff/redis.conf:/usr/local/etc/redis/redis.conf:ro \
+  '${redis_image}' redis-server /usr/local/etc/redis/redis.conf

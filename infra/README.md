@@ -155,10 +155,13 @@ manual approval in the `prod` environment.
   `ignore_changes`). A Terraform change to a service creates a revision with
   the currently deployed image.
 - **SLO metric names**: `ff_graph_ingest_seconds` and `ff_outbox_lag_seconds`
-  come from 18.1; `ff_scope_check_seconds` and
-  `ff_run_submit_to_start_seconds` are Flowforge choices the services must
-  export as histograms via OpenTelemetry → Managed Prometheus. Log metrics
-  match `msg="scope.decision"` / `msg="approval.changed"` (variables).
+  come from 18.1; `ff_scope_check_seconds` (scope service, one `Check`) and
+  `ff_run_submit_to_start_seconds` (engine, run_submitted to run_started)
+  are Flowforge choices, exported as unlabelled histograms on `/metrics`
+  for Managed Prometheus. Log metrics match `msg="scope.decision"` (scope)
+  and `msg="approval.changed"` (engine, fields `status` = requested,
+  approved, rejected, expired or cancelled, and `role`); the variables'
+  defaults are pinned by `services/engine` `TestRegress_G_OPS_04_*`.
 - No Serverless VPC Access connector (Direct VPC egress everywhere), no
   CMEK by default, no VPC Service Controls, single region.
 - Placeholders: zero image digests, `000000-000000-000000` billing account,

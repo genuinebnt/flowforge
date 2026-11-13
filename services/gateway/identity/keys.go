@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,6 +31,11 @@ type KeyManagerConfig struct {
 	// RotationPeriod overrides RotationPeriod.
 	RotationPeriod time.Duration
 }
+
+// ErrOperatorRotation is returned by KeyManager.Rotate when the key store
+// is operator-provisioned: rotate by provisioning a new kid (a new
+// ff-signing-key-<kid> secret and FF_SIGNING_KID) and restarting.
+var ErrOperatorRotation = errors.New("identity: signing keys are operator-provisioned; rotate by provisioning a new FF_SIGNING_KID")
 
 // KeyManager owns the gateway's signing keys (spec 13.7): it loads
 // identity.signing_keys, makes sure exactly one active key whose private
@@ -88,6 +94,11 @@ func (m *KeyManager) reloadLocked(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("identity: list signing keys: %w", err)
 	}
+	if pk, ok, err := m.provisioned(ctx); err != nil {
+		return err
+	} else if ok {
+		return m.installProvisioned(ctx, recs, pk)
+	}
 	var active *SigningKeyRecord
 	for i := range recs {
 		if recs[i].Status == auth.KeyActive && (active == nil || recs[i].CreatedAt.After(active.CreatedAt)) {
@@ -107,6 +118,67 @@ func (m *KeyManager) reloadLocked(ctx context.Context) error {
 		return fmt.Errorf("identity: read private key %s: %w", active.KID, err)
 	}
 	return m.install(recs, *active, seed)
+}
+
+func (m *KeyManager) provisioned(ctx context.Context) (ProvisionedKey, bool, error) {
+	p, ok := m.cfg.Secrets.(ProvisionedKeys)
+	if !ok {
+		return ProvisionedKey{}, false, nil
+	}
+	return p.CurrentKey(ctx)
+}
+
+// installProvisioned makes the operator's key the active one. Every
+// instance given the same key converges on the same row, so restarts and
+// replicas keep one kid in the JWKS instead of minting a key each (the
+// MemKeyStore behaviour, G-SVC-03). A kid that was retired is refused:
+// its tokens may already have been rejected as retired, and reviving it
+// would make a leaked old key valid again.
+func (m *KeyManager) installProvisioned(ctx context.Context, recs []SigningKeyRecord, pk ProvisionedKey) error {
+	pub := ed25519.NewKeyFromSeed(pk.Seed).Public().(ed25519.PublicKey)
+	now := m.cfg.Clock.Now()
+	retireAt := now.Add(m.cfg.AccessTTL + auth.DefaultSkew)
+	idx := -1
+	for i, r := range recs {
+		if r.KID == pk.KID {
+			idx = i
+		}
+	}
+	if idx >= 0 {
+		r := recs[idx]
+		switch {
+		case !r.PublicKey.Equal(pub):
+			return fmt.Errorf("identity: provisioned key %s does not match the registered public key", pk.KID)
+		case r.Status == auth.KeyRetired:
+			return fmt.Errorf("identity: provisioned key %s is retired; provision a new kid", pk.KID)
+		}
+	}
+	for i, r := range recs {
+		if r.Status == auth.KeyActive && r.KID != pk.KID {
+			if err := m.cfg.Store.SetSigningKeyStatus(ctx, r.KID, auth.KeyRetiring, retireAt); err != nil {
+				return fmt.Errorf("identity: retire key %s: %w", r.KID, err)
+			}
+			recs[i].Status, recs[i].RetireAt = auth.KeyRetiring, retireAt
+		}
+	}
+	switch {
+	case idx < 0:
+		rec := SigningKeyRecord{KID: pk.KID, Alg: auth.Algorithm, PublicKey: pub, PrivateKeyRef: pk.Ref, Status: auth.KeyActive, CreatedAt: now}
+		if err := m.cfg.Store.PutSigningKey(ctx, rec); err != nil {
+			// Another instance registered it first; take its row.
+			if latest, lerr := m.cfg.Store.ListSigningKeys(ctx); lerr == nil && slices.ContainsFunc(latest, func(r SigningKeyRecord) bool { return r.KID == pk.KID }) {
+				return m.installProvisioned(ctx, latest, pk)
+			}
+			return fmt.Errorf("identity: register provisioned key %s: %w", pk.KID, err)
+		}
+		recs, idx = append(recs, rec), len(recs)
+	case recs[idx].Status != auth.KeyActive:
+		if err := m.cfg.Store.SetSigningKeyStatus(ctx, pk.KID, auth.KeyActive, time.Time{}); err != nil {
+			return fmt.Errorf("identity: activate key %s: %w", pk.KID, err)
+		}
+		recs[idx].Status, recs[idx].RetireAt = auth.KeyActive, time.Time{}
+	}
+	return m.install(recs, recs[idx], pk.Seed)
 }
 
 func (m *KeyManager) install(recs []SigningKeyRecord, active SigningKeyRecord, seed []byte) error {
@@ -140,10 +212,16 @@ func (m *KeyManager) install(recs []SigningKeyRecord, active SigningKeyRecord, s
 }
 
 // Rotate makes a new active key; the previous active key becomes retiring
-// until every token it signed has expired.
+// until every token it signed has expired. The new seed is written through
+// the KeyStore (Dir, SecretManager), so other instances read it after
+// their next Reload. With an operator-provisioned store it returns
+// ErrOperatorRotation.
 func (m *KeyManager) Rotate(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if _, ok := m.cfg.Secrets.(ProvisionedKeys); ok {
+		return ErrOperatorRotation
+	}
 	recs, err := m.cfg.Store.ListSigningKeys(ctx)
 	if err != nil {
 		return fmt.Errorf("identity: list signing keys: %w", err)
@@ -204,7 +282,8 @@ func (m *KeyManager) Maintain(ctx context.Context) error {
 			changed = true
 		}
 	}
-	if now.Sub(st.active.CreatedAt) >= m.cfg.RotationPeriod {
+	_, provisioned := m.cfg.Secrets.(ProvisionedKeys)
+	if !provisioned && now.Sub(st.active.CreatedAt) >= m.cfg.RotationPeriod {
 		recs, err := m.cfg.Store.ListSigningKeys(ctx)
 		if err != nil {
 			return err
