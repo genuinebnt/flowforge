@@ -102,7 +102,7 @@ assumptions it was written against.
 
 | ID | Gap | Target |
 |---|---|---|
-| G-CORE-02 | OAM fields tagged "verify" are unresolved (spec 20.3) | v2 (RDAP/CT adapters provide real data) |
+| G-CORE-02 | OAM fields tagged "verify" are unresolved (spec 20.3) | **closed on feat_v2** (resolved against upstream OAM 04e30738; ext_key_usage added; unknowables listed in oam/OPEN_QUESTIONS.md) |
 | G-CORE-03 | An observation naming an existing `ent_` id before that entity is ingested fails, which breaks the 23.5 any-order convergence | **closed on feat_v1** (pending observations buffer (oam, Mem, pg); conformance pending_refs.json) |
 | G-CORE-04 | GCS BlobStore is a port only | **closed on feat_v2** (chunkstore/gcsstore + GCS BlobStore on a shared in-process fake; TestGCSStoreBackendContract) |
 | G-CORE-05 | Postgres ingest runs at about 470 obs/s | v3 (C4) |
@@ -129,10 +129,10 @@ assumptions it was written against.
 | G-VEC-06 | CSR cold open is linear in file size (b_csr_03 unmet) | v3 (C5) |
 | G-SVC-02 | The identity outbox (auth.events) has no relay | **closed on feat_v1** (identity outbox relay; e2e auth.login alert) |
 | G-SVC-04 | The notifier cannot resolve `sm://` secret references | **closed on feat_v1** (platform.Secrets env/file/sm; TestRegress_G_SVC_04_*) |
-| G-SVC-06 | `dnsresolve` uses the runner's resolver, not one behind the proxy | v2 (§9, in progress) |
-| G-SVC-07 | HTTPS redirects inside TLS tunnels are re-checked only by the runner's own client | v2 (§9) |
+| G-SVC-06 | `dnsresolve` uses the runner's resolver, not one behind the proxy | **closed on feat_v2** (no runner resolver; DNS only through the proxy forwarder; TestRegress_G_SVC_06_DNSOnlyThroughProxy) |
+| G-SVC-07 | HTTPS redirects inside TLS tunnels are re-checked only by the runner's own client | **closed on feat_v2** (runner checks and pins every hop, proxy checks every tunnel against its decision; TestRegress_G_SVC_07_HTTPSRedirectHops) |
 | G-SVC-08 | Notifier webhooks bypass the egress proxy (infra README says otherwise) | **closed on feat_v1** (webhooks via egress notify path + FF_NOTIFY_ALLOWLIST (Terraform)) |
-| G-SVC-09 | Only three real adapters; the proto ToolSpec has no retry fields | v2 (§8 tools) |
+| G-SVC-09 | Only three real adapters; the proto ToolSpec has no retry fields | **closed on feat_v2** (ToolSpec retry and idempotency fields, ToolError.retry_after; TestRegress_G_SVC_09_*) |
 | G-OPS-02 | RLS is ENABLEd but not FORCEd; child tables are uncovered; no BYPASSRLS scheduler role | **closed on feat_v1** (FORCE RLS everywhere, role-scoped policies; see migrations OPEN_QUESTIONS 12) |
 | G-OPS-03 | Retention jobs (10.7), the monthly partition job and run_events archival are not scheduled | **closed on feat_v1** (services/maintenance; TestRegress_GOPS03_*) |
 | G-OPS-04 | The SLO alert metrics `ff_scope_check_seconds` and `ff_run_submit_to_start_seconds`, and the approval log metric, are never emitted | **closed on feat_v1** (metrics + approval.changed log emitted; scraped in tests) |
@@ -166,7 +166,7 @@ assumptions it was written against.
 | G-LANG-04 | `Format` drops comments | v3 |
 | G-LANG-05, G-LANG-06, G-VEC-08, G-DOC-14 | Spec text out of date or wrong: `is InScope(_)`, bytecode format additions, the 21.3 SCC listing, OPEN_QUESTIONS spec fixes | spec Part II |
 | G-LANG-08 | The Plan record layout is provisional | v4 (M1) |
-| G-ENG-09 | The inv_10 bound includes dispatch delay; kill-switch races are not reported | v2 (§9 proxy limiter) |
+| G-ENG-09 | The inv_10 bound includes dispatch delay; kill-switch races are not reported | **closed on feat_v2** (edge key rl:edge:h, uncounted edge waits, kill_switch_race cancellation, strict inv_10 in the sim; TestRegress_G_ENG_09_*) |
 | G-LIM-08 | Default rules are not installed per tenant; TestRule cannot replay a historical event | v3 |
 | G-LIM-09 | No Google ID token or mTLS service authentication | v3 |
 | G-VEC-07 | `Key.Model` should carry the model version | v3 |
@@ -218,7 +218,7 @@ assumptions it was written against.
 | G-SVC-13 | Cloud Run service-to-service calls had no TLS and no Google ID token | **closed on feat_v1** (platform.Dial TLS + ID token; TestRegress_G_SVC_13_CloudRunDial) |
 | G-SVC-14 | The egress proxy on Cloud Run (dev/prod) may not support CONNECT through Cloud Run's front end | **closed on feat_v2** (egress proxy moved off Cloud Run to a VM (G-OPS-15)) |
 | G-SVC-15 | Notifier replicas cache alert state independently, so two replicas can each fire once per window | v3 |
-| G-SVC-16 | `raw_ref` stores the tool's observation rather than raw protocol bytes | v2 (chunkstore raw capture) |
+| G-SVC-16 | `raw_ref` stores the tool's observation rather than raw protocol bytes | **closed on feat_v2** (FFRW v1 transcripts of raw HTTP/DNS/TLS bytes in the chunk store, redacted; TestRegress_G_SVC_16_*) |
 | G-SEC-01 | RLS gives real isolation only for graph and similarity; engine, scope, notifier and gateway stores do not set the tenant per transaction, so they use schema-wide role policies | v3 (per-transaction tenant in every store) |
 
 ### Found while building v2 content storage
@@ -230,6 +230,9 @@ assumptions it was written against.
 | G-CST-03 | chunkstore allows one writer per tenant namespace, so the content service must run one replica per tenant set | v3 (writer leases or per-tenant ownership via placement) |
 | G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | **closed on feat_v2** (Store.Rederive in the sweep and on ingest; migration 0032; CSTORE-INV-14..16 on mem and pg) |
 | G-CST-05 | The §10 "less than 25 % of raw" target: on the tiny SPA fixture all records take 59.8 %, because each version carries about 300 bytes of fixed records | **closed** (the §10 lab, with realistic page sizes, stores raw snapshots at 6.8 % and all records including diffs at 18.4 %; TestLabAcceptance_*) |
+| G-RAW-01 | Raw transcripts expire only by whole day namespace; there is no GC inside a namespace, and `ChunkRaw` has a single writer per namespace (as G-CST-03) | v3 (with G-CST-03) |
+| G-SPEC-10 | Spec Part I 5.5 calls `ptr_record` a BasicDNSRelation (upstream OAM: SimpleRelation) and 5.6 names SimpleProperty fields `name`/`value` (upstream: `property_name`/`property_value`); neither was tagged verify | spec errata (with G-LANG-05/06) |
+| G-CST-06 | No admin RPC to trigger re-derive on demand; only the maintenance sweep runs it | v3 |
 | G-LANG-10 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | **closed on feat_v2** (spec Part II §36.2-36.3) |
 
 ## Doc and code conflicts to resolve with the fixes

@@ -550,7 +550,8 @@ and is exercised end to end against the lab (§10).
   and anything else gets `REFUSED`. This covers the gap where tools need
   raw DNS.
 * **Per-target rate limiting in the proxy:** GCRA per
-  `rl:h:<program>:<registrable domain or ip>` using the scope document's
+  `rl:edge:h:<program>:<registrable domain or ip>` (as built: a key of its
+  own, so the engine's `rl:h:` budget is not charged twice) using the scope document's
   rate, plus a concurrency cap per target. It applies to every request and
   tunnel, so tools with internal parallelism cannot exceed program limits
   (inv_10 enforced at the network edge).
