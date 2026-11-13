@@ -62,6 +62,8 @@ var units = []unit{
 	{prefix: "xmlparse", layer: 1},
 	{prefix: "sourcemap", layer: 1},
 	{prefix: "wellknown", layer: 1},
+	{prefix: "dnsmsg", layer: 1},
+	{prefix: "socks5", layer: 1},
 	{prefix: "diff", layer: 1},
 	{prefix: "sketch", layer: 1},
 	{prefix: "chunkstore/fsstore", layer: layerAdapters, adapter: true},
