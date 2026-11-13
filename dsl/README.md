@@ -42,6 +42,12 @@ What the compiler reads after `Check` (all documented on the types):
 | `*FnDecl`, `*WorkflowDecl` | `Func *FuncInfo` (params, result, declared/inferred effects, `Ops`, `Tools`, `Frame`) |
 | `*Program` | `Types` (ID order), `Tools`, `Fns`, `Workflows` (effects, class, ops, tools) |
 
+`BuiltinTypes()` lists the prelude types in ID order: the builtin
+generics and scalars, the records of spec 7.4 (Service, TlsCertificate,
+...), and the V2 content records `Snapshot`, `Features`, `ChangeSet` and
+`ChangeHit` (V2_DESIGN §8; fields in `contentRecords` and
+`OPEN_QUESTIONS.md` 35), which the content tools return.
+
 `Builtins()` returns the standard library with stable IDs; `Builtin.Op` is
 the EFFECT kind of spec 8.4 for effectful builtins (`OpNone` for pure ones,
 which lower to `BUILTIN id`).

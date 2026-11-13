@@ -1,0 +1,274 @@
+{
+  "tools": [
+    {
+      "name": "collect",
+      "signature": "(InScope<Url>, String) -> Snapshot",
+      "effects": [
+        "active"
+      ]
+    },
+    {
+      "name": "crawl",
+      "signature": "(InScope<Url>, Int) -> List<Url>",
+      "effects": [
+        "active"
+      ]
+    },
+    {
+      "name": "wellknown",
+      "signature": "(InScope<Host>) -> List<Url>",
+      "effects": [
+        "active"
+      ]
+    },
+    {
+      "name": "extract",
+      "signature": "(Snapshot) -> Features",
+      "effects": [
+        "read"
+      ]
+    },
+    {
+      "name": "unpack_sourcemap",
+      "signature": "(Snapshot) -> List<Snapshot>",
+      "effects": [
+        "read"
+      ]
+    },
+    {
+      "name": "diff_latest",
+      "signature": "(Snapshot) -> ChangeSet",
+      "effects": [
+        "read"
+      ]
+    },
+    {
+      "name": "search_changes",
+      "signature": "(String, Int) -> List<ChangeHit>",
+      "effects": [
+        "read"
+      ]
+    }
+  ],
+  "inputs": {
+    "root": "https://shop.example/",
+    "host": "shop.example"
+  },
+  "results": {
+    "0": {
+      "scope": "allow",
+      "decision": "d-root"
+    },
+    "1": {
+      "scope": "allow",
+      "decision": "d-host"
+    },
+    "2": {
+      "type": "List<Url>",
+      "value": [
+        "https://shop.example/",
+        "https://shop.example/account"
+      ]
+    },
+    "3": {
+      "type": "List<Url>",
+      "value": [
+        "https://shop.example/robots.txt",
+        "https://shop.example/sitemap.xml"
+      ]
+    },
+    "4": {
+      "type": "Snapshot",
+      "value": {
+        "id": "snp_p3",
+        "url": "https://shop.example/",
+        "profile": "default",
+        "status": 200,
+        "mime": "text/html",
+        "kind": "html",
+        "body_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "raw_size": 1316,
+        "fetched_at": "2026-11-22T10:00:00Z",
+        "parent_id": "snp_p2",
+        "lineage_parent_id": null,
+        "coverage": "complete",
+        "degraded": false,
+        "new_in_run": true,
+        "redirects": [],
+        "resources": [
+          {
+            "id": "snp_b2",
+            "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+            "profile": "default",
+            "status": 200,
+            "mime": "application/javascript",
+            "kind": "js",
+            "body_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "raw_size": 1316,
+            "fetched_at": "2026-11-22T10:00:00Z",
+            "parent_id": null,
+            "lineage_parent_id": "snp_b1",
+            "coverage": "complete",
+            "degraded": false,
+            "new_in_run": true,
+            "redirects": [],
+            "resources": []
+          },
+          {
+            "id": "snp_c1",
+            "url": "https://shop.example/static/css/main.0a1b2c3d.css",
+            "profile": "default",
+            "status": 200,
+            "mime": "application/javascript",
+            "kind": "css",
+            "body_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "raw_size": 1316,
+            "fetched_at": "2026-11-22T10:00:00Z",
+            "parent_id": "snp_c0",
+            "lineage_parent_id": null,
+            "coverage": "complete",
+            "degraded": false,
+            "new_in_run": false,
+            "redirects": [],
+            "resources": []
+          }
+        ]
+      }
+    },
+    "5": {
+      "type": "Features",
+      "value": {
+        "snapshot_id": "snp_p3",
+        "url": "https://shop.example/",
+        "coverage": "complete",
+        "links": [
+          "https://shop.example/account"
+        ],
+        "scripts": [
+          "https://shop.example/static/js/main.5b6c7d8e.js"
+        ],
+        "styles": [
+          "https://shop.example/static/css/main.0a1b2c3d.css"
+        ],
+        "frames": [],
+        "sourcemaps": [],
+        "endpoints": [],
+        "forms": [
+          "ep:POST https://shop.example/account/delete"
+        ],
+        "parameters": [],
+        "headers": [
+          "content-security-policy"
+        ],
+        "libraries": [],
+        "secrets": [
+          "aws_access_key_id:AKIA...86"
+        ]
+      }
+    },
+    "6": {
+      "type": "ChangeSet",
+      "value": {
+        "snapshot_id": "snp_p3",
+        "from_snapshot_id": "snp_p2",
+        "diff_id": "dif_p3",
+        "url": "https://shop.example/",
+        "outcome": "changed",
+        "levels": [
+          "hash",
+          "text",
+          "semantic"
+        ],
+        "semantic": true,
+        "class": "semantic_endpoint",
+        "newness": "likely_new",
+        "cause": "target",
+        "baseline": false,
+        "alertable": true,
+        "score": 1.0,
+        "changes": [
+          "added form|ep:POST https://shop.example/account/delete",
+          "removed header|x-frame-options"
+        ],
+        "summary": {
+          "form_added": 1,
+          "header_removed": 1
+        }
+      }
+    },
+    "7": {
+      "type": "ChangeSet",
+      "value": {
+        "snapshot_id": "snp_b2",
+        "from_snapshot_id": "snp_b1",
+        "diff_id": "dif_b2",
+        "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+        "outcome": "changed",
+        "levels": [
+          "hash",
+          "text",
+          "semantic"
+        ],
+        "semantic": true,
+        "class": "semantic_endpoint",
+        "newness": "likely_new",
+        "cause": "target",
+        "baseline": false,
+        "alertable": true,
+        "score": 0.9,
+        "changes": [
+          "added endpoint|ep:POST https://shop.example/api/v1/admin/export"
+        ],
+        "summary": {
+          "endpoint_added": 1
+        }
+      }
+    },
+    "8": {
+      "type": "List<Snapshot>",
+      "value": [
+        {
+          "id": "snp_b2#src/shop/src/api.js",
+          "url": "https://shop.example/static/js/main.5b6c7d8e.js.map#src/shop/src/api.js",
+          "profile": "default",
+          "status": 200,
+          "mime": "application/javascript",
+          "kind": "js",
+          "body_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "raw_size": 1316,
+          "fetched_at": "2026-11-22T10:00:00Z",
+          "parent_id": null,
+          "lineage_parent_id": null,
+          "coverage": "complete",
+          "degraded": false,
+          "new_in_run": true,
+          "redirects": [],
+          "resources": []
+        }
+      ]
+    },
+    "9": {
+      "type": "List<Snapshot>",
+      "value": []
+    },
+    "10": {
+      "type": "List<ChangeHit>",
+      "value": [
+        {
+          "score": 2.5,
+          "at": "2026-11-22T10:00:00Z",
+          "diff_id": "dif_b2",
+          "snapshot_id": "snp_b2",
+          "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+          "kind": "endpoint_added",
+          "side": "added",
+          "feature": "endpoint",
+          "class": "semantic_endpoint",
+          "newness": "likely_new",
+          "cause": "target",
+          "text": "ep:POST https://shop.example/api/v1/admin/export"
+        }
+      ]
+    }
+  }
+}

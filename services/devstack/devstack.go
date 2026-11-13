@@ -18,6 +18,7 @@ package devstack
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -110,6 +111,17 @@ type Options struct {
 	// ContentLimits are the content service's default quotas (zero:
 	// unlimited).
 	ContentLimits contentstore.Limits
+	// ToolClock is the tool runner's clock: capture times (fetched_at) and
+	// crawl's revisit schedule (default the system clock). The lab drives
+	// it to space deploys days apart.
+	ToolClock core.Clock
+	// TargetTLS verifies HTTPS program targets (nil: the system roots; the
+	// lab passes its CA).
+	TargetTLS *tls.Config
+	// Content configures the content tools (profiles, bounds, revisit
+	// policy); their content client and ports are set by the stack (ports:
+	// ProbePorts).
+	Content toolrunner.ContentConfig
 	// TrustKeys, when set, is trusted for internal tokens in addition to
 	// the stack's own dev key. cmd/flowforge dev passes the gateway's key
 	// manager so tokens the gateway mints verify; they must carry Issuer.
@@ -297,7 +309,8 @@ func Start(ctx context.Context, o Options) (*Stack, error) {
 	st.serveEgressListeners(runCtx, proxy, lis)
 
 	trC, err := wire.ToolRunner(env(ToolRunnerName), wire.ToolRunnerOptions{ScopeAddr: st.Addrs[ScopeName],
-		EgressProxy: "http://" + st.Addrs[EgressName], Resolver: o.Resolver, ProbePorts: o.ProbePorts})
+		EgressProxy: "http://" + st.Addrs[EgressName], Resolver: o.Resolver, ProbePorts: o.ProbePorts,
+		ContentAddr: st.Addrs[ContentName], Content: o.Content, TargetTLS: o.TargetTLS, Clock: o.ToolClock})
 	if err != nil {
 		return fail(err)
 	}

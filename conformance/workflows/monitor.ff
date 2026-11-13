@@ -1,0 +1,64 @@
+// The reference monitoring workflow (V2_DESIGN §8, §10). Each run
+//   1. discovers the program's pages: a crawl from every root (robots-aware,
+//      every URL scope-checked) and the well-known resources of every host
+//      (robots.txt, security.txt, sitemaps, OpenAPI, GraphQL);
+//   2. captures every discovered URL with the scripts, styles and source
+//      maps it loads (collect; a URL already captured in this run, by crawl
+//      or wellknown, is not fetched again);
+//   3. takes the versions this run stored, the original sources of their
+//      source maps included, and diffs each against its predecessor
+//      (diff_latest; a renamed bundle against its lineage parent);
+//   4. alerts on the level-3 changes default feeds show (alertable: not a
+//      baseline, cause target, not pre-existing content).
+// The score only orders the report and the alerts: scores rank, they never
+// decide what is sent (V2 §12.4). Targets out of scope never reach a tool:
+// scope.check drops them first, and the tools re-check every URL they find.
+
+fn crawl_root(u: Url, budget: Int) -> List<Url> ! active {
+  match scope.check(u) {
+    Ok(p) => crawl(p, budget),
+    Err(_) => [],
+  }
+}
+
+fn discover(h: Fqdn) -> List<Url> ! active {
+  match scope.check(Host::Name(h)) {
+    Ok(p) => wellknown(p),
+    Err(_) => [],
+  }
+}
+
+fn capture(u: Url) -> List<Snapshot> ! active {
+  match scope.check(u) {
+    Ok(p) => {
+      let page = collect(p, "default");
+      concat([page], page.resources)
+    },
+    Err(_) => [],
+  }
+}
+
+fn report(c: ChangeSet) -> String {
+  "{c.url}: {c.class} ({c.newness}): {join(c.changes, "; ")}"
+}
+
+workflow monitor(roots: List<Url>, hosts: List<Fqdn>, budget: Int) -> List<String> {
+  let found = roots |> flat_map(u => crawl_root(u, budget));
+  let known = hosts |> flat_map(discover);
+  let urls = concat(concat(roots, found), known) |> dedupe;
+  // A URL that cannot be captured (its redirect leaves the scope, the
+  // proxy refuses it) costs that URL, not the run.
+  let captured = urls
+    |> par_map(capture, limit = 4, on_error = "collect")
+    |> flat_map(r => match r { Ok(ss) => ss, Err(_) => [] });
+  let originals = captured |> flat_map(unpack_sourcemap);
+  let changes = concat(captured, originals)
+    |> filter(s => s.new_in_run && !s.degraded)
+    |> map(diff_latest)
+    |> filter(c => c.semantic && c.alertable)
+    |> sort_by(c => 0.0 - c.score);
+  for c in changes {
+    emit_alert(Severity::High, report(c));
+  }
+  changes |> map(report)
+}

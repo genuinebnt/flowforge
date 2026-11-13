@@ -69,6 +69,9 @@ type Component struct {
 	Ready func(context.Context) error
 	// Close releases resources after shutdown.
 	Close func()
+	// ServerOptions are extra gRPC server options (the content service
+	// raises the message limit for capture bodies).
+	ServerOptions []grpc.ServerOption
 }
 
 // Serve serves c on lis until ctx is done, running its background loops.
@@ -79,7 +82,8 @@ func Serve(ctx context.Context, env *Env, lis net.Listener, c *Component) error 
 	}
 	h := c.Handler
 	if h == nil {
-		g := platform.NewGRPCServer(platform.ServerOptions{Service: env.Service, Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics})
+		g := platform.NewGRPCServer(platform.ServerOptions{Service: env.Service, Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics},
+			c.ServerOptions...)
 		platform.RegisterHealth(g, health)
 		if c.Register != nil {
 			c.Register(g)

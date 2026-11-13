@@ -19,6 +19,7 @@ import (
 	"github.com/genuinebnt/flowforge/core"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
 	"github.com/genuinebnt/flowforge/services/internal/bus"
+	"github.com/genuinebnt/flowforge/services/toolrunner"
 	"github.com/genuinebnt/flowforge/textindex"
 
 	contentsvc "github.com/genuinebnt/flowforge/services/content"
@@ -120,7 +121,9 @@ func Content(env *Env, o ContentOptions) (*Component, *contentsvc.Server, error)
 	}
 	srv := contentsvc.NewServer(contentsvc.Options{Store: store, Logger: env.Logger})
 	c := &Component{Register: func(g *grpc.Server) { pb.RegisterContentServiceServer(g, srv) }, Ready: repo.Ping,
-		Close: func() { _ = chunks.Close(context.Background()); _ = idx.Close() }}
+		Close: func() { _ = chunks.Close(context.Background()); _ = idx.Close() },
+		// Captures carry bodies up to content.MaxResponseBytes (V2 §12.10).
+		ServerOptions: []grpc.ServerOption{grpc.MaxRecvMsgSize(toolrunner.ContentMaxMessage)}}
 	if env.Bus != nil {
 		var src bus.OutboxSource = bus.PgOutbox{DB: env.DB, Table: "content.outbox"}
 		if mem != nil {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/genuinebnt/flowforge/alerts"
+	"github.com/genuinebnt/flowforge/content"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
@@ -184,6 +185,7 @@ func EventFromEnvelope(env *pb.EventEnvelope) *alerts.Event {
 			if eid, ok := pl["entity_id"].(string); ok {
 				ev.Change.EntityID = eid
 			}
+			ev.Diff = DiffFromContent(pl)
 		}
 	case *pb.EventEnvelope_ApprovalEvent:
 		a := p.ApprovalEvent
@@ -191,6 +193,49 @@ func EventFromEnvelope(env *pb.EventEnvelope) *alerts.Event {
 			Reason: a.GetReason(), ExpiresAt: convert.Time(a.GetExpiresAt())}
 	}
 	return ev
+}
+
+// DiffFromContent builds the alert `diff` section from a content event
+// payload (contentstore.EventPayload as a generic map). Every text is
+// redacted again with content.Redact before it can reach an alert (V2
+// §12.11): the content service already redacts hunks, and the notifier
+// does not rely on that alone.
+func DiffFromContent(pl map[string]any) *alerts.Diff {
+	str := func(k string) string { s, _ := pl[k].(string); return s }
+	red := func(s string) string { b, _ := content.Redact([]byte(s)); return string(b) }
+	d := &alerts.Diff{SnapshotID: str("snapshot_id"), FromSnapshotID: str("snapshot_from"), DiffID: str("diff_id"), URL: str("url"),
+		Profile: str("profile"), Outcome: str("outcome"), Class: str("class"), Newness: str("newness"), Cause: str("cause"),
+		Excerpt: red(str("excerpt"))}
+	d.Baseline, _ = pl["baseline"].(bool)
+	d.Alertable, _ = pl["alertable"].(bool)
+	d.Score, _ = pl["score"].(float64)
+	if ls, ok := pl["levels"].([]any); ok {
+		for _, l := range ls {
+			if s, ok := l.(string); ok {
+				d.Levels = append(d.Levels, s)
+			}
+		}
+	}
+	if cs, ok := pl["changes"].([]any); ok {
+		for _, c := range cs {
+			m, _ := c.(map[string]any)
+			op, _ := m["op"].(string)
+			kind, _ := m["kind"].(string)
+			key, _ := m["key"].(string)
+			if op != "" && kind != "" {
+				d.Changes = append(d.Changes, red(op+" "+kind+"|"+key))
+			}
+		}
+	}
+	if fs, ok := pl["score_features"].([]any); ok {
+		for _, f := range fs {
+			m, _ := f.(map[string]any)
+			n, _ := m["name"].(string)
+			w, _ := m["weight"].(float64)
+			d.ScoreFeatures = append(d.ScoreFeatures, alerts.ScoreFeature{Name: n, Weight: w})
+		}
+	}
+	return d
 }
 
 // contentHidden reports a content event that default alerting hides

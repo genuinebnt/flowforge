@@ -1,0 +1,93 @@
+{
+  "value": [
+    "https://shop.example/ snp_p2-\u003esnp_p3 [hash,text,semantic] semantic_endpoint/likely_new endpoints+0: added form|ep:POST https://shop.example/account/delete; removed header|x-frame-options",
+    "https://shop.example/static/js/main.5b6c7d8e.js snp_b1-\u003esnp_b2 [hash,text,semantic] semantic_endpoint/likely_new endpoints+1: added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+    "https://shop.example/",
+    "https://shop.example/account",
+    "https://shop.example/robots.txt",
+    "https://shop.example/sitemap.xml",
+    "script https://shop.example/static/js/main.5b6c7d8e.js",
+    "source snp_b2#src/shop/src/api.js js",
+    "hit endpoint_added added https://shop.example/static/js/main.5b6c7d8e.js: ep:POST https://shop.example/api/v1/admin/export"
+  ],
+  "display": "[\"https://shop.example/ snp_p2-\u003esnp_p3 [hash,text,semantic] semantic_endpoint/likely_new endpoints+0: added form|ep:POST https://shop.example/account/delete; removed header|x-frame-options\", \"https://shop.example/static/js/main.5b6c7d8e.js snp_b1-\u003esnp_b2 [hash,text,semantic] semantic_endpoint/likely_new endpoints+1: added endpoint|ep:POST https://shop.example/api/v1/admin/export\", \"https://shop.example/\", \"https://shop.example/account\", \"https://shop.example/robots.txt\", \"https://shop.example/sitemap.xml\", \"script https://shop.example/static/js/main.5b6c7d8e.js\", \"source snp_b2#src/shop/src/api.js js\", \"hit endpoint_added added https://shop.example/static/js/main.5b6c7d8e.js: ep:POST https://shop.example/api/v1/admin/export\"]",
+  "trace": [
+    {
+      "path": "0",
+      "kind": "scope_check",
+      "args": "[\"https://shop.example/\"]",
+      "args_hash": "52f56e59b393283d299312d1850085ed58b53468180a02b7abf70a1f2a10d805",
+      "result": "ok Ok(InScope(https://shop.example/))"
+    },
+    {
+      "path": "1",
+      "kind": "scope_check",
+      "args": "[\"Name(shop.example)\"]",
+      "args_hash": "6fe3e4e0b59eceb83d7e148d52bd062a3a0fbb05f636f0de6b064b8777568e5d",
+      "result": "ok Ok(InScope(Name(shop.example)))"
+    },
+    {
+      "path": "2",
+      "kind": "tool_call",
+      "args": "[\"crawl\",\"InScope(https://shop.example/)\",\"10\"]",
+      "args_hash": "dd90f655e03cdb65b240274e24b00cc5c20613dc65322512023c282f6f8ef534",
+      "result": "ok [https://shop.example/, https://shop.example/account]"
+    },
+    {
+      "path": "3",
+      "kind": "tool_call",
+      "args": "[\"wellknown\",\"InScope(Name(shop.example))\"]",
+      "args_hash": "7b0705dfbf1f129fcc534b9f2fd2844cc0dc0500d634ca2cd5746f599aa72949",
+      "result": "ok [https://shop.example/robots.txt, https://shop.example/sitemap.xml]"
+    },
+    {
+      "path": "4",
+      "kind": "tool_call",
+      "args": "[\"collect\",\"InScope(https://shop.example/)\",\"default\"]",
+      "args_hash": "b8f9ce04335569c1e312b085200929c91352a2d5295c773dc56c7f56e6342eb6",
+      "result": "ok Snapshot { id: \"snp_p3\", url: \"https://shop.example/\", profile: \"default\", status: 200, mime: \"text/html\", kind: \"html\", body_sha256: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\"snp_p2\"), lineage_parent_id: None, coverage: \"complete\", degraded: false, new_in_run: true, redirects: [], resources: [Snapshot { id: \"snp_b2\", url: \"https://shop.example/static/js/main.5b6c7d8e.js\", profile: \"default\", status: 200, mime: \"application/javascript\", kind: \"js\", body_sha256: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: None, lineage_parent_id: Some(\"snp_b1\"), coverage: \"complete\", degraded: false, new_in_run: true, redirects: [], resources: [] }, Snapshot { id: \"snp_c1\", url: \"https://shop.example/static/css/main.0a1b2c3d.css\", profile: \"default\", status: 200, mime: \"application/javascript\", kind: \"css\", body_sha256: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\"snp_c0\"), lineage_parent_id: None, coverage: \"complete\", degraded: false, new_in_run: false, redirects: [], resources: [] }] }"
+    },
+    {
+      "path": "5",
+      "kind": "tool_call",
+      "args": "[\"extract\",\"Snapshot { id: \\\"snp_p3\\\", url: \\\"https://shop.example/\\\", profile: \\\"default\\\", status: 200, mime: \\\"text/html\\\", kind: \\\"html\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\\\"snp_p2\\\"), lineage_parent_id: None, coverage: \\\"complete\\\", degraded: false, new_in_run: true, redirects: [], resources: [Snapshot { id: \\\"snp_b2\\\", url: \\\"https://shop.example/static/js/main.5b6c7d8e.js\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"js\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: None, lineage_parent_id: Some(\\\"snp_b1\\\"), coverage: \\\"complete\\\", degraded: false, new_in_run: true, redirects: [], resources: [] }, Snapshot { id: \\\"snp_c1\\\", url: \\\"https://shop.example/static/css/main.0a1b2c3d.css\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"css\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\\\"snp_c0\\\"), lineage_parent_id: None, coverage: \\\"complete\\\", degraded: false, new_in_run: false, redirects: [], resources: [] }] }\"]",
+      "args_hash": "7ca74ef1a599c64e272c6176d84eef5f2d11f9aeb1afaaa2d6c7a7d00b42fb67",
+      "result": "ok Features { snapshot_id: \"snp_p3\", url: \"https://shop.example/\", coverage: \"complete\", links: [https://shop.example/account], scripts: [https://shop.example/static/js/main.5b6c7d8e.js], styles: [https://shop.example/static/css/main.0a1b2c3d.css], frames: [], sourcemaps: [], endpoints: [], forms: [\"ep:POST https://shop.example/account/delete\"], parameters: [], headers: [\"content-security-policy\"], libraries: [], secrets: [\"aws_access_key_id:AKIA...86\"] }"
+    },
+    {
+      "path": "6",
+      "kind": "tool_call",
+      "args": "[\"diff_latest\",\"Snapshot { id: \\\"snp_p3\\\", url: \\\"https://shop.example/\\\", profile: \\\"default\\\", status: 200, mime: \\\"text/html\\\", kind: \\\"html\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\\\"snp_p2\\\"), lineage_parent_id: None, coverage: \\\"complete\\\", degraded: false, new_in_run: true, redirects: [], resources: [Snapshot { id: \\\"snp_b2\\\", url: \\\"https://shop.example/static/js/main.5b6c7d8e.js\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"js\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: None, lineage_parent_id: Some(\\\"snp_b1\\\"), coverage: \\\"complete\\\", degraded: false, new_in_run: true, redirects: [], resources: [] }, Snapshot { id: \\\"snp_c1\\\", url: \\\"https://shop.example/static/css/main.0a1b2c3d.css\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"css\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\\\"snp_c0\\\"), lineage_parent_id: None, coverage: \\\"complete\\\", degraded: false, new_in_run: false, redirects: [], resources: [] }] }\"]",
+      "args_hash": "871e6125f56be1bde5597574223919c4fc5398dfdd34261747a6c49bfe6a3103",
+      "result": "ok ChangeSet { snapshot_id: \"snp_p3\", from_snapshot_id: Some(\"snp_p2\"), diff_id: Some(\"dif_p3\"), url: \"https://shop.example/\", outcome: \"changed\", levels: [\"hash\", \"text\", \"semantic\"], semantic: true, class: \"semantic_endpoint\", newness: \"likely_new\", cause: \"target\", baseline: false, alertable: true, score: 1.0, changes: [\"added form|ep:POST https://shop.example/account/delete\", \"removed header|x-frame-options\"], summary: {\"form_added\": 1, \"header_removed\": 1} }"
+    },
+    {
+      "path": "7",
+      "kind": "tool_call",
+      "args": "[\"diff_latest\",\"Snapshot { id: \\\"snp_b2\\\", url: \\\"https://shop.example/static/js/main.5b6c7d8e.js\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"js\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: None, lineage_parent_id: Some(\\\"snp_b1\\\"), coverage: \\\"complete\\\", degraded: false, new_in_run: true, redirects: [], resources: [] }\"]",
+      "args_hash": "7eaae3b3703dd2181265fe671492aaf0209758cb70d0f0402ec62a75bbbe2aaf",
+      "result": "ok ChangeSet { snapshot_id: \"snp_b2\", from_snapshot_id: Some(\"snp_b1\"), diff_id: Some(\"dif_b2\"), url: \"https://shop.example/static/js/main.5b6c7d8e.js\", outcome: \"changed\", levels: [\"hash\", \"text\", \"semantic\"], semantic: true, class: \"semantic_endpoint\", newness: \"likely_new\", cause: \"target\", baseline: false, alertable: true, score: 0.9, changes: [\"added endpoint|ep:POST https://shop.example/api/v1/admin/export\"], summary: {\"endpoint_added\": 1} }"
+    },
+    {
+      "path": "8",
+      "kind": "tool_call",
+      "args": "[\"unpack_sourcemap\",\"Snapshot { id: \\\"snp_b2\\\", url: \\\"https://shop.example/static/js/main.5b6c7d8e.js\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"js\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: None, lineage_parent_id: Some(\\\"snp_b1\\\"), coverage: \\\"complete\\\", degraded: false, new_in_run: true, redirects: [], resources: [] }\"]",
+      "args_hash": "b50b77d0acdf67318c45ba9c1aa387b3f900fbd7b147ba8893def126f8fa22ba",
+      "result": "ok [Snapshot { id: \"snp_b2#src/shop/src/api.js\", url: \"https://shop.example/static/js/main.5b6c7d8e.js.map#src/shop/src/api.js\", profile: \"default\", status: 200, mime: \"application/javascript\", kind: \"js\", body_sha256: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: None, lineage_parent_id: None, coverage: \"complete\", degraded: false, new_in_run: true, redirects: [], resources: [] }]"
+    },
+    {
+      "path": "9",
+      "kind": "tool_call",
+      "args": "[\"unpack_sourcemap\",\"Snapshot { id: \\\"snp_c1\\\", url: \\\"https://shop.example/static/css/main.0a1b2c3d.css\\\", profile: \\\"default\\\", status: 200, mime: \\\"application/javascript\\\", kind: \\\"css\\\", body_sha256: \\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\", raw_size: 1316, fetched_at: 2026-11-22T10:00:00Z, parent_id: Some(\\\"snp_c0\\\"), lineage_parent_id: None, coverage: \\\"complete\\\", degraded: false, new_in_run: false, redirects: [], resources: [] }\"]",
+      "args_hash": "72dd464a1ac3e3a73462ad4f09a7ffeb5368435cd83f566586158dab0a2ca50b",
+      "result": "ok []"
+    },
+    {
+      "path": "10",
+      "kind": "tool_call",
+      "args": "[\"search_changes\",\"kind:endpoint_added /admin/\",\"5\"]",
+      "args_hash": "409f9b787f7b4f181e51ae4b76da1abe05f6103e7c238c4b36a9b66f7fa9ce2e",
+      "result": "ok [ChangeHit { score: 2.5, at: 2026-11-22T10:00:00Z, diff_id: \"dif_b2\", snapshot_id: \"snp_b2\", url: \"https://shop.example/static/js/main.5b6c7d8e.js\", kind: \"endpoint_added\", side: \"added\", feature: \"endpoint\", class: \"semantic_endpoint\", newness: \"likely_new\", cause: \"target\", text: \"ep:POST https://shop.example/api/v1/admin/export\" }]"
+    }
+  ]
+}

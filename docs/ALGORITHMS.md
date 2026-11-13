@@ -258,6 +258,32 @@ candidate. See `content/README.md` for throughput per content kind.
   no measured cost. `batched` fits bursty bulk imports (fewer, larger
   segments) at the price of search lag.
 
+### Crawl revisit policy (`services/toolrunner`)
+* **Candidates** (`toolrunner.RevisitPolicy`; `ContentConfig.Revisit`,
+  `ParseRevisitPolicy`: `adaptive`, `fixed`; `FF_CRAWL_REVISIT` for the
+  tool runner): the V2_DESIGN §11 item 8 policy (the interval halves when
+  a visit finds a change, doubles when it finds none, starts at 24 h and
+  is clamped to [1 h, 7 d]), and a fixed 24 h interval. A "change" is a
+  structural or level-3 change; masked-only and reordered versions are
+  not. Benchmark: `go test -run '^$' -bench ToolAlgo ./services/toolrunner`
+  (`BenchmarkToolAlgo/revisit/<candidate>/change_every_<h>h`): a page with
+  exponentially distributed change gaps of the given mean over 90 days,
+  50 seeded histories; metrics are fetches per day and mean hours from a
+  change to the visit that sees it.
+* **Measured** 2026-11-13, 4-vCPU Xeon (Go 1.26):
+  | Candidate | every 6 h | every 72 h | every 720 h |
+  |---|---|---|---|
+  | adaptive | 4.43 fetches/day, 4.5 h delay | 0.44/day, 40.5 h | 0.19/day, 80.0 h |
+  | fixed | 1.00/day, 12.1 h | 1.00/day, 11.8 h | 1.00/day, 11.7 h |
+* **Default:** `adaptive`. It spends fetches where changes are: on a fast
+  page it detects changes almost three times sooner, and on stable pages
+  it fetches two to five times less, which matters because every fetch is
+  charged against the program's per-target rate (V2 §9). Its delay on slow
+  pages is bounded by the 7 d cap.
+* **When to pick others:** `fixed` when detection latency must not depend
+  on a page's history (a program that requires daily evidence of every
+  page), or to compare against.
+
 ## v2 decisions (being measured)
 
 * **htmlparse** against `x/net/html`, and the lookup strategy for named

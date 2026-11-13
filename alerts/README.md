@@ -54,7 +54,14 @@ occurred_at), `change` (id, seq, type, entity_id, edge_id, run_id, patch,
 at), `entity` (id, asset_type, key, scope_status, confidence, state,
 created_at, last_seen, first_seen_run, last_seen_run, plus the OAM content
 fields of spec 5.4 flattened, see `contentFieldKinds`), `edge`, `run`,
-`approval`. Absent sections and fields follow three-valued logic: a
+`approval`, and `diff` for content changes (V2_DESIGN §8: snapshot_id,
+from_snapshot_id, diff_id, url, profile, outcome, levels, semantic, class,
+newness, cause, baseline, alertable, kinds (`<kind>_<op>` such as
+`endpoint_added`), changes (`<op> <kind>|<key>`), summary (`DiffSummary`)
+and excerpt (redacted unified hunks)). The change's score and its reasons
+are deliberately not fields: scores rank alerts (they are in the payload's
+`diff` section, `PayloadDiff`) but never decide whether one is sent (V2
+§12.4); `diff.score` is A0202. Absent sections and fields follow three-valued logic: a
 condition that evaluates to absent does not match.
 
 Diagnostic codes: `A0001-A0099` lexing, `A0100-A0199` parsing,
@@ -74,6 +81,13 @@ go test ./alerts/ -run '^$' -bench BenchmarkAlr01 -benchtime=3x
   the REST example rule of 12.7).
 * `TestAlr002_DedupeThrottle` runs `conformance/alerts/eval/throttle.json` and
   a FakeClock scenario (one alert per window, the next after it).
+* `conformance/alerts/eval/content_diff.json` (run by `TestAlr001`) covers
+  every `diff` field, absence on other events, the payload summary line,
+  `group_by diff.url` and the A0202 on `diff.score`;
+  `TestAlrProp_ScoreNeverDecides` changes only scores and checks that
+  matches and dedupe keys stay equal; `TestAlrDiff_PayloadBounds`,
+  `TestAlrDiff_ScoreNotAddressable` (also: the evaluating files import
+  nothing that reaches the network).
 * Digest, quiet hours, idempotent processing (inv_08), payload shape,
   diagnostics format, default rules, webhook signature, SSRF and retry
   schedule have their own tests; `TestAlrProp_DedupeFastPathCanonical`

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -228,6 +229,7 @@ type Payload struct {
 	Summary         string            `json:"summary"`
 	OccurredAt      string            `json:"occurred_at"`
 	Entity          *PayloadEntity    `json:"entity,omitempty"`
+	Diff            *PayloadDiff      `json:"diff,omitempty"`
 	Links           map[string]string `json:"links,omitempty"`
 	SuppressedCount int               `json:"suppressed_count,omitempty"`
 }
@@ -238,6 +240,77 @@ type PayloadEntity struct {
 	ID        string `json:"id"`
 	AssetType string `json:"asset_type"`
 	Name      string `json:"name,omitempty"`
+}
+
+// PayloadDiff shows what a content change changed (V2_DESIGN §8): the
+// snapshots, the classification, the first MaxPayloadChanges level-3
+// changes, a one-line summary and the redacted unified excerpt. Score and
+// ScoreFeatures let receivers rank alerts; they did not decide this one.
+type PayloadDiff struct {
+	URL            string         `json:"url"`
+	SnapshotID     string         `json:"snapshot_id,omitempty"`
+	FromSnapshotID string         `json:"from_snapshot_id,omitempty"`
+	DiffID         string         `json:"diff_id,omitempty"`
+	Outcome        string         `json:"outcome,omitempty"`
+	Levels         []string       `json:"levels,omitempty"`
+	Class          string         `json:"class,omitempty"`
+	Newness        string         `json:"newness,omitempty"`
+	Cause          string         `json:"cause,omitempty"`
+	Changes        []string       `json:"changes,omitempty"`
+	MoreChanges    int            `json:"more_changes,omitempty"`
+	Summary        string         `json:"summary"`
+	Excerpt        string         `json:"excerpt,omitempty"`
+	Score          float64        `json:"score"`
+	ScoreFeatures  []ScoreFeature `json:"score_features,omitempty"`
+}
+
+// MaxPayloadChanges bounds the changes listed in a payload; the rest are
+// counted in more_changes.
+const MaxPayloadChanges = 20
+
+// DiffSummary is a one-line account of a content change: its class (or
+// outcome), newness, a non-target cause, and the first three changes,
+// e.g. "semantic_endpoint, likely_new: added endpoint ep:POST
+// https://h/api (+1 more)".
+func DiffSummary(d *Diff) string {
+	if d == nil {
+		return ""
+	}
+	head := d.Class
+	if head == "" {
+		head = d.Outcome
+	}
+	if d.Newness != "" {
+		head += ", " + d.Newness
+	}
+	if d.Cause != "" && d.Cause != "target" {
+		head += ", cause " + d.Cause
+	}
+	if d.Baseline {
+		head += ", baseline"
+	}
+	if len(d.Changes) == 0 {
+		return head
+	}
+	shown := d.Changes[:min(3, len(d.Changes))]
+	parts := make([]string, len(shown))
+	for i, c := range shown {
+		parts[i] = strings.Replace(c, "|", " ", 1)
+	}
+	out := head + ": " + strings.Join(parts, "; ")
+	if n := len(d.Changes) - len(shown); n > 0 {
+		out += fmt.Sprintf(" (+%d more)", n)
+	}
+	return out
+}
+
+func payloadDiff(d *Diff) *PayloadDiff {
+	pd := &PayloadDiff{URL: d.URL, SnapshotID: d.SnapshotID, FromSnapshotID: d.FromSnapshotID, DiffID: d.DiffID, Outcome: d.Outcome,
+		Levels: d.Levels, Class: d.Class, Newness: d.Newness, Cause: d.Cause, Summary: DiffSummary(d), Excerpt: d.Excerpt,
+		Score: d.Score, ScoreFeatures: d.ScoreFeatures}
+	pd.Changes = d.Changes[:min(MaxPayloadChanges, len(d.Changes))]
+	pd.MoreChanges = len(d.Changes) - len(pd.Changes)
+	return pd
 }
 
 // AlertBody is the webhook JSON: the payload with its stored alert id.
@@ -273,6 +346,15 @@ func renderPayload(r *Rule, ev *Event, opts RenderOptions) Payload {
 		p.Entity = &PayloadEntity{ID: ev.Entity.ID, AssetType: ev.Entity.AssetType, Name: displayName(ev.Entity)}
 		subject = ev.Entity.AssetType + " " + p.Entity.Name
 		link("console", "/graph/entities/"+ev.Entity.ID)
+	case ev.Diff != nil:
+		p.Diff = payloadDiff(ev.Diff)
+		subject = "content " + ev.Diff.URL
+		if s := p.Diff.Summary; s != "" {
+			subject += " (" + s + ")"
+		}
+		if ev.Diff.SnapshotID != "" {
+			link("console", "/snapshots/"+ev.Diff.SnapshotID)
+		}
 	case ev.Approval != nil:
 		subject = "approval " + ev.Approval.ID
 		if ev.Approval.Role != "" {

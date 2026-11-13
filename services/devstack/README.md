@@ -19,7 +19,12 @@ destinations, intel sources, DNS forwarder A/AAAA), `ProbePorts`
 `EgressClock` (fake clock for the per-target limiter), `Secrets`,
 `AllowInsecureWebhooks`, `Engine` (poll intervals), `Ports`, `Blobs` (raw
 tool output and snapshot files; `flowforge dev` sets a directory store
-from `FF_BLOB_DIR`). With `DBDSN` the engine also runs the in-process
+from `FF_BLOB_DIR`), `ToolClock` (the tool runner's clock: capture times
+and crawl's revisit schedule; the lab sets its deploy clock), `TargetTLS`
+(roots for HTTPS targets; the lab's CA), `Content` (content tool
+configuration; the stack sets the client, and the ports default to
+`ProbePorts`). The tool runner always registers the content tools against
+the stack's content service. With `DBDSN` the engine also runs the in-process
 scheduler and the maintenance loop. The stack always uses the in-process
 bus (one process); the multi-process profile is `deploy/compose.local.yml`.
 

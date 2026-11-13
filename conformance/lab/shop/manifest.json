@@ -1,0 +1,491 @@
+{
+ "description": "The V2 acceptance site (V2_DESIGN \u00a710): a shop on shop.lab.test (TLS, plus a plain-HTTP listener that redirects) and its API host api.lab.test, both in scope; evil.lab.test and cdn.thirdparty.test are out of scope and served on 127.0.0.2. Six weekly deploys reuse the SPA fixture (conformance/content/sites/spa): d1 baseline; d2 only volatile values, formatting and renamed bundles (masked_only, reordered); d3 the planted page changes (POST form, third-party script without SRI, leaked AWS example key pair, CSP loosened, X-Frame-Options removed, HttpOnly dropped), a new admin endpoint and a library update in the renamed main bundle, and the lazily loaded chunk renamed index-a1b2c3d4 -> app-e5f6a7b8 with edits; d4 the CSP header removed, a DELETE endpoint in the renamed main bundle and a DELETE operation in the OpenAPI document; d5 and d6 change nothing but per-response nonces, timestamps and request ids.",
+ "seed": 1279349332,
+ "start": "2026-09-25T10:00:00Z",
+ "deploy_interval_hours": 168,
+ "hosts": [
+  {
+   "name": "shop.lab.test",
+   "scope": "in"
+  },
+  {
+   "name": "api.lab.test",
+   "scope": "in"
+  },
+  {
+   "name": "evil.lab.test",
+   "scope": "out"
+  },
+  {
+   "name": "cdn.thirdparty.test",
+   "scope": "out"
+  }
+ ],
+ "deploys": [
+  {
+   "name": "d1",
+   "files": [
+    {
+     "host": "shop.lab.test",
+     "path": "/",
+     "file": "lab/shop/d1.index.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/d1.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/css/main.9e8d7c6b.css",
+     "file": "lab/shop/main.9e8d7c6b.css",
+     "type": "text/css"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.3f9a1c2b.js",
+     "file": "content/sites/spa/main.3f9a1c2b.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.3f9a1c2b.js.map",
+     "file": "lab/shop/main.3f9a1c2b.js.map",
+     "type": "application/json"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/assets/index-a1b2c3d4.js",
+     "file": "content/sites/spa/index-a1b2c3d4.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/assets/store-0f0f0f0f.js",
+     "file": "content/sites/spa/other-0f0f0f0f.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/products",
+     "file": "lab/shop/products.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/page.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/account",
+     "file": "lab/shop/account.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/page.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/about",
+     "file": "lab/shop/about.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/page.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/private/admin",
+     "file": "lab/shop/private-admin.html",
+     "type": "text/html; charset=utf-8"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/go",
+     "redirect": "http://evil.lab.test:{{out_http}}/landing",
+     "status": 302
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/robots.txt",
+     "file": "lab/shop/robots.txt",
+     "type": "text/plain; charset=utf-8",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/sitemap.xml",
+     "file": "lab/shop/sitemap.xml",
+     "type": "application/xml",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/.well-known/security.txt",
+     "file": "lab/shop/security.txt",
+     "type": "text/plain; charset=utf-8"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/legacy",
+     "listener": "http",
+     "redirect": "https://shop.lab.test:{{https}}/catalog",
+     "status": 301
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/",
+     "listener": "http",
+     "prefix": true,
+     "redirect": "https://shop.lab.test:{{https}}{{path}}",
+     "status": 301
+    },
+    {
+     "host": "api.lab.test",
+     "path": "/openapi.json",
+     "file": "lab/shop/openapi.v1.json",
+     "type": "application/json",
+     "template": true
+    },
+    {
+     "host": "api.lab.test",
+     "path": "/graphql",
+     "file": "lab/shop/graphql.json",
+     "type": "application/json"
+    },
+    {
+     "host": "evil.lab.test",
+     "path": "/",
+     "listener": "out",
+     "prefix": true,
+     "file": "lab/shop/evil.html",
+     "type": "text/html; charset=utf-8"
+    },
+    {
+     "host": "cdn.thirdparty.test",
+     "path": "/widget.js",
+     "listener": "out",
+     "file": "lab/shop/widget.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/catalog",
+     "file": "lab/shop/catalog.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/page.headers.txt"
+    }
+   ]
+  },
+  {
+   "name": "d2",
+   "files": [
+    {
+     "host": "shop.lab.test",
+     "path": "/",
+     "file": "lab/shop/d2.index.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/d2.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/css/main.0a1b2c3d.css",
+     "file": "lab/shop/main.0a1b2c3d.css",
+     "type": "text/css"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.77e0d41a.js",
+     "file": "content/sites/spa/main.77e0d41a.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.77e0d41a.js.map",
+     "file": "lab/shop/main.77e0d41a.js.map",
+     "type": "application/json"
+    }
+   ],
+   "remove": [
+    {
+     "host": "shop.lab.test",
+     "path": "/static/css/main.9e8d7c6b.css"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.3f9a1c2b.js"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.3f9a1c2b.js.map"
+    }
+   ]
+  },
+  {
+   "name": "d3",
+   "files": [
+    {
+     "host": "shop.lab.test",
+     "path": "/",
+     "file": "lab/shop/d3.index.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/d3.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.5b6c7d8e.js",
+     "file": "content/sites/spa/main.5b6c7d8e.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.5b6c7d8e.js.map",
+     "file": "lab/shop/main.5b6c7d8e.js.map",
+     "type": "application/json"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/assets/app-e5f6a7b8.js",
+     "file": "content/sites/spa/app-e5f6a7b8.js",
+     "type": "application/javascript"
+    }
+   ],
+   "remove": [
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.77e0d41a.js"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.77e0d41a.js.map"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/assets/index-a1b2c3d4.js"
+    }
+   ]
+  },
+  {
+   "name": "d4",
+   "files": [
+    {
+     "host": "shop.lab.test",
+     "path": "/",
+     "file": "lab/shop/d4.index.html",
+     "type": "text/html; charset=utf-8",
+     "headers": "lab/shop/d4.headers.txt",
+     "template": true
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.c4d5e6f7.js",
+     "file": "lab/shop/main.c4d5e6f7.js",
+     "type": "application/javascript"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.c4d5e6f7.js.map",
+     "file": "lab/shop/main.c4d5e6f7.js.map",
+     "type": "application/json"
+    },
+    {
+     "host": "api.lab.test",
+     "path": "/openapi.json",
+     "file": "lab/shop/openapi.v2.json",
+     "type": "application/json",
+     "template": true
+    }
+   ],
+   "remove": [
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.5b6c7d8e.js"
+    },
+    {
+     "host": "shop.lab.test",
+     "path": "/static/js/main.5b6c7d8e.js.map"
+    }
+   ]
+  },
+  {
+   "name": "d5",
+   "files": []
+  },
+  {
+   "name": "d6",
+   "files": []
+  }
+ ],
+ "expect": {
+  "planted": [
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added form|ep:POST https://shop.lab.test:{{https}}/account/delete",
+    "regex": "/account\\/delete/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added parameter|ep:POST https://shop.lab.test:{{https}}/account/delete body:authenticity_token",
+    "regex": "/authenticity_token/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added parameter|ep:POST https://shop.lab.test:{{https}}/account/delete body:confirm",
+    "regex": "/body:confirm/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added script|http://cdn.thirdparty.test:{{out_http}}/widget.js",
+    "regex": "/thirdparty\\.test/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added script|https://shop.lab.test:{{https}}/assets/app-__FF_HASH__.js",
+    "regex": "/assets\\/app-/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "removed script|https://shop.lab.test:{{https}}/assets/index-__FF_HASH__.js",
+    "regex": "/assets\\/index-/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added secret|aws_access_key_id",
+    "regex": "/aws_access_key_id/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "added secret|aws_secret_access_key",
+    "regex": "/aws_secret_access_key/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "modified header|content-security-policy",
+    "regex": "/unsafe-inline/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "modified header|set-cookie:session",
+    "regex": "/set-cookie/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "removed header|x-frame-options",
+    "regex": "/x-frame-options/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/assets/app-e5f6a7b8.js",
+    "change": "added endpoint|ep:POST https://shop.lab.test:{{https}}/api/v2/admin/flags",
+    "regex": "/admin\\/flags/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/static/js/main.5b6c7d8e.js",
+    "change": "added endpoint|ep:POST https://shop.lab.test:{{https}}/api/v1/admin/export",
+    "regex": "/admin\\/export/"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/static/js/main.5b6c7d8e.js",
+    "change": "modified library|tinylib",
+    "regex": "/tinylib/"
+   },
+   {
+    "deploy": "d4",
+    "url": "https://api.lab.test:{{https}}/openapi.json",
+    "change": "added parameter|ep:DELETE https://api.lab.test:{{https}}/v1/admin/users/{id} path:id",
+    "regex": "/users\\/\\{id\\} path:id/"
+   },
+   {
+    "deploy": "d4",
+    "url": "https://api.lab.test:{{https}}/openapi.json",
+    "change": "added schema_endpoint|ep:DELETE https://api.lab.test:{{https}}/v1/admin/users/{id}",
+    "regex": "/DELETE https:\\/\\/api/"
+   },
+   {
+    "deploy": "d4",
+    "url": "https://shop.lab.test:{{https}}/",
+    "change": "removed header|content-security-policy",
+    "regex": "/content-security-policy/"
+   },
+   {
+    "deploy": "d4",
+    "url": "https://shop.lab.test:{{https}}/static/js/main.c4d5e6f7.js",
+    "change": "added endpoint|ep:DELETE https://shop.lab.test:{{https}}/api/v2/reports/{expr}",
+    "regex": "/reports\\//"
+   }
+  ],
+  "lineage": [
+   {
+    "deploy": "d2",
+    "url": "https://shop.lab.test:{{https}}/static/js/main.77e0d41a.js",
+    "parent": "https://shop.lab.test:{{https}}/static/js/main.3f9a1c2b.js"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/static/js/main.5b6c7d8e.js",
+    "parent": "https://shop.lab.test:{{https}}/static/js/main.77e0d41a.js"
+   },
+   {
+    "deploy": "d3",
+    "url": "https://shop.lab.test:{{https}}/assets/app-e5f6a7b8.js",
+    "parent": "https://shop.lab.test:{{https}}/assets/index-a1b2c3d4.js"
+   },
+   {
+    "deploy": "d4",
+    "url": "https://shop.lab.test:{{https}}/static/js/main.c4d5e6f7.js",
+    "parent": "https://shop.lab.test:{{https}}/static/js/main.5b6c7d8e.js"
+   },
+   {
+    "deploy": "d2",
+    "url": "https://shop.lab.test:{{https}}/static/css/main.0a1b2c3d.css",
+    "parent": "https://shop.lab.test:{{https}}/static/css/main.9e8d7c6b.css"
+   }
+  ],
+  "alerts": [
+   {
+    "name": "content_level3",
+    "source": "alert content_level3 when change.type == \"content_changed\" && diff.semantic && diff.alertable -> webhook(\"lab\") severity = High",
+    "count": 6
+   },
+   {
+    "name": "leaked_secret",
+    "source": "alert leaked_secret when diff.kinds contains \"secret_added\" -> webhook(\"lab\") severity = Critical",
+    "count": 1
+   },
+   {
+    "name": "new_endpoint",
+    "source": "alert new_endpoint when diff.kinds contains \"endpoint_added\" || diff.kinds contains \"schema_endpoint_added\" -> webhook(\"lab\") severity = High",
+    "count": 4
+   },
+   {
+    "name": "security_header_removed",
+    "source": "alert security_header_removed when diff.kinds contains \"header_removed\" -> webhook(\"lab\") severity = Medium",
+    "count": 2
+   },
+   {
+    "name": "workflow_alert",
+    "source": "alert workflow_alert when run.type == \"alert_emitted\" -> webhook(\"lab\") severity = High",
+    "count": 6
+   }
+  ],
+  "never_requested": [
+   {
+    "host": "shop.lab.test",
+    "path": "/private/admin"
+   },
+   {
+    "host": "shop.lab.test",
+    "path": "/private/secrets"
+   }
+  ]
+ }
+}

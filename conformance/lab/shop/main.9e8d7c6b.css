@@ -1,0 +1,5 @@
+:root{--brand:#0a7cff;--ink:#1d1d1f}
+body{margin:0;font-family:system-ui,sans-serif;color:var(--ink)}
+nav a{margin-right:1rem;color:var(--brand)}
+form{display:flex;gap:.5rem}
+.hero{background:url(/static/media/hero.4c5d6e7f.webp) center/cover;min-height:20rem}

@@ -72,6 +72,59 @@ func (c *ChunkStores) Metrics(ctx context.Context, tenant core.UUID) (chunkstore
 	return t.s.Metrics(), nil
 }
 
+// SnapshotStorage is the physical size of one snapshot's records in its
+// tenant's chunk store (chunkstore ManifestInfo.StoredBytes: the record
+// bytes of the manifest and its distinct chunks).
+type SnapshotStorage struct {
+	// Raw is what reproduces the capture: the capture record
+	// (headers_ref) and the redacted body (body_manifest), the measure of
+	// CSTORE-INV-08 and V2 §10 item 7.
+	Raw int64
+	// Derived is the normalized text and features records.
+	Derived int64
+}
+
+// SnapshotStorage returns the stored size of snap's records. A record
+// shared with another snapshot (a dedupe hit) is counted for each.
+func (s *Store) SnapshotStorage(ctx context.Context, tenant core.UUID, snap Snapshot) (SnapshotStorage, error) {
+	tc, err := s.cfg.Chunks.open(ctx, tenant)
+	if err != nil {
+		return SnapshotStorage{}, err
+	}
+	stat := func(ref string) (int64, error) {
+		if ref == "" {
+			return 0, nil
+		}
+		id, err := chunkstore.ParseManifestID(ref)
+		if err != nil {
+			return 0, integrity("manifest ref %q: %v", ref, err)
+		}
+		info, err := tc.s.Stat(ctx, id)
+		if err != nil {
+			return 0, internal("stat manifest", err)
+		}
+		return int64(info.StoredBytes), nil
+	}
+	var out SnapshotStorage
+	for _, r := range []struct {
+		dst *int64
+		ref string
+	}{{&out.Raw, snap.HeadersRef}, {&out.Raw, snap.BodyManifest}, {&out.Derived, snap.NormalizedManifest}, {&out.Derived, snap.FeaturesRef}} {
+		n, err := stat(r.ref)
+		if err != nil {
+			return out, err
+		}
+		*r.dst += n
+	}
+	return out, nil
+}
+
+// StorageMetrics returns the tenant chunk store's metrics: everything the
+// content store keeps for the tenant (snapshots, derived records, diffs).
+func (s *Store) StorageMetrics(ctx context.Context, tenant core.UUID) (chunkstore.Metrics, error) {
+	return s.cfg.Chunks.Metrics(ctx, tenant)
+}
+
 // Close closes every open store.
 func (c *ChunkStores) Close(ctx context.Context) error {
 	c.mu.Lock()

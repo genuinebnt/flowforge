@@ -8,7 +8,11 @@
 //
 // Adapters that work without the internet (spec 20, M7): dnsresolve
 // (passive; injectable resolver), httpprobe (active; HTTP GET through the
-// proxy), tcpconnect (active; CONNECT through the proxy) and mock.
+// proxy), tcpconnect (active; CONNECT through the proxy) and mock. The v2
+// tools add portscan, tlscert, ctlog, rdap, asn and the content tools of
+// V2_DESIGN §8 (ContentAdapters: collect, crawl, wellknown, extract,
+// unpack_sourcemap, diff_latest, search_changes), which store what they
+// fetch with the content service.
 package toolrunner
 
 import (

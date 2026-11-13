@@ -47,6 +47,7 @@ separately and talks to these over gRPC.
 | `maintenance` | - | spec 10.7 retention, partitions, run archival (in process, `migrate maintain`, the tick) | |
 | `internal/wire` | - | builds each service from an `Env` (shared by cmd and devstack) | |
 | `internal/servicetest` | - | test helpers (fresh Postgres DB, counting resolver, webhook receiver) | |
+| `internal/lab` | - | the V2 lab: TLS/HTTP servers for in- and out-of-scope hosts, a fake authoritative DNS server, versioned sites, request logs (acceptance test, later eval harness) | |
 
 ## Content (V2 design §6-§8)
 
@@ -83,14 +84,18 @@ be `previous`), `POST /v1/snapshots/{id}/:pin` and `:unpin`, `GET
 /v1/changes/search?program_id=&q=&limit=&include_vendor=`, `GET
 /v1/changes/first-appeared?program_id=&text=`, `GET /v1/content/quota`.
 
-For the v2 tools (collect, crawl, wellknown, extract, unpack_sourcemap,
-diff_latest, search_changes): `collect` fetches through the egress proxy
-and calls `IngestCapture` (with `page_url` for scripts and styles, and the
-run id); `extract` reads `GetSnapshot(include_features)`;
-`unpack_sourcemap` reads the `#src/` artifacts in the features JSON;
+The v2 content tools run in the tool runner (`FF_CONTENT_ADDR` set):
+`collect`, `crawl` and `wellknown` fetch through the egress proxy and call
+`IngestCapture` (with the run id and effect path, and `page_url` for the
+scripts, styles and source maps collect captures with a page); `extract`,
+`crawl` and `wellknown` read `GetSnapshot(include_features)`;
+`unpack_sourcemap` reads the `#src/` documents in the features JSON;
 `diff_latest` calls `DiffSnapshots` with `from` empty; `search_changes`
-calls `SearchChanges`; `crawl` and `wellknown` read link and sitemap
-features from `GetSnapshot`.
+calls `SearchChanges`. The content service's event carries each capture's
+observation to the graph, so the tools emit none themselves
+(`services/toolrunner/README.md`). Content events also carry the change
+set's levels and a redacted unified excerpt, which the notifier exposes to
+rules as the `diff` variable and shows in the alert payload.
 
 Not provisioned in Terraform (`infra/`): the Cloud Run service, its
 database user `ff_content`, the `FF_CONTENT_KEK` secret and the
@@ -108,6 +113,13 @@ follow-ups; the local profiles (one process, `cmd/content` binary) work.
 | `ctlog` | `(Fqdn) -> List<Fqdn>` | passive | crt.sh (intel source) |
 | `rdap` | `(Host) -> List<Organization>` | passive | IANA bootstrap + registry RDAP (intel sources) |
 | `asn` | `(IpAddress) -> Option<Asn>` | passive | RDAP + Team Cymru DNS (intel sources) |
+| `collect` | `(InScope<Url>, String) -> Snapshot` | active | proxy HTTP / CONNECT, then the content service |
+| `crawl` | `(InScope<Url>, Int) -> List<Url>` | active | proxy HTTP / CONNECT (robots.txt, frontier), the content service |
+| `wellknown` | `(InScope<Host>) -> List<Url>` | active | proxy HTTP / CONNECT, the content service |
+| `extract` | `(Snapshot) -> Features` | read | the content service |
+| `unpack_sourcemap` | `(Snapshot) -> List<Snapshot>` | read | the content service |
+| `diff_latest` | `(Snapshot) -> ChangeSet` | read | the content service |
+| `search_changes` | `(String, Int) -> List<ChangeHit>` | read | the content service |
 | `mock` | `(String) -> String` | none | nothing |
 
 Details, emitted assets and fixtures: `services/toolrunner/README.md`;
@@ -206,7 +218,8 @@ Background work uses `platform.AsService(ctx, tenant, "engine")` (actor
 | `FF_SECRET_PROJECT` | notifier | default project of short `sm://NAME` references (else `FF_PUBSUB_PROJECT`) |
 | `FF_ID_TOKEN_AUDIENCE_AUTO` | all callers | attach a Google ID token (`x-serverless-authorization`) to calls to `https://` addresses; defaults to on when `K_SERVICE` is set (Cloud Run) |
 | `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_NOTIFIER_ADDR`, `FF_SIMILARITY_ADDR` | callers | service addresses |
-| `FF_CONTENT_ADDR` | gateway (optional) | the content service; unset, the `/v1/snapshots` and `/v1/changes` routes answer 503 |
+| `FF_CONTENT_ADDR` | gateway, tool-runner (optional) | the content service; unset, the gateway's `/v1/snapshots` and `/v1/changes` routes answer 503 and the tool runner registers no content tools |
+| `FF_CRAWL_REVISIT` | tool-runner | crawl's revisit policy: `adaptive` (default) or `fixed` (docs/ALGORITHMS.md) |
 | `FF_CONTENT_DIR` | content | chunk store (`chunks/`) and text indexes (`index/<tenant>/<program>`); unset: memory |
 | `FF_CONTENT_KEK`, `FF_CONTENT_KEK_ID` | content | the 32-byte key-encryption key (hex or base64) that wraps per-tenant data keys; required in prod (dev: an ephemeral key) |
 | `FF_CONTENT_CODEC`, `FF_CONTENT_INDEX_MODE`, `FF_CONTENT_INDEX_LATEST` | content | `delta`/`chunk`, `inline`/`batched`, index latest snapshots (docs/ALGORITHMS.md) |
@@ -307,7 +320,10 @@ resolver), the recon workflow (dnsresolve + httpprobe through the egress
 proxy), a run to success, URL/FQDN/IPAddress/Service/Product entities in
 the graph, a signed webhook alert to a local receiver, and proof that the
 out-of-scope `evil.test` was never resolved or contacted. It runs on memory
-and, with `FF_TEST_PG_DSN`, on Postgres. `services/egressproxy/proxy_test.go`
+and, with `FF_TEST_PG_DSN`, on Postgres. `services/internal/lab` (`TestLabAcceptance_Memory`, `_Postgres`) is the
+V2 §10 acceptance: the reference monitoring workflow over six deploys of
+the lab site through the whole stack, with the seven criteria asserted
+(see its README). `services/egressproxy/proxy_test.go`
 is the M7 mock-target test (allowed request, redirect to an out-of-scope
 host, DNS rebinding, userinfo and decimal-IP tricks); `v2_test.go` covers
 TCP ports, SOCKS5, the DNS forwarder, per-target rate limits and intel
@@ -357,8 +373,9 @@ sources. Tool adapters run against recorded fixtures in
   catalogued, so `GetSnapshotInfo` reports its URI.
 * **Raw tool output**: with a blob store the tool runner stores each
   observation as the tool reported it (`raw/<tenant>/<program>/<run>/<obs>.json`)
-  and sets `raw_ref`; adapters do not keep protocol-level raw bytes (HTTP
-  bodies, DNS packets) yet.
+  and sets `raw_ref`; the content tools' HTTP responses are kept by the
+  content service as raw snapshots in the tenant's chunk store; the other
+  adapters keep no protocol-level raw bytes (DNS packets, probe bodies).
 * Services listen in h2c and rely on Cloud Run's front end for TLS
   (callers dial `https://` addresses with TLS); no authorization
   beyond tenant isolation, the global kill switch (owner) and similarity's

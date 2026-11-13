@@ -59,7 +59,9 @@ returned), recursion and the call-depth limit, loops, casts, tool calls,
 scope.check / scope.allows, approvals (approve, deny, match), par_map
 (shuffled completion, collect, fail-fast), compensation order and the
 no-failure case, now/sleep/log/emit_alert, embed/similar, streams,
-generics, fuel resume and exhaustion, and the three programs of spec 7.1.
+generics, fuel resume and exhaustion, the three programs of spec 7.1, and
+the V2 content records returned by the content tools (`content_records`:
+Snapshot with nested resources, Features, ChangeSet, ChangeHit).
 
 ## replay/<case>/
 

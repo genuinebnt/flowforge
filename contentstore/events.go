@@ -2,6 +2,8 @@ package contentstore
 
 import (
 	"encoding/json"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/genuinebnt/flowforge/content"
@@ -62,6 +64,14 @@ type EventPayload struct {
 	Score         float64                 `json:"score"`
 	ScoreFeatures []oam.ScoreFeature      `json:"score_features,omitempty"`
 	Changes       []ChangeRef             `json:"changes,omitempty"`
+	// Levels are the change set's levels (hash, text, semantic).
+	Levels []string `json:"levels,omitempty"`
+	// Excerpt is a unified-diff excerpt of the change for alerts (V2 §8):
+	// at most maxExcerptLines lines and maxExcerptBytes bytes of the hunks
+	// of the artifacts with a level-3 change (else the first changed
+	// ones), from redacted normalized text and redacted again; empty for
+	// baselines and non-changes.
+	Excerpt string `json:"excerpt,omitempty"`
 	// Alertable is false for baselines, non-target causes, pre-existing
 	// content (a key's first capture, complete or not) and non-changes:
 	// V2 §12.2, §12.3, §12.13, default feeds and alerts hide them.
@@ -102,6 +112,10 @@ func eventPayload(p EventPayload, cs *content.ChangeSet, from, to, diffID string
 		return p, nil
 	}
 	p.Outcome, p.Class, p.Newness, p.Cause, p.Baseline, p.Score = cs.Outcome, cs.Class, cs.Newness, cs.Cause, cs.Baseline, cs.Score.Value
+	p.Levels = cs.Levels
+	if cs.IsChange() && !cs.Baseline {
+		p.Excerpt = Excerpt(*cs)
+	}
 	for _, r := range cs.Score.Reasons {
 		p.ScoreFeatures = append(p.ScoreFeatures, oam.ScoreFeature{Name: r.Name, Weight: r.Weight})
 	}
@@ -120,6 +134,59 @@ func eventPayload(p EventPayload, cs *content.ChangeSet, from, to, diffID string
 	}
 	p.Alertable = Alertable(*cs)
 	return p, nil
+}
+
+// Excerpt bounds.
+const (
+	maxExcerptLines = 40
+	maxExcerptBytes = 2048
+)
+
+// Excerpt renders the start of a change set's unified hunks: those of the
+// artifacts with a level-3 change first (in artifact order), then the
+// other changed artifacts, each hunk preceded by its doc id the first time,
+// cut at maxExcerptLines lines and maxExcerptBytes bytes (on a line
+// boundary). Hunk lines come from redacted normalized text (V2 §12.11);
+// the result is redacted once more, since a cut can never form a secret
+// but a defensive pass costs little.
+func Excerpt(cs content.ChangeSet) string {
+	var b strings.Builder
+	lines := 0
+	add := func(l string) bool {
+		if lines >= maxExcerptLines || b.Len()+len(l)+1 > maxExcerptBytes {
+			return false
+		}
+		b.WriteString(l)
+		b.WriteByte('\n')
+		lines++
+		return true
+	}
+	pass := func(semantic bool) bool {
+		for _, a := range cs.Artifacts {
+			if len(a.Hunks) == 0 || slices.Contains(a.Levels, oam.LevelSemantic) != semantic {
+				continue
+			}
+			if !add("--- " + a.DocID) {
+				return false
+			}
+			for _, h := range a.Hunks {
+				if !add(h.Header) {
+					return false
+				}
+				for _, l := range h.Lines {
+					if !add(l) {
+						return false
+					}
+				}
+			}
+		}
+		return true
+	}
+	if pass(true) {
+		pass(false)
+	}
+	out, _ := content.Redact([]byte(b.String()))
+	return string(out)
 }
 
 // Alertable reports a change set default feeds and alerts show: a change

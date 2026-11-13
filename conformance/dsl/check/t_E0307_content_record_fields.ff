@@ -1,0 +1,5 @@
+// Content records have exactly their prelude fields: a Snapshot carries no
+// body, and a ChangeSet carries its score but not the score's reasons
+// (those stay with the change in the content store).
+fn body(s: Snapshot) -> String { s.body }
+fn why(c: ChangeSet) -> List<String> { c.score_features }

@@ -1,0 +1,14 @@
+{
+ "version": 3,
+ "file": "main.3f9a1c2b.js",
+ "sources": [
+  "webpack://shop/src/api.js",
+  "webpack://shop/node_modules/tinylib/index.js"
+ ],
+ "sourcesContent": [
+  "export const getUser = (id) => fetch(\"/api/v1/users/\" + id, { method: \"GET\" });\nexport const listOrders = () => fetch(\"/api/v1/orders?page=1&size=20\");\n",
+  "export const pad = (s, n) => String(s).padStart(n, \"0\");\n"
+ ],
+ "names": [],
+ "mappings": "AAAA"
+}

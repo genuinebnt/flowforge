@@ -152,6 +152,11 @@ suspension; `Annotations.Site(fn, offset)` returns its policy.
   unchanged); `par_map`'s `on_error` must be a string literal, and
   `"collect"` gives `Seq<Result<B, TaskError>>` (it was typed `Seq<B>`,
   which did not match the VM's result).
+* **dsl** (v2): prelude records `Snapshot`, `Features`, `ChangeSet`,
+  `ChangeHit` (V2_DESIGN §8), appended after TaskError. They are
+  non-reserved builtin records, so every module gains their four TYPES
+  entries and user type ids move up by four; the replay goldens were
+  regenerated (dsl OPEN_QUESTIONS 36).
 
 ## Tests and benchmarks
 

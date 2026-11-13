@@ -20,6 +20,17 @@ NotifierService (spec 11.7) and the alerting pipeline of spec 15.
   `TestRegress_GLIM06_ThrottleSurvivesRestart_{Memory,Postgres}`). A failed
   transaction drops the cached processor so the redelivery starts from the
   persisted state.
+* Content events (`content.changes`, V2 §8): `EventFromEnvelope` turns a
+  content event into a `content_changed` change plus the `diff` section
+  (`DiffFromContent`: snapshots, URL, outcome, levels, class, newness,
+  cause, baseline, alertable, the level-3 changes as `<op> <kind>|<key>`,
+  the unified excerpt, and the score with its reasons for the payload).
+  Every text is passed through `content.Redact` again before it can reach
+  an alert. Non-alertable content events (baselines, non-target causes,
+  pre-existing content, non-changes) and the graph's `graph.content_changed`
+  copy are dropped before evaluation, so a change alerts once. The score
+  is in the payload for ranking and not addressable by rules (alerts
+  README). `TestNotifierDiffFromContent`.
 * The delivery worker (`DeliverDue`) sends due deliveries; failures are
   rescheduled with `alerts.NextAttempt` (10 s, 30 s, 2 min, 10 min, 1 h with
   jitter; failed after 24 h); one channel never blocks another.

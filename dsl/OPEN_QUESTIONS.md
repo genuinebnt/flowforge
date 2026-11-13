@@ -145,3 +145,24 @@ the test that pins it. Where scope or policy is involved the conservative
 34. Exhaustiveness checking gives up silently on pathological matches
     (more than 200,000 usefulness steps); such a match keeps its run-time
     `match_failed` fall-through.
+
+## V2 content records
+
+35. **Fields of Snapshot, Features, ChangeSet and ChangeHit.** V2_DESIGN §8
+    leaves their fields to Part II; they are chosen in `contentRecords`
+    (prelude.go) from what the content service stores and what a
+    monitoring workflow decides on: a Snapshot names its subresources
+    (`resources: List<Snapshot>`, the only self-referencing prelude
+    record; one level deep in practice), Features keep URL kinds as `Url`
+    and graph keys as `String`, a ChangeSet carries `score` for ordering
+    but not the score's reasons (V2 §12.4: scores rank, never send), and
+    secrets appear only as `<rule>:<redacted preview>`.
+36. **Adding prelude records changes module bytes.** Every non-reserved
+    prelude record gets a TYPES entry in every module (compiler abi
+    `NewTypes`), so appending the four content records changed the bytes,
+    hashes and user type ids (and with them the argument hashes of
+    effects that carry user records) of every compiled workflow;
+    `conformance/vm/replay/*/module.hex` and the affected `expected.json`
+    files were regenerated. Registered workflows keep their pinned module
+    bytes, so running and replaying them is unaffected; only a recompile
+    yields a new module hash.

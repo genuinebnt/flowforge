@@ -38,6 +38,8 @@ type evalStep struct {
 	Key             string        `json:"key"`
 	SuppressedCount *int          `json:"suppressed_count"`
 	EntityName      string        `json:"entity_name"`
+	// DiffSummary is the expected payload.diff.summary (content changes).
+	DiffSummary string `json:"diff_summary"`
 }
 
 var conformanceStart = time.Date(2026, 11, 12, 14, 0, 0, 0, time.UTC)
@@ -201,6 +203,11 @@ func checkStep(t *testing.T, i int, st evalStep, out alerts.Outcome, keys map[st
 	}
 	if st.EntityName != "" && (a.Payload.Entity == nil || a.Payload.Entity.Name != st.EntityName) {
 		t.Errorf("step %d: payload entity = %+v, want name %q", i, a.Payload.Entity, st.EntityName)
+	}
+	if st.DiffSummary != "" {
+		if a.Payload.Diff == nil || a.Payload.Diff.Summary != st.DiffSummary || !strings.Contains(a.Payload.Summary, a.Payload.Diff.URL) {
+			t.Errorf("step %d: payload diff = %+v (summary %q), want summary %q", i, a.Payload.Diff, a.Payload.Summary, st.DiffSummary)
+		}
 	}
 }
 

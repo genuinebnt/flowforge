@@ -1,0 +1,37 @@
+// The V2 content records (Snapshot, Features, ChangeSet, ChangeHit) as
+// results of the content tools, declared with the tool runner's registry
+// signatures (effects.json "tools"): field access, Option fields, the
+// nested resources of a page, Map summaries, Url-typed feature lists, and
+// a ChangeSet filter on level 3 that ignores the score.
+fn report(c: ChangeSet) -> String {
+  let from = match c.from_snapshot_id { Some(id) => id, None => "baseline" };
+  let added = match get(c.summary, "endpoint_added") { Some(n) => n, None => 0 };
+  "{c.url} {from}->{c.snapshot_id} [{join(c.levels, ",")}] {c.class}/{c.newness} endpoints+{added}: {join(c.changes, "; ")}"
+}
+
+fn monitor(root: InScope<Url>, host: InScope<Host>) -> List<String> ! active, read {
+  let found = crawl(root, 10);
+  let wk = wellknown(host);
+  let page = collect(root, "default");
+  let all = concat([page], page.resources);
+  let feats = extract(page);
+  let changes = all
+    |> filter(s => s.new_in_run && !s.degraded)
+    |> map(diff_latest)
+    |> filter(c => c.semantic && c.alertable);
+  let originals = page.resources |> flat_map(unpack_sourcemap);
+  let hits = search_changes("kind:endpoint_added /admin/", 5);
+  let lines = changes |> map(report);
+  let urls = concat(found, wk) |> map(u => to_string(u));
+  let scripts = feats.scripts |> map(u => "script {u}");
+  let srcs = originals |> map(s => "source {s.id} {s.kind}");
+  let found_hits = hits |> map(h => "hit {h.kind} {h.side} {h.url}: {h.text}");
+  concat(concat(concat(concat(lines, urls), scripts), srcs), found_hits)
+}
+
+workflow main(root: Url, host: Fqdn) -> List<String> {
+  match (scope.check(root), scope.check(Host::Name(host))) {
+    (Ok(r), Ok(h)) => monitor(r, h),
+    _ => ["out of scope"],
+  }
+}

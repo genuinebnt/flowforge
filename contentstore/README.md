@@ -25,7 +25,8 @@ IngestRequest{program, Capture, entity, run, effect, page_url}
        content.Process(learned volatility of (url template, profile), tenant keyed hasher,
                        previous capture, host bodies, page url)
        lineage: no own predecessor + script/style → content.FindPredecessor over the page's
-                previous scripts and the host's open versions → lineage parent (diff rebased)
+                previous scripts and the host's open versions (minus those sharing a lineage key
+                with one of the page's scripts) → lineage parent (diff rebased)
        content.Compare(predecessor, cur) (baseline: every artifact against the empty document)
        blobs ── redact body and header values (spans sealed) ── delta codec ── chunk store
        rows ── one transaction: open-version check, exact quota check, close parent,
@@ -35,6 +36,18 @@ IngestRequest{program, Capture, entity, run, effect, page_url}
 
 Degraded captures (V2 §12.5) are stored closed with an empty validity
 interval, get no diff, and never become the open version.
+
+Each event's payload (`EventPayload`) carries the change set's levels and,
+for changes that are not baselines, `Excerpt`: at most 40 lines and
+2 KiB of the unified hunks, level-3 artifacts first, from redacted text
+and redacted once more (`TestCStoreEventExcerpt`); the notifier shows it
+in alerts.
+
+`SnapshotStorage` gives a snapshot's stored record bytes (raw: capture
+record + redacted body; derived: normalized text + features) and
+`StorageMetrics` the tenant's whole chunk store, so callers outside the
+package measure CSTORE-INV-08's quantity (the V2 lab does;
+`TestCStoreSnapshotStorage`).
 
 ## Records
 

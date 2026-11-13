@@ -5,7 +5,7 @@
       "path": "0",
       "kind": "tool_call",
       "args": "[\"extract_invoice\",\"DocRef { id: \\\"doc-7\\\" }\"]",
-      "args_hash": "2c944a4b88053e73fc8b0330f951f6ec64c2f97d4f5c6a12374f85e4179631c1",
+      "args_hash": "017f5c37588d585676258fd8eca26a05e93143ef5041cf4bd1919e5637954b97",
       "result": "ok Invoice { number: \"INV-1\", total: 1250, vendor: \"ACME\" }"
     },
     {
@@ -19,7 +19,7 @@
       "path": "2",
       "kind": "tool_call",
       "args": "[\"post_entry\",\"LedgerEntry { account: \\\"ap\\\", amount: 1250, memo: \\\"invoice INV-1 from ACME\\\" }\"]",
-      "args_hash": "87379f803cbd38116818a4296f3540fd6c384adecd915a78caf482695cdb1f8c",
+      "args_hash": "634572a9abc272402c8ae4c4868fbc61a69bb173eeb8531c7e1eeadbead643f2",
       "result": "ok PostingId { id: \"P-42\" }"
     },
     {
@@ -33,7 +33,7 @@
       "path": "4/0/0",
       "kind": "tool_call",
       "args": "[\"reverse_entry\",\"PostingId { id: \\\"P-42\\\" }\"]",
-      "args_hash": "45afa74ec35cf6614a0bfc83e5dfe2df0e875a46b58f0a6bd92f194b0089e57f",
+      "args_hash": "e83ec1668225c3568ba79a260bc88aa22c48b21b307280d67a19f02e3a63c398",
       "result": "ok ()"
     }
   ],

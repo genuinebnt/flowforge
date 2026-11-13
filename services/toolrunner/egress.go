@@ -56,6 +56,11 @@ type Egress struct {
 	// TLS overrides the TLS configuration towards an https:// proxy
 	// (tests); nil means the system roots.
 	TLS *tls.Config
+	// TargetTLS verifies program targets tunnelled through an http://
+	// proxy (nil: the system roots; tests trust a lab CA). With an
+	// https:// proxy one transport configuration serves both hops, so TLS
+	// applies and TargetTLS is ignored.
+	TargetTLS *tls.Config
 	// SOCKS makes DialTCP use the proxy's SOCKS5 listener instead of
 	// CONNECT.
 	SOCKS bool
@@ -128,7 +133,7 @@ func (e *Egress) transport(tc *ToolCtx, holder *decisionHolder) http.RoundTrippe
 		GetProxyConnectHeader: func(ctx context.Context, _ *url.URL, _ string) (http.Header, error) {
 			return e.headers(ctx, tc, holder.get())
 		},
-		TLSClientConfig:       e.TLS, // used for the proxy hop when it is https://
+		TLSClientConfig:       e.tlsConfig(),
 		ResponseHeaderTimeout: 30 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 	}
@@ -145,6 +150,15 @@ func (e *Egress) transport(tc *ToolCtx, holder *decisionHolder) http.RoundTrippe
 		}
 		return tr.RoundTrip(r)
 	})
+}
+
+// tlsConfig is the transport's TLS configuration: for the proxy hop of an
+// https:// proxy (and then also the target), else for the target.
+func (e *Egress) tlsConfig() *tls.Config {
+	if e.Proxy.Scheme != "https" && e.TargetTLS != nil {
+		return e.TargetTLS
+	}
+	return e.TLS
 }
 
 // HTTPClient returns a client for one target whose allow decision is d.

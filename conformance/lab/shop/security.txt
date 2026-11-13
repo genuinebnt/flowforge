@@ -1,0 +1,3 @@
+Contact: mailto:security@shop.lab.test
+Expires: 2099-01-01T00:00:00Z
+Preferred-Languages: en

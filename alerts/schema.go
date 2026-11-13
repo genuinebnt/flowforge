@@ -20,7 +20,7 @@ type fieldSpec struct {
 
 // rootVariables lists the variables in scope in a rule (spec 15.2).
 func rootVariables() []string {
-	return []string{"approval", "change", "edge", "entity", "event", "run"}
+	return []string{"approval", "change", "diff", "edge", "entity", "event", "run"}
 }
 
 // schemaFields returns the fields of a root variable, or nil if root is
@@ -110,6 +110,8 @@ func schemaFields(root string) []fieldSpec {
 			{"resource", tStringT, r(func(x *Run) value { return stringVal(x.Resource) })},
 			{"payload", tObjectT, r(func(x *Run) value { return objectVal(x.Payload) })},
 		}
+	case "diff":
+		return diffFields()
 	case "approval":
 		a := func(f func(*Approval) value) getter {
 			return func(ev *Event) value {
@@ -130,6 +132,46 @@ func schemaFields(root string) []fieldSpec {
 		}
 	}
 	return nil
+}
+
+// diffFields are the fields of `diff`, a content change (V2_DESIGN §8).
+// score and score_features are not among them: scores rank alerts in the
+// payload but never decide whether one is sent (V2 §12.4).
+func diffFields() []fieldSpec {
+	d := func(f func(*Diff) value) getter {
+		return func(ev *Event) value {
+			if ev.Diff == nil {
+				return nullValue
+			}
+			return f(ev.Diff)
+		}
+	}
+	strs := func(xs []string) value {
+		out := make([]value, len(xs))
+		for i, s := range xs {
+			out[i] = stringVal(s)
+		}
+		return value{k: kList, list: out}
+	}
+	return []fieldSpec{
+		{"snapshot_id", tStringT, d(func(x *Diff) value { return stringVal(x.SnapshotID) })},
+		{"from_snapshot_id", tStringT, d(func(x *Diff) value { return stringVal(x.FromSnapshotID) })},
+		{"diff_id", tStringT, d(func(x *Diff) value { return stringVal(x.DiffID) })},
+		{"url", tStringT, d(func(x *Diff) value { return stringVal(x.URL) })},
+		{"profile", tStringT, d(func(x *Diff) value { return stringVal(x.Profile) })},
+		{"outcome", tStringT, d(func(x *Diff) value { return stringVal(x.Outcome) })},
+		{"levels", tStrList, d(func(x *Diff) value { return strs(x.Levels) })},
+		{"semantic", tBoolT, d(func(x *Diff) value { return boolVal(x.Semantic()) })},
+		{"class", tStringT, d(func(x *Diff) value { return stringVal(x.Class) })},
+		{"newness", tStringT, d(func(x *Diff) value { return stringVal(x.Newness) })},
+		{"cause", tStringT, d(func(x *Diff) value { return stringVal(x.Cause) })},
+		{"baseline", tBoolT, d(func(x *Diff) value { return boolVal(x.Baseline) })},
+		{"alertable", tBoolT, d(func(x *Diff) value { return boolVal(x.Alertable) })},
+		{"kinds", tStrList, d(func(x *Diff) value { return strs(x.Kinds()) })},
+		{"changes", tStrList, d(func(x *Diff) value { return strs(x.Changes) })},
+		{"summary", tStringT, d(func(x *Diff) value { return stringVal(DiffSummary(x)) })},
+		{"excerpt", tStringT, d(func(x *Diff) value { return stringVal(x.Excerpt) })},
+	}
 }
 
 // contentFieldKinds lists the OAM content fields of spec 5.4 by type.

@@ -1,0 +1,20 @@
+// The V2 content records are prelude types: tool declarations and code
+// use them without declaring them, Snapshot nests its resources, and a
+// ChangeSet filter on level 3 is a pure function.
+tool collect(u: InScope<Url>, profile: String) -> Snapshot ! active
+tool diff_latest(s: Snapshot) -> ChangeSet ! read
+tool extract(s: Snapshot) -> Features ! read
+tool search_changes(q: String, limit: Int) -> List<ChangeHit> ! read
+fn level3(c: ChangeSet) -> Bool { c.semantic && c.alertable && !c.baseline }
+fn depth(s: Snapshot) -> Int { 1 + len(s.resources) }
+workflow w(u: Url) -> List<String> {
+  match scope.check(u) {
+    Ok(p) => {
+      let s = collect(p, "default");
+      let urls: List<Url> = extract(s).links;
+      let hits: List<ChangeHit> = search_changes("/admin/", depth(s) + len(urls));
+      concat(concat([s], s.resources) |> map(diff_latest) |> filter(level3) |> flat_map(c => c.changes), hits |> map(h => h.text))
+    },
+    Err(d) => [d.reason],
+  }
+}

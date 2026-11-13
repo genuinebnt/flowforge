@@ -390,8 +390,17 @@ func (s *Store) lineageCandidates(ctx context.Context, tenant core.UUID, tc *ten
 	// The host's other open versions follow the page's scripts: a chunk
 	// the page loads only through another script (a lazy chunk) has no
 	// page reference. The matcher's threshold keeps unrelated ones out.
+	// A host version that shares its lineage key with one of the page's
+	// previous scripts is left out: the page names the predecessor, and
+	// older renames of the same bundle stay open versions (nothing
+	// re-fetches a URL the site stopped serving), so with them the key
+	// would no longer decide and SimHash could pick a stale generation.
+	pageKeys := map[string]bool{}
+	for _, x := range out {
+		pageKeys[content.LineageKey(x.URL)] = true
+	}
 	for _, h := range st.hosts {
-		if !slices.ContainsFunc(out, func(x Snapshot) bool { return x.ID == h.ID }) {
+		if !slices.ContainsFunc(out, func(x Snapshot) bool { return x.ID == h.ID }) && !pageKeys[content.LineageKey(h.URL)] {
 			out = append(out, h)
 		}
 	}

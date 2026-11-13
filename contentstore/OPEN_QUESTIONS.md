@@ -42,7 +42,13 @@
 7. **Lineage candidates** are the page's previous scripts plus the
    host's other open versions of the same kind (bounded to 64): lazily
    loaded chunks have no page reference. The matcher's threshold keeps
-   unrelated bundles out (CONTENT-INV-08, CSTORE-INV-11).
+   unrelated bundles out (CONTENT-INV-08, CSTORE-INV-11). A host version
+   whose lineage key equals one of the page's scripts' is left out: every
+   earlier rename of a bundle stays an open version (nothing re-fetches a
+   URL the site stopped serving), so after two renames the key matched
+   several candidates and SimHash picked the oldest generation, diffing
+   the third bundle against the first (found by the V2 lab;
+   `TestCStoreRegress_LineagePrefersPageScripts`).
 8. **Alerts.** Content events carry `alertable` (not a baseline, cause
    target, not pre-existing, a change). The notifier alerts on
    content.changes only and ignores the graph's `graph.content_changed`

@@ -1,0 +1,5 @@
+Server: nginx
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+Set-Cookie: session={{nonce}}; Path=/; Secure; SameSite=Lax
+ETag: "{{nonce}}"

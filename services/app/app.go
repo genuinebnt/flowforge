@@ -29,6 +29,7 @@ import (
 	"github.com/genuinebnt/flowforge/services/internal/wire"
 	"github.com/genuinebnt/flowforge/services/maintenance"
 	"github.com/genuinebnt/flowforge/services/notifier"
+	"github.com/genuinebnt/flowforge/services/toolrunner"
 )
 
 // Services are the names Main accepts (the cmd/ directory names).
@@ -137,7 +138,12 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		if cfg.EgressProxy == "" && cfg.Env == "prod" {
 			return nil, errors.New("FF_EGRESS_PROXY is required in prod")
 		}
-		return wire.ToolRunner(env, wire.ToolRunnerOptions{ScopeAddr: cfg.ScopeAddr, EgressProxy: cfg.EgressProxy})
+		rp, err := toolrunner.ParseRevisitPolicy(getenv("FF_CRAWL_REVISIT"))
+		if err != nil {
+			return nil, err
+		}
+		return wire.ToolRunner(env, wire.ToolRunnerOptions{ScopeAddr: cfg.ScopeAddr, EgressProxy: cfg.EgressProxy,
+			ContentAddr: cfg.ContentAddr, Content: toolrunner.ContentConfig{Revisit: rp}})
 	case "egress-proxy":
 		o, err := wire.EgressConfigFromEnv(getenv)
 		if err != nil {

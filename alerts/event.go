@@ -1,6 +1,11 @@
 package alerts
 
-import "time"
+import (
+	"slices"
+	"sort"
+	"strings"
+	"time"
+)
 
 // Event is the typed input to rule evaluation: the Pub/Sub envelope of
 // spec 11.7 plus the optional sections a rule can address. Services build
@@ -21,6 +26,8 @@ type Event struct {
 	Edge     *Edge     `json:"edge,omitempty"`
 	Run      *Run      `json:"run,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
+	// Diff is set for content changes (content.changes events, V2 §8).
+	Diff *Diff `json:"diff,omitempty"`
 }
 
 // Change mirrors ChangeEvent (spec 11.6) without the embedded entity.
@@ -94,3 +101,68 @@ type Approval struct {
 	EffectPath string    `json:"effect_path,omitempty"`
 	ExpiresAt  time.Time `json:"expires_at"`
 }
+
+// Diff is a content change (V2_DESIGN §8, §12): the classification the
+// content service stored with a captured version, and the excerpt an
+// alert shows. Producers fill it from a content.changes event; every text
+// is already redacted (V2 §12.11), so an alert never carries a secret.
+type Diff struct {
+	SnapshotID     string `json:"snapshot_id,omitempty"`
+	FromSnapshotID string `json:"from_snapshot_id,omitempty"`
+	DiffID         string `json:"diff_id,omitempty"`
+	URL            string `json:"url,omitempty"`
+	Profile        string `json:"profile,omitempty"`
+	// Outcome is no_change, masked_only, reordered, structural, changed or
+	// degraded; Levels are hash, text and semantic (level 3).
+	Outcome string   `json:"outcome,omitempty"`
+	Levels  []string `json:"levels,omitempty"`
+	// Class, Newness and Cause classify the change (V2 §12.2, §12.13).
+	Class    string `json:"class,omitempty"`
+	Newness  string `json:"newness,omitempty"`
+	Cause    string `json:"cause,omitempty"`
+	Baseline bool   `json:"baseline,omitempty"`
+	// Alertable is the content service's default-feed verdict: a change
+	// that is not a baseline, of cause target and not pre-existing.
+	Alertable bool `json:"alertable,omitempty"`
+	// Changes are the level-3 changes, "<op> <kind>|<key>".
+	Changes []string `json:"changes,omitempty"`
+	// Excerpt is a unified-diff excerpt of the changed text (redacted,
+	// bounded by the producer).
+	Excerpt string `json:"excerpt,omitempty"`
+	// Score and ScoreFeatures rank the change (V2 §12.4). They are carried
+	// to the payload so receivers can order alerts, and are deliberately
+	// not addressable by rules: scores rank, they never decide sending.
+	Score         float64        `json:"score,omitempty"`
+	ScoreFeatures []ScoreFeature `json:"score_features,omitempty"`
+}
+
+// ScoreFeature is one named reason of a score.
+type ScoreFeature struct {
+	Name   string  `json:"name"`
+	Weight float64 `json:"weight"`
+}
+
+// Kinds returns the "<kind>_<op>" names of d's changes (endpoint_added,
+// header_removed, ...), sorted and unique: the change kinds of the
+// content search index (V2 §7).
+func (d *Diff) Kinds() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, c := range d.Changes {
+		op, rest, ok := strings.Cut(c, " ")
+		kind, _, ok2 := strings.Cut(rest, "|")
+		if !ok || !ok2 {
+			continue
+		}
+		k := kind + "_" + op
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Semantic reports a level-3 change.
+func (d *Diff) Semantic() bool { return slices.Contains(d.Levels, "semantic") }

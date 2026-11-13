@@ -1,0 +1,9 @@
+{
+  "diagnostics": [],
+  "inferred_class": "active",
+  "inferred_effects": [
+    "read",
+    "active"
+  ],
+  "ok": true
+}

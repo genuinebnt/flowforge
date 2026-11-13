@@ -1,0 +1,756 @@
+{
+ "description": "The `diff` variable of content changes (V2_DESIGN \u00a78; content.changes events): every field, list membership on levels, kinds and changes, absence on other events, the payload summary line, group_by on the URL, and that score and score_features are not addressable (V2 \u00a712.4: scores rank, never decide sending).",
+ "cases": [
+  {
+   "name": "semantic change matches",
+   "when": "diff.semantic && diff.alertable",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "steps": [
+    {
+     "outcome": "alert",
+     "diff_summary": "semantic_endpoint, likely_new: added endpoint ep:POST https://shop.example/api/v1/admin/export; modified library tinylib"
+    }
+   ]
+  },
+  {
+   "name": "masked-only version does not",
+   "when": "diff.semantic",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "masked_only",
+     "levels": [
+      "hash"
+     ],
+     "class": "",
+     "newness": "",
+     "cause": "target",
+     "alertable": false,
+     "changes": [],
+     "excerpt": "",
+     "score": 0,
+     "score_features": []
+    }
+   },
+   "match": false
+  },
+  {
+   "name": "levels list",
+   "when": "diff.levels contains \"semantic\" && !(diff.levels contains \"degraded\")",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "change kinds",
+   "when": "diff.kinds contains \"endpoint_added\" && diff.kinds contains \"library_modified\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "secret kind",
+   "when": "diff.kinds contains \"secret_added\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_9",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added form|ep:POST https://shop.example/account/delete",
+      "removed header|x-frame-options",
+      "added secret|aws_access_key_id:31a7f060",
+      "added script|https://cdn.thirdparty.example/widget.js"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 1.0,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "steps": [
+    {
+     "outcome": "alert",
+     "diff_summary": "semantic_endpoint, likely_new: added form ep:POST https://shop.example/account/delete; removed header x-frame-options; added secret aws_access_key_id:31a7f060 (+1 more)"
+    }
+   ]
+  },
+  {
+   "name": "secret kind absent",
+   "when": "diff.kinds contains \"secret_added\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "match": false
+  },
+  {
+   "name": "class newness cause",
+   "when": "diff.class == \"semantic_endpoint\" && diff.newness == \"likely_new\" && diff.cause == \"target\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "url and change text",
+   "when": "diff.url ends_with \".js\" && diff.changes contains \"modified library|tinylib\" && diff.summary contains \"admin/export\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "excerpt",
+   "when": "diff.excerpt contains \"exportAll\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "target",
+     "alertable": true,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "match": true
+  },
+  {
+   "name": "baseline is not alertable",
+   "when": "diff.alertable",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "pre_existing",
+     "cause": "target",
+     "alertable": false,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ],
+     "baseline": true
+    }
+   },
+   "match": false
+  },
+  {
+   "name": "baseline field",
+   "when": "diff.baseline",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "pre_existing",
+     "cause": "target",
+     "alertable": false,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ],
+     "baseline": true
+    }
+   },
+   "steps": [
+    {
+     "outcome": "alert",
+     "diff_summary": "semantic_endpoint, pre_existing, baseline: added endpoint ep:POST https://shop.example/api/v1/admin/export; modified library tinylib"
+    }
+   ]
+  },
+  {
+   "name": "non-target cause in the summary",
+   "when": "diff.cause != \"target\"",
+   "event": {
+    "type": "content.changed",
+    "tenant_id": "ten_01JD8K0B",
+    "program_id": "prg_01JD8K2XH3",
+    "change": {
+     "type": "content_changed"
+    },
+    "diff": {
+     "snapshot_id": "snp_3",
+     "from_snapshot_id": "snp_2",
+     "diff_id": "dif_3",
+     "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+     "profile": "default",
+     "outcome": "changed",
+     "levels": [
+      "hash",
+      "text",
+      "semantic"
+     ],
+     "class": "semantic_endpoint",
+     "newness": "likely_new",
+     "cause": "normalizer",
+     "alertable": false,
+     "changes": [
+      "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+      "modified library|tinylib"
+     ],
+     "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+     "score": 0.9,
+     "score_features": [
+      {
+       "name": "new_endpoint",
+       "weight": 0.4
+      },
+      {
+       "name": "word_admin",
+       "weight": 0.15
+      }
+     ]
+    }
+   },
+   "steps": [
+    {
+     "outcome": "alert",
+     "diff_summary": "semantic_endpoint, likely_new, cause normalizer: added endpoint ep:POST https://shop.example/api/v1/admin/export; modified library tinylib"
+    }
+   ]
+  },
+  {
+   "name": "absent on graph events",
+   "when": "diff.semantic",
+   "event": {
+    "type": "graph.entity_added",
+    "tenant_id": "ten_01JD8K0B",
+    "change": {
+     "type": "entity_added"
+    },
+    "entity": {
+     "id": "ent_1",
+     "asset_type": "FQDN",
+     "content": {
+      "name": "a.example.com"
+     }
+    }
+   },
+   "match": false
+  },
+  {
+   "name": "negation of an absent diff is absent",
+   "when": "!diff.semantic",
+   "event": {
+    "type": "graph.entity_added",
+    "tenant_id": "ten_01JD8K0B",
+    "change": {
+     "type": "entity_added"
+    }
+   },
+   "match": false
+  },
+  {
+   "name": "score is not addressable",
+   "rule": "alert ranked when diff.score > 0.5 -> slack(\"x\")",
+   "diagnostics": [
+    "A0202"
+   ]
+  },
+  {
+   "name": "score features are not addressable",
+   "rule": "alert ranked when \"new_endpoint\" in diff.score_features -> slack(\"x\")",
+   "diagnostics": [
+    "A0202"
+   ]
+  },
+  {
+   "name": "group by url",
+   "rule": "alert changed when diff.semantic -> webhook(\"w\") throttle 1h group_by diff.url",
+   "steps": [
+    {
+     "event": {
+      "type": "content.changed",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "content_changed"
+      },
+      "diff": {
+       "snapshot_id": "snp_3",
+       "from_snapshot_id": "snp_2",
+       "diff_id": "dif_3",
+       "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+       "profile": "default",
+       "outcome": "changed",
+       "levels": [
+        "hash",
+        "text",
+        "semantic"
+       ],
+       "class": "semantic_endpoint",
+       "newness": "likely_new",
+       "cause": "target",
+       "alertable": true,
+       "changes": [
+        "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+        "modified library|tinylib"
+       ],
+       "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+       "score": 0.9,
+       "score_features": [
+        {
+         "name": "new_endpoint",
+         "weight": 0.4
+        },
+        {
+         "name": "word_admin",
+         "weight": 0.15
+        }
+       ]
+      }
+     },
+     "outcome": "alert",
+     "key": "bundle"
+    },
+    {
+     "advance": "1m",
+     "event": {
+      "type": "content.changed",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "content_changed"
+      },
+      "diff": {
+       "snapshot_id": "snp_3",
+       "from_snapshot_id": "snp_2",
+       "diff_id": "dif_3",
+       "url": "https://shop.example/static/js/main.5b6c7d8e.js",
+       "profile": "default",
+       "outcome": "changed",
+       "levels": [
+        "hash",
+        "text",
+        "semantic"
+       ],
+       "class": "semantic_endpoint",
+       "newness": "likely_new",
+       "cause": "target",
+       "alertable": true,
+       "changes": [
+        "added endpoint|ep:POST https://shop.example/api/v1/admin/export",
+        "modified library|tinylib"
+       ],
+       "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+       "score": 0.9,
+       "score_features": [
+        {
+         "name": "new_endpoint",
+         "weight": 0.4
+        },
+        {
+         "name": "word_admin",
+         "weight": 0.15
+        }
+       ]
+      }
+     },
+     "outcome": "suppressed",
+     "key": "bundle"
+    },
+    {
+     "event": {
+      "type": "content.changed",
+      "tenant_id": "ten_01JD8K0B",
+      "program_id": "prg_01JD8K2XH3",
+      "change": {
+       "type": "content_changed"
+      },
+      "diff": {
+       "snapshot_id": "snp_9",
+       "from_snapshot_id": "snp_2",
+       "diff_id": "dif_3",
+       "url": "https://shop.example/",
+       "profile": "default",
+       "outcome": "changed",
+       "levels": [
+        "hash",
+        "text",
+        "semantic"
+       ],
+       "class": "semantic_endpoint",
+       "newness": "likely_new",
+       "cause": "target",
+       "alertable": true,
+       "changes": [
+        "added form|ep:POST https://shop.example/account/delete",
+        "removed header|x-frame-options",
+        "added secret|aws_access_key_id:31a7f060",
+        "added script|https://cdn.thirdparty.example/widget.js"
+       ],
+       "excerpt": "--- https://shop.example/static/js/main.5b6c7d8e.js\n@@ -6,3 +6,4 @@\n+t.exportAll = function () {\n",
+       "score": 1.0,
+       "score_features": [
+        {
+         "name": "new_endpoint",
+         "weight": 0.4
+        },
+        {
+         "name": "word_admin",
+         "weight": 0.15
+        }
+       ]
+      }
+     },
+     "outcome": "alert",
+     "key": "page"
+    }
+   ]
+  }
+ ]
+}

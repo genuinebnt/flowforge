@@ -1,0 +1,73 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Shop API",
+    "version": "1.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.lab.test:{{https}}"
+    }
+  ],
+  "paths": {
+    "/v1/products": {
+      "get": {
+        "summary": "List products",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/v1/orders/{id}": {
+      "get": {
+        "summary": "Get an order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/v1/admin/users/{id}": {
+      "delete": {
+        "summary": "Delete a user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        }
+      }
+    }
+  }
+}

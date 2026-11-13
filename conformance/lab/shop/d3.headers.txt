@@ -1,0 +1,6 @@
+Content-Security-Policy: script-src 'nonce-{{nonce}}' 'self' 'unsafe-inline'; default-src 'self'; object-src 'none'
+Server: nginx
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+Set-Cookie: session={{nonce}}; Path=/; Secure; SameSite=Lax
+ETag: "{{nonce}}"

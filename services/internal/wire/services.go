@@ -2,6 +2,7 @@ package wire
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -217,6 +218,18 @@ type ToolRunnerOptions struct {
 	ProbePorts []toolrunner.ProbePort
 	// Adapters replaces the default adapters.
 	Adapters []toolrunner.Adapter
+	// ContentAddr is the content service; set adds the content tools
+	// (collect, crawl, wellknown, extract, unpack_sourcemap, diff_latest,
+	// search_changes) configured by Content (its Content client is
+	// dialled here; Ports default to ProbePorts).
+	ContentAddr string
+	Content     toolrunner.ContentConfig
+	// TargetTLS verifies program targets reached through an http://
+	// egress proxy (nil: the system roots; tests pass a lab CA).
+	TargetTLS *tls.Config
+	// Clock is the tool runner's clock: capture times and crawl's revisit
+	// schedule (default env.Clock).
+	Clock core.Clock
 }
 
 // ToolRunner builds the tool runner.
@@ -231,6 +244,7 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 	}
 	if eg != nil {
 		eg.IDTokens = env.IDTokens
+		eg.TargetTLS = o.TargetTLS
 	}
 	if o.Resolver == nil {
 		o.Resolver = scopesvc.NetResolver{}
@@ -239,9 +253,39 @@ func ToolRunner(env *Env, o ToolRunnerOptions) (*Component, error) {
 	if ads == nil {
 		ads = toolrunner.DefaultAdapters(toolrunner.HTTPProbe{Ports: o.ProbePorts})
 	}
+	closers := []func(){func() { conn.Close() }}
+	if o.ContentAddr != "" {
+		cc, err := env.Dial(o.ContentAddr)
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		closers = append(closers, func() { cc.Close() })
+		cfg := o.Content
+		cfg.Content = pb.NewContentServiceClient(cc)
+		if cfg.Ports == nil {
+			cfg.Ports = o.ProbePorts
+		}
+		cts, err := toolrunner.ContentAdapters(cfg)
+		if err != nil {
+			for _, c := range closers {
+				c()
+			}
+			return nil, err
+		}
+		ads = append(append([]toolrunner.Adapter{}, ads...), cts...)
+	}
+	clock := o.Clock
+	if clock == nil {
+		clock = env.Clock
+	}
 	srv := toolrunner.NewServer(toolrunner.Options{Adapters: ads, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "tool-runner"),
-		Egress: eg, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger, Raw: env.Blobs})
-	return &Component{Register: func(g *grpc.Server) { pb.RegisterToolRunnerServiceServer(g, srv) }, Close: func() { conn.Close() }}, nil
+		Egress: eg, Resolver: o.Resolver, Clock: clock, Logger: env.Logger, Raw: env.Blobs})
+	return &Component{Register: func(g *grpc.Server) { pb.RegisterToolRunnerServiceServer(g, srv) }, Close: func() {
+		for _, c := range closers {
+			c()
+		}
+	}}, nil
 }
 
 // EgressOptions configure the egress proxy.

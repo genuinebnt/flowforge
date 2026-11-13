@@ -28,8 +28,10 @@ func TestEngineService_Postgres(t *testing.T) { runEngine(t, servicetest.FreshDB
 func runEngine(t *testing.T, dsn string) {
 	st, a, b := servicetest.Stack(t, devstack.Options{DBDSN: dsn})
 	tools, err := st.ToolRunner.ListTools(a, &pb.ListToolsRequest{})
-	if err != nil || len(tools.GetTools()) != len(toolrunner.DefaultAdapters(toolrunner.HTTPProbe{})) {
-		t.Fatalf("tools %v %v", tools, err)
+	// The dev stack registers the default tools and the content tools.
+	content, cerr := toolrunner.ContentAdapters(toolrunner.ContentConfig{})
+	if err != nil || cerr != nil || len(tools.GetTools()) != len(toolrunner.DefaultAdapters(toolrunner.HTTPProbe{}))+len(content) {
+		t.Fatalf("tools %v %v %v", tools, err, cerr)
 	}
 	for _, tl := range tools.GetTools() {
 		if tl.GetSpecSha256() == "" {

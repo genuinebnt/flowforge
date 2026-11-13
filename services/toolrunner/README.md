@@ -34,7 +34,47 @@ ToolRunnerService (spec 6, 11.5; V2_DESIGN §8).
 | `ctlog` 1.0.0 | `(Fqdn) -> List<Fqdn>` | passive | crt.sh search (`%.name`): `name_value` split on newlines, wildcards → base name, e-mails and IPs dropped, deduplicated; output = names at or below the input. Per certificate id (newest first, at most 50) the DER is downloaded, because a TLSCertificate is keyed by its SHA-256 fingerprint; `common_name` / `san_dns_name` edges |
 | `rdap` 1.0.0 | `(Host) -> List<Organization>` | passive | IANA bootstrap (dns/ipv4/ipv6, cached 24 h) → registry; domain (registrable domain) → DomainRecord (events, status, DNSSEC, port43) with `registration` from the FQDN; ip → IPNetRecord, Netblock (cidr0 or the range as prefixes) with `registration` and `contains`; Organizations from entities with roles `registrant` / `administrative` (edges labelled by role); redirects followed through the proxy |
 | `asn` 1.0.0 | `(IpAddress) -> Option<Asn>` | passive | RDAP ip network (+ ARIN origin-AS extension), Team Cymru `origin(6).asn.cymru.com` TXT via the DNS forwarder (announced prefix, origin AS), RDAP autnum; AutonomousSystem `announces` Netblock `contains` IPAddress, AutnumRecord (`registration`), IPNetRecord |
+| `collect` 1.0.0 | `(InScope<Url>, String) -> Snapshot` (capture profile name) | active | fetches through the proxy with the profile's request shape, every redirect hop re-checked and fetched under its own decision (a hop out of scope is not followed: the redirect response is the capture), body read up to 8 MiB (longer: truncated, outcome partial), stored with `IngestCapture` (run id, effect path); for an HTML page also its scripts and styles and each script's source map (at most 32, `page_url` set for lineage, each scope-checked, a denied one skipped and never contacted). Output: the page's Snapshot with the subresources in `resources` |
+| `crawl` 1.0.0 | `(InScope<Url>, Int) -> List<Url>` (fetch budget, at most 500) | active | breadth-first frontier: every URL canonicalized (netnorm) and scope-checked before it is queued, robots.txt per origin (RFC 9309: 2xx parsed, 4xx allow all, 5xx/unreachable/out of scope disallow all; agent token `flowforge`), links, frames and sitemap entries of HTML and sitemap captures (a redirected capture contributes its target), revisit policy per (program, URL, profile): a URL not yet due is expanded from its stored open version without a fetch. Output: every in-scope, robots-allowed URL reached, fetched or not |
+| `wellknown` 1.0.0 | `(InScope<Host>) -> List<Url>` | active | per configured scheme and port: robots.txt (always stored), `/.well-known/security.txt` then `/security.txt`, the sitemaps robots.txt names (else `/sitemap.xml`; an index followed one level, at most 10), OpenAPI/Swagger at `/openapi.json`, `/swagger.json`, `/v3/api-docs`, `/api-docs`, `/.well-known/openapi.json` (found when it yields schema endpoints), GraphQL `GET /graphql?query={__typename}` (JSON `data`/`errors`). Probes store 2xx answers only; a resource counts when its sniffed kind is the expected one. Output: found resources, then in-scope sitemap entries |
+| `extract` 1.0.0 | `(Snapshot) -> Features` | read | `GetSnapshot(include_features)` grouped by kind (URLs canonical; secrets only as `<rule>:<preview>`); a derived `#src/` snapshot gives that document's features |
+| `unpack_sourcemap` 1.0.0 | `(Snapshot) -> List<Snapshot>` | read | the `#src/<path>` originals of a stored source map (or of the map a script names): from the features JSON (`sourcemap_source` with content, and `doc` suffixes); ids and URLs are the map's plus the suffix |
+| `diff_latest` 1.0.0 | `(Snapshot) -> ChangeSet` | read | `DiffSnapshots` with `from` empty (parent, lineage parent, or the baseline); a derived snapshot gives its document's artifact; `summary` adds `<kind>_<op>` counts |
+| `search_changes` 1.0.0 | `(String, Int) -> List<ChangeHit>` | read | `SearchChanges` (V2 §7 query language, limit 1-1000) |
 | `mock` 1.0.0 | `(String) -> String` | none | test tool |
+
+### Content tools (V2_DESIGN §8)
+
+`ContentAdapters(ContentConfig)` builds the seven content tools over one
+content client (`ContentClient`, the part of `ContentService` they call;
+`wire.ToolRunnerOptions.ContentAddr` dials it, with a 12 MiB message
+limit `ContentMaxMessage` for capture bodies). Configuration: named
+capture profiles besides `default` (credential headers and cookie jars
+refused), body bound, redirect and subresource limits, crawl budget cap,
+the revisit policy and its state store, wellknown's ports, User-Agent.
+
+* **Scope.** Every URL a content tool touches is checked twice: a passive
+  check first (no resolution), then the active one that resolves and
+  pins. Scope's active check resolves a name before it matches the allow
+  rules (spec 4.3 step 7), so the passive step keeps out-of-scope names
+  out of DNS entirely (the lab's DNS log proves it). A denied URL is
+  streamed as `Skipped` and never contacted.
+* **One capture per run.** A (URL, profile) whose open version the calling
+  run already stored is returned without a fetch, so crawl, wellknown and
+  collect in one run never split a deploy's change across two versions
+  that differ only in per-response volatile values. `new_in_run` of a
+  Snapshot compares the version's run with the calling run.
+* **Emission.** The content tools stream no observations: the content
+  service publishes each capture's oam observation (URL, File, Endpoint,
+  ContentProperty, HTTPHeaderProperty, `redirects_to`, `previous_version`,
+  ... with coverage-gated authority) in its `content.changes` event, so
+  every content fact has one writer. The raw response is the capture
+  stored in the tenant's chunk store (raw snapshot), not a `raw/` blob.
+* **Revisit** (`RevisitPolicy`, docs/ALGORITHMS.md "Crawl revisit
+  policy"): `AdaptiveRevisit` (default; halve on change, double on no
+  change, [1 h, 7 d], first interval 24 h) or `FixedRevisit`;
+  `FF_CRAWL_REVISIT=adaptive|fixed`. State is per tool-runner process
+  (`MemRevisitStore`); after a restart every URL is due.
 
 `spec_sha256` is the canonical hash of the engine-side spec with
 `convert.DefaultToolRetry` (`Spec.EngineSpec`).
@@ -59,6 +99,21 @@ organization name and redacted contacts are skipped. Their `unique_id` is
   `TestCymru`.
 * The egress integration (real proxy, SOCKS5, DNS, rate limits, intel
   sources) is in `services/egressproxy/v2_test.go`.
+* `content_test.go` runs the content tools against the lab
+  (`services/internal/lab`) with an in-process content service and a
+  network that dials the decision's pinned address: the §8 signature
+  table (`TestContentTools_Signatures`), monitor.ff compiled against the
+  registry as the engine does (`TestContentTools_MonitorWorkflowCompiles`,
+  active; refused by a passive program), collect with subresources,
+  lineage across a renamed bundle, the third-party script skipped and
+  in-run reuse; redirects in and out of scope; crawl's robots, scope,
+  budget and not-due/due revisits on the lab clock; wellknown on both lab
+  hosts; extract, diff_latest, unpack_sourcemap (and extract on a derived
+  original), search_changes, a bad query and a cross-program read.
+  `revisit_test.go`: the adaptive schedule, `TestRevisitProp_Bounded`, and
+  `BenchmarkToolAlgo/revisit/...`.
+* The whole surface end to end (engine, proxy, content, graph, notifier)
+  is `services/internal/lab` `TestLabAcceptance_*`.
 
 ## Open questions
 
@@ -70,6 +125,17 @@ organization name and redacted contacts are skipped. Their `unique_id` is
 * `tlscert` re-checks with `AllowedPinned` (CheckRequest.resolve = true): a
   passive decision that resolves and pins (D3); without pins the proxy
   refuses the tunnel (`no_pinned_ips`).
+
+* **Content tools.** extract and diff_latest do not re-emit the graph
+  facts V2 §8 lists for them: those were published, with authority, when
+  the capture was stored, and a second writer would apply authority twice.
+  Cookie-jar profiles are refused (sandbox work, ROADMAP_V2 A1). Revisit
+  state is in memory. A page reached through a redirect has its
+  references resolved against the requested URL by content (the lab's
+  OPEN_QUESTIONS 1): crawl expands a redirect's target instead of the
+  redirected capture's links, collect's subresources of such a page are
+  fetched through the original origin. unpack_sourcemap's derived
+  snapshots have no body hash, size or media type of their own.
 
 Not here: sandboxes (tools run in-process), retry policies per tool (the
 proto ToolSpec has no field for them).

@@ -46,6 +46,13 @@ var (
 	// defTaskError is the error of a par_map element with on_error =
 	// "collect" (spec 8.6); appended last so earlier IDs stay stable.
 	defTaskError = &TypeDef{Name: "TaskError", Kind: DefRecord, Builtin: true}
+	// The content records of V2_DESIGN §8 (the collect, crawl, extract,
+	// unpack_sourcemap, diff_latest and search_changes tools), appended
+	// after TaskError for the same reason.
+	defSnapshot  = &TypeDef{Name: "Snapshot", Kind: DefRecord, Builtin: true}
+	defFeatures  = &TypeDef{Name: "Features", Kind: DefRecord, Builtin: true}
+	defChangeSet = &TypeDef{Name: "ChangeSet", Kind: DefRecord, Builtin: true}
+	defChangeHit = &TypeDef{Name: "ChangeHit", Kind: DefRecord, Builtin: true}
 )
 
 // builtinTypeDefs lists every builtin TypeDef in ID order.
@@ -55,6 +62,7 @@ var builtinTypeDefs = []*TypeDef{
 	defURL, defHost, defSeverity, defService, defTLSCertificate, defProduct,
 	defOrganization, defScopeDenied, defBudget, defApproval, defDenied,
 	defRunInfo, defPlanError, defGraphSummary, defTaskError,
+	defSnapshot, defFeatures, defChangeSet, defChangeHit,
 }
 
 // scopeTargets are the types scope.check and scope.allows accept.
@@ -261,6 +269,7 @@ func buildPrelude() *preludeTables {
 	fields(defRunInfo, "run_id", TString, "workflow", TString, "version", TInt, "started_at", TTime)
 	fields(defPlanError, "code", TString, "message", TString)
 	fields(defTaskError, "code", TString, "message", TString)
+	contentRecords(optStr)
 	fields(defGraphSummary, "entities_by_type", &NamedType{Def: defMap, Args: []Type{TString, TInt}},
 		"new_since_last_run", TInt, "top_entities", &NamedType{Def: defList, Args: []Type{&NamedType{Def: defEntity}}})
 
@@ -281,6 +290,55 @@ func buildPrelude() *preludeTables {
 	}
 	pt.approve = pt.builtins["approve"]
 	return pt
+}
+
+// contentRecords lays out the V2 content records (V2_DESIGN §8). Tool
+// results are decoded field by field into these layouts, so the
+// tool-runner adapters (services/toolrunner) emit exactly these fields.
+//
+//   - Snapshot is one stored capture version: its id (snp_...), the URL and
+//     capture profile, the response status, media type and sniffed kind,
+//     the body hash and raw size, when it was fetched, its predecessor
+//     (parent_id) or renamed-bundle predecessor (lineage_parent_id), the
+//     reading's coverage, whether the capture was degraded, new_in_run
+//     (the version was first stored by the calling run; false for a
+//     re-fetch of a version an earlier run stored), the redirect targets
+//     followed (each Location, in order; empty without redirects) and the
+//     subresources (scripts, styles, source maps) captured with it. A
+//     derived snapshot (an original source of a source map) has id
+//     "<snapshot id>#src/<path>".
+//   - Features are the level-3 features of a snapshot, by kind. URL-valued
+//     kinds are canonical URLs (core/netnorm); endpoints, forms and
+//     parameters are graph keys ("ep:POST https://h/p"); secrets are
+//     "<rule>:<redacted preview>", never the secret.
+//   - ChangeSet is a snapshot's change against its stored predecessor:
+//     outcome, levels (hash, text, semantic), semantic (level 3 present),
+//     class, newness, cause, baseline, alertable (what default feeds show),
+//     the score (ranking only, V2 §12.4) and the level-3 changes as
+//     "<op> <kind>|<key>", with per-kind counts in summary.
+//   - ChangeHit is one search_changes result (V2 §7).
+func contentRecords(optStr Type) {
+	list := func(t Type) Type { return &NamedType{Def: defList, Args: []Type{t}} }
+	strs, urls := list(TString), list(&NamedType{Def: defURL})
+	fields := func(d *TypeDef, fs ...any) {
+		for i := 0; i+1 < len(fs); i += 2 {
+			d.Fields = append(d.Fields, &Field{Name: fs[i].(string), Type: fs[i+1].(Type), Index: i / 2})
+		}
+	}
+	fields(defSnapshot, "id", TString, "url", TString, "profile", TString, "status", TInt, "mime", TString,
+		"kind", TString, "body_sha256", TString, "raw_size", TInt, "fetched_at", TTime,
+		"parent_id", optStr, "lineage_parent_id", optStr, "coverage", TString, "degraded", TBool,
+		"new_in_run", TBool, "redirects", strs, "resources", list(&NamedType{Def: defSnapshot}))
+	fields(defFeatures, "snapshot_id", TString, "url", TString, "coverage", TString, "links", urls,
+		"scripts", urls, "styles", urls, "frames", urls, "sourcemaps", urls, "endpoints", strs,
+		"forms", strs, "parameters", strs, "headers", strs, "libraries", strs, "secrets", strs)
+	fields(defChangeSet, "snapshot_id", TString, "from_snapshot_id", optStr, "diff_id", optStr, "url", TString,
+		"outcome", TString, "levels", strs, "semantic", TBool, "class", TString, "newness", TString,
+		"cause", TString, "baseline", TBool, "alertable", TBool, "score", TFloat, "changes", strs,
+		"summary", &NamedType{Def: defMap, Args: []Type{TString, TInt}})
+	fields(defChangeHit, "score", TFloat, "at", TTime, "diff_id", TString, "snapshot_id", TString,
+		"url", TString, "kind", TString, "side", TString, "feature", TString, "class", TString,
+		"newness", TString, "cause", TString, "text", TString)
 }
 
 // parseSignature parses "<A, B>(name: Type, opt?: Type) -> Type".
