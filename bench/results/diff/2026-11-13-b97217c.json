@@ -1,0 +1,710 @@
+{
+  "module": "diff",
+  "date": "2026-11-13",
+  "commit": "b97217c",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/1k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 33408,
+        "allocs/op": 8,
+        "hunks": 2,
+        "ns/op": 47332,
+        "script-tokens": 8,
+        "tokens/s": 42254711
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/1k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 19656,
+        "allocs/op": 24,
+        "hunks": 2,
+        "ns/op": 22168,
+        "script-tokens": 8,
+        "tokens/s": 90220137
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/1k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 121648,
+        "allocs/op": 45,
+        "hunks": 2,
+        "ns/op": 112516,
+        "script-tokens": 8,
+        "tokens/s": 17775250
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/1k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 72384,
+        "allocs/op": 34,
+        "hunks": 2,
+        "ns/op": 95887,
+        "script-tokens": 8,
+        "tokens/s": 20857885
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/reference/1k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4014720,
+        "allocs/op": 7,
+        "hunks": 2,
+        "ns/op": 2898170,
+        "script-tokens": 8,
+        "tokens/s": 690091
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/1k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 35344,
+        "allocs/op": 10,
+        "hunks": 9,
+        "ns/op": 37152,
+        "script-tokens": 12,
+        "tokens/s": 53832903
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/1k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 22328,
+        "allocs/op": 30,
+        "hunks": 9,
+        "ns/op": 28632,
+        "script-tokens": 12,
+        "tokens/s": 69851914
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/1k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 137152,
+        "allocs/op": 49,
+        "hunks": 9,
+        "ns/op": 113450,
+        "script-tokens": 12,
+        "tokens/s": 17628911
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/1k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 74320,
+        "allocs/op": 36,
+        "hunks": 9,
+        "ns/op": 85504,
+        "script-tokens": 12,
+        "tokens/s": 23390719
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/reference/1k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4016656,
+        "allocs/op": 9,
+        "hunks": 9,
+        "ns/op": 3179666,
+        "script-tokens": 12,
+        "tokens/s": 628997
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/1k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 55104,
+        "allocs/op": 13,
+        "hunks": 52,
+        "ns/op": 247445,
+        "script-tokens": 211,
+        "tokens/s": 8135141
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/1k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 455352,
+        "allocs/op": 240,
+        "hunks": 52,
+        "ns/op": 541729,
+        "script-tokens": 211,
+        "tokens/s": 3715880
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/1k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 191624,
+        "allocs/op": 99,
+        "hunks": 52,
+        "ns/op": 120445,
+        "script-tokens": 211,
+        "tokens/s": 16713023
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/1k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 96768,
+        "allocs/op": 41,
+        "hunks": 52,
+        "ns/op": 200607,
+        "script-tokens": 211,
+        "tokens/s": 10034545
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/reference/1k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4085568,
+        "allocs/op": 12,
+        "hunks": 52,
+        "ns/op": 2726719,
+        "script-tokens": 211,
+        "tokens/s": 738250
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/10k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 333056,
+        "allocs/op": 11,
+        "hunks": 15,
+        "ns/op": 118631,
+        "script-tokens": 34,
+        "tokens/s": 168589998
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/10k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 185656,
+        "allocs/op": 56,
+        "hunks": 15,
+        "ns/op": 316050,
+        "script-tokens": 34,
+        "tokens/s": 63281126
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/10k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1201120,
+        "allocs/op": 94,
+        "hunks": 15,
+        "ns/op": 793573,
+        "script-tokens": 34,
+        "tokens/s": 25202470
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/10k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 619248,
+        "allocs/op": 71,
+        "hunks": 15,
+        "ns/op": 587004,
+        "script-tokens": 34,
+        "tokens/s": 34071318
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/10k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 371904,
+        "allocs/op": 14,
+        "hunks": 121,
+        "ns/op": 416111,
+        "script-tokens": 243,
+        "tokens/s": 48095340
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/10k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 753208,
+        "allocs/op": 273,
+        "hunks": 121,
+        "ns/op": 396047,
+        "script-tokens": 243,
+        "tokens/s": 50531881
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/10k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1485776,
+        "allocs/op": 100,
+        "hunks": 121,
+        "ns/op": 795231,
+        "script-tokens": 243,
+        "tokens/s": 25166272
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/10k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 659376,
+        "allocs/op": 75,
+        "hunks": 121,
+        "ns/op": 862598,
+        "script-tokens": 243,
+        "tokens/s": 23200842
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/10k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 700128,
+        "allocs/op": 18,
+        "hunks": 502,
+        "ns/op": 15846287,
+        "script-tokens": 2198,
+        "tokens/s": 1260485
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/10k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 42520120,
+        "allocs/op": 2244,
+        "hunks": 504,
+        "ns/op": 35715619,
+        "script-tokens": 2198,
+        "tokens/s": 559251
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/10k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2576144,
+        "allocs/op": 1027,
+        "hunks": 504,
+        "ns/op": 2534550,
+        "script-tokens": 2198,
+        "tokens/s": 7880689
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/10k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 987600,
+        "allocs/op": 79,
+        "hunks": 504,
+        "ns/op": 2256948,
+        "script-tokens": 2198,
+        "tokens/s": 8850005
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/100k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3255536,
+        "allocs/op": 15,
+        "hunks": 124,
+        "ns/op": 2244695,
+        "script-tokens": 223,
+        "tokens/s": 89100301
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/100k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2091256,
+        "allocs/op": 252,
+        "hunks": 124,
+        "ns/op": 1015760,
+        "script-tokens": 223,
+        "tokens/s": 196899858
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/100k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 9179288,
+        "allocs/op": 355,
+        "hunks": 124,
+        "ns/op": 6606424,
+        "script-tokens": 223,
+        "tokens/s": 30274018
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/100k/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4615280,
+        "allocs/op": 304,
+        "hunks": 124,
+        "ns/op": 8279960,
+        "script-tokens": 223,
+        "tokens/s": 24155068
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/100k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 3583824,
+        "allocs/op": 19,
+        "hunks": 1138,
+        "ns/op": 18677305,
+        "script-tokens": 2268,
+        "tokens/s": 10707755
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/100k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 46829000,
+        "allocs/op": 2313,
+        "hunks": 1138,
+        "ns/op": 46728373,
+        "script-tokens": 2268,
+        "tokens/s": 4279884
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/100k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 10802280,
+        "allocs/op": 1111,
+        "hunks": 1138,
+        "ns/op": 9632989,
+        "script-tokens": 2268,
+        "tokens/s": 20761157
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/100k/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 4965440,
+        "allocs/op": 310,
+        "hunks": 1138,
+        "ns/op": 12024483,
+        "script-tokens": 2268,
+        "tokens/s": 16632066
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/100k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 8579296,
+        "allocs/op": 27,
+        "hunks": 4957,
+        "ns/op": 1478677426,
+        "script-tokens": 21446,
+        "tokens/s": 135218
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/100k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 24175024,
+        "allocs/op": 23152,
+        "hunks": 4967,
+        "ns/op": 15311047,
+        "script-tokens": 21446,
+        "tokens/s": 13058806
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/100k/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 9980432,
+        "allocs/op": 323,
+        "hunks": 4964,
+        "ns/op": 26171677,
+        "script-tokens": 21448,
+        "tokens/s": 7639709
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/1M/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 32386784,
+        "allocs/op": 18,
+        "hunks": 1235,
+        "ns/op": 36545867,
+        "script-tokens": 2233,
+        "tokens/s": 54726106
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers/1M/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 59797048,
+        "allocs/op": 2279,
+        "hunks": 1235,
+        "ns/op": 83898571,
+        "script-tokens": 2233,
+        "tokens/s": 23838463
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/1M/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 69288328,
+        "allocs/op": 7744,
+        "hunks": 1235,
+        "ns/op": 84457287,
+        "script-tokens": 2233,
+        "tokens/s": 23680763
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/1M/0.1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 40638288,
+        "allocs/op": 4153,
+        "hunks": 1235,
+        "ns/op": 176367842,
+        "script-tokens": 2233,
+        "tokens/s": 11340009
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/myers-linear/1M/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 37382480,
+        "allocs/op": 28,
+        "hunks": 11387,
+        "ns/op": 3897024234,
+        "script-tokens": 22440,
+        "tokens/s": 513237
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/1M/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 162575112,
+        "allocs/op": 55163,
+        "hunks": 11387,
+        "ns/op": 158027176,
+        "script-tokens": 22440,
+        "tokens/s": 12656658
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/1M/1%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 45636672,
+        "allocs/op": 4164,
+        "hunks": 11383,
+        "ns/op": 202426567,
+        "script-tokens": 22440,
+        "tokens/s": 9880600
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/patience/1M/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 273475680,
+        "allocs/op": 89892,
+        "hunks": 49681,
+        "ns/op": 1447092358,
+        "script-tokens": 212796,
+        "tokens/s": 1381767
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffAlgo/histogram/1M/10%",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 96763056,
+        "allocs/op": 4175,
+        "hunks": 49683,
+        "ns/op": 395095785,
+        "script-tokens": 212820,
+        "tokens/s": 5060909
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffCapped/uncapped",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 17549648,
+        "allocs/op": 31,
+        "capped": 0,
+        "ns/op": 9549879391,
+        "tokens/s": 41886
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffCapped/cap10000",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 8012176,
+        "allocs/op": 8,
+        "capped": 1,
+        "ns/op": 254453812,
+        "tokens/s": 1572038
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffCapped/cap1000",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 8012064,
+        "allocs/op": 7,
+        "capped": 1,
+        "ns/op": 26785888,
+        "tokens/s": 14933647
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffBounded/default",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 117021752,
+        "MB/s": 6.86,
+        "allocs/op": 153,
+        "level": 1,
+        "ns/op": 304727892
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffBounded/cap100",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 139299776,
+        "MB/s": 1.85,
+        "allocs/op": 66872,
+        "level": 2,
+        "ns/op": 1130594016
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffJSON",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 28215832,
+        "MB/s": 31.28,
+        "allocs/op": 745369,
+        "ns/op": 72727007,
+        "ops": 217
+      }
+    },
+    {
+      "bench_id": "BenchmarkDiffTree",
+      "package": "github.com/genuinebnt/flowforge/diff",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 2647568,
+        "allocs/op": 128,
+        "ns/op": 11485333
+      }
+    }
+  ]
+}

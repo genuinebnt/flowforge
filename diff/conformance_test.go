@@ -334,3 +334,21 @@ func runBounded(t *testing.T, c diffFile) {
 		}
 	}
 }
+
+// TestDiffInv08_GitCompatibility is DIFF-INV-08: with GitCompact, unified
+// output reproduces git 2.43's hunks byte for byte for the cases recorded
+// in conformance/diff/unified_git.json (histogram always; patience without
+// a Myers fallback; Myers where git picks the same alignment).
+func TestDiffInv08_GitCompatibility(t *testing.T) {
+	var ran int
+	for _, cf := range testkit.LoadCases[diffFile](t, "diff") {
+		if cf.Name != "unified_git.json" {
+			continue
+		}
+		ran++
+		runUnified(t, cf.Data)
+	}
+	if ran == 0 {
+		t.Fatal("conformance/diff/unified_git.json is missing")
+	}
+}

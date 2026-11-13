@@ -1,0 +1,244 @@
+{
+  "module": "sketch",
+  "date": "2026-11-13",
+  "commit": "b97217c",
+  "env": {
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "cores": 4,
+    "memory_kb": 16472076,
+    "os": "linux",
+    "arch": "amd64",
+    "kernel": "6.18.44-fc-v445",
+    "go_version": "go1.26.0",
+    "benchtime": "1x"
+  },
+  "results": [
+    {
+      "bench_id": "BenchmarkSketchAlgo/exact/pair/1k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 16384,
+        "abs-err": 0,
+        "allocs/op": 2,
+        "ns/op": 147258,
+        "tokens/s": 13581605
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/minhash/pair/1k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 20528,
+        "abs-err": 0.03567,
+        "allocs/op": 7,
+        "ns/op": 568603,
+        "tokens/s": 3517393
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/simhash/pair/1k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 16384,
+        "abs-err": 0.02819,
+        "allocs/op": 2,
+        "ns/op": 480631,
+        "tokens/s": 4161196
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/exact/stored/1k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 7984,
+        "ns/op": 2945
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/minhash/stored/1k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 1024,
+        "ns/op": 547
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/simhash/stored/1k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 8,
+        "ns/op": 393
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/exact/pair/10k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 163840,
+        "abs-err": 0,
+        "allocs/op": 2,
+        "ns/op": 1391375,
+        "tokens/s": 14374270
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/minhash/pair/10k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 167984,
+        "abs-err": 0.001311,
+        "allocs/op": 7,
+        "ns/op": 32369151,
+        "tokens/s": 617872
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/simhash/pair/10k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 163840,
+        "abs-err": 0.04641,
+        "allocs/op": 2,
+        "ns/op": 4728840,
+        "tokens/s": 4229367
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/exact/stored/10k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 79984,
+        "ns/op": 22190
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/minhash/stored/10k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 1024,
+        "ns/op": 272
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/simhash/stored/10k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 8,
+        "ns/op": 182
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/exact/pair/100k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1605632,
+        "abs-err": 0,
+        "allocs/op": 2,
+        "ns/op": 14902862,
+        "tokens/s": 13420241
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/minhash/pair/100k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1609776,
+        "abs-err": 0.01406,
+        "allocs/op": 7,
+        "ns/op": 68211462,
+        "tokens/s": 2932059
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/simhash/pair/100k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 1605632,
+        "abs-err": 0.01855,
+        "allocs/op": 2,
+        "ns/op": 48041687,
+        "tokens/s": 4163051
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/exact/stored/100k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 799984,
+        "ns/op": 227345
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/minhash/stored/100k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 1024,
+        "ns/op": 1074
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchAlgo/simhash/stored/100k",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "bytes/doc": 8,
+        "ns/op": 702
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchIndex/simhash",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 10325
+      }
+    },
+    {
+      "bench_id": "BenchmarkSketchIndex/lsh",
+      "package": "github.com/genuinebnt/flowforge/sketch",
+      "iterations": 1,
+      "metrics": {
+        "B/op": 0,
+        "allocs/op": 0,
+        "ns/op": 33214
+      }
+    }
+  ]
+}

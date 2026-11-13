@@ -209,3 +209,22 @@ tests = { prefix = "TIdxInv", required = ["01", "02", "03", "04", "05", "06", "0
 conformance = ["textindex/analyzer", "textindex/query_parse", "textindex/trigram_query", "textindex/search", "textindex/ranking"]
 fuzz = ["FuzzQueryParse", "FuzzSegmentOpen", "FuzzAnalyzer", "FuzzIndexOps"]
 bench = ["BenchmarkTIdxAlgo"]
+
+[module.diff]
+layer = 1
+spec = ["V2_DESIGN 2, 5"]
+dir = "diff"
+depends = ["core"]
+tests = { prefix = "DiffInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"] }
+conformance = ["diff"]
+fuzz = ["FuzzDiffApply", "FuzzUnifiedRoundTrip", "FuzzJSONPatch", "FuzzTreeDiff"]
+bench = ["BenchmarkDiffAlgo"]
+
+[module.sketch]
+layer = 1
+spec = ["22.8", "V2_DESIGN 5"]
+dir = "sketch"
+depends = ["core"]
+tests = { prefix = "SketchInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11"] }
+conformance = ["sketch"]
+bench = ["BenchmarkSketchAlgo"]

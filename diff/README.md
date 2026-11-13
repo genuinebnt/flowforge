@@ -93,7 +93,7 @@ write scope in the v2 build and is linked from here once it exists.)
 | DIFF-INV-05 | `Compose(s1, s2)` is canonical, applies a→c, distance ≤ d1+d2, identity is neutral, mismatched scripts are rejected | `TestDiffInv05_Compose` |
 | DIFF-INV-06 | Hunks cover every change exactly once, in order; context is exactly min(C, available); hunks are separated by > 2C equal tokens, so contexts never overlap or touch | `TestDiffInv06_Hunks` |
 | DIFF-INV-07 | `Unified` → `ParseUnified` → `ApplyUnified(old)` == new for every algorithm and context; parsed headers equal `HunkHeader`; a tampered base is refused | `TestDiffInv07_UnifiedRoundTrip` |
-| DIFF-INV-08 | Git compatibility: with `GitCompact`, `Unified` reproduces git 2.43's hunks byte for byte (histogram always; patience without Myers fallback; Myers where git agrees) | `TestDiffConformance` (`unified_git.json`) |
+| DIFF-INV-08 | Git compatibility: with `GitCompact`, `Unified` reproduces git 2.43's hunks byte for byte (histogram always; patience without Myers fallback; Myers where git agrees) | `TestDiffInv08_GitCompatibility` (`unified_git.json`) |
 | DIFF-INV-09 | `ApplyPatch(a, JSONDiff(a, b))` is `Equal` to b; equal documents give an empty patch; patch and document encodings round trip | `TestDiffInv09_JSONPatchRoundTrip` |
 | DIFF-INV-10 | `Equal` is RFC 6902 equality (reflexive, symmetric, order-insensitive objects, numeric numbers) and agrees with hash-consed ids | `TestDiffInv10_JSONEquality` |
 | DIFF-INV-11 | Tree edit distance is a metric on random trees (identity, symmetry, triangle) and its mapping realises it | `TestDiffInv11_TreeMetric` |
