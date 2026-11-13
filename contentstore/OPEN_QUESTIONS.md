@@ -47,12 +47,12 @@
    target, not pre-existing, a change). The notifier alerts on
    content.changes only and ignores the graph's `graph.content_changed`
    copy, so one change alerts once.
-9. **content.Redact idempotence.** `FuzzCStoreSealRoundTrip` found that
-   `content.Redact` is not idempotent on
-   `"ABIA0000000000000000postgres://:0@"`: the first pass redacts the AWS
-   key id, the second then finds a one-character connection-string
-   password. CONTENT-INV-10 states idempotence; the input is kept in
-   `testdata/fuzz` (the seal round trip itself holds).
+9. **content.Redact idempotence (resolved).** `FuzzCStoreSealRoundTrip`
+   found that `content.Redact` was not idempotent on
+   `"ABIA0000000000000000postgres://:0@"`: redacting the AWS key id
+   exposed a connection-string password the first scan had skipped. Redact
+   now rescans until stable (content OPEN_QUESTIONS, CONTENT-INV-10); the
+   input stays in `testdata/fuzz` and seeds `FuzzContentRedactIdempotent`.
 10. **First appeared** verifies candidates by exact substring on the
     stored hunk text; candidates come from a phrase query (or a regex for
     text without word tokens), at most 10,000.

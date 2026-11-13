@@ -156,3 +156,29 @@ func hasFinding(p *Processed, rule string) bool {
 	}
 	return false
 }
+
+// FuzzContentRedactIdempotent: Redact(Redact(x)) == Redact(x) and the second
+// pass finds nothing (CONTENT-INV-10), and the reported findings locate
+// their secrets in the original text. The seed is the case
+// FuzzCStoreSealRoundTrip found: redacting the AWS key id exposed the
+// connection-string password glued to it.
+func FuzzContentRedactIdempotent(f *testing.F) {
+	f.Add([]byte("ABIA0000000000000000postgres://:0@"))
+	f.Add([]byte("x AK" + "IAIOSFODNN7EXAMPLEmysql://root:hunter2hunter2@db/x"))
+	f.Add([]byte("[REDACTED:jwt:Aa9_:3] plain"))
+	f.Fuzz(func(t *testing.T, text []byte) {
+		once, fs := Redact(text)
+		twice, again := Redact(once)
+		if !bytes.Equal(once, twice) || len(again) != 0 {
+			t.Fatalf("not idempotent:\n once %q\ntwice %q\nagain %v", once, twice, again)
+		}
+		for i, f := range fs {
+			if f.Start < 0 || f.End > len(text) || f.Start >= f.End || !bytes.Equal(text[f.Start:f.End], f.Secret) {
+				t.Fatalf("finding %d [%d,%d) does not locate %q in the input", i, f.Start, f.End, f.Secret)
+			}
+			if i > 0 && fs[i-1].End > f.Start {
+				t.Fatalf("findings %d and %d overlap", i-1, i)
+			}
+		}
+	})
+}

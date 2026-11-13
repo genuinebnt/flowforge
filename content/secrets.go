@@ -590,23 +590,68 @@ func RedactionPlaceholder(rule string, secret []byte) string {
 // both tiers, connection-string passwords included) by its typed
 // placeholder (V2 §12.11). It is applied to anything that will be hashed
 // for the index, indexed, embedded or logged: normalized snapshots and
-// diff hunks. Redact is idempotent (CONTENT-INV-10) and returns the
-// findings it replaced.
+// diff hunks. It returns the findings it replaced, with offsets into text.
+//
+// Redact is idempotent (CONTENT-INV-10). One scan is not enough for that:
+// rules check the bytes around a match (a scheme glued to a letter or digit
+// is not a URL), and a placeholder ends in ']' where the secret ended in an
+// alphanumeric, so redacting one secret can expose a neighbour that the
+// first scan rightly skipped ("…0000postgres://u:pw@" after the AWS key
+// is redacted). Redact therefore rescans its own output and folds any new
+// finding back into the original text's coordinates until a scan finds
+// nothing. Each extra pass redacts at least one more original byte, so the
+// loop ends within len(text) passes; in practice it is one or two.
 func Redact(text []byte) ([]byte, []SecretFinding) {
 	fs := ScanSecrets(text, "")
 	if len(fs) == 0 {
 		return text, nil
 	}
+	for {
+		out, spans := applyRedactions(text, fs)
+		extra := ScanSecrets(out, "")
+		if len(extra) == 0 {
+			return out, fs
+		}
+		for _, f := range extra {
+			// A new finding never overlaps a placeholder (placeholders are
+			// holes for ScanSecrets), so it maps to original offsets by the
+			// length change of the redactions before it.
+			delta := 0
+			for _, sp := range spans {
+				if sp.outEnd <= f.Start {
+					delta += sp.outEnd - sp.outStart - (sp.end - sp.start)
+				}
+			}
+			f.Start -= delta
+			f.End -= delta
+			fs = append(fs, f)
+		}
+		slices.SortFunc(fs, func(a, b SecretFinding) int {
+			return cmp.Or(cmp.Compare(a.Start, b.Start), cmp.Compare(a.End, b.End), cmp.Compare(a.RuleID, b.RuleID))
+		})
+	}
+}
+
+// redactionSpan records where one finding [start,end) of the input became
+// the placeholder [outStart,outEnd) of the output.
+type redactionSpan struct{ start, end, outStart, outEnd int }
+
+// applyRedactions writes text with every finding replaced by its
+// placeholder. fs is sorted by Start and non-overlapping.
+func applyRedactions(text []byte, fs []SecretFinding) ([]byte, []redactionSpan) {
 	var b bytes.Buffer
 	b.Grow(len(text))
+	spans := make([]redactionSpan, 0, len(fs))
 	prev := 0
 	for _, f := range fs {
 		b.Write(text[prev:f.Start])
+		o := b.Len()
 		b.WriteString(RedactionPlaceholder(f.RuleID, f.Secret))
+		spans = append(spans, redactionSpan{f.Start, f.End, o, b.Len()})
 		prev = f.End
 	}
 	b.Write(text[prev:])
-	return b.Bytes(), fs
+	return b.Bytes(), spans
 }
 
 // asciiLower lower-cases ASCII letters only, so byte offsets in the result

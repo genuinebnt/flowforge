@@ -169,3 +169,13 @@ is pinned by a test or conformance file named in its entry.
     conformance hashes alone. Secrets found inside decoded blobs are
     redacted but not reported as findings (a new finding source would
     change scores and observations); pinned by CONTENT-INV-17.
+36. **Redact rescans until stable.** Secret rules check the bytes around a
+    match (a scheme glued to a letter or digit is not a URL). A
+    placeholder ends in `]` where the secret ended in an alphanumeric, so
+    redacting one secret can expose a neighbour the first scan rightly
+    skipped (`ABIA0000000000000000postgres://:0@`, found by
+    contentstore's fuzzer). Redact rescans its output and folds new
+    findings back into input offsets until a scan is empty. That makes
+    CONTENT-INV-10 idempotence hold by construction, at the cost of
+    redacting the exposed neighbour too (the conservative choice).
+    `FuzzContentRedactIdempotent` pins it.

@@ -316,7 +316,7 @@ dir = "content"
 depends = ["core", "oam", "diff", "sketch", "htmlparse", "jsparse", "cssparse", "xmlparse", "sourcemap", "wellknown"]
 tests = { prefix = "ContentInv", required = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"] }
 conformance = ["content"]
-fuzz = ["FuzzContentNormalize", "FuzzContentSniff", "FuzzContentExtract"]
+fuzz = ["FuzzContentNormalize", "FuzzContentSniff", "FuzzContentExtract", "FuzzContentRedactIdempotent"]
 bench = ["BenchmarkContentAlgo", "BenchmarkContentNormalize", "BenchmarkContentExtract", "BenchmarkContentPipeline"]
 
 [module.codec]
