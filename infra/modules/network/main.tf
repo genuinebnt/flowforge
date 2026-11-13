@@ -37,10 +37,13 @@ resource "google_compute_subnetwork" "services" {
   ip_cidr_range            = var.services_cidr
   private_ip_google_access = true
 
-  log_config {
-    aggregation_interval = "INTERVAL_5_MIN"
-    flow_sampling        = 0.1
-    metadata             = "INCLUDE_ALL_METADATA"
+  dynamic "log_config" {
+    for_each = var.flow_logs_enabled ? [1] : []
+    content {
+      aggregation_interval = "INTERVAL_5_MIN"
+      flow_sampling        = 0.1
+      metadata             = "INCLUDE_ALL_METADATA"
+    }
   }
 }
 
@@ -54,10 +57,13 @@ resource "google_compute_subnetwork" "tools" {
   ip_cidr_range            = var.tools_cidr
   private_ip_google_access = true
 
-  log_config {
-    aggregation_interval = "INTERVAL_5_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
+  dynamic "log_config" {
+    for_each = var.flow_logs_enabled ? [1] : []
+    content {
+      aggregation_interval = "INTERVAL_5_MIN"
+      flow_sampling        = 0.5
+      metadata             = "INCLUDE_ALL_METADATA"
+    }
   }
 }
 
@@ -70,15 +76,19 @@ resource "google_compute_subnetwork" "egress" {
   ip_cidr_range            = var.egress_cidr
   private_ip_google_access = true
 
-  log_config {
-    aggregation_interval = "INTERVAL_5_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
+  dynamic "log_config" {
+    for_each = var.flow_logs_enabled ? [1] : []
+    content {
+      aggregation_interval = "INTERVAL_5_MIN"
+      flow_sampling        = 0.5
+      metadata             = "INCLUDE_ALL_METADATA"
+    }
   }
 }
 
 # Private services access (Cloud SQL private IP, Memorystore).
 resource "google_compute_global_address" "psa" {
+  count         = var.psa_enabled ? 1 : 0
   project       = var.project_id
   name          = "${var.name}-psa"
   purpose       = "VPC_PEERING"
@@ -89,15 +99,16 @@ resource "google_compute_global_address" "psa" {
 }
 
 resource "google_service_networking_connection" "psa" {
+  count                   = var.psa_enabled ? 1 : 0
   network                 = google_compute_network.vpc.id
   service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.psa.name]
+  reserved_peering_ranges = [google_compute_global_address.psa[0].name]
 }
 
 # Reserved static egress IPs so programs can allowlist Flowforge's source
 # addresses (spec 17.1, egress proxy row).
 resource "google_compute_address" "nat" {
-  count        = var.nat_ip_count
+  count        = var.nat_enabled ? var.nat_ip_count : 0
   project      = var.project_id
   name         = "${var.name}-nat-${count.index}"
   region       = var.region
@@ -106,6 +117,7 @@ resource "google_compute_address" "nat" {
 }
 
 resource "google_compute_router" "router" {
+  count   = var.nat_enabled ? 1 : 0
   project = var.project_id
   name    = "${var.name}-router"
   region  = var.region
@@ -113,10 +125,11 @@ resource "google_compute_router" "router" {
 }
 
 resource "google_compute_router_nat" "egress" {
+  count                               = var.nat_enabled ? 1 : 0
   project                             = var.project_id
   name                                = "${var.name}-egress-nat"
   region                              = var.region
-  router                              = google_compute_router.router.name
+  router                              = google_compute_router.router[0].name
   nat_ip_allocate_option              = "MANUAL_ONLY"
   nat_ips                             = google_compute_address.nat[*].self_link
   source_subnetwork_ip_ranges_to_nat  = "LIST_OF_SUBNETWORKS"
@@ -139,6 +152,7 @@ resource "google_compute_router_nat" "egress" {
 # workload needs a public route to reach Google APIs.
 
 resource "google_dns_managed_zone" "googleapis" {
+  count       = var.private_dns_enabled ? 1 : 0
   project     = var.project_id
   name        = "${var.name}-googleapis"
   dns_name    = "googleapis.com."
@@ -153,8 +167,9 @@ resource "google_dns_managed_zone" "googleapis" {
 }
 
 resource "google_dns_record_set" "googleapis_a" {
+  count        = var.private_dns_enabled ? 1 : 0
   project      = var.project_id
-  managed_zone = google_dns_managed_zone.googleapis.name
+  managed_zone = google_dns_managed_zone.googleapis[0].name
   name         = "private.googleapis.com."
   type         = "A"
   ttl          = 300
@@ -162,8 +177,9 @@ resource "google_dns_record_set" "googleapis_a" {
 }
 
 resource "google_dns_record_set" "googleapis_cname" {
+  count        = var.private_dns_enabled ? 1 : 0
   project      = var.project_id
-  managed_zone = google_dns_managed_zone.googleapis.name
+  managed_zone = google_dns_managed_zone.googleapis[0].name
   name         = "*.googleapis.com."
   type         = "CNAME"
   ttl          = 300
@@ -171,6 +187,7 @@ resource "google_dns_record_set" "googleapis_cname" {
 }
 
 resource "google_dns_managed_zone" "run_app" {
+  count       = var.private_dns_enabled ? 1 : 0
   project     = var.project_id
   name        = "${var.name}-run-app"
   dns_name    = "run.app."
@@ -185,8 +202,9 @@ resource "google_dns_managed_zone" "run_app" {
 }
 
 resource "google_dns_record_set" "run_app_a" {
+  count        = var.private_dns_enabled ? 1 : 0
   project      = var.project_id
-  managed_zone = google_dns_managed_zone.run_app.name
+  managed_zone = google_dns_managed_zone.run_app[0].name
   name         = "*.run.app."
   type         = "A"
   ttl          = 300
@@ -209,8 +227,11 @@ resource "google_compute_firewall" "tools_deny_all_egress" {
     protocol = "all"
   }
 
-  log_config {
-    metadata = "INCLUDE_ALL_METADATA"
+  dynamic "log_config" {
+    for_each = var.firewall_logs_enabled ? [1] : []
+    content {
+      metadata = "INCLUDE_ALL_METADATA"
+    }
   }
 }
 
@@ -233,6 +254,7 @@ resource "google_compute_firewall" "tools_allow_google_private" {
 
 # The tool-runner reads per-tool rate state from Memorystore (TLS port 6378).
 resource "google_compute_firewall" "tools_allow_redis" {
+  count              = var.psa_enabled ? 1 : 0
   project            = var.project_id
   name               = "${var.name}-tools-allow-redis"
   network            = google_compute_network.vpc.id
@@ -263,7 +285,10 @@ resource "google_compute_firewall" "egress_proxy_deny_private" {
     protocol = "all"
   }
 
-  log_config {
-    metadata = "INCLUDE_ALL_METADATA"
+  dynamic "log_config" {
+    for_each = var.firewall_logs_enabled ? [1] : []
+    content {
+      metadata = "INCLUDE_ALL_METADATA"
+    }
   }
 }

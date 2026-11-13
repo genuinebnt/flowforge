@@ -13,77 +13,29 @@ import (
 	"net/netip"
 	"net/smtp"
 	neturl "net/url"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/genuinebnt/flowforge/alerts"
 	"github.com/genuinebnt/flowforge/scope"
+	"github.com/genuinebnt/flowforge/services/internal/platform"
 )
 
-// Secrets resolves secret references (spec 15.4 "sm://..."). Values never
+// Secrets resolves the secret references of channel configs (spec 15.4
+// "sm://..."): platform.Secrets, wired in cmd as platform.LocalSecrets
+// (env://, file://) plus the Secret Manager adapter for sm://. Values never
 // leave the process except to the channel they belong to.
-type Secrets interface {
-	Resolve(ctx context.Context, ref string) ([]byte, error)
-}
+type Secrets = platform.Secrets
 
-// ErrSecretRef reports an unsupported or unknown reference.
-var ErrSecretRef = errors.New("notifier: cannot resolve secret reference")
-
-// EnvSecrets resolves "env://NAME" through Getenv (injected by cmd) and
-// "file:///path" from the filesystem. "sm://" (Secret Manager) is future
-// work and fails closed.
-type EnvSecrets struct{ Getenv func(string) string }
-
-// Resolve implements Secrets.
-func (e EnvSecrets) Resolve(_ context.Context, ref string) ([]byte, error) {
-	switch {
-	case strings.HasPrefix(ref, "env://") && e.Getenv != nil:
-		if v := e.Getenv(strings.TrimPrefix(ref, "env://")); v != "" {
-			return []byte(v), nil
-		}
-	case strings.HasPrefix(ref, "file://"):
-		b, err := os.ReadFile(strings.TrimPrefix(ref, "file://"))
-		if err == nil {
-			return bytes.TrimSpace(b), nil
-		}
-	}
-	return nil, fmt.Errorf("%w: %q", ErrSecretRef, ref)
-}
+// ErrSecretRef reports an unsupported or malformed reference.
+var ErrSecretRef = platform.ErrSecretRef
 
 // MapSecrets is an in-memory Secrets (tests and the dev stack).
-type MapSecrets struct {
-	mu sync.Mutex
-	m  map[string][]byte
-}
+type MapSecrets = platform.MemSecrets
 
 // NewMapSecrets returns a resolver over m.
-func NewMapSecrets(m map[string]string) *MapSecrets {
-	s := &MapSecrets{m: map[string][]byte{}}
-	for k, v := range m {
-		s.m[k] = []byte(v)
-	}
-	return s
-}
-
-// Set stores a secret.
-func (s *MapSecrets) Set(ref, value string) {
-	s.mu.Lock()
-	s.m[ref] = []byte(value)
-	s.mu.Unlock()
-}
-
-// Resolve implements Secrets.
-func (s *MapSecrets) Resolve(_ context.Context, ref string) ([]byte, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if v, ok := s.m[ref]; ok {
-		return v, nil
-	}
-	return nil, fmt.Errorf("%w: %q", ErrSecretRef, ref)
-}
+func NewMapSecrets(m map[string]string) *MapSecrets { return platform.NewMemSecrets(m) }
 
 // Message is one delivery's content.
 type Message struct {

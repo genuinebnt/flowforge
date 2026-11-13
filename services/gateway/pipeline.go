@@ -217,7 +217,9 @@ func checkCSRF(r *http.Request) error {
 
 func writeErrorRaw(w http.ResponseWriter, e *apiError, reqID string) {
 	h := w.Header()
-	if e.Status == http.StatusTooManyRequests {
+	// 429 always carries Retry-After (12.1); other statuses only when the
+	// cause named a delay (an unreachable rate limiter's 503, RetryInfo).
+	if e.Status == http.StatusTooManyRequests || e.RetryAfter > 0 {
 		h.Set("Retry-After", strconv.Itoa(identity.RetrySeconds(e.RetryAfter)))
 	}
 	writeJSONRaw(w, e.Status, e.body(reqID))

@@ -60,7 +60,8 @@ func Scope(env *Env, o ScopeOptions) (*Component, scopesvc.Repo) {
 		repo = &scopesvc.PgRepo{DB: env.DB}
 	}
 	srv := scopesvc.NewServer(scopesvc.Options{Repo: repo, Resolver: o.Resolver, Clock: env.Clock, Logger: env.Logger, Metrics: env.Metrics})
-	c := &Component{Register: func(g *grpc.Server) { pb.RegisterScopeServiceServer(g, srv) }, Ready: repo.Ping}
+	c := &Component{Register: func(g *grpc.Server) { pb.RegisterScopeServiceServer(g, srv) }, Ready: repo.Ping,
+		Run: []func(context.Context) error{srv.ActivationLoop(0)}}
 	if env.Bus != nil {
 		c.Run = append(c.Run, relayLoop(env, repo.Outbox()))
 	}

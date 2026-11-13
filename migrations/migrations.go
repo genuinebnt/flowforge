@@ -146,6 +146,7 @@ func ApplyReport(ctx context.Context, db Beginner) ([]Result, error) {
 		return nil, fmt.Errorf("migrations: create schema_migrations: %w", err)
 	}
 	results := make([]Result, 0, len(all))
+	resync := false
 	for _, m := range all {
 		var res Result
 		err := inTx(ctx, db, func(tx pgx.Tx) error {
@@ -157,8 +158,84 @@ func ApplyReport(ctx context.Context, db Beginner) ([]Result, error) {
 			return results, fmt.Errorf("migrations: %s: %w", m.File(), err)
 		}
 		results = append(results, res)
+		// 0018 secures what exists when it runs; a later file's new tables
+		// need the same pass (FORCE RLS, policies, grants) before any
+		// service uses them.
+		resync = resync || (res.Changed && res.Status == StatusApplied && m.Version > rolesVersion)
+	}
+	if resync {
+		if err := SyncRoles(ctx, db); err != nil {
+			return results, err
+		}
 	}
 	return results, nil
+}
+
+// Deploy is what the migrations job (cmd/migrate, spec 17.1 ff-migrate)
+// runs: ApplyReport, then SyncRoles, then a RoleProblems check that fails
+// with ErrRoleProblems when any service role is over-privileged (for
+// example still in cloudsqlsuperuser because the migrator could not revoke
+// it): a deploy must not continue with roles that defeat the per-schema
+// grants.
+func Deploy(ctx context.Context, db Beginner) ([]Result, error) {
+	res, err := ApplyReport(ctx, db)
+	if err != nil {
+		return res, err
+	}
+	if err := SyncRoles(ctx, db); err != nil {
+		return res, err
+	}
+	problems, err := RoleProblems(ctx, db)
+	if err != nil {
+		return res, err
+	}
+	if len(problems) > 0 {
+		return res, fmt.Errorf("%w: %s", ErrRoleProblems, strings.Join(problems, "; "))
+	}
+	return res, nil
+}
+
+// rolesVersion is the migration that defines public.ff_sync_roles.
+const rolesVersion = 18
+
+// ErrRoleProblems reports a service role with more privilege than its own
+// schema needs (see RoleProblems).
+var ErrRoleProblems = errors.New("migrations: service database roles are over-privileged")
+
+// SyncRoles re-runs public.ff_sync_roles() (migration 0018, spec 10.7 and
+// 17.2): it creates the missing service roles (NOLOGIN), forces row-level
+// security with the tenant, parent and role-scoped policies on every
+// tenant-scoped table and partition, grants each role its own schema only,
+// revokes PUBLIC, and removes the roles from cloudsqlsuperuser where that
+// role exists. Idempotent; cmd/migrate calls it after every Apply.
+func SyncRoles(ctx context.Context, db Beginner) error {
+	if err := inTx(ctx, db, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `SELECT public.ff_sync_roles()`)
+		return err
+	}); err != nil {
+		return fmt.Errorf("migrations: sync roles: %w", err)
+	}
+	return nil
+}
+
+// RoleProblems lists, as "role: problem" lines, every service role that is
+// a superuser, has BYPASSRLS, CREATEROLE or CREATEDB, is still a member of
+// cloudsqlsuperuser, or owns a service table (public.ff_role_problems).
+// An empty list means the roles hold exactly what SyncRoles granted.
+func RoleProblems(ctx context.Context, db Beginner) ([]string, error) {
+	var out []string
+	err := inTx(ctx, db, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT public.ff_role_problems()`)
+		if err != nil {
+			return err
+		}
+		out, err = pgx.CollectRows(rows, pgx.RowTo[string])
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("migrations: role problems: %w", err)
+	}
+	return out, nil
 }
 
 // applyOne runs inside a transaction that holds the migration lock.

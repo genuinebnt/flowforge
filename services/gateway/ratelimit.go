@@ -14,11 +14,18 @@ import (
 	"github.com/genuinebnt/flowforge/services/gateway/identity"
 )
 
+// limiterRetry is the Retry-After sent when the limiter cannot be reached:
+// short, since a Redis failover takes seconds, but long enough that
+// clients following it do not hammer a recovering store.
+const limiterRetry = 2 * time.Second
+
 // rateLimit charges the request against rl:api:<tenant>:<route class>
 // (spec 14.3; unauthenticated callers are keyed by client IP) and sets
-// the RateLimit headers of spec 12.1. A limiter failure is logged and the
-// request admitted: the API limit protects the platform, and failing
-// closed on a cache outage would take the whole API down.
+// the RateLimit headers of spec 12.1. A limiter failure denies the request
+// with 503 UNAVAILABLE and Retry-After (spec 2.4 "an unreachable ... rate
+// limiter means deny"; 11.8 maps UNAVAILABLE to 503 "retry with backoff").
+// It is not 429: the caller did not exceed anything, and 429 would charge
+// the outage to the client's quota in its own accounting (G-LIM-01).
 func (s *Server) rateLimit(c *call) error {
 	if c.rt.class == "" {
 		return nil
@@ -35,8 +42,9 @@ func (s *Server) rateLimit(c *call) error {
 	}
 	res, err := s.cfg.Limiter.Take(c.ctx, limiter.APIKey(subject, c.rt.class), p, 1)
 	if err != nil {
-		s.cfg.Log.WarnContext(c.ctx, "gateway: rate limiter unavailable", "err", err)
-		return nil
+		s.cfg.Log.WarnContext(c.ctx, "gateway: rate limiter unavailable; denying", "err", err)
+		return &apiError{Status: http.StatusServiceUnavailable, Reason: core.ReasonUnavailable,
+			Message: "rate limiter unavailable; retry later", RetryAfter: limiterRetry}
 	}
 	h := c.w.Header()
 	h.Set("RateLimit-Limit", strconv.Itoa(p.Burst))

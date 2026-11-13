@@ -52,16 +52,19 @@ func notFound(err error) error {
 	return err
 }
 
-// CurrentVersion implements engine.Scope.
+// CurrentVersion implements engine.Scope: the version in effect now
+// (GetScope version 0), which is what a run is pinned to at submission. It
+// is not Program.current_version, the latest published version, which may
+// be future-dated (spec 4.1 effective_from; G-CORE-01).
 func (c *Client) CurrentVersion(ctx context.Context, tenant, program core.UUID) (int32, error) {
-	p, err := c.C.GetProgram(platform.AsService(ctx, tenant, c.Service), &pb.GetProgramRequest{ProgramId: convert.ID(core.PrefixProgram, program)})
+	v, err := c.C.GetScope(platform.AsService(ctx, tenant, c.Service), &pb.GetScopeRequest{ProgramId: convert.ID(core.PrefixProgram, program)})
 	if err != nil {
 		return 0, notFound(err)
 	}
-	if p.GetCurrentVersion() == 0 {
+	if v.GetVersion() == 0 {
 		return 0, fmt.Errorf("%w: program has no scope document", engine.ErrNotFound)
 	}
-	return p.GetCurrentVersion(), nil
+	return v.GetVersion(), nil
 }
 
 // Policy implements engine.Scope: the version's document compiled locally

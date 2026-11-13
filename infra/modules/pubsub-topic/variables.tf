@@ -78,3 +78,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "topic_retention_enabled" {
+  description = "Retain messages on the topics themselves (topic_retention, dead_letter_retention). Topic retention is billed as message storage (see the Pub/Sub pricing page). lab: false; subscriptions still keep undelivered messages, dead letters included, for subscription_retention / dead_letter_retention."
+  type        = bool
+  default     = true
+}

@@ -9,8 +9,32 @@ variable "project_number" {
 }
 
 variable "env" {
-  description = "dev or prod (matches the env field of log lines and the env metric label)."
+  description = "Environment name (dev, prod or lab): display names, severity, and the env field of log lines unless log_env is set."
   type        = string
+}
+
+variable "log_env" {
+  description = "Value of the env field in the services' log lines (FF_ENV) when it differs from env; the lab runs FF_ENV=prod."
+  type        = string
+  default     = null
+}
+
+variable "alert_policies_enabled" {
+  description = "Create the SLO and dead-letter alert policies. Alerting policies and the Managed Prometheus samples they read may be billed; check the Cloud Monitoring pricing page. lab: false."
+  type        = bool
+  default     = true
+}
+
+variable "log_metrics_enabled" {
+  description = "Create the log-based metrics ff_scope_denials and ff_approvals (user-defined log-based metrics are chargeable Monitoring metrics). lab: false."
+  type        = bool
+  default     = true
+}
+
+variable "budget_pubsub_topic" {
+  description = "Optional Pub/Sub topic (projects/<p>/topics/<t>) that receives every budget notification (budget-shutdown module)."
+  type        = string
+  default     = null
 }
 
 variable "notification_emails" {

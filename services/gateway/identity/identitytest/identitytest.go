@@ -34,6 +34,9 @@ type Fixture struct {
 type Options struct {
 	Store  identity.Store // default: a new MemStore
 	Limits identity.Limits
+	// LimiterFactory backs the auth throttles (default: in-process GCRA);
+	// tests inject a failing one to prove the throttles fail closed.
+	LimiterFactory identity.LimiterFactory
 }
 
 // CountingHasher wraps auth.Hasher with weak (fast) parameters and counts
@@ -89,7 +92,7 @@ func New(t testing.TB, clock core.Clock, opt Options) *Fixture {
 	}
 	h := &CountingHasher{Hasher: weak, verifies: make(chan struct{}, 1<<16)}
 	rev := identity.NewMemRevocations(clock)
-	lim := identity.NewRateLimiter(nil, clock)
+	lim := identity.NewRateLimiter(opt.LimiterFactory, clock)
 	email := &identity.MemEmailSender{}
 	svc, err := identity.New(identity.Config{
 		Store: st, Keys: keys, Revocations: rev, Limiter: lim, Lockouts: auth.NewInMemoryLockoutStore(),

@@ -170,6 +170,13 @@ resource "google_cloud_run_v2_service" "this" {
   }
 
   lifecycle {
+    # INGRESS_TRAFFIC_ALL (no load balancer) is the lab gateway's run.app
+    # entry point; infra/policy also restricts it to env=lab.
+    precondition {
+      condition     = var.ingress != "INGRESS_TRAFFIC_ALL" || var.name == "gateway"
+      error_message = "Only the gateway may use INGRESS_TRAFFIC_ALL."
+    }
+
     # Images are rolled forward by .github/workflows/deploy.yml by digest
     # with a 10% -> 100% traffic split; Terraform sets the initial digest and
     # owns everything else.

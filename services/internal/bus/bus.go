@@ -1,13 +1,19 @@
 // Package bus is the event bus of the internal services (spec 3.2, 11.7,
-// 23.7): the Bus port, an in-process implementation with at-least-once
-// delivery, redelivery on handler error and dead-lettering after N
-// attempts, the outbox relay that publishes each service's outbox table,
-// and the processed_events inbox consumers use for idempotency.
+// 23.7): the Bus port and its adapters, the outbox relay that publishes
+// each service's outbox table, and the processed_events inbox consumers
+// use for idempotency.
 //
-// A Google Pub/Sub adapter is out of scope (no SDK in this module); it
-// would implement Bus with one subscription per (topic, consumer), the
-// envelope's ordering key and traceparent as attributes, and the
-// subscription's dead-letter policy. See services/README.md.
+// Adapters, selected by FF_BUS (see services/README.md, "Profiles"):
+//
+//   - Mem: in process, for one-process runs (flowforge dev, tests).
+//   - PgBus: Postgres tables plus LISTEN/NOTIFY (migration 0016), for
+//     several local processes sharing one database.
+//   - pubsubbus.Bus: Google Pub/Sub (GCP; the emulator or pstest locally).
+//
+// All three promise at-least-once delivery, redelivery on handler error,
+// dead-lettering to <topic>.dead-letter after a bounded number of attempts
+// and ordering per OrderingKey; bustest.Run checks each against that
+// contract. Consumers de-duplicate on event_id through an Inbox.
 package bus
 
 import (

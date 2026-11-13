@@ -156,8 +156,9 @@ public endpoints keyed by client IP as `rl:api:ip/<ip>:<class>`), GCRA
 parameters per tenant plan (`Config.Plans`, plan read from
 `identity.tenants.plan`, cached 1 min). Every limited response carries
 `RateLimit-Limit` (burst), `RateLimit-Remaining`, `RateLimit-Reset`
-(seconds to a full bucket); 429 adds `Retry-After`. Probes and JWKS are
-not limited.
+(seconds to a full bucket); 429 adds `Retry-After`. An unreachable
+limiter denies with `503 unavailable` and `Retry-After` (spec 2.4, fail
+closed). Probes and JWKS are not limited.
 
 ## Tests
 

@@ -132,7 +132,7 @@ func Migrate(ctx context.Context, getenv func(string) string) error {
 		return err
 	}
 	defer pool.Close()
-	res, err := migrations.ApplyReport(ctx, pool)
+	res, err := migrations.Deploy(ctx, pool)
 	for _, r := range res {
 		fmt.Printf("%s %s\n", r.Migration.File(), r.Status)
 	}
