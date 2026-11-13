@@ -1,8 +1,11 @@
 # Flowforge v2 roadmap (`feat_v2`)
 
-v1 implements the whole specification except the agent step. v2 closes the
-biggest gaps v1 left and adds content change monitoring. Each track is also
-chosen for what you learn by building it:
+v1 implements the specification's modules except the agent step, with the
+remaining gaps recorded in `docs/GAPS.md`. This roadmap proposed four
+tracks for v2: closing the biggest gaps v1 left and adding content change
+monitoring. Each track was also chosen for what you learn by building it.
+**Not all of it was built in v2**; the status table below says what was,
+and the rest rolls into v3 (`docs/ROADMAP_V3.md` T10):
 
 | Track | Closes this v1 gap | You learn |
 |---|---|---|
@@ -12,6 +15,24 @@ chosen for what you learn by building it:
 | **D. Content capture, change diffs and diff search** | The graph records *that* a URL exists, not *what it serves* or how that changes; there is no way to ask "what changed in this program's JavaScript this week?" | HTML parsing, JavaScript lexing, diff algorithms, noise-robust normalization, inverted and trigram indexes, ranking |
 
 The agent step stays deferred (`docs/DECISIONS.md` D1).
+
+## Status of the v2 build
+
+| Milestone | Status | Where |
+|---|---|---|
+| A1 sandbox runtime | **carried to v3** | ROADMAP_V3 T10 |
+| A2 external-tool adapter framework, A4 httpx and subfinder | **carried to v3** | ROADMAP_V3 T10 |
+| A3 passive intelligence adapters | **built**: `ctlog`, `rdap`, `asn`, plus `tlscert`, `portscan` and the extended `dnsresolve`, all through the egress proxy | `services/toolrunner`, spec Part II 36.1 |
+| A5 attack lab | **partly built**: the in-process lab (TLS, HTTP, authoritative DNS, in- and out-of-scope hosts) and the content-monitoring acceptance test; the recon workflow with real tools, rebinding and slow-loris targets is v3 | `services/internal/lab`, spec Part II 38 |
+| B1-B6 distributed systems | **carried to v3** | ROADMAP_V3 T10 |
+| C0-C5 performance engineering | **carried to v3** (the v2 packages ship comparative `*Algo` benchmarks and baselines, not the C0 tooling) | ROADMAP_V3 T10 |
+| D1-D5 content capture, diffs, search | **built**, as redesigned by `docs/V2_DESIGN.md` and specified normatively in spec Part II (sections 26-41) | track D below |
+| D6 headless rendering | **carried to v3** | ROADMAP_V3 T10 |
+| Egress gap fixes (CONNECT any port, SOCKS5, DNS forwarder, per-target GCRA, intel allowlist) | **built** (not a milestone of this roadmap; V2_DESIGN §9) | `services/egressproxy`, spec Part II 35 |
+
+Open v2 items (re-derive jobs; the content service's Cloud Storage backend
+and Terraform, in progress on `feat_v2`) are rows of `docs/GAPS.md`
+(G-CST-*).
 
 ## How every milestone is delivered
 
@@ -50,7 +71,10 @@ Checked on the development machine:
 
 ## Track A — Real tools and a sandbox
 
-### A1. Sandbox runtime (`sandbox` package)
+**Status:** A3 built, A5 partly built (the content lab), A1, A2 and A4
+carried to v3.
+
+### A1. Sandbox runtime (`sandbox` package; carried to v3)
 
 Run a binary with no ambient authority: no host filesystem, no network
 except the egress proxy, no privileges, bounded resources, killed on
@@ -81,7 +105,7 @@ deadline or cancel.
 * *Read:* nsjail and bubblewrap sources; the user-namespace and seccomp man
   pages; "gVisor: a container sandbox" (design docs).
 
-### A2. External-tool adapter framework
+### A2. External-tool adapter framework (carried to v3)
 
 * A declarative `BinaryTool` spec: binary path and pinned SHA-256 (spec 6.2
   `image@sha256`), argument template, input mode (stdin or file, one
@@ -94,7 +118,7 @@ deadline or cancel.
   stored as a blob with `raw_ref` (spec 6.1), never shown to the model or
   user directly.
 
-### A3. Passive intelligence adapters (pure Go, through the proxy)
+### A3. Passive intelligence adapters (pure Go, through the proxy; built)
 
 * **Certificate transparency** (crt.sh JSON): `TLSCertificate` entities
   plus `common_name` and `san_dns_name` edges to `FQDN`.
@@ -106,7 +130,7 @@ deadline or cancel.
 * Unit tests replay recorded responses (fixtures in `testdata/`). Live
   tests run only behind an explicit flag.
 
-### A4. Wrapping real binaries
+### A4. Wrapping real binaries (carried to v3)
 
 * `httpx` and `subfinder` (ProjectDiscovery, JSONL output) run inside the
   A1 sandbox. A script downloads them and verifies their checksums. Golden
@@ -114,7 +138,7 @@ deadline or cancel.
 * The spec 7.1 `recon` workflow then runs with the real tool names
   (`subfinder`, `httpx`).
 
-### A5. Attack lab and end-to-end test
+### A5. Attack lab and end-to-end test (partly built)
 
 * A local lab of mock targets: in-process HTTP and TLS servers behind a fake
   DNS server, with in-scope and out-of-scope hosts. It includes redirect
@@ -127,6 +151,8 @@ deadline or cancel.
 ---
 
 ## Track B — Distributed systems
+
+**Status:** carried to v3 (ROADMAP_V3 T10).
 
 ### B1. Worker membership and rendezvous claiming in the engine
 
@@ -192,6 +218,8 @@ deadline or cancel.
 
 ## Track C — Performance engineering
 
+**Status:** carried to v3 (ROADMAP_V3 T10).
+
 ### C0. Measurement tooling (do first)
 
 * `xtask bench-module --count 10` with median and confidence intervals,
@@ -256,130 +284,106 @@ deadline or cancel.
 
 ## Track D — Content capture, change diffs and diff search
 
+**Status: D1-D5 built; D6 carried to v3.** The milestones below were
+redesigned by `docs/V2_DESIGN.md` before they were built, and the result is
+specified normatively in spec Part II (`docs/flowforge-spec.html`, sections
+26-41). This section keeps the goals and the reading lists and says what
+was built; where the original plan differed, the built design is the one
+described here.
+
 The goal: every time a workflow fetches a page or script, keep what it
 served, compute what changed since the last capture, turn meaningful
 changes into graph changes and alerts, and make the history of changes
 searchable ("new endpoints containing `/admin` since Monday", "where did
 the CSP header disappear", "which bundles started calling `/api/v3`").
 
-### D1. Content store and the collector tool
+### D1. Content store and the collector tool (built)
 
-* **Content-addressed blob store:** bodies are stored once by SHA-256
-  (compressed), so an unchanged page costs nothing to keep. It sits behind
-  the existing `BlobStore` port: local directory and memory now, GCS
-  later.
-* **Snapshot records** (new graph-schema tables, a migration): `(tenant,
-  program, url entity, run, effect path, fetched_at, status, selected
-  headers, mime, body_sha256, size, parent snapshot)`, plus retention
-  rules per program.
-* **The `collect` tool** (active, through the egress proxy, sandboxed once
-  A1 lands): `collect(InScope<Url>) -> Snapshot`. It fetches with redirect
-  re-checks, caps size and time, and follows referenced scripts, styles,
-  source maps and manifests up to a per-run budget, each one scope-checked.
-  It emits `URL` and `File` observations and a `ContentProperty` tag
-  (hash, size, mime) on the entity. The snapshot is the tool's recorded
-  result, so replay is exact without refetching.
-* **DSL surface:** `collect`, plus a pure-data `diff(prev, next)` tool
-  served by the content service. A monitoring workflow is then plain DSL
-  that runs on a Cloud Scheduler trigger:
-  `urls |> par_map(u => collect(scope.check(u)?), limit = 8) |> map(s => diff_latest(s))`.
+* **Chunk store** (`chunkstore`, Part II 31): FastCDC content-defined
+  chunks named by SHA-256, zstd-compressed packfiles (FFPK) with fan-out
+  indexes (FFPI), manifests (FFMF), a ref as the single commit point
+  (FFRF), delta frames (FFZB) and crash-safe GC; one namespace per tenant,
+  no cross-tenant dedupe. Memory, directory and Cloud Storage
+  (`chunkstore/gcsstore`, G-CST-02) backends.
+* **Snapshot records** in their own `content` schema (migration 0031,
+  Part II 34.2), owned by the content service, with validity intervals,
+  retention (last 50 or 180 days per URL and profile, plus pins), quotas
+  and encrypted findings.
+* **The `collect` tool**: `collect(InScope<Url>, String) -> Snapshot`
+  (the string is the capture profile). It fetches through the egress
+  proxy with every redirect hop re-checked, caps the body at 8 MiB, and
+  for a page also captures its scripts, styles and source maps (at most
+  32, each scope-checked). The content service publishes the capture's
+  graph observation; the tool emits none itself (Part II 36.6).
+* **DSL surface**: `collect`, `crawl`, `wellknown`, `extract`,
+  `unpack_sourcemap`, `diff_latest` and `search_changes`, and the
+  standard-library records `Snapshot`, `Features`, `ChangeSet`,
+  `ChangeHit` (Part II 36). The reference monitoring workflow is
+  `conformance/workflows/monitor.ff`.
 
-### D2. Parsers and extraction (`content` package)
+### D2. Parsers and extraction (built, our own parsers)
 
-* **HTML:** parse with `golang.org/x/net/html` (already a dependency; the
-  HTML5 tree-building algorithm is enormous and correctness matters more
-  than reinventing it). Extract links, script and style references, inline
-  scripts, forms (action, method, inputs), meta tags, comments, iframes,
-  and security-relevant headers (CSP, HSTS, CORS) from the snapshot.
-  *Learning option:* write our own HTML **tokenizer** from the WHATWG state
-  machine and differential-test it against `x/net/html`.
-* **JavaScript: our own lexer and a light parser.** This is a real learning
-  piece:
-  * Full ES2023 tokenization: regex-literal versus division ambiguity,
-    template literals with nested `${}`, ASI-relevant newlines, Unicode
-    escapes in identifiers, numeric separators, and hashbang.
-  * A light structural parser on top: string and template literals with
-    their call context, `fetch`/`XMLHttpRequest`/`axios` calls,
-    `import()`, route tables, GraphQL operation strings, `sourceMappingURL`.
-  * Fuzzing for hangs and panics, with a test262 lexer subset as
-    conformance data.
-* **Extracted features become graph data:** new endpoints and paths become
-  `URL` entities; a script becomes a `File` with a `file` edge from its
-  page; library banners become `Product`/`ProductRelease` with
-  `product_used`. The ingest path stays the existing graph store, so dedupe
-  and confidence come for free.
-* **Secret and leak detection:** a rule set of named patterns plus entropy
-  checks for keys and tokens in bundles. Findings are `VulnProperty` tags
-  marked as hypotheses until verified (spec 16.1 fact/hypothesis rule).
+* The plan to parse HTML with `golang.org/x/net/html` was replaced by the
+  brief's rule that every parser is our own explicit state machine:
+  `htmlparse` (WHATWG tokenizer and tree construction, x/net/html as a
+  test-only oracle), `jsparse` (a full ECMAScript 2024 lexer and parser,
+  not a light one), `cssparse`, `xmlparse` (+ sitemaps), `sourcemap`,
+  `wellknown`, `codec`, `dnsmsg`, `socks5` (Part II 29).
+* **Extraction** (`content`, Part II 33.6): links, scripts, styles,
+  frames, forms, endpoints from JS calls and literals, GraphQL operations,
+  source maps, libraries, security headers, robots, security.txt,
+  sitemaps, OpenAPI and GraphQL schemas, secrets and source disclosure.
+  Features become oam observations with coverage-gated authority
+  (Part II 28.4).
+* **Secrets**: named structured rules, entropy only as a low-confidence
+  tier, redaction before storage and indexing, findings encrypted per
+  tenant (Part II 33.7, 34.4).
 
-### D3. Diff engine (`diff` package)
+### D3. Diff engine (built)
 
-* **Algorithms from scratch:** Myers O(ND) (with the linear-space
-  divide-and-conquer refinement), patience diff and histogram diff, with
-  hunks, context and unified-diff rendering. Each is property-tested:
-  applying the edit script to the old text gives the new text, edit
-  distance is minimal for Myers, and two diffs agree on the edit-distance
-  bound.
-* **Noise-robust normalization before diffing.** Most raw diffs of web
-  content are noise, so:
-  * HTML is compared as a normalized token or DOM text stream, not bytes.
-  * Minified JS is diffed on its token stream, re-printed one statement
-    per line.
-  * Volatile values are masked: nonces, CSRF tokens, timestamps,
-    cache-busting hashes in file names, and session ids. This uses rules
-    plus learned masks, where a token that changes on every capture of an
-    unchanged page is marked volatile.
-* **Three levels of change, each a different signal:**
-  1. hash changed (cheap, always);
-  2. text or token hunks (what a human reads);
-  3. **semantic changes**: the set difference of extracted features (new or
-     removed endpoint, form, parameter, script, header, library version).
-     These are what drive alerts and graph changes.
-* *Optional stretch:* tree diff for the DOM (Zhang–Shasha, or a
-  GumTree-style matcher) to report moved and edited elements rather than
-  line hunks.
+* `diff`: Myers (linear space and greedy), patience, histogram and an
+  O(NM) reference, hunks, git-compatible unified rendering, side by side,
+  JSON structural diff (RFC 6902) and Zhang–Shasha tree diff, with the
+  edit-distance and input-size bounds and recorded fallbacks of
+  Part II 30.
+* **Noise-robust normalization**: versioned normalizers with rule-table
+  hashes, volatile masking and learned volatility that never masks a
+  feature path (Part II 33.3, 33.4).
+* **Three levels of change** (hash, text, semantic) plus outcome, class,
+  newness, cause, baseline and a ranking-only score (Part II 33.10,
+  33.11). Module-level lineage (level 2.5) makes reordered bundles no
+  change.
 
-### D4. Change events, alerts and the pipeline
+### D4. Change events, alerts and the pipeline (built)
 
-* New change-event types in `graph.change_events` (migration):
-  `content_changed`, `endpoint_added`, `endpoint_removed`,
-  `header_changed`, `secret_suspected`, carrying a compact patch and a
-  pointer to the stored diff.
-* The alert language gains a `diff` variable (`diff.kind`, `diff.added`,
-  `diff.removed`, `diff.url`, `diff.feature`), so rules like
-  `alert new_admin_route when diff.kind == "endpoint_added" && diff.added
-  contains "/admin"` work with the existing throttle, digest and dedupe.
-* Monitoring as a scheduled workflow, with per-program schedules and the
-  existing idempotency (`schedule:<id>:<fire time>`), rate limits and
-  scope checks.
+* Graph change events `content_changed` and `tag_changed` (migration
+  0030, Part II 28.5). Level-3 kinds such as `endpoint_added` are
+  content-change kinds, not graph event types.
+* The alert language gains a `diff` variable (`diff.kinds`,
+  `diff.changes`, `diff.url`, `diff.class`, `diff.alertable`, ...;
+  Part II 36.5); the score is deliberately not addressable.
+* Monitoring is the scheduled `monitor.ff` workflow with the existing
+  idempotency, rate limits and scope checks; the §10 lab acceptance
+  (Part II 38) runs it end to end.
 
-### D5. Search over change history (`textindex` package)
+### D5. Search over change history (built)
 
-* **An inverted index built from scratch:** tokenization tuned for code and
-  URLs (split on case, punctuation and path segments, keeping originals),
-  delta- and varint-compressed posting lists, an immutable segment format
-  with checksums, and segment merging. It follows the shape of
-  `vecindex`'s segments, so the two can share ideas.
-* **Query types:**
-  * term and phrase queries with BM25 ranking;
-  * filters for program, time range, URL prefix, change kind (added or
-    removed) and feature type;
-  * **regex search with a trigram prefilter**, as in Google Code Search: a
-    regex compiles to a trigram AND/OR query, candidates come from the
-    trigram index, and exact matching runs on survivors.
-* **Hybrid search:** lexical results fused with `vecindex` semantic results
-  through the existing RRF (spec 22.6). Each diff hunk is embedded as it is
-  indexed.
-* Postgres keeps the system of record (`pg_trgm` covers the simple cases).
-  The custom index is the fast path and the learning piece, and it can
-  always be rebuilt from stored diffs.
-* REST: `GET /v1/programs/{pid}/changes/search?q=...&kind=added&since=...`,
-  `GET /v1/snapshots/{id}`, `GET /v1/snapshots/{a}/diff/{b}`.
+* `textindex` (Part II 32): an analyzer for code and URLs, FFTX segments
+  with skip lists and doc values, tombstones and size-tiered merges, a
+  specified query language, BM25 ranking and regex search through a
+  trigram prefilter. One index per (tenant, program), rebuilt from the
+  stored diffs when lost.
+* Hybrid search with `vecindex` (RRF) is implemented in the library but
+  not enabled: it ships only when it is at least as good as BM25 on the
+  labelled set (Part II 34.7).
+* REST: `GET /v1/changes/search?program_id=...&q=...`,
+  `GET /v1/changes/first-appeared`, `GET /v1/snapshots/{id}`,
+  `GET /v1/snapshots/{a}/diff/{b}` (Part II 37.2).
 * *Read:* "Introduction to Information Retrieval" (chapters 1–6); Russ Cox,
   "Regular Expression Matching with a Trigram Index"; Lucene's segment and
   merge design.
 
-### D6. Rendering single-page apps (stretch, after A1)
+### D6. Rendering single-page apps (stretch, after A1; carried to v3)
 
 * Pages that build their content in JavaScript need a browser. Run headless
   Chromium inside the A1 sandbox with all traffic forced through the egress
@@ -388,10 +392,12 @@ the CSP header disappear", "which bundles started calling `/api/v3`").
   is the most dangerous tool in the project, which is why it comes only
   after the sandbox and the attack lab.
 
-## Suggested order
+## Suggested order (as planned)
 
-Tracks are interleaved so that each step builds on finished work and every
-week ends with something measurable:
+The order originally proposed; the v2 build did track D, A3 and the egress
+fixes, and the rest moves to v3 (status table above). Tracks are
+interleaved so that each step builds on finished work and every week ends
+with something measurable:
 
 1. **C0** measurement tooling (small; every later milestone uses it)
 2. **A1** sandbox runtime

@@ -1,0 +1,173 @@
+{
+ "id": "gs_005",
+ "description": "content_changed on the store (V2 3.4, 12.2-12.4): RecordContentChange appends one content_changed event for the entity (patch normalized: levels in hash, text, semantic order, cause defaulted to target, score features sorted by name); an identical repeat returns the same event (same id and seq) and appends nothing; an invalid patch (score above 1, or snapshot_from equal to snapshot_to) is INVALID_ARGUMENT. Graph state and as-of reads are unchanged by content changes.",
+ "order_dependent": true,
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "p1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-p1",
+    "tool": {
+     "name": "collect",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/app"
+      }
+     }
+    ],
+    "edges": []
+   }
+  },
+  {
+   "content_change": {
+    "entity": "url:https://acme.com/app",
+    "run_id": "r-mon",
+    "at": "2026-11-12T10:05:00Z",
+    "patch": {
+     "snapshot_from": "snp_a",
+     "snapshot_to": "snp_b",
+     "diff_id": "dif_1",
+     "levels": [
+      "semantic",
+      "hash",
+      "text"
+     ],
+     "summary": {
+      "endpoints_added": 1
+     },
+     "cause": "",
+     "class": "semantic_endpoint",
+     "score": 0.5,
+     "score_features": [
+      {
+       "name": "word_admin",
+       "weight": 0.25
+      },
+      {
+       "name": "new_endpoint",
+       "weight": 0.25
+      }
+     ]
+    }
+   }
+  },
+  {
+   "content_change": {
+    "entity": "url:https://acme.com/app",
+    "run_id": "r-mon",
+    "at": "2026-11-12T10:05:00Z",
+    "patch": {
+     "snapshot_from": "snp_a",
+     "snapshot_to": "snp_b",
+     "diff_id": "dif_1",
+     "levels": [
+      "semantic",
+      "hash",
+      "text"
+     ],
+     "summary": {
+      "endpoints_added": 1
+     },
+     "cause": "",
+     "class": "semantic_endpoint",
+     "score": 0.5,
+     "score_features": [
+      {
+       "name": "word_admin",
+       "weight": 0.25
+      },
+      {
+       "name": "new_endpoint",
+       "weight": 0.25
+      }
+     ]
+    },
+    "repeat": true
+   }
+  },
+  {
+   "content_change": {
+    "entity": "url:https://acme.com/app",
+    "at": "2026-11-12T10:06:00Z",
+    "error": "invalid_argument",
+    "patch": {
+     "snapshot_to": "snp_c",
+     "levels": [
+      "hash"
+     ],
+     "cause": "target",
+     "score": 1.5
+    }
+   }
+  },
+  {
+   "content_change": {
+    "entity": "url:https://acme.com/app",
+    "at": "2026-11-12T10:07:00Z",
+    "error": "invalid_argument",
+    "patch": {
+     "snapshot_from": "snp_c",
+     "snapshot_to": "snp_c",
+     "levels": [
+      "hash"
+     ],
+     "cause": "target",
+     "score": 0
+    }
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://acme.com/app",
+    "state": "active",
+    "tags": []
+   }
+  ],
+  "edges": [],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/app"
+   },
+   {
+    "type": "content_changed",
+    "entity": "url:https://acme.com/app"
+   }
+  ]
+ },
+ "as_of": [
+  {
+   "after_step": 1,
+   "entities": [
+    {
+     "key": "url:https://acme.com/app",
+     "exists": true,
+     "state": "active",
+     "tags": []
+    }
+   ]
+  },
+  {
+   "after_step": 5,
+   "entities": [
+    {
+     "key": "url:https://acme.com/app",
+     "exists": true,
+     "state": "active",
+     "tags": []
+    }
+   ]
+  }
+ ]
+}

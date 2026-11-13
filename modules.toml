@@ -175,10 +175,12 @@ bench = ["BenchmarkVM01", "BenchmarkCompile"]
 
 [module.graphstore]
 layer = 4
-spec = ["5.7", "5.9", "10.5", "11.6"]
+spec = ["5.7", "5.9", "10.5", "11.6", "V2_DESIGN 3.4", "Part II 28"]
 dir = "graphstore"
 depends = ["core", "oam", "scope", "csr"]
-tests = { prefix = "Graph", required = [] }
+# gs_NNN cases in conformance/graphstore (G-SPEC-07), run on Mem and on Postgres.
+tests = { prefix = "Graph", required = ["001", "002", "003", "004", "005", "006"] }
+conformance = ["graphstore", "oam/merge"]
 bench = ["BenchmarkSys01"]
 
 [module.sim]

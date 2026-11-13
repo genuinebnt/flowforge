@@ -4,8 +4,10 @@ Flowforge is a durable workflow engine with a typed DSL, a bytecode VM and
 scope-enforced tool execution. Sentinel, its asset graph, follows the
 OWASP Amass Open Asset Model. This repository is the Go reference
 implementation of the specification in
-[`docs/flowforge-spec.html`](docs/flowforge-spec.html). A plain-text copy
-with stable line numbers is in [`docs/spec.txt`](docs/spec.txt).
+[`docs/flowforge-spec.html`](docs/flowforge-spec.html): Part I (sections
+1-25) is v1, Part II (sections 26-41) is v2, content capture, change diffs
+and diff search. A plain-text copy with stable line numbers is in
+[`docs/spec.txt`](docs/spec.txt).
 
 A program's scope bounds everything. No tool touches a target unless the
 scope service allowed that exact normalized target, the decision is
@@ -66,8 +68,56 @@ architecture rules.
 | Placement | `placement`: rendezvous and consistent hashing, heartbeat membership | 23.3 |
 | Simulation | `sim`: deterministic fault-injection cluster plus the inv_01–inv_11 checker | 23.8, 25.7 |
 | Contracts | `proto/` (gRPC, generated into `gen/`), `migrations/sql/` (Postgres schema) | 10, 11 |
-| Services | `services/*`, `cmd/*`: gateway (REST and identity), scope, engine, tool-runner (dnsresolve, httpprobe, tcpconnect, mock), egress proxy, graph and analytics, similarity, notifier, event bus with outbox relay | 3, 6, 11, 12, 15 |
+| Services | `services/*`, `cmd/*`: gateway (REST and identity), scope, engine, tool-runner (v1: dnsresolve, httpprobe, tcpconnect, mock; v2 tools below), egress proxy, graph and analytics, similarity, content, notifier, event bus with outbox relay | 3, 6, 11, 12, 15 |
 | Deployment | `infra/` (Terraform for GCP), `deploy/` (Dockerfile, compose), `.github/workflows/` | 17, 18, 25.11 |
+
+## v2: content capture, change diffs and diff search
+
+v2 (spec Part II; design record [`docs/V2_DESIGN.md`](docs/V2_DESIGN.md),
+status per milestone in [`docs/ROADMAP_V2.md`](docs/ROADMAP_V2.md))
+captures what targets serve, stores every version compactly, computes
+noise-robust diffs, turns meaningful changes into graph changes and
+alerts, and makes the change history searchable. Every parser is our own
+explicit state machine, checked against upstream conformance suites and
+numbered invariants (Part II 39) that the Rust port reimplements.
+
+| Area | Packages | Part II |
+|---|---|---|
+| Parsers and codecs | `htmlparse` (WHATWG HTML), `jsparse` (ECMAScript 2024), `cssparse`, `xmlparse` (+ `sitemap`, DTD-free), `sourcemap`, `wellknown` (robots.txt, security.txt), `codec` (base64/hex/percent/QP/JS strings, bounded inflate, blob sniffing), `dnsmsg`, `socks5` | 29 |
+| Diffs and sketches | `diff` (Myers linear space, patience, histogram, git-compatible unified, JSON patch, tree diff, bounded fallbacks), `sketch` (SimHash, MinHash, LSH) | 30 |
+| Storage | `chunkstore` (FastCDC, zstd packfiles FFPK/FFPI/FFMF/FFRF, delta frames, crash-safe GC; memory, directory and Cloud Storage backends) | 31 |
+| Search | `textindex` (FFTX segments, query language, BM25, regex via trigram prefilter) | 32 |
+| Content pipeline | `content`: capture profiles, sniffing, versioned normalizers, masking and learned volatility, features, coverage-gated authority, lineage across renamed bundles, change classes, scores that rank but never send, redaction | 33 |
+| Content store | `contentstore` (+ `pg`, migration 0031): snapshots with validity intervals, diffs, encrypted findings, retention, quotas, change search | 34 |
+| Graph expansion | `oam`, `graphstore` (migration 0030): Endpoint, v2 relation labels and properties, `tag_changed`, `content_changed`, AsOf reads, commonness | 28 |
+| Egress | `services/egressproxy`: CONNECT on any port, SOCKS5, DNS forwarder, per-target GCRA, intelligence-source allowlist, notify path | 35 |
+| Tools and language | `collect`, `crawl`, `wellknown`, `extract`, `unpack_sourcemap`, `diff_latest`, `search_changes`, `ctlog`, `rdap`, `asn`, `tlscert`, `portscan`, `dnsresolve` 2; DSL records `Snapshot`, `Features`, `ChangeSet`, `ChangeHit`; builtins `base64_*`, `url_*`, `hex_*`; the alert `diff` variable | 36 |
+| API | `ContentService` and `/v1/snapshots`, `/v1/changes/search`, `/v1/changes/first-appeared`, `/v1/content/quota` | 37 |
+
+The reference monitoring workflow is
+[`conformance/workflows/monitor.ff`](conformance/workflows/monitor.ff).
+
+### Lab acceptance test (Part II 38)
+
+The in-process lab (`services/internal/lab`) serves a versioned site
+(`conformance/lab/shop`, six weekly deploys with planted changes and
+noise) over TLS and HTTP with its own authoritative DNS and out-of-scope
+hosts. The acceptance test starts the whole dev stack (engine, tool
+runner, egress proxy, scope, content, graph, notifier), runs `monitor.ff`
+once per deploy and checks the seven items of Part II 38: every deploy
+captured, exactly the planted level-3 changes and no noise, renamed
+bundles linked, each alert once, every change searchable, no
+out-of-scope contact, storage under 25 % of raw.
+
+```bash
+go test ./services/internal/lab/                        # memory stores
+make devpg-up                                           # then export the FF_TEST_PG_DSN it prints
+go test ./services/internal/lab/ -run Postgres          # the same against Postgres
+FF_LAB_DEBUG=1 go test ./services/internal/lab/ -v      # log every baseline and each version's storage
+```
+
+The out-of-scope listener uses 127.0.0.2, so the test needs Linux's
+loopback /8.
 
 Deliberately not implemented: the agent step of spec 16 (see
 [`docs/DECISIONS.md`](docs/DECISIONS.md)). Every library module in

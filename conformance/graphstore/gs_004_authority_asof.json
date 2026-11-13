@@ -1,0 +1,351 @@
+{
+ "id": "gs_004",
+ "description": "Coverage-gated authoritative staleness on the store (V2 3.4): a complete capture of P that no longer links to /old withdraws that links_to edge at once (edge_removed) and /old, with no other support, loses liveness (entity_stale); a later partial capture that reports it again re-adds it (edge_added without base, entity_reactivated) and a failed capture that omits it withdraws nothing. As-of neighbourhoods follow each step; traversals skip the stale edge and entity.",
+ "order_dependent": true,
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "c1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c1",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "D",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/docs"
+      }
+     },
+     {
+      "ref": "O",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/old"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "D",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     },
+     {
+      "from": "P",
+      "to": "O",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "links"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "c2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c2",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T11:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "D",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/docs"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "D",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "links"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "c3",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c3",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T12:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     },
+     {
+      "ref": "O",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/old"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "P",
+      "to": "O",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "links_to"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "partial",
+     "covered_rules": [
+      "links"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "c4",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-c4",
+    "tool": {
+     "name": "extract",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T13:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "failed",
+     "covered_rules": [
+      "links"
+     ]
+    }
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://acme.com/",
+    "state": "active"
+   },
+   {
+    "key": "url:https://acme.com/docs",
+    "state": "active"
+   },
+   {
+    "key": "url:https://acme.com/old",
+    "state": "active"
+   }
+  ],
+  "edges": [
+   {
+    "from": "url:https://acme.com/",
+    "label": "links_to",
+    "to": "url:https://acme.com/docs",
+    "state": "active"
+   },
+   {
+    "from": "url:https://acme.com/",
+    "label": "links_to",
+    "to": "url:https://acme.com/old",
+    "state": "active"
+   }
+  ],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/"
+   },
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/docs"
+   },
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/old"
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/docs"
+    }
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/old"
+    }
+   },
+   {
+    "type": "edge_removed",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/old"
+    }
+   },
+   {
+    "type": "entity_stale",
+    "entity": "url:https://acme.com/old"
+   },
+   {
+    "type": "edge_added",
+    "edge": {
+     "from": "url:https://acme.com/",
+     "label": "links_to",
+     "to": "url:https://acme.com/old"
+    }
+   },
+   {
+    "type": "entity_reactivated",
+    "entity": "url:https://acme.com/old"
+   }
+  ]
+ },
+ "as_of": [
+  {
+   "after_step": 1,
+   "neighbors": [
+    {
+     "key": "url:https://acme.com/",
+     "direction": "out",
+     "depth": 1,
+     "entities": [
+      "url:https://acme.com/ active",
+      "url:https://acme.com/docs active",
+      "url:https://acme.com/old active"
+     ],
+     "edges": [
+      "url:https://acme.com/ links_to url:https://acme.com/docs active",
+      "url:https://acme.com/ links_to url:https://acme.com/old active"
+     ]
+    }
+   ]
+  },
+  {
+   "after_step": 2,
+   "entities": [
+    {
+     "key": "url:https://acme.com/old",
+     "exists": true,
+     "state": "stale"
+    }
+   ],
+   "neighbors": [
+    {
+     "key": "url:https://acme.com/",
+     "direction": "out",
+     "depth": 1,
+     "entities": [
+      "url:https://acme.com/ active",
+      "url:https://acme.com/docs active"
+     ],
+     "edges": [
+      "url:https://acme.com/ links_to url:https://acme.com/docs active"
+     ]
+    }
+   ]
+  },
+  {
+   "after_step": 4,
+   "entities": [
+    {
+     "key": "url:https://acme.com/old",
+     "exists": true,
+     "state": "active"
+    }
+   ],
+   "neighbors": [
+    {
+     "key": "url:https://acme.com/old",
+     "direction": "in",
+     "depth": 1,
+     "entities": [
+      "url:https://acme.com/old active",
+      "url:https://acme.com/ active"
+     ],
+     "edges": [
+      "url:https://acme.com/ links_to url:https://acme.com/old active"
+     ]
+    }
+   ]
+  }
+ ]
+}

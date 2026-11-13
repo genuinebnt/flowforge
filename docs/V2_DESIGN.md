@@ -1,11 +1,14 @@
 # Flowforge v2 design brief: content capture, change diffs, diff search
 
-Status: **normative for the v2 implementation**. It is the contract every v2
-package is built against. When the implementation is complete, this brief
-plus each package's README and OPEN_QUESTIONS are folded into
-`docs/flowforge-spec.html` as **Part II** (sections 26 onward), with exact
-byte formats and invariant lists. Until then, where this brief and the code
-disagree, fix one of them and record why.
+Status: **design record; folded into the specification.** This brief was
+the contract every v2 package was built against. It, each package's README
+and OPEN_QUESTIONS are now folded into `docs/flowforge-spec.html` as
+**Part II** (sections 26-41, plain text in `docs/spec.txt`), with exact byte
+formats, record fields, the invariant register and error codes. **Part II
+is normative**; where this brief and the code disagreed, the code was
+followed, this brief was amended below, and spec Part II section 41 lists
+every difference. Edit Part II (and the code), not this file, for future
+changes.
 
 Goal: workflows capture what targets serve (HTML, JavaScript, CSS, XML,
 JSON, headers, certificates) and store every version compactly. They
@@ -81,17 +84,23 @@ These are in addition to `docs/CONVENTIONS.md`.
 | 1 | `cssparse` | CSS Syntax Level 3 tokenizer + parser (rules, at-rules, declarations, `url()`) | CSS Syntax Module Level 3 |
 | 1 | `xmlparse` | XML 1.0 (5th ed.) non-validating tokenizer; DTDs and external entities refused (XXE-safe) | XML 1.0 |
 | 1 | `sourcemap` | Source Map v3: VLQ decoding, sections, `sourcesContent`, mapping lookup | ECMA-426 (Source Map) |
-| 1 | `wellknown` | robots.txt (RFC 9309), security.txt (RFC 9116), sitemap index/urlset (via `xmlparse`) | RFCs |
+| 1 | `wellknown` | robots.txt (RFC 9309), security.txt (RFC 9116); sitemaps are `xmlparse/sitemap` (layer-1 packages may not import each other) | RFCs |
+| 1 | `codec` | base64, base32, hex, percent and form encoding, quoted-printable, JS string escapes, bounded inflate (gzip, zlib, DEFLATE, zstd), blob sniffing, bounded recursive decoding | RFC 4648, 3986, 2045 §6.7, 1950-1952, 8878; WHATWG URL; ECMA-262 §12.9.4 |
+| 1 | `dnsmsg` | DNS wire format: strict and lenient decoding, canonical encoding with compression, truncation, TCP framing (the proxy's DNS forwarder, §9) | RFC 1035 §4, 3596, 2782, 6891, 8659 |
+| 1 | `socks5` | SOCKS 5 codec and handshakes, CONNECT only, username/password auth (§9) | RFC 1928, RFC 1929 |
 | 1 | `diff` | Myers (linear space), patience, histogram over interned token ids; hunks; unified rendering; JSON structural diff (RFC 6902 ops); DOM tree diff | Myers 1986; RFC 6902 |
 | 1 | `sketch` | SimHash, MinHash and LSH, and shingling, shared by `content` and `vecindex` | — |
 | 1 | `chunkstore` | FastCDC content-defined chunking, zstd-compressed packfiles, manifests, GC; memory and filesystem backends | FastCDC (Xia et al. 2016) |
 | 1 | `textindex` | Inverted index + trigram index: segments, posting compression, BM25, phrase, regex via trigram prefilter, query language | IIR ch. 1–6; Cox 2012 |
 | 2 | `content` | Capture profiles, per-mime normalization (versioned), volatile masking, feature extraction, chunk-lineage matching, change classification → oam observations | this brief §5 |
 | 4 | `contentstore` | Snapshot repository port (memory; `contentstore/pg` adapter), capture ingest, diff pipeline, search integration | this brief §6 |
-| 6 | `services/content` | `ContentService` gRPC (`proto/flowforge/v1/content.proto`), gateway REST, tools | §7–§8 |
+| 6 | `services/content` | `ContentService` gRPC (`proto/flowforge/v1/content.proto`), events, sweeps; gateway REST routes in `services/gateway` | §7–§8 |
+| 6 | `services/toolrunner` (v2 tools) | `collect`, `crawl`, `wellknown`, `extract`, `unpack_sourcemap`, `diff_latest`, `search_changes`, `ctlog`, `rdap`, `asn`, `tlscert`, `portscan`, `dnsresolve` 2 (`crawl` is a tool, not a package) | §8 |
+| 6 | `services/egressproxy` (v2 features) | CONNECT any port, SOCKS5, DNS forwarder, per-target GCRA, intel allowlist, notify path | §9 |
+| test | `services/internal/lab` | the in-process lab and the §10 acceptance test | §10 |
 
-`textindex` and `chunkstore` import only `core` (and zstd for
-`chunkstore`). `content` imports the layer-1 parsers, `diff`, `sketch`
+`textindex` and `chunkstore` import only `core` (and zstd).
+`codec` imports only `core` and zstd; `dnsmsg` and `socks5` only `core`. `content` imports the layer-1 parsers, `diff`, `sketch`
 and `oam`. `vecindex` is refactored to use `sketch` (no behaviour change;
 its conformance data must still pass).
 
@@ -168,10 +177,11 @@ The 5.5 endpoint validation table is extended with these rows.
     whose rule family is in `covered_rules`, present in the previous
     authoritative set and missing now, are **withdrawn** immediately
     (`edge_removed`, state stale, history kept, can return).
-  * A capture is complete only if the capture outcome is complete, there
-    was no parser error, no truncation, no diff fallback, no
-    collection-integrity flag (§12.5), and every extractor reported
-    complete.
+  * A capture is complete only if the capture outcome is complete (no
+    truncation, no collection-integrity flag, §12.5), the body normalized
+    completely, and every extractor that ran reported complete with none
+    canary-disabled. (Amended: coverage is decided per capture, before any
+    diff, so a diff fallback does not affect it; spec Part II 28.4.)
   * Partial, failed or unsupported observations are **positive-only**: they
     add and refresh, and never withdraw.
   * An extractor that did not run, or ran partially, never withdraws its
@@ -186,7 +196,8 @@ The 5.5 endpoint validation table is extended with these rows.
   infrastructure never implies ownership.
 * CSR blast-radius labels gain `loads_script`, `loads_style` and `embeds`.
 * `graphstore` gains `AsOf(seq)` neighbour and entity reads, served by
-  replaying change events onto the nearest snapshot.
+  replaying change events (built: from the empty graph, which the nearest
+  snapshot is in this version; spec Part II 28.7).
 
 ---
 
@@ -230,8 +241,10 @@ The 5.5 endpoint validation table is extended with these rows.
      the spec's known non-round-trip cases).
   4. Time and allocation are linear (a benchmark at n and 4n stays within
      20 % per byte).
-  5. Open-element stack depth is bounded by the configured limit, with an
-     error code when exceeded.
+  5. Open-element stack depth is bounded by the configured limit, **512 by
+     default** (`htmlparse.DefaultMaxDepth`, also `content.MaxHTMLDepth`),
+     with the error code `nesting-depth-limit-exceeded` when exceeded (the
+     element is inserted childless and parsing continues).
 
 ### 4.2 `jsparse`
 
@@ -273,6 +286,9 @@ The 5.5 endpoint validation table is extended with these rows.
      bundles).
   5. The regex/division decision matches the grammar on a generated
      corpus of ambiguous contexts.
+  6. Syntactic nesting (statements, expressions, binary-operator chains)
+     is bounded, **4000 by default** (`jsparse.DefaultMaxDepth`), code
+     `too-deep`.
 
 ### 4.3 `cssparse`, `xmlparse`, `sourcemap`, `wellknown`
 
@@ -294,7 +310,9 @@ The 5.5 endpoint validation table is extended with these rows.
 * **`wellknown`:** RFC 9309 robots.txt (groups, longest match, allow over
   disallow tie-break, 500 KiB limit), RFC 9116 security.txt (fields,
   `Expires` required, signed-message tolerance), and sitemaps (urlset and
-  sitemapindex, 50,000 URLs / 50 MB limits). Each with conformance cases
+  sitemapindex; built in `xmlparse/sitemap` with defaults of 20,000
+  entries / 8 MiB per §12.10, raisable to the protocol's 50,000 URLs /
+  50 MB). Each with conformance cases
   from the RFC examples plus edge cases.
 
 ---
@@ -366,8 +384,10 @@ The 5.5 endpoint validation table is extended with these rows.
   offset u64, compressed length u32 and raw length u32, binary searchable,
   and a fan-out table on the first byte as in git.
 * **Manifest:** a snapshot body is an ordered list of chunk ids plus the
-  total length, encoded as a fixed binary record (or deterministic CBOR,
-  documented) and itself stored as a chunk.
+  total length, encoded as a fixed binary record ("FFMF", spec Part II
+  31.5) and itself stored as a chunk. A ref ("FFRF") names the live packs
+  and is the single commit point; delta frames ("FFZB") serve the content
+  store's delta codec.
 * **Garbage collection:** mark from live manifests (retention-aware),
   sweep unreferenced chunks by rewriting packs whose live ratio is below
   50 %. GC is crash-safe: new packs are written first and old ones
@@ -376,26 +396,40 @@ The 5.5 endpoint validation table is extended with these rows.
   acceptance benchmark stores 50 versions of a real-world-sized bundle
   with small edits and must use less than 15 % of the raw total.
 
-### 6.2 Snapshot records (`contentstore`, migration in graph schema)
+### 6.2 Snapshot records (`contentstore`, migration 0031, schema `content`)
+
+The records live in their own `content` schema, owned by role
+`ff_content`, with forced RLS like the others (migration
+`0031_content.sql`; the full DDL is spec Part II 34.2). As built, after
+§6.4, §11.18 and the §12.12 storage rules:
 
 ```text
-content.snapshots(id, tenant_id, program_id, entity_id, url, profile, run_id,
-  effect_path, fetched_at, status, mime, headers_ref, body_manifest, body_sha256,
+content.programs(tenant_id, program_id, diff_seq, created_at)
+content.snapshots(id, tenant_id, program_id, entity_id, url, url_template, host,
+  profile, run_id, effect_path, fetched_at, last_seen, valid_from, valid_to,
+  status, mime, kind, signature, headers_ref, body_manifest, body_sha256,
   raw_size, stored_size, normalizer_version, normalized_manifest, parent_id,
-  lineage_parent_id, features_ref, created_at)
-content.diffs(id, tenant_id, program_id, from_snapshot, to_snapshot, levels,
-  algorithm, normalizer_version, stats, hunks_ref, semantic_ref, created_at)
+  lineage_parent_id, features_ref, outcome, coverage, degraded, simhash,
+  pinned, pin_reason, codec, delta_base, delta_depth, body_seal, headers_seal,
+  key_id, created_at)   -- partial unique index on the open version (valid_to IS NULL)
+content.diffs(id, tenant_id, program_id, seq, from_snapshot, to_snapshot, levels,
+  algorithm, normalizer_version, stats, hunks_ref, semantic_ref, stored_size,
+  index_docs, at, url, profile, created_at)
 content.findings(id, tenant_id, program_id, snapshot_id, rule_id, preview,
-  keyed_hash, ciphertext, created_at)  -- secrets, encrypted at rest
+  keyed_hash, ciphertext, key_id, created_at)  -- secrets, encrypted at rest
 content.volatility(tenant_id, program_id, url_template, profile, feature_path,
-  changes, stable_observations, frozen_version)
+  changes, stable_observations, streak, frozen_version)
+content.quota_limits(tenant_id, captures_per_day, stored_bytes, index_bytes)
+content.quota_usage(tenant_id, day, captures, stored_bytes, index_bytes)
+content.index_state(tenant_id, program_id, watermark, docs, bytes)
+content.data_keys(tenant_id, purpose, version, kek_id, wrapped, created_at)
+content.outbox(id, event_id, topic, ordering_key, payload, created_at, published_at)
 ```
 
-Each column holding a "...ref" or "...manifest" points to a chunk-store
-manifest. The schema is a new `content` schema, owned by the content
-service, with RLS like the others. Per-program retention defaults: last 50
-snapshots or 180 days per (URL, profile), whichever keeps more; diffs
-follow their snapshots.
+Each column holding a "...ref" or "...manifest" is a chunk-store
+ManifestID of the tenant's chunk store. Per-program retention defaults:
+last 50 snapshots or 180 days per (URL, profile), whichever keeps more,
+plus pinned versions and the open version; diffs follow their snapshots.
 
 ### 6.3 Other compression points
 
@@ -407,9 +441,16 @@ follow their snapshots.
 
 ### 6.4 Secrets
 
-Findings are encrypted with AES-256-GCM using a per-tenant data key from
-the `Secrets` port (envelope encryption; KMS in production, a dev key
-locally). Only the redacted preview and keyed hash are searchable.
+Findings are encrypted with AES-256-GCM using a per-tenant data key
+(envelope encryption). As built (spec Part II 34.4): data keys are 32
+random bytes per tenant and purpose (`enc` for findings and redaction
+seals, `hash` for the HMAC-SHA256 keyed hashes), stored only wrapped by a
+key-encryption key in `content.data_keys`. The KEK is the
+`contentstore.KeyEncrypter` port (`ID`, `Wrap(tenant, dek)`,
+`Unwrap(tenant, wrapped)`, bound to the tenant as additional data):
+`LocalKEK` from `FF_CONTENT_KEK` in development and tests; a Cloud KMS
+adapter fits the same port and is v3 work (it is not the v1 `Secrets`
+port). Only the redacted preview and keyed hash are searchable.
 
 ---
 
@@ -464,8 +505,24 @@ locally). Only the redacted preview and keyed hash are searchable.
 | `httpprobe` | unchanged | active | unchanged |
 
 `Snapshot`, `Features`, `ChangeSet` and `ChangeHit` are standard-library
-records added to the DSL prelude (their exact fields are in the spec Part
-II). Passive tools that fetch from public sources (crt.sh, RDAP servers)
+records added to the DSL prelude; their exact fields, in order, are spec
+Part II 36.2 (`dsl/prelude.go` `contentRecords`):
+
+* `Snapshot{id, url, profile, status, mime, kind, body_sha256, raw_size,
+  fetched_at, parent_id?, lineage_parent_id?, coverage, degraded,
+  new_in_run, redirects, resources}`;
+* `Features{snapshot_id, url, coverage, links, scripts, styles, frames,
+  sourcemaps, endpoints, forms, parameters, headers, libraries, secrets}`;
+* `ChangeSet{snapshot_id, from_snapshot_id?, diff_id?, url, outcome, levels,
+  semantic, class, newness, cause, baseline, alertable, score, changes,
+  summary}`;
+* `ChangeHit{score, at, diff_id, snapshot_id, url, kind, side, feature,
+  class, newness, cause, text}`.
+
+The v2 builtins `base64_decode/encode`, `url_decode/encode` and
+`hex_decode/encode` are Part II 36.3. As built, `extract` and
+`diff_latest` are read-only: the content service's event is the single
+writer of the graph facts listed for them above (Part II 36.6). Passive tools that fetch from public sources (crt.sh, RDAP servers)
 still go through the egress proxy, but they are checked against an
 allowlist of intelligence sources, not the program scope: the target is
 the source, not the program asset. That distinction is spelled out in
@@ -482,7 +539,10 @@ and is exercised end to end against the lab (§10).
   port and serves **SOCKS5** (RFC 1928: CONNECT only, no BIND and no UDP
   ASSOCIATE, username/password auth carrying the run/decision token). Each
   tunnel requires a pinned decision covering (host, port). `tlscert` and
-  `portscan` use it.
+  `portscan` use it. (As built: username = decision id, password = a
+  short-lived ticket from the proxy's control endpoint, because RFC 1929
+  caps both at 255 octets; DNS queries carry the ticket in EDNS option
+  65280. Spec Part II 35.)
 * **DNS:** the proxy serves DNS over UDP and TCP (RFC 1035 wire format,
   our own message parser state machine) for sandboxed tools. A query is
   answered only if a passive scope check allows the name (or the name is
@@ -513,7 +573,9 @@ workflow must:
 5. make every planted change findable through `search_changes`, with a
    regex query and a field query;
 6. never contact an out-of-scope host (the lab logs prove it);
-7. store all versions in less than 25 % of their raw size.
+7. store all versions in less than 25 % of their raw size (measured on the
+   raw snapshots, capture record plus redacted body: 6.8 % in the lab;
+   18.4 % with every derived record and diff; spec Part II 38).
 
 ## 11. Gap list closed by this brief
 
@@ -532,7 +594,9 @@ side-by-side JSON) in the gateway. 15. Tool-output parsers as attack
 surface → all parsers are fuzzed. 16. Staleness speed → authoritative
 staleness (§3.4). 17. Tag events → `tag_changed`. 18. Quotas → per-tenant
 limits on captures per day, stored bytes and index bytes, enforced by the
-content service (`QUOTA_EXCEEDED`).
+content service (`QUOTA_EXCEEDED`). As built (Part II 34.6): three limits
+per tenant in `content.quota_limits`, zero meaning unlimited, no defaults
+(operators set them); checked exactly in the write transaction.
 
 ## Migration numbering
 
@@ -557,7 +621,8 @@ sections, this section wins. Source references are to
    before new captures are accepted, re-reads stored snapshots with the
    new version, and records the resulting changes as
    `cause = parser/normalizer`. Default feeds and alerts hide
-   non-target causes.
+   non-target causes. (Status: cause is computed and carried on every
+   event; the re-derive job is in progress on `feat_v2`, G-CST-04.)
 3. **Baseline.** The first complete capture of a (URL, profile) is
    `baseline = true`. It produces graph data but no feed items or
    alerts.
@@ -571,6 +636,11 @@ sections, this section wins. Source references are to
    * state-changing methods, `{id}`-style templates, missing SRI on a new
      third-party script, weakened cookie flags, and CSP loosened;
    * removals count at −½ of the positive weight, returns at −¼.
+
+   The weights as built are pinned in spec Part II 33.11 (for example
+   exposed_secret 0.9, source_disclosure 0.85, new_endpoint 0.4,
+   removed_security_header 0.35, new_form 0.3, csp_loosened 0.3,
+   library_version_change 0.2; word boosts 0.1-0.15).
 
    Scores **rank, never send**: no code path from a score to a request.
    A test asserts that scoring code imports no fetch or egress package
@@ -618,7 +688,9 @@ sections, this section wins. Source references are to
       canary fails, that extractor is disabled for withdrawal purposes.
     * Explicit amplification bounds, identical in the Go and Rust
       versions: 8 MiB per response, XML/CSS depth 64, 20,000 facts per
-      parser per document, 200 inner documents per capture.
+      parser per document, 200 inner documents per capture; and, pinned
+      when built, HTML open-element depth 512 and JS nesting 4000
+      (spec Part II 26.4).
     * "Unreadable" is counted and audited, never fatal.
 11. **Redaction before storage and indexing.** Credential-shaped strings
     (by the secret rules, plus connection-string credentials) are
@@ -644,7 +716,8 @@ sections, this section wins. Source references are to
     semantic), every change has:
     * `class`: structural, metadata, semantic_endpoint, observation or
       catalog. Catalog is a new advisory against an unchanged library,
-      dated by the advisory, not the capture.
+      dated by the advisory, not the capture (the class exists; producing
+      it needs the advisory matcher, deferred to v3 by D4).
     * `newness`: likely_new (a comparable earlier capture lacked it),
       pre_existing (it was there before we started watching) or
       first_seen_only (no comparable negative).
@@ -656,7 +729,9 @@ sections, this section wins. Source references are to
     * "first appeared" queries return the earliest snapshot containing a
       string, served from the diff history;
     * hybrid mode ships only if it is at least as good as BM25 on recall@k
-      and MRR over a labelled set of change queries.
+      and MRR over a labelled set of change queries. The labelled set is
+      `conformance/textindex/ranking/labelled.json` (19 queries; BM25 MRR
+      0.947, P@1 0.895). Hybrid is not enabled in v2.
 
 **Decided (D3).** DNS resolution (public resolvers or directly to
 authoritative servers) and TLS handshakes for certificate collection are

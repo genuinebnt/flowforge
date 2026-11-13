@@ -4365,5 +4365,1916 @@ bench = ["b_csr_01", "b_csr_02", "b_csr_03"]
 
 - Never weaken a safety invariant (scope, fencing, idempotency, determinism) to improve a benchmark.
 
-Flowforge specification, version 0.3 draft. Graph model aligned to the OWASP Amass Open Asset Model; see the Open Asset Model and asset-db documentation for the upstream definitions.
+Part II (v2)
+26. Part II overview and portability rules
+27. v2 module catalogue
+28. Graph expansion
+29. Parsers and codecs
+30. Diffs and similarity sketches
+31. Chunk store formats
+32. Text index
+33. Content pipeline
+34. Content store
+35. Egress: TCP, SOCKS5, DNS and per-target limits
+36. Tools and the language surface
+37. Content API
+38. Lab and end-to-end acceptance
+39. Invariant register
+40. Error codes
+41. Where the brief and the code differ
+
+# Part II. Flowforge v2: content capture, change diffs and diff search
+
+Part II specifies what v2 adds to Part I: workflows that capture what targets serve (HTML, JavaScript, CSS, XML, JSON, headers, certificates), store every version compactly, compute noise-robust diffs, turn meaningful changes into graph changes and alerts, and make the whole change history searchable. Every parser is an explicit state machine of our own, so the Rust port is a translation of the same machines checked against the same data.
+
+Version 0.4 (draft)Date 2026-11-13Sources: docs/V2_DESIGN.md (the brief), the v2 package READMEs, FORMAT.md files and OPEN_QUESTIONS.md files; the code is the reference where they differ (section 41)
+
+## 26. Part II overview and portability rules
+
+### 26.1 How Part II relates to Part I and to the brief
+
+Part II uses the conventions of 1.2 and the module rules of 24 and 25 unchanged. Sections 26 to 41 continue the numbering of Part I. They replace docs/V2_DESIGN.md as the normative text: the brief stays as the design record, and where it and the code disagree the code was followed and the difference is listed in section 41. Byte formats are given byte by byte; where a package ships a FORMAT.md (chunkstore, textindex) that file is the same contract in more detail and MUST agree with this text.
+
+ | Section | Covers | Go packages
+
+ | 26, 27 | Portability rules, reading grades, amplification bounds, the v2 module catalogue | all v2 packages
+
+ | 28 | Graph expansion: Endpoint, v2 labels and properties, coverage-gated authority, tag_changed, content_changed, AsOf, commonness | oam, graphstore, migration 0030
+
+ | 29 | Parsers and codecs | htmlparse, jsparse, cssparse, xmlparse, sourcemap, wellknown, codec, dnsmsg, socks5
+
+ | 30 | Diffs and similarity sketches | diff, sketch
+
+ | 31 | Chunk store formats FFPK, FFPI, FFMF, FFRF, FFZB | chunkstore
+
+ | 32 | Text index: analyzer, query language, ranking, FFTX/FFTD/FFTC | textindex
+
+ | 33 | Content pipeline: profiles, normalizers, masking, features, lineage, classification, scores, redaction | content
+
+ | 34 | Content store: schema 0031, records, encryption, retention, quotas, search | contentstore, contentstore/pg
+
+ | 35 | Egress: CONNECT, SOCKS5, DNS forwarder, per-target GCRA, intelligence sources, notify path | services/egressproxy
+
+ | 36, 37 | Tools, standard-library records and builtins, the alert diff variable, the content REST API | services/toolrunner, dsl, bytecode, alerts, services/content, services/gateway
+
+ | 38 | Lab and end-to-end acceptance | services/internal/lab, conformance/lab, conformance/workflows/monitor.ff
+
+ | 39, 40, 41 | Invariant register, error codes, deviations from the brief | all
+
+### 26.2 Status of v2
+
+Built and passing verify-module: every package in sections 28 to 34, the egress features of 35, the tools of 36, the REST surface of 37 and the lab acceptance of 38. Carried to v3 (not part of this specification's MUSTs yet): the A1 sandbox runtime, supply-chain signing of external binaries, the Raft and distributed track (B), the performance track (C), headless rendering (D6), the catalog change class (needs the advisory matcher, decision D4), a learned ranker. Re-derive jobs after a normalizer or parser upgrade (33.10, G-CST-04) are specified here and were being implemented on feat_v2 as this part was written. The Cloud Storage backends (chunkstore/gcsstore: a chunkstore.Backend and a textindex.Directory) and the content service's Terraform were being added on feat_v2 as this part was written (G-CST-01, G-CST-02); they implement the existing ports and change no format.
+
+### 26.3 Portability rules (v2 packages MUST follow them; v1 packages SHOULD)
+
+These are in addition to docs/CONVENTIONS.md.
+
+- State machines are explicit. A tokenizer is a state enum plus a loop that switches on it. State names follow the governing specification (WHATWG "tag open state" is stateTagOpen) and each state cites its section. No regular expressions in tokenizers, no parser generators.
+
+- Bytes in, spans out. Parsers take []byte (UTF-8 after decoding), report positions as byte offsets (plus line and column where users see them), and never retain the input after returning unless documented.
+
+- Trees are arenas. DOM and AST nodes live in one slice and refer to each other by int32 index (NodeID, -1 = none), never by pointer. This maps 1:1 to a Rust Vec<Node>.
+
+- No any, interface{} or reflection in core data paths. No map iteration order may reach an output: sort, or use insertion-ordered structures.
+
+- No goroutines in pure packages unless the parallelism is optional, deterministic and off by default.
+
+- Binary formats are specified byte by byte: little-endian, explicit lengths, versioned magic, CRC32C (Castagnoli, crc32c("123456789") = 0xE3069283), and a CRC or SHA-256 footer. No Go-specific encodings. Durations are integer milliseconds or nanoseconds; times are RFC 3339 UTC with milliseconds or Unix nanoseconds.
+
+- Compression is zstd (RFC 8878), github.com/klauspost/compress/zstd in Go and the zstd crate in Rust, with levels and windows pinned per format. Formats never depend on compressed bytes: identity is a hash of raw data and integrity is re-checked after decoding (31.2).
+
+- Errors are stable codes. Each parser has a closed list of codes returned as values (section 40); recovery behaviour is part of the contract.
+
+- Determinism. The same input gives the same bytes: trees, diffs, chunk boundaries, index segments, hashes. Every seeded table is generated from core.SplitMix64 with a documented seed (31.1, 30.4).
+
+- Tests are invariants. Every package ships conformance data in conformance/<suite>/, numbered invariants <PKG>-INV-NN each with a test Test<Pkg>Inv<NN>_<Name> (section 39), differential tests against an oracle where one exists, fuzz targets asserting the invariants, and benchmarks with an acceptance shape. A test that only checks a happy path returns something is not acceptable.
+
+### 26.4 Reading grades and amplification bounds
+
+Every reader reports a grade: complete (read everything), partial (a bound was hit or the reader recovered), unsupported (a form it refuses by design, for example a DTD), or failed (could not read). "Read fine, found nothing" (complete, no facts) is never confused with "could not read" (failed). Unreadable input is counted and audited, never fatal. A grade below complete never withdraws graph facts (28.4).
+
+The bounds below are identical in every implementation. A document that hits one is read partially (grade partial) and the bound is reported with its code.
+
+ | Bound | Value | Where | Code when hit
+
+ | Response body read | 8 MiB (8 << 20) | content.MaxResponseBytes, collect, every parser's input cap | input_truncated / input_too_large
+
+ | HTML open-element depth | 512 | htmlparse.DefaultMaxDepth, content.MaxHTMLDepth | nesting-depth-limit-exceeded (element inserted childless, parsing continues)
+
+ | HTML attributes per tag | 1024 | htmlparse.DefaultMaxAttributes | attribute-limit-exceeded
+
+ | HTML input (library default) | 256 MiB; content passes 8 MiB | htmlparse.DefaultMaxInputSize | input-size-limit-exceeded
+
+ | JavaScript syntactic nesting | 4000 (statements, expressions, binary-operator chains) | jsparse.DefaultMaxDepth; content uses the default | too-deep
+
+ | XML and CSS nesting | 64 | content.MaxParseDepth, xmlparse, cssparse MaxDepth | depth_limit
+
+ | Facts per extractor per document | 20,000 | content.MaxFactsPerParser; also cssparse.MaxURLs, sourcemap.MaxSources, wellknown items | limit_exceeded
+
+ | Inner documents per capture | 200 (inline scripts, styles, handlers, source-map originals) | content.MaxInnerDocuments | grade partial
+
+ | Decompression | min(MaxOutput, max(RatioFloor, MaxRatio × len(src))); defaults 8 MiB, 100×, 1 MiB | codec.Inflate | output_limit, ratio_limit
+
+ | Recursive decoding | depth 3, 8 MiB total, 256 nodes | codec.DecodeLayers | bounded, never an error
+
+ | robots.txt parsed | 500 KiB (cut at a line boundary), 20,000 rules | wellknown | input_too_large, limit_exceeded
+
+ | Sitemap | 20,000 entries / 8 MiB by default, raisable to 50,000 / 50 MiB | xmlparse/sitemap | grade partial
+
+ | Diff | 10,000 token edits; 4 MiB normalized at token level; 64 MiB at line level | diff.BoundedDiff | recorded fallback (30.2)
+
+### 26.5 Determinism points
+
+These outputs are compared byte for byte across implementations (or, where noted, after decompression):
+
+- Chunk boundaries and chunk ids (31.1), manifest bytes and ManifestIDs (31.5); pack, index and ref bytes only for the same compressor (31.8).
+
+- Text-index segments except the zstd data area of STORED, which is compared decompressed (32.6).
+
+- Normalized text and its rule-table SHA-256 (33.3); feature sets, change sets, scores and observations (CONTENT-INV-12).
+
+- Edit scripts, unified text, side-by-side JSON, JSON patches and tree mappings (DIFF-INV-13).
+
+- SimHash, MinHash and LSH outputs (30.4).
+
+- Derived ids: graph ids (Part I, PORTING_RUST 4.1) and content-store ids (34.3).
+
+- BM25 scores are compared at 1e-9 relative: ln is not correctly rounded in either language (32.4).
+
+## 27. v2 module catalogue
+
+The layering rule of 24.3 holds. Layer-1 packages import only core (and the standard library); the extra dependencies allowed per package are listed. modules.toml carries one entry per package with its required invariant ids, conformance suites, fuzz targets and benchmarks; go run ./cmd/xtask verify-module <name> checks them.
+
+ | Layer | Package | Purpose | Governing spec | Allowed dependencies | Test prefix
+
+ | 1 | htmlparse | WHATWG tokenizer, tree construction, arena DOM, serializer, encoding sniffing | HTML Living Standard 13.2-13.5 (whatwg/html c18a7c5) | core, golang.org/x/text | HTMLInv
+
+ | 1 | jsparse | ECMAScript 2024 lexer and parser, arena ESTree AST, printer, extraction helpers | ECMA-262 15th ed. clauses 12-16, Annex B | core | JSInv
+
+ | 1 | cssparse | CSS Syntax 3 tokenizer and parser, URL extraction | CSS Syntax Module Level 3 | core | CSSInv
+
+ | 1 | xmlparse, xmlparse/sitemap | Non-validating XML 1.0 + namespaces, DTD-free; sitemaps | XML 1.0 5th ed.; sitemaps.org protocol | core | XMLInv, SitemapInv
+
+ | 1 | sourcemap | Source Map v3 decoding, VLQ, index maps, lookup | ECMA-426 | core | SMapInv
+
+ | 1 | wellknown | robots.txt and security.txt | RFC 9309, RFC 9116 | core | WKInv
+
+ | 1 | codec | base64, base32, hex, percent, form, quoted-printable, JS strings, bounded inflate, blob sniffing, recursive decoding | RFC 4648, 3986, 2045 6.7, 1950-1952, 8878; WHATWG URL; ECMA-262 12.9.4 | core, klauspost zstd | CodecInv
+
+ | 1 | dnsmsg | DNS wire format, strict and lenient decoding, canonical encoding, TCP framing | RFC 1035 4, 3596, 2782, 6891, 8659 | core | DNSInv
+
+ | 1 | socks5 | SOCKS 5 codec and handshakes, username/password auth | RFC 1928, RFC 1929 | core | SOCKSInv
+
+ | 1 | diff | Myers (linear space and greedy), patience, histogram, reference DP; hunks; unified; JSON diff (RFC 6902); tree diff | Myers 1986; git xdiff; RFC 6901, 6902; Zhang-Shasha 1989 | core | DiffInv
+
+ | 1 | sketch | SimHash, MinHash, LSH, shingling (shared with vecindex) | Charikar 2002; Broder 1997 | core | SketchInv
+
+ | 1 | chunkstore, chunkstore/fsstore | FastCDC, packfiles, indexes, manifests, refs, delta frames, GC | FastCDC (Xia et al. 2016); section 31 | core, klauspost zstd | ChunkInv
+
+ | 1 | textindex | Inverted and trigram index, FFTX segments, query language, BM25, regex via trigram prefilter | IIR ch. 1-6; Cox 2012; section 32 | core, klauspost zstd | TIdxInv
+
+ | 2 | content | Capture profiles, sniffing, versioned normalizers, masking, features, lineage, classification, scores, redaction, observations | section 33 | core, oam, the layer-1 parsers, codec, diff, sketch | ContentInv
+
+ | 4 | contentstore, contentstore/pg | Snapshot repository, diff pipeline, encrypted findings, retention, quotas, change search | section 34; migration 0031 | core, oam, content, chunkstore, textindex, diff, sketch | CStoreInv
+
+ | 4 | graphstore (v2 parts) | Authority, tag_changed, RecordContentChange, AsOf, commonness | section 28; migration 0030 | unchanged (core, oam, scope, csr) | Graph, OAMInv
+
+ | 6 | services/content | ContentService gRPC (proto/flowforge/v1/content.proto), events, background sweeps | sections 34, 37 | modules, adapters | end-to-end tests
+
+ | 6 | services/egressproxy | CONNECT any port, SOCKS5, DNS forwarder, per-target GCRA, intel allowlist, notify path | section 35 | modules (dnsmsg, socks5, limiter, scope client) | integration tests
+
+ | 6 | services/toolrunner (v2 tools) | The tools of 36.1 and the content tools over ContentService | section 36 | modules, adapters | fixture tests
+
+ | 6 (test) | services/internal/lab | In-process lab: TLS and HTTP listeners, authoritative DNS, versioned sites, logs | section 38 | dev stack | TestLabAcceptance_*
+
+xmlparse/sitemap lives under xmlparse because layer-1 packages may not import each other: wellknown therefore does not parse sitemaps, the content pipeline calls both. vecindex was refactored to use sketch with no change of behaviour; its conformance data still passes (SKETCH-INV-01).
+
+Implementation order (extends 24.7): the layer-1 parsers, codec, diff, sketch, chunkstore and textindex need only core and can be built in any order right after it; then the oam and graphstore v2 parts, content, contentstore, the egress features, the tools and service, and the lab last.
+
+## 28. Graph expansion
+
+All additions are Flowforge extensions ff. OAM import and export keep working because unknown types are stored opaquely (5.2).
+
+### 28.1 Endpoint asset
+
+ | Asset | Content fields | Canonical key
+
+ | Endpoint | method (upper case, or *), url_template, source (html_form | js_literal | js_call | openapi | graphql | sitemap | observed) | ep:<METHOD> <url_template>
+
+source is not part of the key and merges last-writer-wins. The method is upper-cased although RFC 9110 methods are case-sensitive. NormalizeURLTemplate MUST apply these steps, and its result is a fixed point:
+
+- Trim Unicode white space; reject an empty string.
+
+- Recognize placeholders left to right: a JS template substitution ${...} (braces nest; unterminated is an error) becomes {expr}; {name} with name matching [A-Za-z_][A-Za-z0-9_.-]* is kept as {id}, {uuid}, {hex} or {expr} when it is one of those and becomes {expr} otherwise. Other braces are literal text; percent-encoded braces are never placeholders.
+
+- Scheme and host are concrete: the text before the first placeholder contains scheme://authority followed by /, ?, # or the end. Hosts are never templated. Relative and protocol-relative templates are errors (the caller resolves them against the page origin first). Only http and https.
+
+- Query and fragment are dropped (query parameters are ParameterProperty tags).
+
+- A path segment containing a placeholder becomes that placeholder when it is exactly one, and {expr} otherwise.
+
+- The concrete URL (placeholder segments replaced by sentinels) is normalized by the 4.2 URL rules; .. after a placeholder removes it.
+
+- Every concrete segment of ASCII digits becomes {id}, one shaped 8-4-4-4-12 hex digits {uuid}, one of at least 16 hex digits (MinHexSegment) {hex}, compared after step 6 (so %31%32 is numeric).
+
+Empty segments and a trailing slash are kept; the root path is /. Conformance: conformance/oam/url_template/normalize.json, conformance/oam/keys/endpoint.json.
+
+### 28.2 Relation labels
+
+All are SimpleRelation. Each label belongs to a rule family, the unit of coverage (28.4). They are validated like the 5.5 docs labels (endpoint types enforced).
+
+ | Label | From → To | Family | Meaning
+
+ | loads_script | URL → File | scripts | <script src>, module imports, import()
+
+ | loads_style | URL or File → File | styles | <link rel=stylesheet>, CSS @import
+
+ | embeds | URL → URL | frames | iframe, object, embed
+
+ | links_to | URL → URL | links | anchors, <link> other than stylesheet, robots and sitemap links
+
+ | redirects_to | URL → URL | redirects | observed redirect hop; optional content status (300-399), not part of the identity, rejected on any other label
+
+ | form_action | URL → Endpoint | forms | form submission target
+
+ | calls | File or URL → Endpoint | endpoints | API call found in JS or observed
+
+ | source_map | File → File | sourcemaps | bundle → its source map
+
+ | previous_version | File → File | lineage | chunk lineage across renamed bundles
+
+ | includes_library | File → ProductRelease | libraries | library banner or fingerprint inside a bundle
+
+ | documents | URL → Endpoint | schemas | OpenAPI or GraphQL schema describing an endpoint
+
+Tag families: headers (HTTPHeaderProperty), content (ContentProperty), parameters (ParameterProperty), findings (VulnProperty). Unknown labels and property types are their own family. The registration label additionally joins FQDN → DomainRecord and AutonomousSystem → AutnumRecord (an extension of the 5.5 row used by the rdap and asn tools).
+
+### 28.3 Properties
+
+ | Property | Fields | Tag name | Rules
+
+ | ContentProperty | snapshot_id, body_sha256, size, mime, profile, normalizer_version, last_changed_at, change_count | the profile | One per (entity, profile): the graph's pointer into the content store. last_changed_at RFC 3339 UTC with milliseconds; size and change_count always encoded
+
+ | HTTPHeaderProperty | name, value | the header name | Security-relevant headers only (CSP, HSTS, CORS, X-Frame-Options, Server, cookie attribute summaries). authorization, proxy-authorization and cookie are rejected, and so is a set-cookie value with any k=v whose key is not a cookie attribute
+
+ | ParameterProperty | name, location (query | body | path | header | cookie), type_hint | <location>:<name> | On Endpoint
+
+ | VulnProperty with category = "exposed_secret" | id secret:<rule>:<hmac hex>, enum = rule id, desc = redacted preview | the id | Holds only the rule id, the preview (first 4 and last 2 characters, xxxx...yy; ... for secrets under 12 bytes or with non-printable bytes) and a keyed hash (HMAC-SHA256 under the tenant's hash data key, 34.4). The secret itself never enters the graph or logs (OAM-INV-11)
+
+### 28.4 Authority and coverage-gated staleness
+
+An observation MAY carry authority = {source, profile, coverage, covered_rules} with coverage one of complete, partial, failed, unsupported. The rules (oam OPEN_QUESTIONS 22-29 are the full text):
+
+- Units. A unit is (source entity, profile, rule family). Edges leaving authority.source and non-source tags on it are authoritative: they report to the unit of their family and do not register the tool for covering runs. Everything else in the observation stays classic (5.7).
+
+- Gate. A reading replaces a unit's member set only when coverage = complete and the family is in covered_rules; a complete reading that reports nothing for a covered family empties that unit. Every other reading (partial, failed, unsupported, or families outside covered_rules) only adds members. Withdrawal is not retraction: the record goes stale with history kept (edge_removed, tag hidden) and returns when re-reported.
+
+- Convergence. Readings are ordered by (observed_at, tool, observation id). A unit's effective members are the members of the latest complete reading plus those reported by any newer non-complete reading; the state is a function of the multiset of observations (OAM-INV-05).
+
+- Liveness. A record is active iff it has classic support that covering runs have not made stale, or authoritative support (an edge held by at least one unit, an entity that is the target of such an edge). Covering runs never stale a record with authoritative support; a withdrawal stales at once only records without other support. Records that only an older complete capture reports are created and stale in the same operation.
+
+- When a capture is complete is decided by content (33.8): the capture outcome is complete (no truncation, no collection-integrity flag), the body normalized completely, every extractor that ran graded complete and none applicable is canary-disabled (CONTENT-INV-14). Coverage is decided per capture, before any diff, so a diff fallback does not affect it (section 41).
+
+- The covering-run staleness of 5.7 is unchanged for every other observation.
+
+Event order within one observation (event ids derive from the emission index, so the order is normative): entity events in observation order, edge events, then liveness transitions caused by authority (edges by id, then entities by id), then tag_changed (entity tags before edge tags, by target id, type, name).
+
+### 28.5 Change events: tag_changed, content_changed, base, cause, baseline
+
+- tag_changed: one event per tag whose visible content changed per operation, for every property type except SourceProperty. Patch: [{"op":"add","path":"","value":{...}}] when the tag appears, [{"op":"remove","path":""}] when it disappears (a root remove, which RFC 6902 cannot express), field-level add, replace and remove ops otherwise. The event carries tag_type and tag_name (OAM-INV-07).
+
+- Base. entity_added carries base = {content, scope_status}; the edge_added that creates an edge carries base = {content}; reactivations carry none. Edge content changes still emit no event, so a replay reconstructs edge existence, state and tags but not later edge content.
+
+- Cause and baseline. Observation.cause (target by default, parser, normalizer) and baseline are copied onto every event the observation produces; target is stored as NULL; covering-run events carry neither (OAM-INV-10).
+
+- content_changed is appended by RecordContentChange(entity, run, at, patch). It changes no state and is idempotent per (entity, snapshot_from, snapshot_to, diff_id): an identical repeat returns the same event (same id and seq) and appends nothing (OAM-INV-09).
+
+// content_changed patch (oam.ContentChangePatch), after Normalize
+{
+  "snapshot_from": "snp_...",          // optional; absent for a baseline
+  "snapshot_to": "snp_...",            // required; != snapshot_from; ids at most 256 printable bytes
+  "diff_id": "dif_...",                // optional
+  "levels": ["hash", "text", "semantic"],   // at least one; canonical order, duplicates removed
+  "summary": { "endpoints_added": 1 }, // lower-case identifier keys, counts >= 0
+  "cause": "target",                   // target | parser | normalizer (empty means target)
+  "baseline": false,
+  "class": "semantic_endpoint",        // structural | metadata | semantic_endpoint | observation | catalog | ""
+  "score": 0.5,                        // finite, in [0, 1]
+  "score_features": [ { "name": "new_endpoint", "weight": 0.25 } ]   // unique lower-case names, sorted, weights in [-1, 1]
+}
+
+Migration 0030_graph_v2.sql (idempotent):
+
+ALTER TABLE graph.change_events ADD CONSTRAINT change_events_type_check CHECK (type IN (
+  'entity_added','entity_changed','entity_stale','entity_reactivated','edge_added','edge_removed','scope_status_changed',
+  'content_changed','tag_changed'));
+ALTER TABLE graph.change_events ADD COLUMN IF NOT EXISTS tag_type text;
+ALTER TABLE graph.change_events ADD COLUMN IF NOT EXISTS tag_name text;
+ALTER TABLE graph.change_events ADD COLUMN IF NOT EXISTS base jsonb;
+ALTER TABLE graph.change_events ADD COLUMN IF NOT EXISTS cause text;          -- NULL = target
+ALTER TABLE graph.change_events ADD COLUMN IF NOT EXISTS baseline boolean NOT NULL DEFAULT false;
+ALTER TABLE graph.change_events ADD CONSTRAINT change_events_tag_check
+  CHECK ((type = 'tag_changed') = (tag_type IS NOT NULL AND tag_name IS NOT NULL));
+ALTER TABLE graph.change_events ADD CONSTRAINT change_events_cause_check
+  CHECK (cause IS NULL OR cause IN ('parser','normalizer'));
+CREATE INDEX IF NOT EXISTS change_events_entity_seq ON graph.change_events (entity_id, seq) WHERE entity_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS change_events_edge_seq ON graph.change_events (edge_id, seq) WHERE edge_id IS NOT NULL;
+
+Authority bookkeeping needs no column: it lives in hidden tag rows (ff:live per record and ff:auth per unit on the source entity) next to the v1 ff:meta and ff:run rows (G-CORE-06 tracks moving them to columns).
+
+### 28.6 Commonness
+
+An entity's holders are the distinct hosts of the active entities pointing at it over active edges. It is common when holders > 50 (CommonThreshold); stale edges and repeated hosts do not count. Pivots and leads ignore common nodes; shared infrastructure never implies ownership. Commonness is a query (Store.Commonness), not stored state (OAM-INV-14). The CSR blast-radius labels gain loads_script, loads_style and embeds.
+
+### 28.7 AsOf reads
+
+GetEntityAsOf(entity, seq) and NeighborsAsOf(request, seq) evaluate on the graph as it was right after change event seq of the program (seq >= 1; NeighborsAsOf requires since zero). A record is reconstructed by folding its change events up to seq, starting from the empty graph:
+
+- entity_added creates the entity from base (content and scope status), active; entity_changed applies its add and replace ops; scope_status_changed sets the scope status; entity_stale and entity_reactivated set the state;
+
+- edge_added with base creates the edge, active; without base it reactivates it; edge_removed makes it stale;
+
+- tag_changed applies its patch to the named tag (a root add creates it, a root remove deletes it); content_changed changes nothing.
+
+Identity (asset type, key, relation, endpoints) comes from the current row; confidence, times, runs, SourceProperty tags and later edge content are not reconstructed and are left zero. An entity whose entity_added is after seq is NOT_FOUND; a bad seq is INVALID_ARGUMENT; traversals skip stale entities and edges as in 5.9 (OAM-INV-12).
+
+The brief describes AsOf as "replaying change events onto the nearest snapshot". The implementation replays from the empty graph (the nearest snapshot is the empty one in this version); a CSR-snapshot starting point is an optimisation with the same results (section 41).
+
+### 28.8 Graph store conformance (conformance/graphstore)
+
+Language-neutral store-level cases, run against every store implementation (TestGraph001_* to TestGraph006_* on memory, and on Postgres with memory as the oracle when FF_TEST_PG_DSN is set). The file schema extends conformance/oam/merge (steps with observation, complete_run, error, pending; scope, stale_after_runs, order_dependent; expect.entities, expect.edges, expect.changes compared exactly):
+
+{
+  "id": "gs_003",
+  "description": "...",
+  "stale_after_runs": 1,
+  "order_dependent": true,           // required when steps include complete_run or content_change
+  "steps": [
+    { "observation": { ... } },
+    { "complete_run": { "tenant_id": "t", "program_id": "p", "run_id": "r1", "tool": "dnsx", "completed_at": "..." } },
+    { "content_change": { "entity": "url:https://acme.com/app", "run_id": "r-mon", "at": "...",
+                          "patch": { ... }, "repeat": false, "error": "" } }   // error: invalid_argument | not_found
+  ],
+  "expect": { "entities": [ ... ], "edges": [ ... ], "changes": [ ... ] },
+  "as_of": [
+    { "after_step": 5,               // the seq reached after the first 5 steps (seqs are store-local)
+      "entities":  [ { "key": "fqdn:b.acme.com", "exists": true, "state": "stale", "scope_status": "", "content": null, "tags": null } ],
+      "neighbors": [ { "key": "fqdn:b.acme.com", "direction": "both", "depth": 1,
+                       "entities": [ "fqdn:b.acme.com stale" ],
+                       "edges": [ ] } ] }   // "<from key> <label> <to key> <state>", compared as sets
+  ]
+}
+
+ | Id | Case | Expected
+
+ | gs_001 | Change log of one URL: first observation, a newer one with a changed field and tag, a duplicate observation id | entity_added, tag_changed (root add), entity_changed with effective ops only, tag_changed (field replace); the duplicate appends nothing; as-of tags per step
+
+ | gs_002 | Rejected observations (unknown local ref, label between disallowed types) carrying valid entities | INVALID_ARGUMENT with the oam reason; no entity, edge, tag or event left behind; as-of unaffected
+
+ | gs_003 | Covering-run staleness with stale_after_runs 1; the name returns | entity_stale, edge_removed, then entity_reactivated, edge_added; NOT_FOUND before creation; neighbourhoods per step skip stale records
+
+ | gs_004 | Complete, complete, partial, failed authoritative captures of one page | The second withdraws the dropped link (edge_removed, entity_stale); the partial re-adds (edge_added without base, entity_reactivated); the failed one withdraws nothing
+
+ | gs_005 | RecordContentChange, an identical repeat, two invalid patches | One content_changed; the repeat returns the same id and seq; INVALID_ARGUMENT for score > 1 and from = to; graph and as-of unchanged
+
+ | gs_006 | Header tags under complete, partial, complete, complete captures | Root remove only on a complete reading that dropped the header; a partial never removes; the return is a root add; as-of tag sets per step
+
+## 29. Parsers and codecs
+
+### 29.1 Common contract
+
+- Every entry point is total: any byte string yields a result (a tree, a token list, a value) plus diagnostics from a closed list, never a panic or an unbounded loop. Fuzz targets assert it.
+
+- Token spans tile the input exactly once (trivia included) wherever a tokenizer is exposed.
+
+- Time and allocation are linear: the benchmarks at n and 4n stay within the per-package bound of section 39 (typically allocations at 4n ≤ 4.4× of n and time per byte ≤ 1.5×).
+
+- Limits fail closed with a code and a partial grade (26.4). Error and diagnostic positions are byte offsets into the input as given (after BOM removal only where stated).
+
+- A differential oracle is used in tests only: golang.org/x/net/html for HTML, acorn for JavaScript ASTs, the standard library for codecs.
+
+### 29.2 htmlparse
+
+- Decoding (13.2.3): BOM sniff, transport charset (a label or a whole Content-Type value), the meta prescan of the first 1024 bytes with the XML-declaration fallback, UTF-8 autodetect, then windows-1252. BOM and transport give confidence certain, the rest tentative. ParseRaw implements "change the encoding while parsing" as a second pass when a <meta> in head disagrees with a tentative guess. Labels resolve to WHATWG canonical names (those encoding_rs uses).
+
+- Preprocessing on the fly so spans stay offsets into the original buffer: CR LF and CR become LF; ill-formed UTF-8 becomes U+FFFD per maximal subpart; surrogate, noncharacter and control-character input-stream errors are reported once per character, before the tokenizer error for it.
+
+- Tokenizer: one enum constant per spec state, 84 in all (the 79 states of 13.2.5 plus five processing-instruction states of the 2025 standard). Character data is emitted as one coalesced token per run. Named references use longest match over the 2231-entry WHATWG table (conformance/htmlparse/entities.json); two lookup strategies (trie, the default, and sorted search) MUST agree with brute force (HTML-INV-11). Numeric references saturate (no wrap-around into valid code points).
+
+- Tree construction: every insertion mode, the stack of open elements with the default, list-item, button and table scopes (no select scope; select is a default-scope boundary in the current standard), active formatting elements with markers and Noah's Ark (3 per family), the adoption agency algorithm (outer loop 8, inner 3), foster parenting, template contents with the template insertion-mode stack, foreign content with SVG and MathML adjustments and integration points, quirks and limited-quirks from the DOCTYPE, fragment parsing with a context element, and the 2025 changes (processing instructions, customizable <select> rules, <search>, selectedcontent mirroring as an end-of-parse pass). The scripting flag is off: noscript parses as markup.
+
+- Output: the arena Document{Nodes, Root, Mode}; Render is the 13.3 fragment serialization (escaping &, NBSP, <, > everywhere and " in attributes); Dump is the html5lib tree format.
+
+- Options: Scripting (false), MaxDepth (512), MaxAttributes (1024), MaxInputSize (256 MiB). An element beyond MaxDepth is inserted childless and not opened; extra attributes are dropped; long input is truncated.
+
+- Conformance: html5lib tokenizer tests, 7050/7050 token and error-code results (16 upstream positions for <?x x at EOF contradict the state machine and are listed); WPT tree-construction .dat files 1967/1973 (the 6 scripted_* cases need a script engine). Both tests assert the known-failure lists exactly. Line and column of errors count UTF-16 code units, CR LF as one break.
+
+### 29.3 jsparse
+
+- Lexer: an input-element state machine with the four lexical goals of ECMA-262 12 (InputElementDiv, InputElementRegExp, InputElementRegExpOrTemplateTail, InputElementTemplateTail). The parser owns the goal: tokens are lexed under Div; at the start of a PrimaryExpression the current token is re-requested under a RegExp goal; when a template substitution ends at } it is re-requested under TemplateTail. A re-request rewinds to the token start and drops the one-token lookahead. The goals differ only for tokens beginning with / or }, so this is the grammar's own decision, never a heuristic (JS-INV-05). Unicode escapes in identifiers (ID_Start/ID_Continue of Unicode 15.0), numeric separators, BigInt, legacy octal in sloppy mode, cooked and raw template values, hashbang, LS/PS line terminators and HTML-like comments in scripts (Annex B) are covered.
+
+- Parser: recursive descent with precedence climbing for binary operators; the full ES2024 script and module grammar (classes with fields, private names, static blocks and accessors; async functions and generators; destructuring via cover grammars; arrow functions; optional chaining; ?? mixing rules; regex flags v and d; import.meta; top-level await; labelled statements; ASI; let ambiguities; Annex B syntax). Early errors are checked during parsing.
+
+- Strict and tolerant modes. Errors never unwind: a fatal error halts the parser (the current token becomes EOF). Strict mode returns the first diagnostic. Tolerant mode re-lexes from the error token in the nearest statement list and skips to a statement boundary; it always returns a program. On valid input tolerant mode gives the strict tree and no diagnostics; on invalid input its first diagnostic equals the strict error (JS-INV-07, 08).
+
+- AST: Program{Nodes, Children, Strings, Root, SourceType, ...}, each node 64 bytes and pointer-free: Kind u8 | Op u8 | Flags u32 | Span{Start,End int32} | A,B,C,D NodeID | List, List2 {Start,Len int32} | Str, Str2 u32 | Num f64. Which slot is which ESTree field is defined once by the schemas table (for example ForStatement: init=A, test=B, update=C, body=D); the canonical JSON writer (sorted keys, no positions), the walker, the printer and the integrity invariant all read it. Parentheses are not nodes.
+
+- Bound: MaxDepth 4000 (statements, expressions and binary chains), code too-deep.
+
+- Conformance: tc39/test262-parser-tests: 1983/1983 pass files parse; 722/729 fail and 663/668 early files are rejected (the 7 + 5 exceptions are valid ES2024 and listed); pass and pass-explicit ASTs equal except 36 listed upstream mismatches. conformance/jsparse/extract/*.json pins the extraction helpers (string literals with callee paths, module references, sourceMappingURL, literal tables).
+
+### 29.4 cssparse
+
+CSS Syntax 3: preprocessing (CR LF, CR and FF to LF; U+0000 and invalid UTF-8 to U+FFFD, one byte per invalid byte) on the fly; one tokenizer state per "consume" algorithm of 4.3; parsing per 5.3/5.4 (2021 CR) plus "parse a block's contents" for nesting; serialization per 9 with the comment-insertion table. Component values with blocks are consumed with an explicit stack, never recursion. URL references: url() tokens and functions, src(), @import, @namespace, image-set(), @font-face src. Limits: MaxDepth 64, MaxInputBytes 8 MiB, MaxURLs 20,000. Conformance: the vendored SimonSapin css-parsing-tests (149/149, with LegacyTokens for the 2014 unicode-range and match tokens) and conformance/cssparse/*.json.
+
+### 29.5 xmlparse and xmlparse/sitemap
+
+- A pull decoder whose states are named after the XML 1.0 productions ([27] Misc, [43] content, [15] Comment, [18] CDSect, [16]/[23] PI, [28] doctype, [40]/[44] STag, [42] ETag), an arena tree built from its events, and a canonical writer modelled on C14N 1.0.
+
+- Encodings: UTF-8 (BOM optional) and UTF-16 with a BOM (transcoded; offsets index the transcoded buffer). A declared encoding must match the detected one.
+
+- XXE and billion-laughs safe by construction: only <!DOCTYPE name> is accepted; an internal subset or external id is refused at its first byte (dtd_internal_subset, dtd_external_id, grade unsupported). Only the five predefined entities and character references exist, so no reference expands beyond its own length (XML-INV-05).
+
+- First offending byte: for an error at offset k, input[:k] is still a prefix of some well-formed document, input[:k+w] is not (w is the width of the character there), and later bytes cannot change the error (XML-INV-02). Checks are therefore incremental.
+
+- Limits: MaxDepth 64 and MaxInputBytes 8 MiB (depth_limit, input_too_large; partial).
+
+- Sitemaps: urlset and sitemapindex (loc, lastmod as W3C Datetime, changefreq, priority), plain-text sitemaps, gzip input decompressed to at most MaxBytes+1; defaults 20,000 entries and 8 MiB, raisable to the protocol's 50,000 and 50 MiB.
+
+### 29.6 sourcemap
+
+- Strict JSON: version must be the number 3; regular maps need mappings and sources (entries may be null); sourcesContent (a short list means "no content"), names, file, sourceRoot, ignoreList and x_google_ignoreList; the )]}' prefix is skipped; unknown fields are ignored; for a duplicate key the last value wins.
+
+- Index maps: sections need an offset, are strictly increasing and must not overlap; nested index maps and url sections are refused; the result is flattened into one map.
+
+- Base64 VLQ state machine (stateSegmentStart, stateVLQ, stateFieldEnd): values fit int32 (vlq_overflow otherwise), segments have 1, 4 or 5 fields, indexes are bounds-checked and non-negative; "B" (negative zero) decodes to 0. Encodings are minimal and at most 7 digits.
+
+- OriginalPositionFor: binary search over mappings sorted by generated position (greatest lower bound on the line). Limits: 8 MiB, 20,000 sources.
+
+### 29.7 wellknown
+
+- robots.txt (RFC 9309): a line-oriented state machine (robotsStateStart, robotsStateAgents, robotsStateRules). Consecutive user-agent lines share a group, the first rule ends the run, blank lines and comments do not split groups, rules before any user-agent are ignored, sitemap lines are global, crawl-delay is kept per group (integer milliseconds). Matching: product-token group selection (exact, case-insensitive, groups combined, else *), 2.2.2 percent normalization of path and pattern, * and end-anchoring $, longest pattern wins, allow wins ties, /robots.txt always allowed. 500 KiB parsed, 20,000 rules and sitemaps.
+
+- security.txt (RFC 9116): fields of 2.5 plus CSAF, case-insensitive names, unknown fields kept; Expires required and single, checked against a caller-supplied now (the clock is never read), more than a year ahead is a warning; https required for web URIs; OpenPGP cleartext framing (RFC 4880 7) recognized and stripped with dash-escaping, the signature not verified. 8 MiB, 20,000 fields. RFC 3339 timestamps with fractional seconds are accepted.
+
+### 29.8 codec
+
+Pure encoders and decoders with a Strict (zero value) and a Lenient mode. Strict decoding accepts exactly the canonical encoding (CODEC-INV-02); lenient accepts a superset with the same output (CODEC-INV-04). Errors are *Error{Code, Offset} wrapping a sentinel; a failing Append* text decoder leaves dst unchanged.
+
+ | Codec | Governing text | Strict | Lenient
+
+ | base64 (std, URL) | RFC 4648 4, 5, 3.2, 3.5 | exact padding, zero trailing bits, no white space, one alphabet | ASCII white space skipped, any padding, trailing bits ignored, both alphabets. Three algorithms (swar default, statemachine, stdlib) MUST give identical bytes or the identical error and offset (CODEC-INV-06)
+
+ | base32 (std, hex) | RFC 4648 6, 7 | canonical structure, case-insensitive | as base64 plus surplus =
+
+ | hex | RFC 4648 8 | pairs, case-insensitive | white space between pairs
+
+ | percent | RFC 3986 2.1; WHATWG URL 1.3 sets | exactly EncodePercent(x, set) (upper-case hex) | WHATWG percent-decode (a % not starting a valid escape is literal); RejectInvalidEscapes makes it an error
+
+ | form | WHATWG URL 5.1, 5.2 | serializer output | WHATWG parser, U+FFFD per maximal subpart
+
+ | quoted-printable | RFC 2045 6.7 rules 1-5 | CRLF only, upper-case escapes, no trailing white space, lines ≤ 76 | rule 3 robust decoder
+
+ | JS strings | ECMA-262 12.9.4, Annex B.1.2 | strict-mode escapes | legacy octal, \8 \9, malformed escapes kept; lone surrogates as WTF-8
+
+ | inflate | RFC 1950, 1951, 1952, 8878 | gzip (multi-member), zlib, raw DEFLATE, zstd; cap = min(MaxOutput, max(RatioFloor, MaxRatio × len(src))), defaults 8 MiB, 100×, 1 MiB; at the cap exactly that prefix with output_limit or ratio_limit (CODEC-INV-07). The zstd decoder runs with concurrency 1 and a window bound proportional to the cap
+
+ | sniff | this specification | base64 runs of ≥ 24 data characters (mixed case, a digit or symbol, ≥ 16 distinct, one alphabet, MIME/PEM wrapping joined); hex runs ≥ 32 with digits and letters; gzip, zlib and zstd magic at offset 0. Candidates sorted, disjoint, in bounds and decodable (CODEC-INV-09)
+
+ | layers | V2 12.14 | DecodeLayers: an arena tree in pre-order, depth 3, 8 MiB total, 256 nodes by default; keeps only text or compressed layers (CODEC-INV-08)
+
+DEFLATE, gzip and zlib come from the standard library's compress/flate rather than an in-package state machine; compressed-stream error offsets are implementation-defined (the count of output bytes returned).
+
+### 29.9 dnsmsg
+
+- RFC 1035 4 messages with structured RDATA for A, AAAA, NS, CNAME, PTR, MX, TXT, SOA, SRV, CAA and OPT; every other type (and, in lenient mode, malformed data of a known type) is raw. RData is a tagged struct (Kind + fields), a Rust enum.
+
+- Names are canonical presentation text: absolute, \. and \\ escaped, octets outside 0x21-0x7E as \DDD, case kept. The name decoder is a state machine (stateLength, stateLabel, statePointer). A compression pointer MUST point strictly before the last pointer followed, and after a jump the name may not reach that pointer again, so every cycle is pointer_loop; at most 127 hops per name. Names are at most 255 octets in wire form, labels at most 63.
+
+- Encoding is canonical: owner, question and NS/CNAME/PTR/MX/SOA names are compressed against the first earlier occurrence of the longest suffix (exact octets); SRV targets are never compressed. Equal messages give equal bytes (DNS-INV-05); the conformance encoder is independent, so Encode must match it byte for byte.
+
+- Strict rejects trailing octets, malformed known data, OPT outside the additional section, non-root or duplicated, and TXT without strings; lenient keeps them and returns diagnostics. Strict success implies the same lenient result (DNS-INV-09).
+
+- EncodeTruncated(limit) keeps a prefix of the answers and the OPT record and sets TC exactly when records were dropped (RFC 2181 9). TCP framing is a u16 big-endian length prefix; frames above the limit are refused.
+
+### 29.10 socks5
+
+- Codecs for the greeting, method selection, RFC 1929 username/password request and status, request and reply (IPv4, IPv6, domain), every reply code. Read* helpers read exactly one message, never into tunnelled data.
+
+- Short input returns short with Need, the total length known to be required (every strict prefix p of a valid message has len(p) < Need <= len(message), SOCKS-INV-03).
+
+- ServerHandshake serves CONNECT only: BIND and UDP ASSOCIATE parse but are refused with reply 7 (command not supported); unknown commands get 7, unknown address types 8, clients not offering username/password get method 0xFF, rejected credentials get status 1. Usernames, passwords and domains are 1-255 octets.
+
+## 30. Diffs and similarity sketches
+
+### 30.1 Token diffs and edit scripts (diff)
+
+Inputs are sequences of interned token ids (uint32, dense, assigned in first-seen order; equal ids iff equal byte strings). SplitLines keeps the \n; SplitWords yields word, space and single-rune tokens that tile the input (letters, digits and white space are Unicode 15.0 categories L*, Nd and Go's White_Space set).
+
+An edit script is canonical: ops are non-empty and tile [0, OldLen) and [0, NewLen) in order; no two Equal ops are adjacent; between two Equal ops (or the ends) there is one change region of at most one Delete followed by at most one Insert. It carries the deleted and inserted tokens, so Apply needs only the old sequence and Invert needs nothing. Its distance is deleted + inserted tokens.
+
+ | Algorithm (config name) | Contract | Use
+
+ | myers-linear (default) | Minimal distance, O(N+M) memory (≤ 96 B per token), divide and conquer on the middle snake | token level of BoundedDiff; small edit rates
+
+ | myers | Minimal, greedy forward search with an O(D²) trace | readable reference; small D
+
+ | patience | Apply-correct, distance ≥ Myers; ranges without unique lines fall back to Myers | high edit rates, unique lines
+
+ | histogram | Apply-correct, distance ≥ Myers; git-compatible (xhistogram.c) | line level of BoundedDiff; anything shown to people
+
+ | reference | O(NM) LCS dynamic program; refuses N·M > 2^24 (ErrInputTooLarge) | oracle
+
+Options.MaxEditDistance caps the token search: past it the result is Capped with an Apply-correct script that keeps the common prefix. GitCompact applies git's xdl_change_compact slide; with it, histogram output reproduces git 2.43 diff --no-index --no-indent-heuristic hunks byte for byte (DIFF-INV-08). Git's Myers tie-breaking is not reproduced.
+
+Hunks at context C: every change is covered exactly once in order; context is min(C, available); hunks are separated by more than 2C equal tokens. Unified text uses git's header form @@ -a,b +c,d @@ (zero-length ranges as -a,0, a missing final newline as \ No newline at end of file); ParseUnified and ApplyUnified invert it strictly (no offset or fuzz search; a tampered base is refused). Side by side: rows reconstruct each hunk's old and new lines with consecutive line numbers; RefineLine adds word-level spans. CleanupSemantic is diff-match-patch's diff_cleanupSemantic with a pluggable scorer.
+
+### 30.2 Bounds and fallbacks
+
+BoundedDiff(old, new, Bounds) MUST try, in order:
+
+- tokens: Bounds.TokenAlgorithm (default myers-linear) over word tokens when both sides are ≤ MaxInputBytes (4 MiB) and the distance stays ≤ MaxEditDistance (10,000);
+
+- lines: Bounds.LineAlgorithm (default histogram) over lines when both sides are ≤ MaxLineInputBytes (64 MiB);
+
+- hash: only the SHA-256 of each side.
+
+The result records its level (tokens, lines, hash) and fallback reason (none, edit_distance, input_size), and its script applies at that level (DIFF-INV-15). The content pipeline's default policy size uses the token level only up to 16 KiB of normalized text and the line level above (33.10).
+
+### 30.3 JSON and tree diffs
+
+- ParseJSON decodes with numbers kept as text and rejects duplicate keys; Equal is RFC 6902 equality (order-insensitive objects, numeric comparison of numbers). JSONDiff emits add, remove and replace (never move or copy); arrays are diffed by Myers over hash-consed subtree ids assigned in first-seen order. ApplyPatch implements all six RFC 6902 ops with RFC 6901 pointers. EncodeJSON escapes exactly as Go's encoding/json with HTML escaping off: \b \f \n \r \t, other controls as \u00XX, U+2028/U+2029 escaped, invalid UTF-8 as �.
+
+- TreeDiff: Zhang-Shasha edit distance with an optimal Tai mapping over ordered labelled trees (arena interface), with configurable costs; MaxNodes 2000 by default (memory is quadratic).
+
+### 30.4 Similarity sketches (sketch), bit exact
+
+ | Item | Definition
+
+ | FNV-1a 64 | offset 14695981039346656037, prime 1099511628211, multiply mod 2^64, over bytes. TokenHash(id) and TokensHash(ids) hash the 4-byte little-endian encodings of the ids
+
+ | Text tokens | Tokens(text): lower-case rune by rune with the simple Unicode 15.0 mapping, then maximal runs of letters and digits; invalid UTF-8 becomes U+FFFD and separates tokens
+
+ | Shingles | Shingles(tokens, w): windows of w tokens joined by one space (fewer than w tokens: one shingle of all; w < 1 is 1); default w = 3. TokenShingles(ids, k): TokensHash of each k-window, in order (max(n-k+1, min(n,1)) values); WShingling = sorted, deduplicated TokenShingles
+
+ | SimHash | 64 counters; each feature hash votes +w on its set bits and -w on its clear bits; output bit i is 1 iff counter i > 0. Unweighted features vote 1. SimHash(features) hashes each string with FNV-1a 64; Hamming distance is popcount(a xor b)
+
+ | MinHash | 128 permutations h_i(x) = (a_i·x + b_i) mod (2^61 − 1) with x = h mod (2^61 − 1); coefficients drawn from SplitMix64(0x46464d494e484153) ("FFMINHAS"): draw v = next() >> 3 until lo ≤ v < 2^61 − 1, a_i with lo = 1 then b_i with lo = 0, alternating per i. The product is a full 64×64→128-bit multiply folded with 2^61 ≡ 1. The empty set's signature is all 2^64 − 1
+
+ | LSH | 32 bands × 4 rows; band key = FNV-1a 64 over the band's rows as little-endian u64; collision probability 1 − (1 − s^r)^b
+
+ | Index | SimHashIndex: exact Hamming ≤ 3 by multi-index hashing on four 16-bit blocks (content lineage needs ≤ 6, so it scans linearly)
+
+ | Estimators | EstimateSimilarity of two token sequences: exact (default), minhash, simhash; all estimate the Jaccard of the w-shingle sets (SKETCH-INV-11)
+
+## 31. Chunk store formats
+
+All integers are little-endian, unsigned unless noted. CRC32C is the Castagnoli CRC (polynomial 0x1EDC6F41, reflected 0x82F63B78, init and xorout 0xFFFFFFFF). SHA-256 is FIPS 180-4. chunkstore/FORMAT.md is the same contract; conformance/chunkstore/ holds the vectors (gear.json, boundaries.json, golden pack, index, manifest and ref, zstd.json).
+
+### 31.1 Chunking (FastCDC with normalized chunking)
+
+Parameters (min, avg, max), defaults 2048 / 8192 / 65536, part of the format (stores dedupe only against identical parameters). avg = 2^b with 8 ≤ b ≤ 20; 64 ≤ min < avg < max ≤ 16 MiB.
+
+Gear table: gear[i], i = 0..255, is the (i+1)-th output of SplitMix64 seeded with 0x46464344 ("FFCD" as a big-endian u32); gear[0] = 0xd815cc1108e4a769, gear[1] = 0xa022ef08eccf3245.
+
+Masks (normalization level 2): a mask with k one bits sets the first k positions of the bit list 16 17 20 22 24 25 40 43 44 46 47 36 37 38 39 41 42 45 26 27 28 29. MaskS has b + 2 bits, MaskL b − 2 bits; for b = 13 these are the paper's 8 KiB masks MaskS = 0x0000d9f003530000, MaskL = 0x0000d90003530000.
+
+function cut(data) -> length of the first chunk
+  n = len(data)
+  if n <= min: return n
+  if n > max: n = max
+  normal = min(avg, n); fp = 0                       (u64, wrapping)
+  for i in [min, normal):  fp = (fp << 1) + gear[data[i]]; if fp & MaskS == 0: return i
+  for i in [normal, n):    fp = (fp << 1) + gear[data[i]]; if fp & MaskL == 0: return i
+  return n
+
+The byte at the returned index begins the next chunk. A stream is chunked by repeated cuts from offset 0 (an empty stream has no chunks); every chunk but the last is in [min, max], the last in [1, max]. Chunk id = SHA-256 of the uncompressed chunk.
+
+### 31.2 Compression
+
+A record payload is the raw chunk (codec 0) or one zstd frame (codec 1) that decodes to exactly raw_len bytes, no dictionary in version 1. Readers MUST accept any valid frame. Writers keep the zstd payload only when 8 × stored_len ≤ 7 × raw_len (it saves at least 1/8), at ingest and when GC recompresses. Pinned Go writer settings (informative): ingest level 3 (klauspost SpeedDefault), GC recompress level 19 (SpeedBestCompression), window 2^23, frame checksum on, single segment, encoder concurrency 1.
+
+### 31.3 Packfile "FFPK"
+
+offset  size  field
+0       4     magic "FFPK"
+4       2     version = 1
+6       2     flags = 0
+8       8     created_unix_ns (i64; 0 without a clock)
+16      ...   records, back to back
+end-8   4     record_count u32
+end-4   4     crc32c of bytes [0, end-4)
+
+record: +0 raw_len u32 (1 ..= 64 MiB) | +4 stored_len u32 (>= 1; == raw_len when codec 0)
+        +8 codec u8 (0 raw, 1 zstd) | +9 reserved 3 bytes = 0
+        +12 crc32c u32 over header bytes [+0, +12) followed by the payload | +16 payload
+
+Validation order: length < 24 → PACK_TRUNCATED; magic → PACK_BAD_MAGIC; footer CRC → PACK_CHECKSUM; version or flags → PACK_UNSUPPORTED; record walk errors → PACK_MALFORMED; record CRC → RECORD_CHECKSUM. Pack id = SHA-256 of the whole file; objects t/<ns>/packs/<hex id>.pack and .idx. A pack is sealed at TargetPackSize (16 MiB) or at the end of each Put.
+
+### 31.4 Pack index "FFPI"
+
+0           4      magic "FFPI"
+4           2      version = 1
+6           2      flags = 0
+8           4      count N (<= 2^26)
+12          4      pack_crc32c (the pack's footer CRC)
+16          8      pack_size
+24          32     pack_id
+56          1024   fanout[256] u32: number of ids whose first byte <= b
+1080        32*N   ids, strictly ascending (bytewise)
+1080+32N    8*N    offsets u64 (of the record header in the pack)
+1080+40N    4*N    comp_lens u32 (= stored_len)
+1080+44N    4*N    raw_lens u32
+1080+48N    4      crc32c of bytes [0, 1080+48N)
+
+Size is exactly 1084 + 48N. Lookup: lo = (b == 0 ? 0 : fanout[b-1]), hi = fanout[b] for b = id[0], then binary search. Records lie inside [16, pack_size − 8) without overlap; an index is a pure function of (pack id, size, CRC, entry set). Codes INDEX_TRUNCATED, _BAD_MAGIC, _CHECKSUM, _UNSUPPORTED, _MALFORMED.
+
+### 31.5 Manifest "FFMF"
+
+0        4      magic "FFMF"
+4        2      version = 1
+6        2      flags = 0
+8        8      total_len u64 (sum of chunk lengths)
+16       4      chunk_count N
+20       32*N   chunk ids in blob order (repeats allowed)
+20+32N   4      crc32c of bytes [0, 20+32N)
+
+Size exactly 24 + 32N; N ≤ total_len ≤ N × 64 MiB; N = 0 iff total_len = 0. ManifestID = SHA-256 of these bytes; the manifest is stored as an ordinary record, so it dedupes like any chunk. A reader also checks that the chunks' raw lengths sum to total_len (MANIFEST_LENGTH_MISMATCH). Manifest bytes and ids are identical across implementations.
+
+### 31.6 Ref "FFRF"
+
+0        4      magic "FFRF"
+4        2      version = 1
+6        2      flags = 0
+8        8      generation u64 (incremented on every replace)
+16       4      pack count N (<= 2^24)
+20       32*N   pack ids, strictly ascending
+20+32N   4      crc32c of bytes [0, 20+32N)
+
+Object t/<ns>/ref, the root and the single commit point: a pack exists for readers only once the ref names it.
+
+### 31.7 Delta frame "FFZB"
+
+0     4    magic "FFZB"
+4     1    version = 1
+5     1    flags: bit 0 = a raw dictionary was used
+6     2    reserved = 0
+8     4    raw length u32
+12    4    crc32c of the raw bytes
+16    ...  one zstd frame, no frame checksum, dictionary id 1 when flag bit 0 is set
+
+The dictionary is raw content (zstd "prefix", ZSTD_dct_rawContent), typically the previous version of the same blob. Go encoder settings: one goroutine, single-segment frames, level SpeedBetterCompression, window covering dictionary + raw. Delta frames are stored as ordinary blobs (incompressible, so kept raw); the content store uses them for its delta codec (34.3).
+
+### 31.8 Namespaces, write order, GC and verification
+
+- A store is scoped to one tenant namespace t/<ns>/, ns 1-64 bytes of [a-z0-9_-]. Nothing is shared across namespaces: no cross-tenant dedupe (CHUNK-INV-17).
+
+- Flush: write the pack, then its index, then the new ref. GC: mark live ∪ pinned ∪ grace manifests; rewrite packs whose live bytes are below the threshold (default 50 %), copying live records recompressed by the 1/8 rule, drop fully dead packs; write new packs and indexes, replace the ref, then delete replaced packs and orphans. Chunks of running Puts are never collected, and a blob survives the first GC that starts after its Put returned; later GCs must name it. A crash at any point leaves a ref naming only complete packs; leftovers are ORPHAN_OBJECT warnings that the next GC deletes.
+
+- Reading chunk id: find (pack, offset, comp_len, raw_len) in the indexes; read 16 + comp_len bytes; require the header lengths to equal the index and zero reserved bytes (RECORD_MALFORMED), the record CRC (RECORD_CHECKSUM), decoding to exactly raw_len (CHUNK_DECOMPRESS, CHUNK_LENGTH_MISMATCH) and SHA-256 equal to the id (CHUNK_HASH_MISMATCH). Get never returns unverified bytes.
+
+- Pack, index and ref bytes are identical across implementations only for the same compressor (the C zstd library produces different frames; the golden files pin a frame so a port can round-trip them).
+
+- Backends implement the Backend port (Put, Get, GetRange, List, Delete; atomic Put, idempotent Delete): memory, a directory (temporary file, fsync, rename, directory fsync) and Cloud Storage (chunkstore/gcsstore, generation-conditional writes, so a second writer fails with a conflict instead of corrupting).
+
+- One writer per namespace (G-CST-03 tracks writer leases for v3).
+
+## 32. Text index
+
+### 32.1 Analyzer
+
+One state machine over runes (states stDelimiter, stConnector, stUpper, stUpperRun, stLower, stDigit) with Unicode 15.0 tables:
+
+- Classes: upper (Lu, Lt), lower (other letters and marks), digit (Nd), connector (_), delimiter (everything else, invalid UTF-8 and a valid U+FFFD included).
+
+- A word is a maximal run of non-delimiters. Its parts split at _, at lower→upper (getUser), before the last capital of a capital run followed by a lower-case letter (HTTPServer → HTTP, Server), and at letter↔digit.
+
+- Each word emits its compound at the position of its first part, then each part at consecutive positions; a one-part word without _ emits a single word token.
+
+- Terms are folded rune by rune with toLower(toUpper(r)) using the simple mappings; no stemming, no stop words. Tokens over 128 bytes are not emitted (their position is kept). The field length is the number of positions.
+
+- Trigrams are every three consecutive bytes of the raw text with ASCII letters folded.
+
+getUserById(user_id) → getuserbyid@0 get@0 user@1 by@2 id@3 user_id@4 user@4 id@5.
+
+### 32.2 Query language
+
+query      = ws, or_expr, ws ;
+or_expr    = and_expr, { ws, "OR", ws, and_expr } ;
+and_expr   = unary, { ws, [ "AND", ws ], unary } ;          (* implicit AND *)
+unary      = [ "-" ], primary ;                             (* "-" adjacent to primary *)
+primary    = "(", ws, or_expr, ws, ")" | field_expr | term | phrase | regex ;
+field_expr = field, ":", ( value_word | phrase | regex ) ;  (* no space after ":" *)
+field      = ident ;   ident = ( letter | "_" ), { letter | digit | "_" } ;
+term       = word - ( "AND" | "OR" ) ;
+word       = word_start, { word_byte } ;
+word_start = ? any byte except space, "(", ")", '"', "/", "-" ? ;
+word_byte  = ? any byte except space, "(", ")", '"' ? ;    (* a word "ident:" is a field *)
+value_word = ? one or more word_byte, may start with "-" ? ;
+phrase     = '"', { ? any byte except '"' and "\" ? | "\", ? any byte ? }, '"' ;
+regex      = "/", { ? any byte except "/" and "\" ? | "\", ? any byte ? }, "/", { "i" | "m" | "s" } ;
+ws         = { " " | "\t" | "\n" | "\r" | "\f" | "\v" } ;
+
+- since:<t> and until:<t> are reserved: t is <1-9 digits><s|m|h|d|w> relative to the request's now, YYYY-MM-DD, or YYYY-MM-DDTHH:MM:SS[.fff]Z; since is ≥, until is <.
+
+- In a regex \/ is a literal /; every other \x reaches RE2 as is; flags are canonicalized to the order ims. Patterns are RE2 syntax.
+
+- AND binds tighter than OR; same-operator nesting is flattened; a group's span includes its parentheses.
+
+- Limits: 8 KiB query, 64 nested groups or negations, 1,024 clauses, 1 KiB regex.
+
+- Query.String prints a canonical form and Parse(q.String()) gives the same AST (TIDX-INV-12).
+
+### 32.3 Semantics
+
+- Text (unqualified = every text field, field: = one): analyze the value; one word → term(compound) OR seq(parts); several words → seq of all parts with relative positions; a seq of one part is a term, of more a phrase; no tokens matches nothing.
+
+- Keyword field: exact, case-sensitive equality on the doc-values column.
+
+- Regex: unanchored RE2 search over each text field's stored text; scores 0.
+
+- Scores: a term scores BM25 per field; unqualified terms sum over text fields in schema order; a phrase uses the phrase frequency and the sum of its terms' IDFs; AND and OR sum matching children in clause order; NOT, filters and regexes add 0. N, df and avgdl are computed over the live documents of the whole snapshot, so results never depend on segmentation.
+
+### 32.4 Ranking
+
+BM25 = idf · tf·(k1+1) / (tf + k1·(1 − b + b·dl/avgdl)), k1 = 1.2, b = 0.75, idf = ln(1 + (N − df + 0.5)/(df + 0.5)) (Lucene). Order: score descending, then the time field at descending (documents without one last), then id ascending; top-k by a bounded heap. The operation order of the reference code is normative; scores are compared at 1e-9 relative. Hybrid search fuses with vecindex through RRF (22.6: constant 60, 1-based ranks, first occurrence, ties by id). A TF-IDF scorer exists as a measured alternative, not the default.
+
+### 32.5 Regex via trigram prefilter
+
+CompileRegex parses with RE2 syntax (Perl flags), simplifies, and runs Cox's analysis (exact, prefix and suffix string sets, maxExact 7, maxSet 20) into a canonical trigram query (sorted, flattened, deduplicated). Strings become trigrams with ASCII folding; a literal or class containing U+FFFD is "any character" (RE2 matches invalid bytes as U+FFFD). Candidates from the trigram postings are verified by the full regexp. A regex whose query is ALL is allowed only when the root's positive keyword and since/until filters select at most MaxRegexCandidates (10,000) live documents; otherwise REGEX_NO_TRIGRAMS. A port MAY derive an equivalent or weaker trigram query from its own regex HIR but MUST never drop a match (TIDX-INV-03).
+
+### 32.6 Segment "FFTX"
+
+Files: immutable segments seg_<n>.fftx, tombstone sidecars seg_<n>_<g>.fftd, the commit point COMMIT (n and g are 16 lower-case hex digits). uvarint is unsigned LEB128, minimal, at most 5 bytes, ≤ 2^32 − 1; readers reject longer, overflowing or non-minimal encodings. Full byte layout: textindex/FORMAT.md; the outline is normative:
+
+header    "FFTX" | version u16 = 1 | posting codec u16 (1 plain, 2 varint (default), 3 group-varint)
+sections  1 META, 2 IDS, 3 NORMS, 4 KEYWORDS, 5 NUMERICS, 6 TERMDICT, 7 POSTINGS, 8 POSITIONS,
+          9 TRIGRAMS, 10 STORED; contiguous from offset 8, in id order
+directory section_count u32 = 10, then 10 x { id u32 | offset u64 | length u64 | crc32c u32 }
+footer    directory_offset u64 | file_crc u32 (CRC32C of every earlier byte) | "XTFF"
+
+TERMDICT  keys field_id u8 || folded term, strictly increasing, blocks of 64, prefix-compressed
+          (first key of a block complete), df, post_off, pos_off as uvarints
+POSTINGS  per term: skip table every 128 postings (last_doc u32 | next_post u32 | next_pos u32),
+          blocks of doc deltas (across the whole list) and tf, in the segment's codec
+POSITIONS per posting tf uvarints: first position, then deltas >= 1
+TRIGRAMS  12-byte entries (trigram b0<<16|b1<<8|b2 | df | off), doc-delta blocks with 8-byte skips
+STORED    blocks of <= 16 docs or 16 KiB raw, one zstd frame each (level 3, no checksum),
+          compared decompressed across implementations
+
+Documents are ordered by external id inside a segment, so segment bytes do not depend on insertion order (TIDX-INV-08). Readers check the footer CRC first, then the section CRCs (ErrChecksum), then structure (ErrCorrupt), never reading outside the file.
+
+### 32.7 Tombstones "FFTD" and commit point "FFTC"
+
+FFTD  "FFTD" | version u16 = 1 | flags u16 = 0 | doc_count u32 | seg_crc u32 | del_gen u64
+      | del_count u32 | bitmap ceil(n/8) bytes (bit d = local doc d deleted, padding 0) | crc32c u32
+FFTC  "FFTC" | version u16 = 1 | flags u16 = 0 | commit_gen u64 | max_gen u64 | next_seg u64 | seg_count u32
+      | per segment: name_len u16 | name | doc_count u32 | seg_crc u32 | del_gen u64 | del_count u32
+      | crc32c u32
+
+The commit point is the only mutable name, replaced atomically (temporary file, fsync, rename, directory fsync) after the files it names are written. Writes are invisible until Refresh, which is also the commit (TIDX-INV-14). Merges follow a size-tiered policy and rebuild live documents from stored text.
+
+## 33. Content pipeline
+
+content turns captured responses into normalized, versioned, comparable artifacts with typed level-3 features, lineage across renamed bundles, change classifications with scored reasons, redaction, and oam observations with coverage-gated authority. It is pure: no I/O, clock, randomness or goroutines, and no map order reaches an output.
+
+Capture{URL, Profile, Status, Headers, Body, FetchedAt, RedirectChain, Truncated, Outcome}
+  ├─ Sniff(body, content-type, url) ─▶ Kind (+ hint, mismatch, disclosure)
+  ├─ Normalize(kind) ─▶ Normalized{Version, RuleTableSHA256, Text, Grade, Masks, MaskDigest}
+  │                       └─ derived documents: #script-n  #style-n  #handlers  #src/<path>
+  ├─ headers of the final response and every hop ─▶ #headers artifacts (headers@1)
+  ├─ Extract(kind) ─▶ FeatureSet{features (kind|key, family), grade per extractor, findings}
+  ├─ JS: SplitModules ─▶ modules with positional hashes; FingerprintOf ─▶ lineage sketch
+  ├─ Redact ─▶ what is stored, indexed, hashed for the index or logged
+  └─ CheckIntegrity ─▶ outcome and flags ─▶ coverage, covered_rules
+Processed ─Observe─▶ oam.Observation with authority
+(prev, cur) ─Compare─▶ ChangeSet{artifact diffs, levels, outcome, class, newness, cause, baseline, score}
+new script ─FindPredecessor(page's previous scripts)─▶ previous_version
+
+### 33.1 Captures and capture profiles
+
+A capture profile is {name, method, headers, user_agent, cookie_jar_ref, follow_redirects, accept}. Normalize upper-cases the method (not *), lower-cases header names and sorts headers by (name, value); authorization, cookie and proxy-authorization headers are refused (a profile is stored and shown). The default profile is {name: "default", method: "GET", follow_redirects: true, accept: "*/*"}, no cookies. Diffs compare only snapshots with the same (URL, profile). Cookie-jar profiles are refused by the tools until the A1 sandbox exists.
+
+A capture's outcome is complete, partial (truncated, for example), failed or degraded; bodies longer than 8 MiB are cut and the capture is partial.
+
+### 33.2 Sniffing
+
+Normalizer and extractor are chosen by sniffing the bytes, with the media type as a hint; mismatches are recorded. Kinds: html, js, css, json, xml, sitemap, sourcemap, robots, securitytxt, ts_text (TypeScript, TSX and JSX are text, decision D2), text, binary, server_source, headers. A server-side source file served as text (<?php, <% ASP and JSP, a .env body, an interpreter script) is itself a source_disclosure finding (disclosures php, asp, jsp, env, script). Decisive bodies keep their kind under any media type; Mismatch is exactly "hint known and incompatible" (CONTENT-INV-13).
+
+### 33.3 Normalizers
+
+Each normalizer has normalizer_version = "<name>@<n>" and a rule table: a list of portable rule descriptions whose SHA-256, over the lines joined by "\n", MUST change whenever a rule changes, and the version MUST then be bumped. conformance/content/normalizers/normalizers.json pins the table. A learned volatility set k (33.4) makes the version <name>.learned<k>@<n> and appends its rule lines to the hashed table. Every diff records the exact version it used, so diffs replay identically.
+
+ | Version | Kinds | Rule table SHA-256 | Rules (summary)
+
+ | html@1 | html | db7c52c2f2bbe0510f992a29792ed3770273f12223f7e60bfa65385988928f21 | WHATWG parse (valid UTF-8 as is, else sniffed decoding); one line per start tag, end tag and text run; re-parsed to a fixed point (at most 4 rounds, html_not_converged); comments and PIs dropped; text collapsed and trimmed; attributes sorted, class tokens sorted and deduplicated; inline scripts, styles and handlers become derived documents; masks: nonce, CSRF inputs and meta, hidden values unless short numeric or boolean, integrity, cache-bust and build hashes in URL attributes, volatile data-*, ISO date-times in text
+
+ | js@1 | js | 7965e46bd07aeb144eb81f5767bc2cf1e4594b4d5748912f8ba3756a3da28ec8 | tolerant parse (script goal, module goal when only it parses cleanly); readable printer, one statement per line, directives re-quoted; masks: timestamp, UUID and build-id strings that are not keys, directives or path-like, ISO date-times in strings and templates, 13-digit epoch-ms numbers; any diagnostic → line normalization, grade partial
+
+ | css@1 | css | c75df612bd0d5c448d749a2cbe7e7c0869f1c15a9d192311de08944d4cf5476e | tokens re-emitted from source; comments dropped; canonical spacing; one declaration per line; redundant ; dropped; strings and url() re-quoted when no escape is needed; invalid tokens stabilized; masks in url()
+
+ | json@1 | json, sourcemap | 16a8ff48e6987ac43aa63e329fa62983facd2bdd2fa7ddb53c170fd8bfa3e0bb | canonical JSON, members sorted, two-space indent, numbers verbatim, no HTML or U+2028 escaping; volatile keys masked; invalid → text fallback
+
+ | xml@1 | xml, sitemap | 27b640e17e5bf2c1248da1b5d9b1d2033d68ca0b7883689139871f4a4e2320ed | xmlparse; one line per tag, text or PI; namespace declarations then attributes sorted; comments dropped; gzip sitemaps inflated within 8 MiB
+
+ | headers@1 | headers | 531554724f87cbbc80dddf21db44b6894ad43b378bd0b2d96a0604cc78b08b98 | security headers only, sorted; CSP directives and sources sorted, nonces removed; Set-Cookie reduced to name and attributes (no value, no Expires); Location query masked
+
+ | text@1 | text, robots, securitytxt, ts_text, server_source | ac1845a78f7b6fa881bf40bb9ab26e5f8e7f5da98375df86da7232e94c656214 | line endings, trailing blanks, blank-line runs, BOM; ISO date-times masked; indentation kept
+
+ | binary@1 | binary | 08f677122eaa2ac7c5894d6b4f424cc6a3531d45119d21e0b422d5f13c5f491d | binary sha256:<hex> size:<n>; hash only
+
+Normalization MUST be idempotent (CONTENT-INV-01) and invariant under the declared volatile transformations, while a planted semantic change is always detected as a feature (CONTENT-INV-02).
+
+### 33.4 Masking and learned volatility
+
+- Mask classes: nonce, csrf, timestamp (epoch seconds and milliseconds between 2000-01-01 and 2100-01-01 UTC, ISO 8601 date-times), cache_bust, build_hash, random_id, hidden_value, handler, learned. The placeholder is __FF_MASK_<CLASS>__ (upper case), which no rule matches again and every tokenizer keeps as one identifier or string body. Normalized.MaskDigest (SHA-256 over the masked originals) tells a masked_only change from no change.
+
+- Masks never touch features: features are extracted from the raw bytes, and a rule on a level-3 feature path (IsFeaturePath) is refused (ErrMaskOnFeaturePath, CONTENT-INV-03). Path-like values are never masked.
+
+- Learned volatility: per (URL template, profile, feature path) the store counts changes "while the page was otherwise stable" (no level-3 change; unchanged re-fetches are not counted). The default detector ratio freezes a path once it has at least 8 observations and at least 90 % of them changed; streak freezes after 5 consecutive changes. A frozen rule becomes a new learned version, never applied silently. Learned header rules have no effect (every security header is a level-3 path). A small random sample of masked diffs is kept for audit (AuditSample).
+
+### 33.5 Documents inside documents and headers as artifacts
+
+- Inline scripts become {page}#script-n (js; json for application/json, ld+json, importmap and speculationrules; text otherwise), inline styles #style-n (css), event-handler attributes and javascript: URLs one #handlers script of wrapper functions; their bodies are emptied in the page. Source-map originals become #src/<path>. Each derived document is normalized, extracted and diffed like a file; at most 200 per capture.
+
+- Each response's security-relevant headers form a canonical block (headers@1), a versioned artifact #headers for every hop, redirects included. A header-only change is a content_changed with class metadata.
+
+### 33.6 Features and extractors
+
+A feature is typed and keyed (kind|key) and has the family of its graph label or tag type (28.2), so covered rules line up with authority units. Every extractor reports a grade per document and has exactly one canary fixture run at startup and in CI; a failed canary disables the extractor for withdrawal purposes (CONTENT-INV-16).
+
+ | Extractor | Kinds | Features (family) | Graph mapping
+
+ | html.links@1 | html | link (links) | links_to URL→URL
+
+ | html.scripts@1 | html | script with lineage key, sri, third_party (scripts) | loads_script URL→File
+
+ | html.styles@1 | html | style (styles) | loads_style
+
+ | html.frames@1 | html | frame (frames) | embeds
+
+ | html.forms@1 | html | form → Endpoint html_form, parameter (forms, parameters) | form_action, ParameterProperty
+
+ | html.meta@1 | html | generator (libraries) | feature only
+
+ | js.endpoints@1 | js | endpoint js_call (fetch, XHR, axios, $.ajax, sendBeacon, EventSource, *.http.get ...) or js_literal (path-like strings), query parameters (endpoints, parameters) | calls
+
+ | js.graphql@1 | js | graphql_operation (parameters) | ParameterProperty when its endpoint is known
+
+ | js.sourcemap@1 | js | sourcemap (sourcemaps) | source_map
+
+ | js.libraries@1 | js | library from banners and known globals (libraries) | includes_library
+
+ | js.modules@1 | js | module_import (scripts) | feature only
+
+ | css.urls@1 | css | css_import (styles), css_asset (links) | loads_style File→File
+
+ | headers.security@1 | headers | header (headers) | HTTPHeaderProperty
+
+ | wellknown.robots@1 | robots | robots_rule, sitemap link (links) | links_to
+
+ | wellknown.securitytxt@1 | securitytxt | security_field (links) | feature only
+
+ | xml.sitemap@1 | sitemap | sitemap_entry (links) | links_to
+
+ | sourcemap.sources@1 | sourcemap | sourcemap_source (sourcemaps) | originals become #src/ documents
+
+ | schema.openapi@1 | json | schema_endpoint openapi, parameter (schemas, parameters) | documents
+
+ | schema.graphql@1 | json, text | schema_endpoint graphql, graphql_operation (schemas, parameters) | documents (assumes POST <origin>/graphql)
+
+ | secrets@1 | all text | secret (findings) | VulnProperty exposed_secret
+
+ | disclosure@1 | all | source_disclosure (findings) | VulnProperty source_disclosure
+
+### 33.7 Secrets and redaction
+
+- Detection is by named, structured rules: aws_access_key_id, aws_secret_access_key, github_token, github_fine_grained_pat, gitlab_token, slack_token, slack_webhook, stripe_secret_key, google_api_key, openai_api_key, anthropic_api_key, sendgrid_api_key, npm_token, azure_storage_key, jwt, private_key, connection_string (password only), url_credentials (password only). Bare entropy (generic_high_entropy) is a low-confidence tier: never a finding on its own, still redacted.
+
+- Findings carry the rule id, the redacted preview (28.3) and the keyed-hash input; the HMAC is computed by the caller with the tenant's hash data key. Observe emits exposed_secret tags only with a keyed hasher.
+
+- Redaction before storage and indexing: credential-shaped strings are replaced by [REDACTED:<rule>:<shape>:<length>] before a hunk or normalized snapshot is hashed for the index, indexed, embedded or logged. The original bytes stay only in the encrypted findings and the encrypted seals of the raw snapshot (34.4). Redact rescans its output until a scan is empty, so it is idempotent (CONTENT-INV-10). Hidden form fields keep only short numeric or boolean values (CONTENT-INV-04).
+
+### 33.8 Collection integrity and coverage
+
+- Integrity flags degrade a capture: fetch_failed, truncated, login_redirect, challenge_page (strong markers such as challenge platforms degrade alone; weak ones, a CAPTCHA widget, "access denied", only with status 403, 429 or 503), error_after_success, soft_error_after_success (a title naming an HTTP error or maintenance on a 2xx page after a 2xx page that did not), mass_removal (more than half of at least four previous features gone), catch_all (the same body, SimHash Hamming ≤ 3, at two other URLs of the host). A degraded capture gets no diff and no withdrawal, emits only its source and redirects, is reported as a collection problem and updates source health (CONTENT-INV-06).
+
+- Coverage is complete iff the outcome is complete, the body normalized completely, every extractor that ran graded complete and none applicable is canary-disabled (CONTENT-INV-14); failed for degraded or failed captures; unsupported for binary bodies; partial otherwise. covered_rules lists the families read completely; a complete HTML reading also covers the inline-script and inline-style families; header and redirect families are covered whenever the capture is complete. HTML parse errors do not lower the grade (the algorithm recovers from all of them); only its limits do. Any JavaScript diagnostic lowers the grade to partial.
+
+### 33.9 Lineage and modules
+
+- File-level lineage: for a script or style with no own predecessor, the best predecessor among the page's previously loaded scripts (and, in the store, the host's open versions of the same kind, 34.1). A unique lineage key (the URL with hash-like segments stripped) decides first; otherwise SimHash over 3-token shingles of the fingerprint tokens (bound identifiers erased to $, free identifiers and property names kept) at Hamming distance ≤ 6 (DefaultMaxHamming), ties broken by size ratio, then URL. Matchers simhash (default), minhash and jaccard (minimum Jaccard 0.75) are selectable; the scan is linear (exact at any threshold). A match emits previous_version and the diff is computed against the predecessor (CONTENT-INV-08).
+
+- Module-level lineage (level 2.5): bundles are split into bundler modules (webpack tables, esbuild wrappers, rollup/vite top-level statements; strategy auto by default) and each normalized module is hashed with locally bound identifiers renamed to positional names. An unchanged module is no change wherever it moved; a bundle whose modules all match is reordered (CONTENT-INV-09). Vendor modules (node_modules/ ids, configured hashes, a library banner inside) are suppressed and a library change is reported as a version change by js.libraries. Module changes are not level 3: they appear in the summary and text diff.
+
+### 33.10 Diff and classification
+
+- Levels: hash (bytes differ), text (normalized hunks differ), semantic (the feature-set difference, computed over the whole capture with its derived documents, so a feature moving between documents is no change). Level-3 changes map to graph changes.
+
+- Outcomes (counted): no_change, normalized_equal, masked_only, reordered, structural (text only), changed (level 3), degraded (no diff). masked_only and reordered are not changes.
+
+- Class: semantic_endpoint (endpoint, form, parameter, GraphQL operation), metadata (headers only), observation (other level 3), structural (text only). catalog (a new advisory against an unchanged library) is reserved for the advisory matcher (D4, v3).
+
+- Newness: likely_new against a complete previous capture, first_seen_only without one, pre_existing for the baseline and for returns (needs the store's feature-id history).
+
+- Cause: target as soon as one raw body differs; otherwise normalizer if a normalizer version or rule table differs, else parser if the extractor set differs. Default feeds and alerts hide non-target causes (CONTENT-INV-15).
+
+- Baseline: the first complete capture of a (URL, profile) is baseline = true: it produces graph data but no feed items or alerts.
+
+- Diff policy: size (default; Myers linear space on tokens up to 16 KiB of normalized text, histogram on lines above), myers, histogram, patience, all through BoundedDiff (30.2).
+
+- Re-derive (normative; in progress on feat_v2, G-CST-04): upgrading a parser, normalizer or extractor triggers a job that, before new captures of the affected kind are accepted, re-reads stored raw snapshots with the new version and records the resulting changes with cause = parser or normalizer.
+
+- Noise metric: false_change_rate per program, text-level changes with zero level-3 changes on pages whose features are stable; target below 5 % (NoiseCounter).
+
+### 33.11 Scores: rank, never send
+
+A change's score in [0, 1] and its score_features (named, weighted reasons) are stored with it, so every rank is explainable. The model is additive and hand-set. Contributions are summed per reason name, the sum clamped to [−1, 1] and rounded to 4 decimals; reasons are sorted by name; the score is the sum of the reason weights in that order, clamped to [0, 1] and rounded to 4 decimals. Weights:
+
+ | Feature kind (added) | Reason | Weight | Feature kind (added) | Reason | Weight
+
+ | secret | exposed_secret | 0.9 | script | new_script | 0.1
+
+ | source_disclosure | source_disclosure | 0.85 | library, frame | new_library, new_frame | 0.1
+
+ | endpoint, schema_endpoint | new_endpoint | 0.4 | parameter | new_parameter | 0.1
+
+ | form | new_form | 0.3 | module_import | new_module_import | 0.05
+
+ | sourcemap | source_map_exposed | 0.3 | header, robots_rule, redirect | header_added, robots_rule_added, new_redirect | 0.05
+
+ | graphql_operation | new_graphql_operation | 0.2 | style, css_import, link, sitemap_entry, security_field | new_style, new_link, securitytxt_changed | 0.02
+
+- Special: state_changing_method 0.15 (POST, PUT, PATCH, DELETE on a new endpoint or form); templated_path 0.1 (a {id}, {uuid}, {hex} or {expr} key); third_party_script_without_sri 0.25; removed_security_header 0.35 (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP, COEP, CORP); csp_loosened 0.3; cookie_flags_weakened 0.25; library_version_change 0.2; sri_removed 0.25; header_changed 0.1.
+
+- Word boosts, once each per change set, on a changed endpoint, form, link, script, parameter or GraphQL operation key: word_admin 0.15 (admin, administrator, manage), word_auth 0.1 (auth, login, oauth, token, session, password), word_payment 0.15 (pay, billing, checkout, invoice, stripe), word_internal 0.15 (internal, private, staging, intranet), word_debug 0.15 (debug, trace, test, dev).
+
+- Removals count at −½ of the positive weight (<reason>_removed), returns at −¼; a change made only of removals or returns scores 0.
+
+Scores rank, never send. No code path leads from a score to a request: the scoring files import only pure standard-library packages (CONTENT-INV-11), alert rules cannot read diff.score (A0202, 36.5), and scoring changes no fetch count. A learned ranker is v3.
+
+### 33.12 Decoded blobs for the index
+
+DecodeBlobs(text) returns the text inside base64, base64-then-gzip and hex blobs found in content (through codec.DecodeLayers, bounded by 8 MiB and 200 layers), with the outer span and the encoding path, redacted for every secret rule. Blobs inside secrets (JWT segments) are never decoded; binary payloads and plain text give nothing (CONTENT-INV-17). It is used by the content store's indexing step only, not by Process; secrets found inside decoded blobs are redacted but not reported as findings.
+
+## 34. Content store
+
+### 34.1 Ingest
+
+IngestRequest{program, Capture, entity, run, effect_path, page_url}
+  signature = SHA-256(body hash, status, media type, headers@1 block of every hop)
+  ├─ same (url, profile, signature, fetched_at) already stored ─▶ duplicate: nothing written
+  ├─ the open version has the signature ─▶ unchanged: last_seen moves, the capture is counted and
+  │                                        the stored observation is re-published byte for byte
+  ├─ older than the open version ─▶ CAPTURE_OUT_OF_ORDER
+  └─ new version
+       content.Process(learned volatility, tenant keyed hasher, previous capture, host bodies, page url)
+       lineage: no own predecessor and a script or style ─▶ FindPredecessor over the page's previous
+                scripts and the host's open versions of the kind (at most 64, minus those sharing a
+                lineage key with one of the page's scripts)
+       content.Compare(predecessor, cur)   (a baseline diffs every artifact against the empty document)
+       blobs: redact body and header values (spans sealed) ─▶ blob codec ─▶ tenant chunk store
+       one transaction: open-version check, exact quota check, close the parent, snapshot row, diff row
+                        (seq), findings (encrypted), volatility, usage, outbox event
+       then: retention of the key, inline indexing
+
+Degraded captures are stored closed with an empty validity interval, get no diff and never become the open version. Validity is [valid_from, valid_to) per (URL, profile), contiguous and disjoint with one open version, so an as-of lookup is one index probe (CSTORE-INV-09). Versions cited by a reviewed or alerted change are pinned and skipped by retention.
+
+### 34.2 Schema (migration 0031, schema content)
+
+Owned by role ff_content, subject to RLS: every table with tenant_id gets forced RLS and the tenant_isolation policy; the store sets app.tenant_id in every transaction; only content.programs has the cross-tenant svc_ff_content policy (background sweeps enumerate tenants there). The *_ref and *_manifest columns hold chunk-store ManifestIDs (hex) of the tenant's chunk store.
+
+CREATE TABLE content.programs (tenant_id uuid, program_id uuid, diff_seq bigint NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (tenant_id, program_id));
+
+CREATE TABLE content.snapshots (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL, program_id uuid NOT NULL,
+  entity_id text NOT NULL DEFAULT '', url text NOT NULL, url_template text NOT NULL DEFAULT '',
+  host text NOT NULL DEFAULT '', profile text NOT NULL, run_id text NOT NULL DEFAULT '',
+  effect_path text NOT NULL DEFAULT '', fetched_at timestamptz NOT NULL, last_seen timestamptz NOT NULL,
+  valid_from timestamptz NOT NULL, valid_to timestamptz,          -- NULL: the open version
+  status int NOT NULL, mime text NOT NULL DEFAULT '', kind text NOT NULL, signature text NOT NULL,
+  headers_ref text NOT NULL, body_manifest text NOT NULL, body_sha256 text NOT NULL,
+  raw_size bigint NOT NULL, stored_size bigint NOT NULL,
+  normalizer_version text NOT NULL, normalized_manifest text NOT NULL,
+  parent_id uuid REFERENCES content.snapshots (id) ON DELETE SET NULL,
+  lineage_parent_id uuid REFERENCES content.snapshots (id) ON DELETE SET NULL,
+  features_ref text NOT NULL, outcome text NOT NULL, coverage text NOT NULL,
+  degraded boolean NOT NULL DEFAULT false, simhash bigint NOT NULL DEFAULT 0,
+  pinned boolean NOT NULL DEFAULT false, pin_reason text NOT NULL DEFAULT '',
+  codec text NOT NULL DEFAULT 'chunk', delta_base uuid REFERENCES content.snapshots (id),
+  delta_depth int NOT NULL DEFAULT 0, body_seal bytea, headers_seal bytea, key_id text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT snapshots_validity CHECK (valid_to IS NULL OR valid_to >= valid_from),
+  CONSTRAINT snapshots_codec CHECK (codec IN ('chunk', 'delta')),
+  CONSTRAINT snapshots_degraded_closed CHECK (NOT degraded OR valid_to IS NOT NULL));
+CREATE UNIQUE INDEX snapshots_open ON content.snapshots (tenant_id, program_id, url, profile) WHERE valid_to IS NULL;
+-- plus snapshots_key, _program, _host_open, _signature, _delta_base, _parent, _lineage_parent
+
+CREATE TABLE content.diffs (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL, program_id uuid NOT NULL, seq bigint NOT NULL,
+  from_snapshot uuid REFERENCES content.snapshots (id) ON DELETE CASCADE,
+  to_snapshot uuid NOT NULL REFERENCES content.snapshots (id) ON DELETE CASCADE,
+  levels text[] NOT NULL, algorithm text NOT NULL, normalizer_version text NOT NULL, stats jsonb NOT NULL,
+  hunks_ref text NOT NULL, semantic_ref text NOT NULL, stored_size bigint NOT NULL, index_docs int NOT NULL,
+  at timestamptz NOT NULL, url text NOT NULL, profile text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), UNIQUE (tenant_id, program_id, seq));
+
+CREATE TABLE content.findings (                                   -- secrets, encrypted at rest
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL, program_id uuid NOT NULL,
+  snapshot_id uuid NOT NULL REFERENCES content.snapshots (id) ON DELETE CASCADE,
+  rule_id text NOT NULL, preview text NOT NULL, keyed_hash text NOT NULL,
+  ciphertext bytea NOT NULL, key_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+
+CREATE TABLE content.volatility (tenant_id uuid, program_id uuid, url_template text, profile text,
+  feature_path text, changes int NOT NULL DEFAULT 0, stable_observations int NOT NULL DEFAULT 0,
+  streak int NOT NULL DEFAULT 0, frozen_version int NOT NULL DEFAULT 0,
+  PRIMARY KEY (tenant_id, program_id, url_template, profile, feature_path));
+
+CREATE TABLE content.quota_limits (tenant_id uuid PRIMARY KEY, captures_per_day bigint NOT NULL DEFAULT 0,
+  stored_bytes bigint NOT NULL DEFAULT 0, index_bytes bigint NOT NULL DEFAULT 0);   -- 0 = unlimited
+CREATE TABLE content.quota_usage (tenant_id uuid PRIMARY KEY, day text NOT NULL DEFAULT '',
+  captures bigint NOT NULL DEFAULT 0, stored_bytes bigint NOT NULL DEFAULT 0, index_bytes bigint NOT NULL DEFAULT 0);
+CREATE TABLE content.index_state (tenant_id uuid, program_id uuid, watermark bigint NOT NULL DEFAULT 0,
+  docs bigint NOT NULL DEFAULT 0, bytes bigint NOT NULL DEFAULT 0, PRIMARY KEY (tenant_id, program_id));
+CREATE TABLE content.data_keys (tenant_id uuid, purpose text, version int, kek_id text NOT NULL,
+  wrapped bytea NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (tenant_id, purpose, version));
+CREATE TABLE content.outbox (id bigserial PRIMARY KEY, event_id uuid NOT NULL UNIQUE, topic text NOT NULL,
+  ordering_key text, payload jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), published_at timestamptz);
+
+(Column types and nullability as in the migration file, which is authoritative; the abbreviated tables above omit NOT NULL on composite key columns.)
+
+### 34.3 Records, blob codecs and ids
+
+ | Column | Blob content
+
+ | headers_ref | capture record: URL, profile, status, headers and redirect chain with header values redacted (canonical JSON)
+
+ | body_manifest | the body with credential-shaped spans replaced by the redaction placeholder
+
+ | normalized_manifest | the main artifact's normalized text (redacted)
+
+ | features_ref | the processed capture without texts and derived bodies, the other artifacts' normalized texts, and the feature-id history (for "returned")
+
+ | hunks_ref | unified hunks by reference ({"h": header, "o": "c3 d2 i1"}, lines read back from the two snapshots' normalized texts; verbatim when that does not reproduce them); none for a baseline
+
+ | semantic_ref | the change set without hunks, side-by-side rows and per-artifact feature changes
+
+- Blob codecs (codec column): delta (default): each blob is an FFZB frame (31.7) whose raw dictionary is the delta base's same blob (parent or lineage parent) and, for the normalized text and features, this snapshot's body and normalized text; chains are bounded by KeyframeInterval (16), and retention re-encodes a deleted base's dependents as keyframes first. chunk: blobs stored plain, relying on FastCDC dedupe and per-chunk zstd.
+
+- Records are canonical JSON. Derived ids are UUID version 8: SHA-256 over uvarint(len) ‖ bytes of the domain and each part, first 16 bytes, version nibble 8, variant 10, so every replica and replay derives the same ids (CSTORE-INV-04).
+
+- No cross-tenant dedupe: one chunk-store namespace per tenant (CSTORE-INV-02).
+
+### 34.4 Encryption envelope
+
+- Each tenant has data keys (32 random bytes) per purpose: enc (AES-256-GCM for findings and redaction seals) and hash (HMAC-SHA256 keyed hashes of secrets, so they survive an enc rotation). Keys are stored only wrapped by the key-encryption key in content.data_keys (purpose, version, kek_id).
+
+- KEK port KeyEncrypter{ID, Wrap(tenant, dek), Unwrap(tenant, wrapped)}: an implementation MUST bind the wrapped key to the tenant (additional data). LocalKEK (development, from FF_CONTENT_KEK) wraps as 0x01 ‖ nonce(12) ‖ ciphertext ‖ tag with additional data "ff-content-kek|" ‖ tenant UUID; a Cloud KMS adapter (Encrypt/Decrypt with the same additional data) fits the same port and is v3 work (G-DOC-10).
+
+- Ciphertexts: 0x01 ‖ nonce(12) ‖ ciphertext ‖ tag(16), nonce from two Rng draws (little-endian u64, then the low 4 bytes of the second). Additional data: "ff-content-seal|<tenant>|<snapshot>|body" or "...|headers" for seals (the redacted spans), "ff-content-finding|<tenant>|<snapshot>|<finding>" for findings (UUIDs in canonical text).
+
+- Only the preview and keyed hash are in the clear and searchable. Raw reads (raw = true, admins only) are the only path that restores secrets (CSTORE-INV-07).
+
+### 34.5 Retention and GC
+
+Per (URL, profile) key, keep the newest KeepLast (50) ∪ fetched within KeepFor (180 days) ∪ pinned ∪ the newest (open) version; diffs touching a deleted snapshot go with it (cascade) and their index documents are tombstoned. Retention then runs chunk GC over the tenant's live and pinned manifests and sets the stored-bytes usage to the store's physical record bytes (CSTORE-INV-03). GC MAY recompress at a higher zstd level and keeps the result only when it saves at least 1/8.
+
+### 34.6 Quotas
+
+Per tenant, zero meaning unlimited (content.quota_limits): captures per UTC day, stored bytes, index bytes. Checked in the write transaction on a locked usage row: a capture is admitted iff today's count is below the limit, stored + added ≤ limit and the index is below its limit; otherwise QUOTA_EXCEEDED with meta.quota naming the quota and, for the daily quota, retry_after until midnight UTC, and nothing is written (chunks put by the refused capture are reclaimed by GC). Duplicates are free; concurrent captures under limit N admit exactly N (CSTORE-INV-06). There are no default limits: operators set them per tenant (GetQuotaStatus reports them).
+
+### 34.7 Search integration and defaults
+
+- One textindex index per (tenant, program). Schema: text fields text, url, decoded; keyword fields program, url_template, kind (hunk, <feature>_<op> such as endpoint_added, snapshot), side (added, removed, modified), feature, mime, vendor, class, newness, cause, profile, baseline, decoded_from; numeric at (Unix ms).
+
+- Documents: per hunk its removed and added sides separately; per level-3 change one record; optionally each key's latest normalized snapshot. Text is cut at 64 KiB and redacted; blobs inside it are decoded by DecodeBlobs into decoded with decoded_from naming the encodings.
+
+- Document ids are seq << 20 | position, so a rebuild from the stored diffs reproduces the index; writes use Update, so re-indexing after a crash is idempotent; the watermark is content.index_state (CSTORE-INV-05). Index modes: inline (default, searchable when ingest returns) or batched.
+
+- Defaults: vendored bundles (node_modules paths, vendor/framework/polyfills chunk names, all-vendor module sets) are excluded unless the query names vendor or include_vendor is set. FirstAppeared(text) returns the earliest snapshot whose diff (baselines included) added the string: candidates from a phrase query (or a regex for text without word tokens), at most 10,000, verified by exact substring (CSTORE-INV-10). Hybrid mode ships only if it is at least as good as BM25 on recall@k and MRR over the labelled set conformance/textindex/ranking/labelled.json (19 queries; BM25 MRR 0.947, P@1 0.895); it is not enabled in v2.
+
+### 34.8 Events
+
+Every accepted capture writes one content.changes event (type content.changed or content.captured, ordering key the program) to content.outbox in the ingest transaction (23.7 shape). Its payload carries the capture's oam observation (with authority), the change set's levels, class, newness, cause, baseline, alertable (not a baseline, cause target, not pre-existing, a change) and, for non-baseline changes, an excerpt: at most 40 lines and 2 KiB of the unified hunks, level-3 artifacts first, redacted once more. The graph ingests the observation and records content_changed on the source entity; the notifier alerts on alertable content events only and ignores the graph's own copy, so one change alerts once.
+
+## 35. Egress: TCP, SOCKS5, DNS and per-target limits
+
+The egress proxy (3.2, 4.4, 4.5) stays the tool runner's only route out. v2 adds every TCP port, SOCKS5, DNS, a per-target rate limit at the network edge, intelligence sources and a notify path.
+
+### 35.1 Listeners
+
+ | Listener | Protocol | Authentication
+
+ | HTTP | CONNECT host:port for any TCP port, plain-HTTP forward requests, and the control endpoint POST http://egress.flowforge.invalid/v1/tickets | internal token in Proxy-Authorization (407 otherwise), decision in X-Flowforge-Decision-Id, ports in X-Flowforge-Ports
+
+ | SOCKS5 | RFC 1928 CONNECT only (29.10); BIND and UDP ASSOCIATE get reply 7 | RFC 1929: username = decision id, password = ticket (the 255-octet limit is too short for an internal token)
+
+ | DNS (UDP and TCP, one port) | RFC 1035 through dnsmsg | ticket in EDNS option code 65280 (local-use range, RFC 6891 9)
+
+A ticket is issued by the control endpoint after the same validation as a proxied request (token, decision, run, effect path, declared ports, kill switch), is bound to all of them and lives at most 60 s. Tickets are per replica and in memory.
+
+### 35.2 Authorization of every request, tunnel and query
+
+- Authenticate the caller (token or ticket).
+
+- Load the decision for the caller's tenant: an allow, at most MaxDecisionAge (1 h) old and of the caller's run when one is sent; reloaded on every use.
+
+- The decision must cover (host, port). A URL decision covers its host and its URL's port (tunnels only under an https decision). A host-level decision (Host or IP) covers its host for the ports of the program's port policy (default 80 and 443; FF_EGRESS_PORTS), narrowed to the ports the tool call declared. Anything else is port_not_allowed. Userinfo, a mismatched Host, un-normalizable hosts and IP literals under a name decision are refused (permission attaches to the name, 4.5).
+
+- Intelligence sources (35.5).
+
+- Kill switches; fail closed when their state is unknown.
+
+- Per-target rate limit: GCRA (14.2, limiter) on key rl:h:<program>:<registrable domain or ip> at the scope document's rate (DefaultRate 10 requests/s, burst 20, concurrency 8 when the document sets none), plus a concurrency cap per key held for the request's or tunnel's lifetime. It applies to every HTTP request, CONNECT tunnel and SOCKS5 tunnel, so a tool's internal parallelism cannot exceed the program rate (inv_10 at the network edge). Denials answer 429 with Retry-After and X-Flowforge-Retry-After-Ms (SOCKS5: reply 2) and count ff_limiter_denied_total{level="proxy_host"|"proxy_host_concurrency"}. With FF_REDIS_ADDR the GCRA state is shared by every replica (Redis TIME as the clock); the concurrency cap is per replica.
+
+- Dial only the decision's pinned addresses, never re-resolving (DNS rebinding cannot redirect a connection); loopback, private, link-local, CGNAT, multicast and unspecified addresses need an explicit cidr rule. Plain-HTTP redirects are re-checked with the scope service.
+
+Every refusal answers 403, 407, 429 or 502 with X-Flowforge-Refused: <reason> (SOCKS5 reply 2, 5 or 7; DNS REFUSED), logs egress.refused and counts ff_egress_refused_total{reason}. Reasons are listed in 40.4.
+
+### 35.3 DNS forwarder
+
+A query is answered only when it carries a valid ticket whose decision is still an allow, no kill switch is engaged, and the name passes a passive scope check (D3; recorded by the scope service; reverse names are checked as the IP they denote) or is an allowlisted intelligence source under a passive decision (recorded as intel_source). Everything else is REFUSED; ANY is NOTIMP; malformed queries get FORMERR. Records of a CNAME chain are kept only up to the first hop that fails the same check; at most 64 records; UDP answers are cut to the client's EDNS size (at most 1232 octets, 512 without EDNS) with TC set (EncodeTruncated), TCP answers to 16 KiB.
+
+### 35.4 Passive tools (decision D3)
+
+DNS resolution (public resolvers or authoritative servers) and TLS handshakes for certificate collection are passive. They still require a scope check: the class is passive, the decision is recorded and IPs are pinned (tlscert asks for pins with resolve = true; without pins the proxy refuses the tunnel, no_pinned_ips). Passive only changes which windows and program classes allow them. portscan and anything that sends application payloads stay active.
+
+### 35.5 Intelligence sources
+
+Passive tools that fetch from public sources (crt.sh, RDAP, Team Cymru) go through the proxy but are checked against an allowlist of intelligence sources, not the program scope: the target is the source, not the program's asset. When the host is on the allowlist and the decision is of class passive, the source's configured or resolved public addresses are dialled and each connection (and each allowlisted DNS name) is recorded in the decision log with reason intel_source; other classes get intel_requires_passive. Redirects must stay on the allowlist. DefaultIntelSources(): crt.sh, data.iana.org, rdap.iana.org, rdap.org, the five RIR RDAP servers, rdap.verisign.com, rdap.publicinterestregistry.org, rdap.identitydigital.services, pubapi.registry.google, rdap.centralnic.com (port 443), whois.cymru.com and asn.cymru.com with subdomains (port 43). FF_EGRESS_INTEL: none (default), default, and/or entries host[:port...][=ip] and *.host.
+
+### 35.6 Notify path
+
+Webhook and Slack deliveries are not program targets. They carry X-Flowforge-Egress-Purpose: notify instead of a decision id; the proxy then requires the service:notifier identity, CONNECT (https only), a destination on FF_NOTIFY_ALLOWLIST (comma-separated names, .example.com for every name below a domain; empty refuses everything), resolves the host itself and connects only when every address passes the 15.4 SSRF check (public unicast), pinned for the connection. The per-target rate limit does not apply (the notifier throttles itself).
+
+## 36. Tools and the language surface
+
+### 36.1 Tools
+
+ | Tool (version) | DSL signature | Class | Emits or returns
+
+ | collect 1.0.0 | (InScope<Url>, String) -> Snapshot (capture profile name) | active | Fetch through the proxy with the profile's request shape; every redirect hop re-checked under its own decision (an out-of-scope hop is not followed: the redirect response is the capture); body up to 8 MiB (longer: truncated, outcome partial); stored with IngestCapture. For an HTML page also its scripts, styles and each script's source map (at most 32, each scope-checked, a denied one skipped and never contacted). Returns the page's Snapshot with the subresources in resources
+
+ | crawl 1.0.0 | (InScope<Url>, Int) -> List<Url> (fetch budget, at most 500) | active | Breadth-first frontier: every URL canonicalized and scope-checked before queueing; robots.txt per origin (2xx parsed, 4xx allow all, 5xx, unreachable or out of scope disallow all; agent token flowforge); links, frames and sitemap entries; revisit policy per (program, URL, profile): adaptive by default (halve on change, double on no change, clamped to [1 h, 7 d], first interval 24 h). Returns every in-scope, robots-allowed URL reached
+
+ | wellknown 1.0.0 | (InScope<Host>) -> List<Url> | active | robots.txt, /.well-known/security.txt then /security.txt, the sitemaps robots.txt names (else /sitemap.xml; an index followed one level, at most 10), OpenAPI at /openapi.json, /swagger.json, /v3/api-docs, /api-docs, /.well-known/openapi.json, GraphQL GET /graphql?query={__typename}. Probes store 2xx answers whose sniffed kind is the expected one
+
+ | extract 1.0.0 | (Snapshot) -> Features | read | The stored features grouped by kind; no graph facts (36.6)
+
+ | unpack_sourcemap 1.0.0 | (Snapshot) -> List<Snapshot> | read | The #src/<path> originals of a stored source map (or of the map a script names)
+
+ | diff_latest 1.0.0 | (Snapshot) -> ChangeSet | read | DiffSnapshots against the stored predecessor (parent, lineage parent, or the baseline); no graph facts (36.6)
+
+ | search_changes 1.0.0 | (String, Int) -> List<ChangeHit> | read | SearchChanges (32.2 query language, limit 1-1000)
+
+ | ctlog 1.0.0 | (Fqdn) -> List<Fqdn> | passive | crt.sh search (intel source): names at or below the input; TLSCertificate (keyed by SHA-256 fingerprint of the downloaded DER, at most 50 per query), common_name / san_dns_name edges
+
+ | rdap 1.0.0 | (Host) -> List<Organization> | passive | IANA bootstrap (cached 24 h) then registry RDAP: DomainRecord, IPNetRecord, Netblock, Organization (never personal data), registration and contains edges
+
+ | asn 1.0.0 | (IpAddress) -> Option<Asn> | passive | RDAP and Team Cymru TXT via the DNS forwarder: AutonomousSystem, Netblock, AutnumRecord, IPNetRecord; announces, contains, registration
+
+ | dnsresolve 2.0.0 | (Fqdn) -> List<IpAddress> | passive | Through the DNS forwarder: A/AAAA, CNAME (every hop scope-checked), MX (PrefDNSRelation), NS, TXT (DNSRecordProperty)
+
+ | portscan 2.0.0 | (InScope<Host>, List<Int>) -> List<Int> | active | Service + port PortRelation per open port, paced per target; tcpconnect 1.1.0 is an alias
+
+ | tlscert 1.0.0 | (InScope<Host>, Int) -> Option<TlsCertificate> | passive (D3) | TLS handshake through a tunnel under a pinned decision, SNI = host, aborted when the certificates arrive (no application data); Service, port, certificate, TLSCertificate, common_name / san_dns_name
+
+ | httpprobe 1.0.0 | (InScope<Host>) -> Option<Service> | active | unchanged from v1
+
+Every URL a content tool touches is checked twice: a passive check first (no resolution, so out-of-scope names never reach DNS), then the active one that resolves and pins. A denied URL is streamed as Skipped and never contacted. A (URL, profile) whose open version the calling run already stored is returned without a fetch, so one run never splits a deploy's change across two versions. new_in_run compares the version's run with the calling run.
+
+### 36.2 Standard-library records
+
+Added to the 7.6 prelude after TaskError (builtin type ids are append-only). Tool results are decoded field by field into these layouts, so adapters emit exactly these fields, in this order.
+
+ | Record | Fields (in order)
+
+ | Snapshot | id: String (snp_...; a derived source-map original is <id>#src/<path>), url: String, profile: String, status: Int, mime: String, kind: String (sniffed), body_sha256: String, raw_size: Int, fetched_at: Time, parent_id: Option<String>, lineage_parent_id: Option<String>, coverage: String, degraded: Bool, new_in_run: Bool, redirects: List<String> (each Location followed, in order), resources: List<Snapshot> (scripts, styles, source maps captured with it)
+
+ | Features | snapshot_id: String, url: String, coverage: String, links, scripts, styles, frames, sourcemaps: List<Url> (canonical), endpoints, forms, parameters (graph keys such as ep:POST https://h/p), headers, libraries, secrets (<rule>:<redacted preview>, never the secret): List<String>
+
+ | ChangeSet | snapshot_id: String, from_snapshot_id: Option<String>, diff_id: Option<String>, url: String, outcome: String, levels: List<String>, semantic: Bool (level 3 present), class: String, newness: String, cause: String, baseline: Bool, alertable: Bool (what default feeds show), score: Float (ranking only), changes: List<String> ("<op> <kind>|<key>"), summary: Map<String, Int> (per-kind counts, plus <kind>_<op>)
+
+ | ChangeHit | score: Float, at: Time, diff_id: String, snapshot_id: String, url: String, kind: String, side: String, feature: String, class: String, newness: String, cause: String, text: String
+
+### 36.3 Builtins added in v2 (G-LANG-10)
+
+Pure builtins over the codec package, appended to the 8.4 builtin table (ids are append-only). Decoders return None for invalid input and for bytes that are not UTF-8, since DSL strings are text.
+
+ | Builtin | Signature | Semantics
+
+ | base64_decode | (s: String) -> Option<String> | RFC 4648 lenient: either alphabet, padding optional, ASCII white space skipped
+
+ | base64_encode | (s: String) -> String | RFC 4648 4 standard alphabet, padded
+
+ | url_decode | (s: String) -> Option<String> | percent-decoding (RFC 3986 2.1), None on a malformed escape; + stays +
+
+ | url_encode | (s: String) -> String | WHATWG component percent-encode set (encodeURIComponent), upper-case hex
+
+ | hex_decode | (s: String) -> Option<String> | base16, either case, white space between pairs skipped
+
+ | hex_encode | (s: String) -> String | lower-case base16 of the UTF-8 bytes
+
+### 36.4 Reference monitoring workflow
+
+conformance/workflows/monitor.ff, monitor(roots: List<Url>, hosts: List<Fqdn>, budget: Int) -> List<String>, runs once per deploy: crawl from every root and wellknown per host; collect every discovered URL with profile default through par_map(..., limit = 4, on_error = "collect"); unpack_sourcemap; diff_latest of every version this run stored (new_in_run, not degraded); keep semantic && alertable; order by score (ranking only) and emit_alert each. Every target passes scope.check before it reaches a tool.
+
+### 36.5 The alert diff variable
+
+Alert rules (15) gain a diff section, present on content events (absent elsewhere; absent values follow the three-valued logic of 15.2):
+
+ | Field | Type | Meaning
+
+ | snapshot_id, from_snapshot_id, diff_id | String | the versions and the stored diff
+
+ | url, profile | String | the capture key
+
+ | outcome, class, newness, cause | String | 33.10
+
+ | levels | List<String> | hash, text, semantic
+
+ | semantic, baseline, alertable | Bool | level 3 present; first complete capture; default-feed visible
+
+ | kinds | List<String> | <kind>_<op>, for example endpoint_added
+
+ | changes | List<String> | <op> <kind>|<key>
+
+ | summary | String | one-line summary (DiffSummary)
+
+ | excerpt | String | redacted unified hunks (34.8)
+
+Example: alert new_endpoint when diff.alertable && "endpoint_added" in diff.kinds -> webhook("w") throttle 1h group_by diff.url. The score and its reasons are deliberately not fields: diff.score is diagnostic A0202 (unknown field). Scores appear in the payload's diff section to rank alerts, but never decide whether one is sent.
+
+### 36.6 One writer per content fact
+
+The content tools stream no observations. The content service publishes each capture's observation (URL, File, Endpoint, ContentProperty, HTTPHeaderProperty, redirects_to, previous_version, ... with coverage-gated authority) in its content.changes event, so every content fact has one writer and authority is applied once. The raw response is the raw snapshot in the tenant's chunk store, not a raw/ blob.
+
+## 37. Content API
+
+### 37.1 ContentService (gRPC, proto/flowforge/v1/content.proto)
+
+ | RPC | Permission | Purpose
+
+ | IngestCapture | runs:submit | Store one capture (idempotent; unchanged re-fetches extend last_seen). Returns the snapshot, diff id, duplicate, unchanged, the change summary (with alertable), the lineage parent URL and the event id
+
+ | GetSnapshot | read; raw needs programs:admin | Metadata; optionally the redacted body, normalized text, features JSON and finding previews; raw restores secrets
+
+ | ListSnapshots | read | Per program, URL, profile; newest first; paged (11.2 paging)
+
+ | DiffSnapshots | read | Unified and/or side-by-side JSON per artifact; from empty means the stored predecessor (or the baseline)
+
+ | SearchChanges, FirstAppeared | read | Section 32 query language over hunks and change records; the earliest snapshot adding a string
+
+ | PinSnapshot, UnpinSnapshot | alerts:write | Retention pins with a reason
+
+ | GetQuotaStatus | read | Limits and usage of 34.6
+
+The tenant comes from the internal token; RLS is set per transaction.
+
+### 37.2 REST (gateway)
+
+ | Route | Parameters | Maps to
+
+ | GET /v1/snapshots | program_id (required), url, profile, open_only, paging | ListSnapshots
+
+ | GET /v1/snapshots/{id} | include=body,normalized,features, raw=true | GetSnapshot
+
+ | GET /v1/snapshots/{a}/diff/{b} | format=unified|side_by_side|both (default both); {a} may be previous | DiffSnapshots
+
+ | POST /v1/snapshots/{id}/:pin, POST /v1/snapshots/{id}/:unpin | body {"reason": "..."} for pin | PinSnapshot, UnpinSnapshot
+
+ | GET /v1/changes/search | program_id, q, limit (1-1000), include_vendor | SearchChanges
+
+ | GET /v1/changes/first-appeared | program_id, text, include_vendor | FirstAppeared
+
+ | GET /v1/content/quota |  | GetQuotaStatus
+
+Snapshot ids carry the prefix snp_. JSON field names are the proto field names (snake case); optional strings are omitted when empty. A snapshot: id, program_id, entity_id, url, url_template, profile, run_id, fetched_at, last_seen, valid_from, valid_to, status, mime, kind, body_sha256, raw_size, stored_size, normalizer_version, parent_id, lineage_parent_id, outcome, coverage, degraded, pinned, pin_reason, created_at, plus body, body_raw, normalized, headers, features, findings (rule_id, preview, keyed_hash) when included. A change summary: outcome, levels, class, newness, cause, baseline, score, score_features, changes (op, kind, key, newness, value), summary. A diff artifact: doc_id, kind, outcome, levels, algorithm, bound_level, fallback, inserted, deleted, unified, side_by_side, feature_changes. A hit: score, at, diff_id, snapshot_id, from_snapshot_id, url, doc, header, kind, side, feature, mime, url_template, class, newness, cause, vendor, text, decoded_from.
+
+Errors follow 12.2. Content reasons: NOT_FOUND (404), VALIDATION_FAILED (400; query errors carry the textindex code and span of 40.3 in the error metadata), QUOTA_EXCEEDED (429; metadata quota = captures_per_day | stored_bytes | index_bytes, Retry-After for the daily quota), CAPTURE_OUT_OF_ORDER (409), VERSION_CONFLICT (retried internally), CONTENT_INTEGRITY (500: stored bytes failed verification), INTERNAL.
+
+## 38. Lab and end-to-end acceptance
+
+An in-process lab (services/internal/lab) is a small deterministic internet: an in-scope TLS listener on 127.0.0.1 with virtual hosts and one Ed25519 certificate signed by the lab CA, an in-scope plain-HTTP listener, an out-of-scope listener on 127.0.0.2 (Linux loopback /8), an authoritative DNS server (A records for the lab hosts, NODATA for other types, NXDOMAIN inside the lab zones, REFUSED outside), a clock that jumps to each deploy's time, and logs of every request and DNS question. Volatile values ({{nonce}}, {{ts}}, {{ts_s}}, {{iso}}, {{request_id}}) come from SplitMix64 with the manifest's seed.
+
+A site is conformance/lab/<site>/manifest.json: hosts with scope in or out; deploys (files added, replaced or removed per listener, host and path; redirects); and expect: the planted level-3 changes (deploy, snapshot URL, <op> <kind>|<key>, a regex that finds it), the renamed bundles and their predecessors, notifier rules with alert counts, and robots-disallowed paths. The acceptance site shop has six weekly deploys: d1 baseline; d2 only volatile values, formatting, build hashes and a reordered, renamed bundle; d3 a new POST form, a third-party script without SRI, a leaked key (the AWS documentation example pair), CSP loosened, X-Frame-Options removed, HttpOnly dropped, renamed chunks with new admin endpoints and a library bump; d4 CSP removed, a DELETE endpoint in a renamed bundle and in the OpenAPI document; d5 and d6 only per-response volatile values.
+
+TestLabAcceptance_Memory and TestLabAcceptance_Postgres start the lab and the dev stack (engine, tool runner, egress proxy, scope, content, graph, notifier), create a program allowing the in-scope hosts, register monitor.ff and run it once per deploy. Each item MUST hold:
+
+ | Item | Assertion | Measured (2026-11-13)
+
+ | 1 capture each deploy | every page, script, style and map the deploy serves was requested in that deploy and has a stored version valid at its time | all 6 deploys
+
+ | 2 exactly the planted level-3 changes | the level-3 changes of all stored versions equal the planted ones, each alertable; no text-only (structural) change; each run's report lists exactly its deploy's changed versions | 18 = 18 over 49 versions
+
+ | 3 renamed chunks linked | each renamed bundle's first version has its predecessor as lineage parent, and the graph has File → File previous_version | 5 renames
+
+ | 4 alerts once each | per rule exactly the planted count; the webhook received each once with a valid signature; content alerts carry diff; none carries the key | 19 deliveries
+
+ | 5 searchable | each planted change found at its version by search_changes, by kind:<kind>_<op> and by the manifest's regex | 18 × 2 queries
+
+ | 6 no out-of-scope contact | no request on the out-of-scope listener or for an out-of-scope Host, no DNS question for an out-of-scope name, no robots-disallowed path, refusals recorded for both out-of-scope hosts | 254 requests and 538 DNS questions, 0 out of scope
+
+ | 7 storage under 25 % of raw | raw snapshots (capture record + redacted body of every version, CSTORE-INV-08's measure) against the versions' raw size | 6.8 % (all records with diffs 18.4 %)
+
+Run: go test ./services/internal/lab/ (memory) and FF_TEST_PG_DSN=... go test ./services/internal/lab/ -run Postgres.
+
+## 39. Invariant register
+
+Every v2 package's numbered invariants, each with its test (Test<Pkg>Inv<NN>_<Name>, name-scanned by verify-module through the required ids in modules.toml) and its one-line statement. The Rust port reimplements exactly this list under the same ids (snake case: html_inv_01_token_spans_tile_input). Fuzz targets assert the same invariants on arbitrary input. The list is generated from the package READMEs, which MUST stay in step with this table; every test named here exists.
+
+#### htmlparse
+
+ | Id | Test | Statement
+
+ | HTML-INV-01 | TestHTMLInv01_TokenSpansTileInput | Token spans start at 0, are contiguous and the EOF token ends at len(input), in every initial state.
+
+ | HTML-INV-02 | TestHTMLInv02_ParsingIsTotal | Tokenize, Parse and ParseFragment accept any bytes without panicking; Parse always yields an html document element.
+
+ | HTML-INV-03 | TestHTMLInv03_SerializeReparseFixpoint | For round-trip-safe trees (roundTripSafe: well-formed generated documents and the safe subset of soup), Parse(Render(Parse(x))) dumps like Parse(x).
+
+ | HTML-INV-04 | TestHTMLInv04_LinearTimeAndAllocation | Allocation count and bytes per input byte at 4n are within 20 % of n; time per byte within 50 % (skipped under -race/-short).
+
+ | HTML-INV-05 | TestHTMLInv05_ArenaIntegrity | All links are in range and mutually consistent, sibling chains are acyclic, every node is reached exactly once from a parentless node.
+
+ | HTML-INV-06 | TestHTMLInv06_DepthLimit | The stack of open elements never exceeds MaxDepth; exceeding it reports the error, keeps every element and keeps parsing.
+
+ | HTML-INV-07 | TestHTMLInv07_DecodeTokenizeEquivalence | Valid UTF-8 decodes to itself with or without a BOM or utf-8 label, and tokenizes identically.
+
+ | HTML-INV-08 | TestHTMLInv08_ErrorsOrderedAndLocated | Errors are sorted by offset, lie within the input, and Line/Col (UTF-16 columns, CR LF = one break) match the offset.
+
+ | HTML-INV-09 | TestHTMLInv09_AttributesUniqueAndLimited | No element has duplicate (namespace, name) attributes; MaxAttributes caps each tag with an error.
+
+ | HTML-INV-10 | TestHTMLInv10_TextCoalesced | The parser never leaves two adjacent Text siblings.
+
+ | HTML-INV-11 | TestHTMLInv11_NamedReferenceLongestMatch | Both lookup strategies return the brute-force longest entity prefix; entities.json equals the table.
+
+#### jsparse
+
+ | Id | Test | Statement
+
+ | JS-INV-01 | TestJSInv01_TokenTiling | With Options.Tokens, tokens and trivia tile the input exactly once, in order, for every valid input and, in tolerant mode, for every input.
+
+ | JS-INV-02 | TestJSInv02_Totality, FuzzJSParse | Tolerant mode returns a program for any byte string and never panics; strict mode returns an error or a program; diagnostics have known codes and in-range spans.
+
+ | JS-INV-03 | TestJSInv03_PrintReparse, TestJSInv03_PrintReparseGenerated, FuzzJSPrintReparse | Parse(Print(p)) has the same canonical JSON as p, in readable and minified layouts (all pass files, generated programs, and the whole positive test262 corpus in TestJSTest262Full).
+
+ | JS-INV-04 | TestJSInv04_LinearTime | Parsing a 4n-byte bundle costs at most 1.6 × 4 × the time and allocated bytes of an n-byte bundle (best of five).
+
+ | JS-INV-05 | TestJSInv05_LexicalGoals | Every /-initial token is a RegularExpressionLiteral exactly where the grammar admits one (hand-written ambiguous contexts and the generator's recorded answers); regex tokens are lexed under a RegExp goal.
+
+ | JS-INV-06 | TestJSInv06_ArenaIntegrity | Child ids are in range and not self; list ranges are inside Children; holes only in array elements; no node has two parents; child spans lie within parent spans; in successful parses every node is reachable from the root.
+
+ | JS-INV-07 | TestJSInv07_TolerantAgrees | On valid input tolerant mode gives the strict tree and no diagnostics.
+
+ | JS-INV-08 | TestJSInv08_FirstDiagnosticMatchesStrict | On invalid input the first tolerant diagnostic equals the strict-mode error.
+
+ | JS-INV-09 | TestJSInv09_CanonicalJSON | The canonical JSON is valid JSON with strictly sorted object keys and is identical across parses.
+
+ | JS-INV-10 | TestJSInv10_LexerTiling, FuzzJSLexer | The lexer alone, under any goal sequence, terminates and tiles the input with tokens and trivia.
+
+#### cssparse
+
+ | Id | Test | Statement
+
+ | CSS-INV-01 | TestCSSInv01_TokenTiling | Token spans are non-empty, contiguous, and cover the input exactly once.
+
+ | CSS-INV-02 | TestCSSInv02_Totality | Every entry point accepts any byte string and yields a well-formed arena (parent/child links, ordered in-range spans); URL extraction never fails.
+
+ | CSS-INV-03 | TestCSSInv03_Reserialization | Concatenating the token source spans reproduces the input byte for byte; Serialize (from values) re-tokenizes to the same kinds, flags, values and numbers.
+
+ | CSS-INV-04 | TestCSSInv04_LinearSteps, TestCSSInv04_LinearTime | Tokenizer state-machine steps ≤ 4·n + 8; nodes ≤ (MaxDepth+2)·tokens; allocations and time at 4n within 4.4x / 1.5x of n.
+
+ | CSS-INV-05 | TestCSSInv05_LosslessComponentTree | In a component-value parse without a depth hit, every non-comment token is exactly one node's token or one block's closing token.
+
+ | CSS-INV-06 | TestCSSInv06_DepthBound | No block or function is nested deeper than MaxDepth (re-parsed blocks included); depth_limit is reported exactly when the true nesting exceeds it.
+
+ | CSS-INV-07 | TestCSSInv07_EveryURLTokenReported | Every <url-token> of a stylesheet appears in URLs() with its span, in source order.
+
+ | CSS-INV-08 | TestCSSInv08_LimitsGradePartial | A result is partial exactly when a limit was hit, never complete then.
+
+#### xmlparse
+
+ | Id | Test | Statement
+
+ | XML-INV-01 | TestXMLInv01_Totality | Any byte string yields a tree and nil or a *SyntaxError with an in-range offset; EOF-class errors sit at the input length; the grade matches the error.
+
+ | XML-INV-02 | TestXMLInv02_FirstOffendingByte | Every prefix of a well-formed document is error-free or ends in an EOF-class error; for an error at k, [:k] has no non-EOF error and [:k+w] (alone or followed by anything) gives the same code at k.
+
+ | XML-INV-03 | TestXMLInv03_DepthCap | Nesting beyond MaxDepth stops with depth_limit (partial) and no tree path exceeds MaxDepth.
+
+ | XML-INV-04 | TestXMLInv04_CanonicalRoundTrip | Generated documents (random escaping, quoting, CDATA, whitespace, namespaces) parse to the model's canonical form, and canonical form is a fixed point of parse-then-canonicalize.
+
+ | XML-INV-05 | TestXMLInv05_NoExpansionGrowth | Decoded text, names and attribute values never exceed the input length; any internal subset is refused (unsupported).
+
+ | XML-INV-06 | TestXMLInv06_LinearSteps, TestXMLInv06_LinearTime | Decoder steps ≤ 3·n + 16 on generated and adversarial input; tree allocations at 4n ≤ 4.4x of n; decoder time per byte at 4n ≤ 1.5x of n.
+
+ | XML-INV-07 | TestXMLInv07_LimitsGradePartial | A result is partial exactly when a limit stopped it, never complete then.
+
+ | XML-INV-08 | TestXMLInv08_EventsNestAndStick | Events nest with matching names, the tree has one node per content event, and the error is sticky.
+
+ | SITEMAP-INV-01 | TestSitemapInv01_ExactEntries | Generated sitemaps (plain or gzip, with invalid entries and look-alike <loc> in extensions) yield exactly the valid entries in order.
+
+ | SITEMAP-INV-02 | TestSitemapInv02_LimitsGradePartial | Entry/byte limits grade the read partial, entries never exceed the limit, decompression never inflates past MaxBytes+1.
+
+#### sourcemap
+
+ | Id | Test | Statement
+
+ | SMAP-INV-01 | TestSMapInv01_VLQRoundTrip | DecodeVLQ(AppendVLQ(v)) = v for random and boundary int32 values (MinInt32 included); encodings are minimal and at most 7 digits.
+
+ | SMAP-INV-02 | TestSMapInv02_MappingsRoundTrip | decode(encode(ms)) = ms (in-line order kept, columns to MaxInt32) and encode(decode(s)) = s for canonical s.
+
+ | SMAP-INV-03 | TestSMapInv03_LookupMatchesBruteForce | OriginalPositionFor agrees with a linear scan.
+
+ | SMAP-INV-04 | TestSMapInv04_SortedAndInBounds | Every accepted map (regular, index, mutated) has mappings sorted by generated position with every index and position in range.
+
+ | SMAP-INV-05 | TestSMapInv05_IndexMapAgreesWithSections | Lookup in a flattened index map equals lookup in the section's own map, offset-adjusted.
+
+ | SMAP-INV-06 | TestSMapInv06_LimitsGradePartial | A limit hit is partial, never complete; partial maps keep SMAP-INV-04.
+
+ | SMAP-INV-07 | TestSMapInv07_LinearTime | Allocations at 4n ≤ 4.4x of n; time per byte ≤ 1.5x.
+
+#### wellknown
+
+ | Id | Test | Statement
+
+ | WK-INV-01 | TestWKInv01_RobotsMatchesReference | On generated robots.txt files, Allowed agrees with a brute-force reference implementation of RFC 9309 semantics for random crawlers and paths.
+
+ | WK-INV-02 | TestWKInv02_PatternMatcherMatchesBruteForce | The backtracking pattern matcher equals exhaustive wildcard matching.
+
+ | WK-INV-03 | TestWKInv03_Totality | Any byte string parses as both formats; diagnostics carry in-range line numbers; every group has an agent.
+
+ | WK-INV-04 | TestWKInv04_LimitsGradePartial | Byte and item limits grade both formats partial, never complete, and no more items than the limit are kept.
+
+ | WK-INV-05 | TestWKInv05_ExpiresAgainstArgument | expired holds exactly when Expires ≤ now; results are deterministic for the same input and time.
+
+ | WK-INV-06 | TestWKInv06_SignedFramingTransparent | Wrapping a file in a cleartext signature (with dash-escaping) gives the same fields and diagnostics, with Signed set.
+
+ | WK-INV-07 | TestWKInv07_LinearParse | robots.txt parsing allocations at 4n ≤ 4.4x of n; time per byte ≤ 1.5x.
+
+#### codec
+
+ | Id | Test | Statement
+
+ | CODEC-INV-01 | TestCodecInv01_RoundTrip | decode(encode(x)) == x in both modes for every codec and variant (JS over UTF-8/WTF-8, forms over UTF-8 pairs), and Inflate inverts the reference gzip, zlib, DEFLATE and zstd encoders.
+
+ | CODEC-INV-02 | TestCodecInv02_StrictCanonical | For base64, base32, hex, percent (every set), form components and forms, strict decoding accepts s iff s == encode(decode(s)) (base32 and hex up to ASCII case).
+
+ | CODEC-INV-03 | TestCodecInv03_StrictConformsSpec | Quoted-printable and JS strict modes accept every encoder output (QP lines ≤ 76) and reject each planted violation of RFC 2045 §6.7 / ECMA-262 strict mode with its code and offset; lenient QP and JS decoding are total.
+
+ | CODEC-INV-04 | TestCodecInv04_LenientSuperset | Whatever strict accepts, lenient accepts with the same output.
+
+ | CODEC-INV-05 | TestCodecInv05_StdlibAgreement | Differential against encoding/base64 (strict both ways, lenient ⊇ stdlib), encoding/base32 (lenient ⊇), encoding/hex (equal), net/url (PathUnescape equal to the RFC 3986 check, QueryUnescape/ParseQuery ⊆ form, both invert our encoders), mime/quotedprintable (lenient ⊇; it inverts EncodeQP; strict accepts its binary writer), encoding/json string escapes, and compress/* + klauspost zstd on intact and corrupted streams.
+
+ | CODEC-INV-06 | TestCodecInv06_Base64AlgosAgree | Every Base64Algo candidate returns identical bytes, or the identical error code and offset, for every option set and input.
+
+ | CODEC-INV-07 | TestCodecInv07_OutputLimits | Inflate never returns more than its cap; at the cap it returns exactly that prefix with ErrOutputLimit (bombs: 12 MiB of zeros through every format, a 1 GiB zstd RLE frame); below it the output is complete. Text decoders never output more bytes than they read.
+
+ | CODEC-INV-08 | TestCodecInv08_LayersBounded | DecodeLayers stays within MaxDepth, MaxTotal and MaxNodes with a consistent arena; a payload wrapped k ≤ MaxDepth times (base64, base64url, hex, gzip, zlib, zstd in random order) is found as text at depth k with that path; a gzip-in-gzip bomb stays within the total.
+
+ | CODEC-INV-09 | TestCodecInv09_SniffSound | Sniff returns exactly the planted base64/hex blobs in filler text with exact spans; on any input candidates are sorted, disjoint, in bounds and decode with their kind.
+
+ | CODEC-INV-10 | TestCodecInv10_Determinism | Same input, same bytes: encoders, decoders, Sniff, DecodeLayers; Append* appends exactly what the plain function returns, whatever dst holds.
+
+ | CODEC-INV-11 | TestCodecInv11_StableErrors | Every error is an *Error with a code from the closed list unwrapping to its sentinel, the offset is within the input (text) or equals the returned length (streams), and failing text decoders leave dst unchanged.
+
+#### dnsmsg
+
+ | Id | Test | Statement
+
+ | DNS-INV-01 | TestDNSInv01_RoundTrip | Decode(Encode(m)) == m for generated canonical messages, both modes, no diagnostics
+
+ | DNS-INV-02 | TestDNSInv02_PointersTerminate | Compression pointers never loop: self, forward, backward-cyclic and over-long chains end in pointer_loop; pointer-dense random input terminates
+
+ | DNS-INV-03 | TestDNSInv03_NameBounds | Every decoded name is at most 255 octets in wire form with labels of at most 63, and is canonical
+
+ | DNS-INV-04 | TestDNSInv04_Totality | Decoding is total: any bytes give a message or an error / diagnostics from the closed list
+
+ | DNS-INV-05 | TestDNSInv05_CanonicalEncode | Encoding is canonical: equal messages give equal bytes, and decode-then-encode reproduces them
+
+ | DNS-INV-06 | TestDNSInv06_StrictIdempotence | Strict idempotence: whatever decodes strictly re-encodes to bytes that decode to the same message
+
+ | DNS-INV-07 | TestDNSInv07_Truncation | EncodeTruncated fits the limit, sets TC exactly when records were dropped, keeps a prefix of the answers and the OPT record, and decodes strictly
+
+ | DNS-INV-08 | TestDNSInv08_TCPFraming | TCP framing round-trips and refuses frames above the limit
+
+ | DNS-INV-09 | TestDNSInv09_LenientSuperset | Strict success implies the same lenient result with no diagnostics
+
+ | DNS-INV-10 | TestDNSInv10_NameText | Presentation names: CanonicalName is idempotent, keeps case, escapes round-trip; ParseReverseName(ReverseName(a)) == a
+
+#### socks5
+
+ | Id | Test | Statement
+
+ | SOCKS-INV-01 | TestSOCKSInv01_RoundTrip | Every message round-trips: parse(append(m)) uses exactly its octets and re-encodes identically
+
+ | SOCKS-INV-02 | TestSOCKSInv02_Totality | Parsing is total: a value whose canonical encoding is the consumed prefix, or a closed-list error
+
+ | SOCKS-INV-03 | TestSOCKSInv03_Prefix | Every strict prefix of a valid message is short with len(prefix) < Need <= len(message)
+
+ | SOCKS-INV-04 | TestSOCKSInv04_UnsupportedRefused | Unsupported commands, address types, methods and credentials are refused with the RFC reply; nothing but CONNECT reaches the caller
+
+ | SOCKS-INV-05 | TestSOCKSInv05_MaxLengths | Usernames, passwords and domains are 1..255 octets; longer or empty fields do not encode
+
+ | SOCKS-INV-06 | TestSOCKSInv06_Handshake | Client and server handshakes agree, and bytes after the request stay in the stream
+
+#### diff
+
+ | Id | Test | Statement
+
+ | DIFF-INV-01 | TestDiffInv01_ApplyCorrect | Every algorithm returns a canonical script and Apply(a, Diff(a, b)) == b
+
+ | DIFF-INV-02 | TestDiffInv02_MyersMinimal | myers-linear and myers distances equal the reference DP's n+m−2·LCS
+
+ | DIFF-INV-03 | TestDiffInv03_HeuristicsBoundedByMyers | patience and histogram are Apply-correct with distance ≥ the Myers distance
+
+ | DIFF-INV-04 | TestDiffInv04_Invert | Apply(b, Invert(s)) == a; Invert is an involution preserving distance
+
+ | DIFF-INV-05 | TestDiffInv05_Compose | Compose(s1, s2) is canonical, applies a→c, distance ≤ d1+d2, identity is neutral, mismatched scripts are rejected
+
+ | DIFF-INV-06 | TestDiffInv06_Hunks | Hunks cover every change exactly once, in order; context is exactly min(C, available); hunks are separated by > 2C equal tokens, so contexts never overlap or touch
+
+ | DIFF-INV-07 | TestDiffInv07_UnifiedRoundTrip | Unified → ParseUnified → ApplyUnified(old) == new for every algorithm and context; parsed headers equal HunkHeader; a tampered base is refused
+
+ | DIFF-INV-08 | TestDiffInv08_GitCompatibility (unified_git.json) | Git compatibility: with GitCompact, Unified reproduces git 2.43's hunks byte for byte (histogram always; patience without Myers fallback; Myers where git agrees)
+
+ | DIFF-INV-09 | TestDiffInv09_JSONPatchRoundTrip | ApplyPatch(a, JSONDiff(a, b)) is Equal to b; equal documents give an empty patch; patch and document encodings round trip
+
+ | DIFF-INV-10 | TestDiffInv10_JSONEquality | Equal is RFC 6902 equality (reflexive, symmetric, order-insensitive objects, numeric numbers) and agrees with hash-consed ids
+
+ | DIFF-INV-11 | TestDiffInv11_TreeMetric | Tree edit distance is a metric on random trees (identity, symmetry, triangle) and its mapping realises it
+
+ | DIFF-INV-12 | TestDiffInv12_TreeBruteForce | Zhang–Shasha equals an exhaustive Tai-mapping search on tiny trees (unit and other costs); the mapping is a valid Tai mapping costing the distance
+
+ | DIFF-INV-13 | TestDiffInv13_Determinism | Determinism: identical inputs give byte-identical scripts, unified text, side-by-side JSON, patches and tree mappings across runs
+
+ | DIFF-INV-14 | TestDiffInv14_LinearSpaceMemory | Linear-space Myers allocates O(N+M) (≤ 96 B/token, ≤ 5× bytes for 4× input) while the greedy trace grows quadratically
+
+ | DIFF-INV-15 | TestDiffInv15_CapsAndFallbacks | A cap below D yields Capped with an Apply-correct script keeping the common prefix; a cap ≥ D changes nothing; BoundedDiff (any pluggable algorithms) reports level and reason and its script applies at that level
+
+ | DIFF-INV-16 | TestDiffInv16_SemanticCleanup | CleanupSemantic is Apply-correct, canonical, never below minimal, leaves no eliminable equality (except step-4 overlaps) and is idempotent
+
+ | DIFF-INV-17 | TestDiffInv17_WordRefinement | Word refinement spans are sorted, disjoint, in bounds; removing them leaves equal text
+
+ | DIFF-INV-18 | TestDiffInv18_SideBySide | Side-by-side rows reconstruct each hunk's old and new lines with consecutive line numbers
+
+ | DIFF-INV-19 | TestDiffInv19_SplitAndIntern | SplitLines/SplitWords tile the input; interned ids are dense, first-seen, equal iff strings are equal
+
+ | DIFF-INV-20 | TestDiffInv20_ReferenceExhaustive | reference equals exhaustive LCS recursion on tiny inputs and refuses inputs over MaxReferenceCells
+
+#### sketch
+
+ | Id | Test | Statement
+
+ | SKETCH-INV-01 | TestSketchInv01_VecindexCompat, TestSketchConformance* | Outputs equal the pre-refactor vecindex outputs (conformance/sketch/vecindex_compat.json, conformance/vecindex/{simhash,minhash})
+
+ | SKETCH-INV-02 | TestSketchInv02_SimHashTracksJaccard | SimHash Hamming distance tracks shingle Jaccard: per bucket the mean distance is within 2.5 bits of Charikar's 64·θ/π and strictly increases as Jaccard falls
+
+ | SKETCH-INV-03 | TestSketchInv03_MinHashEstimate | MinHash estimate within 5 standard errors of exact Jaccard for every pair; mean error < 0.01
+
+ | SKETCH-INV-04 | TestSketchInv04_LSHCollisionRate | LSH collision rate matches 1−(1−s^r)^b within 5 binomial standard errors (≥ 0.05)
+
+ | SKETCH-INV-05 | TestSketchInv05_WeightedConsistency | Weighted SimHash with unit weights = SimHash; term-frequency weights = multiset SimHash; positive scaling is invariant
+
+ | SKETCH-INV-06 | TestSketchInv06_ShinglingExact | WShingling is exactly the set of w-windows (size and Jaccard); TokenShingles has max(n−k+1, min(n,1)) elements
+
+ | SKETCH-INV-07 | TestSketchInv07_SimHashIndexExact | SimHashIndex.Near = brute-force scan for distance ≤ 3 after any adds/removes
+
+ | SKETCH-INV-08 | TestSketchInv08_LSHCandidatesExact | LSH.Candidates = brute-force "agrees on a whole band"
+
+ | SKETCH-INV-09 | TestSketchInv09_OrderIndependence | SimHash ignores order; MinHash ignores order and duplicates; SignatureHashes(FNV1a64(e)) = Signature(e)
+
+ | SKETCH-INV-10 | TestSketchInv10_MulAddMod61 | MulAddMod61 = schoolbook 128-bit reference
+
+ | SKETCH-INV-11 | TestSketchInv11_SimilarityMethodsAgree | The three Methods estimate the same Jaccard: exact exact, MinHash within 5 SE, SimHash bits within 5 binomial SD of the prediction; identical inputs give 1
+
+#### chunkstore
+
+ | Id | Test | Statement
+
+ | CHUNK-INV-01 | TestChunkInv01_RoundTrip | Get(Put(x)) == x for sizes 0, 1, every min/avg/max boundary ±1 and random sizes, in several configurations; Stat reports the size.
+
+ | CHUNK-INV-02 | TestChunkInv02_BoundariesArePure | Cut points are a pure function of the bytes since the previous cut: re-chunking from any cut reproduces the remaining cuts.
+
+ | CHUNK-INV-03 | TestChunkInv03_ShiftResistance | Inserting 1–64 bytes in the first 4 KiB of 1 MiB of random data preserves ≥ 90 % of the chunks (and changes at most a constant number).
+
+ | CHUNK-INV-04 | TestChunkInv04_ChunkLengthBounds | Every chunk is in [min, max] except the last, which is in [1, max]; cuts increase strictly and end at the input length.
+
+ | CHUNK-INV-05 | TestChunkInv05_StreamingEqualsSlice | The streaming chunker yields the slice API's boundaries for every read size (1 B … 1 MiB, one-byte, half, data+EOF, random).
+
+ | CHUNK-INV-06 | TestChunkInv06_Dedupe | Storing the same content twice adds zero chunks and zero bytes and writes nothing; repeats inside one input are stored once.
+
+ | CHUNK-INV-07 | TestChunkInv07_StoreCorruptionDetected | Flipping any byte of any pack, index or ref is reported by fsck as that object's *_BAD_MAGIC (bytes 0–3) or *_CHECKSUM code; Open fails with it for indexes and refs; Get never returns wrong bytes.
+
+ | CHUNK-INV-08 | TestChunkInv08_DecoderCorruptionCodes | Each decoder maps any single flipped byte to *_BAD_MAGIC/*_CHECKSUM and any truncation to a coded error; a flipped record byte gives RECORD_MALFORMED (lengths) or RECORD_CHECKSUM.
+
+ | CHUNK-INV-09 | TestChunkInv09_GCSafetyAndReclaim | Over random put/drop/pin/GC/reopen sequences, GC never removes a chunk reachable from a live, pinned or grace manifest; fsck is clean; no pack stays below the live threshold; threshold 100 leaves nothing unreachable.
+
+ | CHUNK-INV-10 | TestChunkInv10_GCCrashSafety | A crash injected at every mutating backend call of GC (call fails, or succeeds with the ack lost) leaves a consistent, complete store; the next GC finishes the job with a problem-free fsck.
+
+ | CHUNK-INV-11 | TestChunkInv11_Determinism | Same inputs, order and clock → byte-identical packs, indexes, manifests and ref; manifest ids do not depend on packing; index bytes do not depend on entry order.
+
+ | CHUNK-INV-12 | TestChunkInv12_ZstdDeterminismAndFormatIndependence | The pinned encoder is byte-deterministic (instances, repeats, concurrency 1 vs 8); records written by other encoders/levels read back with the same ids and a clean fsck.
+
+ | CHUNK-INV-13 | TestChunkInv13_ConformanceBoundaries | The gear table and the cut points/chunk hashes of the seeded inputs equal gear.json and boundaries.json; the default masks are the paper's.
+
+ | CHUNK-INV-14 | TestChunkInv14_GoldenFormats | The golden pack, index, manifest and ref decode to their documented fields, and encoding those fields reproduces the bytes.
+
+ | CHUNK-INV-15 | TestChunkInv15_PutCrashSafety | A crash at any mutating call of a Put leaves an fsck-clean store with every earlier blob intact; the interrupted blob is complete or absent.
+
+ | CHUNK-INV-16 | TestChunkInv16_Concurrency | Concurrent Put/Get/GC are race-free and lose no blob whose Put completed.
+
+ | CHUNK-INV-17 | TestChunkInv17_TenantIsolation | Two namespaces with identical content each pay for their own chunks; presence, Get, Stat, Stats, Metrics, GC and Fsck of one never reflect the other; namespaces are mandatory and validated.
+
+ | CHUNK-INV-18 | TestChunkInv18_Pinning | Pinned manifests survive every GC regardless of the live set; an unknown pinned id aborts GC with nothing changed.
+
+ | CHUNK-INV-19 | TestChunkInv19_IndexLookupMatchesScan | Fan-out + binary-search lookup equals a linear scan for present and absent ids.
+
+ | CHUNK-INV-20 | TestChunkInv20_ReopenPersistence | A reopened store serves the same blobs and dedupes against them.
+
+ | CHUNK-INV-21 | TestChunkInv21_GCGrace | A blob put before a GC survives that GC unnamed and is collected by the next GC that does not name it.
+
+ | CHUNK-INV-22 | TestChunkInv22_RecompressionRule | GC recompression keeps ids and content, stores zstd only when 8*stored_len <= 7*raw_len and never grows a record.
+
+ | CHUNK-INV-23 | TestChunkInv23_MetricsConsistency | Metrics equal the sums of Put stats and the backend's object sizes; ratios follow from the counters.
+
+#### textindex
+
+ | Id | Test | Statement
+
+ | TIDX-INV-01 | TestTIdxInv01_SearchMatchesBruteForce | Hits, scores (bit-exact), order, totals and error codes equal ScanIndex for random corpora (up to 1,500 docs, skip blocks included) and random queries (terms, phrases, regexes, filters, negation, nesting).
+
+ | TIDX-INV-02 | TestTIdxInv02_OpsMatchBruteForce | The same after random interleavings of add, update, delete, refresh, merge, force-merge and reopen; Get agrees.
+
+ | TIDX-INV-03 | TestTIdxInv03_RegexPrefilterNeverDrops | If a regexp matches a text, the text's trigrams satisfy its trigram query; index regex totals equal a brute-force regexp scan.
+
+ | TIDX-INV-04 | TestTIdxInv04_BM25MatchesTextbook | Single-term scores equal an independent textbook BM25 over live docs (1e-12 relative); BM25 is increasing and saturating in tf.
+
+ | TIDX-INV-05 | TestTIdxInv05_MergePreservesResults | Policy and forced merges change no result; a full merge leaves no tombstones.
+
+ | TIDX-INV-06 | TestTIdxInv06_SegmentRoundTrip | encode → open → decode is the identity on normalized documents and generations, for every codec; every analyzed term is in the dictionary.
+
+ | TIDX-INV-07 | TestTIdxInv07_CorruptionDetected | Every single-byte change (three masks) and truncation of a segment (every codec), tombstone file or commit point is rejected.
+
+ | TIDX-INV-08 | TestTIdxInv08_SegmentDeterminism | Segment bytes do not depend on input order; merging any split of a document set gives the bytes of encoding it directly.
+
+ | TIDX-INV-09 | TestTIdxInv09_CompoundTokensRetrievable | Searching for any emitted compound or word token finds its document.
+
+ | TIDX-INV-10 | TestTIdxInv10_AnalyzerTokenInvariants | Token spans are in bounds on rune boundaries, Term = fold(span), positions are non-decreasing and below the field length, parts strictly increase and contain no delimiter, a compound shares its first part's position.
+
+ | TIDX-INV-11 | TestTIdxInv11_CaseInsensitive | Folding is idempotent and equal for all case variants of every rune; random case variants of a document's words find it.
+
+ | TIDX-INV-12 | TestTIdxInv12_PrintParseIdentity | Parse(Print(Parse(q))) equals Parse(q) up to spans and printing is a fixpoint.
+
+ | TIDX-INV-13 | TestTIdxInv13_ErrorSpansInsideQuery | Every parse, lowering and execution error is a *QueryError with a listed code and a span inside the query.
+
+ | TIDX-INV-14 | TestTIdxInv14_VisibilityAndDurability | Writes are invisible until Refresh; reopening a memory or file-system directory reproduces every result.
+
+ | TIDX-INV-15 | TestTIdxInv15_SkipsAgreeWithScan | Postings advance over skip entries equals a linear scan; leapfrog intersection equals set intersection.
+
+ | TIDX-INV-16 | TestTIdxInv16_RegexWithoutTrigramsRule | A trigram-less regex is rejected unless the root filters select at most the cap; then it is answered exactly.
+
+ | TIDX-INV-17 | TestTIdxInv17_RRFMatchesVecindex | RRF reproduces conformance/vecindex/rrf (constant 60, 1-based ranks, first occurrence, ties by id).
+
+ | TIDX-INV-18 | TestTIdxInv18_AlgorithmsInterchangeable | Every codec × intersector × regex strategy equals ScanIndex; with TF-IDF both engines still agree.
+
+#### content
+
+ | Id | Test | Statement
+
+ | CONTENT-INV-01 | TestContentInv01_NormalizeIdempotent | For every kind, Normalize(k, Normalize(k, x).Text).Text == Normalize(k, x).Text on fixtures and generated, often malformed, documents, with and without learned rules.
+
+ | CONTENT-INV-02 | TestContentInv02_VolatileInvariantSemanticDetected | Normalization is invariant under the declared volatile transformations (nonce, CSRF, timestamps, cache-bust, build hashes, mark-up and minifier re-formatting); a planted semantic change (link, script, form, endpoint, frame) is always detected as a feature.
+
+ | CONTENT-INV-03 | TestContentInv03_MasksNeverHideFeatures | Learned rules never change features; rules on level-3 paths are refused by Validate and never frozen by LearnVolatility (both detectors); path-like values are never masked.
+
+ | CONTENT-INV-04 | TestContentInv04_HiddenFieldsRedacted | Hidden form fields keep only short numeric or boolean values in normalized output.
+
+ | CONTENT-INV-05 | TestContentInv05_IdenticalDiffEmpty | Diffing identical captures under every diff policy gives no levels, no hunks, no feature changes, outcome no_change, no class, score 0.
+
+ | CONTENT-INV-06 | TestContentInv06_DegradedNeverComplete | Login redirect, challenge, CAPTCHA with a blocking status, error after success, soft 404, mass removal, catch-all, truncation, fetch failure and a partial collector outcome never give coverage complete; their observations never withdraw; degraded captures get no diff.
+
+ | CONTENT-INV-07 | TestContentInv07_PartialGradeNotComplete | Any extractor grade below complete makes coverage not complete and leaves that extractor's families uncovered.
+
+ | CONTENT-INV-08 | TestContentInv08_LineageRenamedMatched | Every lineage matcher links a renamed chunk with a few edits and renamed locals to its predecessor and never to an unrelated bundle; a unique lineage key decides first.
+
+ | CONTENT-INV-09 | TestContentInv09_ModuleMovesNoChange | Reordering bundler modules and renaming their locals yields no module change and no semantic change; editing one module yields exactly one changed module.
+
+ | CONTENT-INV-10 | TestContentInv10_RedactionRemovesSecrets | Over generated secrets of every rule planted in HTML, JS, JSON and text, no secret survives in normalized snapshots, hunks, side-by-side rows, features, change sets or observations; Redact is idempotent.
+
+ | CONTENT-INV-11 | TestContentInv11_ScoreImportsNoEgress | Scores lie in [0, 1] and equal the clamped sum of their reasons; reasons are unique, sorted, valid for oam; removals and returns alone score 0; score*.go imports nothing that reaches net, os or syscall.
+
+ | CONTENT-INV-12 | TestContentInv12_Determinism | The same inputs give byte-identical processed captures, change sets and observations.
+
+ | CONTENT-INV-13 | TestContentInv13_SniffByContent | Decisive bodies keep their kind under any media type; Mismatch is exactly "hint known and incompatible"; server-side source is a disclosure finding; Sniff is total and deterministic.
+
+ | CONTENT-INV-14 | TestContentInv14_CoverageCompleteIff | Coverage is complete iff the outcome and body normalization are complete, every extractor that ran is complete and none applicable is canary-disabled.
+
+ | CONTENT-INV-15 | TestContentInv15_Cause | Identical bodies with another normalizer version give cause normalizer, with another extractor set cause parser; changed bodies give target; the first complete capture is the baseline.
+
+ | CONTENT-INV-16 | TestContentInv16_Canaries | Every extractor has exactly one passing canary; a disabled extractor's families are never covered.
+
+ | CONTENT-INV-17 | TestContentInv17_DecodedBlobsRedacted | DecodeBlobs returns the text inside base64, base64>gzip and hex blobs with the outer span and encoding path, redacted for every secret rule; blobs inside secrets (JWT segments) are never decoded; binary payloads and plain text give nothing; the output is bounded by MaxResponseBytes and deterministic.
+
+#### contentstore
+
+ | Id | Test | Statement
+
+ | CSTORE-INV-01 | TestCStoreInv01_IngestIdempotent | The same capture ingested again, sequentially or concurrently, is one snapshot: no new row, diff, finding, event, index document or quota count.
+
+ | CSTORE-INV-02 | TestCStoreInv02_TenantIsolation | Identical content of two tenants is paid for by each (disjoint chunk namespaces, no dedupe benefit); no read, diff, pin, search hit or first-appeared hit crosses tenants; ids, keyed hashes and wrapped keys differ; one tenant's key cannot open the other's ciphertext.
+
+ | CSTORE-INV-03 | TestCStoreInv03_RetentionKeepsPinnedAndNewest | Retention keeps exactly newest-KeepLast ∪ within-KeepFor ∪ pinned ∪ newest per key; diffs follow; survivors read back byte-exactly after keyframe rewrites; GC reclaims; stored-bytes usage equals the chunk bytes.
+
+ | CSTORE-INV-04 | TestCStoreInv04_DiffDeterminism | Independent stores fed the same captures produce identical ids, manifests and change sets; Diff is byte-identical across calls; stored hunks and changes equal a recomputation.
+
+ | CSTORE-INV-05 | TestCStoreInv05_RebuildEqualsIncremental | Inline, batched and rebuilt indexes hold the same documents under the same ids and answer a query set identically; a lost index is rebuilt from the watermark.
+
+ | CSTORE-INV-06 | TestCStoreInv06_QuotaExact | Exactly N captures per day under a limit N (also concurrently), refusals store nothing, duplicates are free; stored-bytes limits admit iff usage + added ≤ limit; index-bytes limits refuse once reached.
+
+ | CSTORE-INV-07 | TestCStoreInv07_EncryptionRoundTripNoPlaintext | For a secret of every named rule in a body and a header, findings decrypt to it, raw reads restore body and headers exactly, and no row, chunk object, decompressed record, decoded blob, diff record, index document or file, or outbox event holds it; tampering and other tenants' keys fail.
+
+ | CSTORE-INV-08 | TestCStoreInv08_SPAStorageUnderQuarter | The SPA fixture's versions (raw snapshots: redacted bodies and capture records) take < 25 % of their raw size with the default codec; derived records are reported.
+
+ | CSTORE-INV-09 | TestCStoreInv09_ValidityIntervals | Contiguous, disjoint [valid_from, valid_to) per key with one open version; unchanged re-fetches add no row; degraded captures are closed, empty and never open; as-of lookups return the containing version; unseen older captures are refused.
+
+ | CSTORE-INV-10 | TestCStoreInv10_SearchDefaults | Hunk sides are separate documents; vendored bundles are excluded unless asked; decoded blobs are searchable in decoded only; first appeared returns the earliest adding snapshot, baselines included; query errors are VALIDATION_FAILED.
+
+ | CSTORE-INV-11 | TestCStoreInv11_SPAEndToEnd | Renamed bundles link to their predecessors (lineage key, then SimHash) and an unrelated chunk does not; masked-only versions produce no documents; planted changes are findable by field query and regex; events carry a decodable observation and a valid patch; baselines are not alertable, the planted change is.
+
+ | CSTORE-INV-12 | TestCStoreInv12_VolatilityLearned | A non-feature attribute changing on every capture of a stable page is frozen once (version 1), later captures use the learned normalizer and diff masked-only; feature paths are never counted.
+
+ | CSTORE-INV-13 | TestCStoreInv13_ObservationReplay | The re-published observation of an unchanged re-fetch equals processing the capture afresh, byte for byte.
+
+#### oam
+
+ | Id | Test | Statement
+
+ | OAM-INV-01 | TestOAMInv01_URLTemplateIdempotent | NormalizeURLTemplate is a fixed point on every accepted input.
+
+ | OAM-INV-02 | TestOAMInv02_URLTemplateEquivalentSpellings | Equivalent spellings (case, default ports, IDN, escapes, dot segments, query/fragment, placeholder spellings, id-like literals) give the same template.
+
+ | OAM-INV-03 | TestOAMInv03_URLTemplateConcreteHost | Every accepted template has a concrete, netnorm-canonical http(s) origin; placeholder-free URLs agree with netnorm.
+
+ | OAM-INV-04 | TestOAMInv04_EndpointKey | Endpoint key = ep: + normalized method + + normalized template; Normalize is idempotent; source never changes the key.
+
+ | OAM-INV-05 | TestOAMInv05_AuthoritativeConvergence (oam, graphstore, graphstore/pg) | With authoritative observations of every coverage, any permutation and duplication gives byte-identical state.
+
+ | OAM-INV-06 | TestOAMInv06_LatestAuthoritativeNeverStale | An edge held by a unit's effective member set is active (covering runs included); one held by none and never reported classically is stale; held edges keep their targets active; header tags are visible iff held or classic.
+
+ | OAM-INV-07 | TestOAMInv07_TagChangedExactlyOnce | Exactly one tag_changed per tag whose visible content changed per operation, none otherwise; its patch maps old to new.
+
+ | OAM-INV-08 | TestOAMInv08_ChangeReplay | Folding the change log (base + patches) reproduces every entity's content, scope, state and tags and every edge's state and tags after every operation.
+
+ | OAM-INV-09 | TestOAMInv09_ContentChangeIdempotent | RecordContentChange changes no state, is idempotent per (entity, from, to, diff), stores the normalized patch.
+
+ | OAM-INV-10 | TestOAMInv10_CauseAndBaselineOnEvents | Every event of an observation carries its cause and baseline; covering-run events carry none.
+
+ | OAM-INV-11 | TestOAMInv11_NoSecretValues | exposed_secret tags never contain the secret; LooksLikeSecret flags credentials, passes digests, UUIDs, previews and keyed hashes.
+
+#### graphstore
+
+ | Id | Test | Statement
+
+ | OAM-INV-05 | TestOAMInv05_AuthoritativeConvergence (Mem, pg vs Mem) | Authoritative multisets in any order with duplicates converge, and pg equals Mem.
+
+ | OAM-INV-12 | TestOAMInv12_AsOf (Mem, pg) | GetEntityAsOf(s) / NeighborsAsOf(s) equal the reference snapshot taken right after the operation that reached seq s, for every s of a random history; later entities are NOT_FOUND.
+
+ | OAM-INV-13 | TestOAMInv13_MemEqualsPG (pg) | On random histories (classic and authoritative observations, re-deliveries, covering runs, content changes) pg and Mem have byte-identical canonical state and change logs (seq excluded).
+
+ | OAM-INV-14 | TestOAMInv14_Commonness (Mem, pg) | Holders are distinct hosts of active sources over active edges; common iff holders > 50; withdrawn edges stop counting.
+
+ | OAM-INV-15 | TestOAMInv15_KernelMatchesOAM (internal/kernel) | The kernel over the storage encoding reproduces oam.Graph (results, event ids, state) with authority, tags and covering runs.
+
+## 40. Error codes
+
+Every list is closed: a new code is a specification change. Codes are returned as values (Go: a typed code inside an error that unwraps to a package sentinel; Rust: a thiserror enum with the same names).
+
+### 40.1 Parsers and codecs
+
+ | Package | Codes
+
+ | htmlparse | The 51 WHATWG tokenizer and input-stream parse-error names (abrupt-closing-of-empty-comment ... unknown-named-character-reference, including the processing-instruction errors disallowed-processing-instruction-target, eof-in-processing-instruction, invalid-first-character-of-processing-instruction-target, invalid-processing-instruction-target); Flowforge tree-construction names (the standard leaves them unnamed): missing-doctype, non-conforming-doctype, unexpected-doctype, unexpected-start-tag, unexpected-end-tag, unexpected-character, unclosed-element, eof-in-element, xmlns-attribute-mismatch; limits: nesting-depth-limit-exceeded, attribute-limit-exceeded, input-size-limit-exceeded
+
+ | jsparse | syntax: unexpected-character, unterminated-string, unterminated-template, unterminated-regexp, unterminated-comment, invalid-escape, invalid-identifier-escape, invalid-number, numeric-separator, identifier-after-number, unexpected-token, unexpected-eof, expected-token, invalid-cover-grammar, newline-forbidden, mixed-coalesce, exponent-unary, module-item-position, escaped-keyword, for-in-of-head, invalid-optional-chain, invalid-assignment-target, invalid-pattern, regexp-flags, regexp-pattern, invalid-template-escape; early: duplicate-proto, redeclaration, reserved-word, strict-eval-arguments, strict-with, strict-delete, strict-octal, function-position, illegal-break, illegal-continue, duplicate-label, illegal-return, new-target, import-meta, super-call, super-property, yield-await-in-params, duplicate-param, non-simple-use-strict, private-name, class-constructor, static-prototype, class-field, static-block, let-name, export-name, accessor-params, labelled-function, invalid-keyword-use; limit: too-deep (Code.Class groups them as syntax, early and limit)
+
+ | cssparse | eof_in_comment, eof_in_string, newline_in_string, eof_in_url, bad_url, eof_in_escape, invalid_escape, invalid_rule, invalid_declaration, eof_in_at_rule, eof_in_block, empty, extra_input, unexpected_close; limits depth_limit, input_too_large, limit_exceeded
+
+ | xmlparse | unexpected_eof, no_root_element, invalid_utf8, invalid_char, unexpected_char, invalid_name, invalid_qname, text_outside_root, multiple_roots, unexpected_end_tag, mismatched_end_tag, duplicate_attribute, lt_in_attribute, invalid_reference, undefined_entity, invalid_char_ref, double_hyphen_in_comment, cdata_end_in_content, reserved_pi_target, invalid_xml_decl, misplaced_doctype, unbound_prefix, reserved_prefix, invalid_namespace_decl, unsupported_encoding, dtd_internal_subset, dtd_external_id, depth_limit, input_too_large
+
+ | sourcemap | invalid_json, invalid_field, unsupported_version, missing_mappings, missing_sources, ambiguous_map, invalid_vlq_char, vlq_truncated, vlq_overflow, invalid_segment, index_out_of_range, negative_value, invalid_section_offset, section_order, section_overlap, nested_index_map, section_url, invalid_ignore_list, unsorted_mappings, input_too_large, limit_exceeded
+
+ | wellknown | robots: invalid_line, rule_outside_group, invalid_user_agent, invalid_pattern, invalid_crawl_delay, invalid_utf8, input_too_large, limit_exceeded; security.txt: missing_contact, missing_expires, multiple_expires, invalid_expires, expired, expires_too_far (warning), insecure_uri, invalid_uri, multiple_preferred_languages, unknown_key, content_after_signature, unterminated_signature
+
+ | codec | ErrInvalid: invalid_byte, bad_padding, trailing_bits, truncated, invalid_escape, non_canonical, line_too_long; ErrCorrupt: bad_header, corrupt; ErrOutputLimit: output_limit, ratio_limit; ErrUnsupported: unsupported. Offsets: bytes into the input for text codecs, output bytes returned for streams
+
+ | dnsmsg | short_message, label_too_long, name_too_long, bad_label_type, pointer_out_of_bounds, pointer_loop, bad_rdata, rdlength_mismatch, trailing_data, bad_opt, bad_name_text, string_too_long, rdata_kind_mismatch, message_too_large, too_many_records
+
+ | socks5 | short (with Need), bad_version, no_methods, empty_username, empty_password, bad_reserved, bad_command, bad_address_type, empty_domain, bad_reply_code, too_long, bad_address; handshakes: no_acceptable_method, auth_failed, command_not_supported, request_failed
+
+The wellknown list above is the diagnostic vocabulary of conformance/wellknown/*.json, which is authoritative for exact names and levels.
+
+### 40.2 Storage
+
+ | Package | Codes
+
+ | chunkstore | INVALID_CONFIG, INVALID_NAME, CLOSED, TOO_LARGE, BACKEND, OBJECT_NOT_FOUND, MANIFEST_NOT_FOUND, CHUNK_MISSING, PACK_MISSING, INDEX_MISSING, PACK_TRUNCATED, PACK_BAD_MAGIC, PACK_CHECKSUM, PACK_UNSUPPORTED, PACK_MALFORMED, RECORD_CHECKSUM, RECORD_MALFORMED, CHUNK_DECOMPRESS, CHUNK_LENGTH_MISMATCH, CHUNK_HASH_MISMATCH, INDEX_TRUNCATED, INDEX_BAD_MAGIC, INDEX_CHECKSUM, INDEX_UNSUPPORTED, INDEX_MALFORMED, INDEX_PACK_MISMATCH, MANIFEST_TRUNCATED, MANIFEST_BAD_MAGIC, MANIFEST_CHECKSUM, MANIFEST_UNSUPPORTED, MANIFEST_MALFORMED, MANIFEST_LENGTH_MISMATCH, REF_TRUNCATED, REF_BAD_MAGIC, REF_CHECKSUM, REF_UNSUPPORTED, REF_MALFORMED; fsck problems also ORPHAN_OBJECT (warning) and DUPLICATE_CHUNK. Each maps to a core.Kind
+
+ | textindex (files) | ErrChecksum (a CRC), ErrCorrupt (structure), ErrSchemaMismatch, ErrDuplicateID
+
+ | contentstore | NOT_FOUND, VALIDATION_FAILED, QUOTA_EXCEEDED (resource exhausted), CAPTURE_OUT_OF_ORDER (failed precondition), VERSION_CONFLICT (aborted; retried internally), CONTENT_INTEGRITY (internal), INTERNAL
+
+ | graphstore | unchanged from Part I (11.8); content patches and AsOf arguments are INVALID_ARGUMENT, foreign entities NOT_FOUND
+
+### 40.3 Query language
+
+ | Code | When | Span
+
+ | EMPTY_QUERY | no clause | whole query
+
+ | QUERY_TOO_LONG | > 8,192 bytes | from byte 8,192
+
+ | INVALID_UTF8 | invalid UTF-8 | first bad byte
+
+ | UNEXPECTED_TOKEN | unmatched ), --x, junk after a group | the token
+
+ | UNBALANCED_PAREN | ( never closed | ( to end
+
+ | EXPECTED_TERM | missing operand after -, AND, OR, ( | the token found
+
+ | EXPECTED_VALUE | field: not followed directly by a value | the position
+
+ | UNTERMINATED_PHRASE, UNTERMINATED_REGEX | no closing quote or slash | opener to end
+
+ | EMPTY_REGEX | // | the regex
+
+ | BAD_REGEX_FLAG | flag other than i, m, s, or repeated | the flag
+
+ | BAD_REGEX | RE2 syntax error or > 1 KiB | the regex
+
+ | BAD_TIME | bad since/until value | the value
+
+ | NESTING_TOO_DEEP, TOO_MANY_CLAUSES | limits | the offending token
+
+ | UNKNOWN_FIELD | field not in the schema | the field name
+
+ | FIELD_TYPE | regex on a keyword field, numeric or stored field, no time field | the clause
+
+ | REGEX_NO_TRIGRAMS | regex without trigrams and the filters do not cap candidates | the regex
+
+### 40.4 Egress refusal reasons (X-Flowforge-Refused)
+
+unauthenticated, decision_missing, decision_unknown, decision_invalid, decision_not_allow, decision_expired, decision_run_mismatch, decision_log_unavailable, invalid_target, host_mismatch, port_not_allowed, no_pinned_ips, forbidden_address, redirect_denied, scope_check_failed, policy_unavailable, kill_switch, kill_switch_unknown, rate_limited, concurrency_limited, rate_invalid, intel_requires_passive, intel_unresolvable, dns_denied, dns_refused, tickets_exhausted, socks_protocol, command_not_supported, connect_failed, upstream_failed, notify_not_notifier, notify_https_only, notify_not_allowlisted, notify_no_resolver, notify_resolve_failed. Allowed intelligence-source connections are recorded with reason intel_source.
+
+### 40.5 Alerts
+
+A0202 (unknown field) on diff.score and diff.score_features: scores are not addressable by rules (36.5). Other codes as in 15.
+
+## 41. Where the brief and the code differ
+
+Each row is a place where docs/V2_DESIGN.md (§ numbers are the brief's) and the implementation disagreed. Part II follows the column "Specified"; the brief has been amended to match where noted.
+
+ | Topic | Brief | Specified (code) | Why
+
+ | Package table (brief §2) | Ten layer-1 packages, content, contentstore, services/content | Also codec, dnsmsg, socks5, xmlparse/sitemap, the lab; sitemaps live in xmlparse/sitemap, not wellknown | The DNS forwarder, SOCKS5 and bounded decoding needed their own state machines; layer-1 packages may not import each other
+
+ | HTML and JS nesting bounds (§4.1.5, §12.10) | "configured limit"; §12.10 lists only XML/CSS depth 64 | HTML 512 open elements, JS 4000 syntactic nesting (26.4) | Real pages nest deeper than 64; recursive descent needs a bound; both are pinned constants
+
+ | Sitemap limits (§4.3) | 50,000 URLs / 50 MB | Defaults 20,000 entries / 8 MiB, raisable to 50,000 / 50 MiB | §12.10's 8 MiB and 20,000-fact bounds win
+
+ | HTML conformance target (§4.1) | 100 % | All except 6 scripted cases and 16 upstream tokenizer positions, asserted exactly | Scripting is off by design; the 16 upstream positions contradict the state machine
+
+ | Snapshot DDL (§6.2) | columns of the original sketch; "migration in graph schema" | Schema content, migration 0031 (34.2): validity interval, signature, kind, outcome, coverage, degraded, simhash, pins, codec and delta base, seals, key id; programs, quota_*, index_state, data_keys, outbox tables | §12.12 storage rules, §6.4 envelope encryption and §11.18 quotas
+
+ | Manifest encoding (§6.1) | "fixed binary record (or deterministic CBOR)" | Fixed binary FFMF (31.5); FFRF ref and FFZB delta frames added | One format, byte-identical across languages
+
+ | Chunk acceptance (§6.1) | 50 versions in < 15 % of raw | Met: 1.55 % (chunk store), 4.70 % with the content store's delta codec | —
+
+ | Storage acceptance (§10.7) | all versions < 25 % of raw | Measured on raw snapshots (capture record + redacted body): 6.8 % in the lab; all records including diffs 18.4 % | On tiny fixtures fixed per-version records dominate (G-CST-05)
+
+ | Coverage and diff fallback (§3.4) | "no diff fallback" is a condition of completeness | Coverage is decided per capture before any diff; a fallback does not affect it (28.4) | Coverage must not depend on the predecessor; a hash-only diff still has a complete reading
+
+ | AsOf (§3.4) | replay onto the nearest snapshot | replay from the empty graph (28.7) | Same results; a snapshot start is an optimisation
+
+ | extract, diff_latest emissions (§8) | emit Endpoint, File, edges, content_changed | read only; the content service's event is the single writer (36.6) | A second writer would apply authority twice
+
+ | Raw tool output (§6.3) | raw_ref moves into the chunk store | Content tools store the raw response as the raw snapshot; other tools' raw_ref raw protocol capture is tracked by G-SVC-16 | —
+
+ | REST search route (ROADMAP_V2 D5) | GET /v1/programs/{pid}/changes/search | GET /v1/changes/search?program_id= (37.2) | Matches the other content routes
+
+ | Change-event types (ROADMAP_V2 D4) | endpoint_added, endpoint_removed, header_changed, secret_suspected as graph event types | content_changed and tag_changed only; level-3 kinds are content-change kinds (diff.kinds, kind: in search) | The brief (§3.4) superseded the roadmap
+
+ | Alert diff fields (ROADMAP_V2 D4) | diff.kind, diff.added, diff.removed, diff.url, diff.feature | 36.5 fields; no score | §12.4 scores never decide
+
+ | Lineage threshold | SimHash ≤ 6, ties by size ratio | Same, after a unique lineage-key match; candidates also include the host's open versions (34.1) | Lazily loaded chunks have no page reference
+
+ | Catalog class, re-derive, KMS adapter, hybrid search | specified as v2 features | Catalog and the KMS adapter are v3; re-derive is specified here and in progress (G-CST-04); hybrid ships only after the labelled-set comparison and is not enabled | D4 defers advisories; the KEK port is in place
+
+ | Quotas (§11.18) | per-tenant limits, unquantified | three limits per tenant, zero = unlimited, no defaults (34.6) | Pricing decides values, not the code
+
+ | Score weights (§12.4) | named kinds, unquantified | The table of 33.11 | Pinned so ranks are reproducible
+
+Flowforge specification, version 0.4 draft (Part II: v2). Graph model aligned to the OWASP Amass Open Asset Model; see the Open Asset Model and asset-db documentation for the upstream definitions.
 

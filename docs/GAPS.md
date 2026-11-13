@@ -151,9 +151,9 @@ assumptions it was written against.
 | G-SPEC-03 | CSR benchmarks stop at 100k nodes; cold open used 20 MB, not 1 GiB | v3 (C5) |
 | G-SPEC-04 | Vector benchmarks use 20k synthetic vectors; no SIFT1M or GIST1M, no recall-vs-QPS chart | v3 (C3) |
 | G-SPEC-06 | No `bench/budgets.toml`, `bench/REPORT.md`, `gen-bench-data` or open-loop load generator | v3 (C0) |
-| G-SPEC-07 | graphstore has no language-neutral conformance data or required ids in modules.toml | v2 |
+| G-SPEC-07 | graphstore has no language-neutral conformance data or required ids in modules.toml | **closed on feat_v2** (conformance/graphstore gs_001-006 on Mem and Postgres; TestGraph001-006) |
 | G-SPEC-09 | The v2 packages are not in modules.toml | v2 (in progress) |
-| G-DOC-02, 04, 05, 06, 07, 10, 11 | V2_DESIGN and ROADMAP_V2 inconsistencies: track D stale vs the brief; §2 table missing dnsmsg/socks5/crawl/lab; §6.2 DDL predates §12; Part II records undefined; quotas, score weights and labelled set unquantified; KMS port; PORTING_RUST v2 formats | v2 |
+| G-DOC-02, 04, 05, 06, 07, 10, 11 | V2_DESIGN and ROADMAP_V2 inconsistencies: track D stale vs the brief; §2 table missing dnsmsg/socks5/crawl/lab; §6.2 DDL predates §12; Part II records undefined; quotas, score weights and labelled set unquantified; KMS port; PORTING_RUST v2 formats | **closed on feat_v2** (V2_DESIGN, ROADMAP_V2 and PORTING_RUST updated; spec Part II §26-41) |
 | G-DOC-15 | This register did not exist | **closed on feat_v1** (this file) |
 
 ### Low severity
@@ -176,7 +176,7 @@ assumptions it was written against.
 | G-SPEC-05 | Other benchmarks scaled down (oam, eventstore, engine, sys_01) | v3 (C4) |
 | G-SPEC-08 | Conformance suite names differ from spec 19; no vector for lim_008 atomicity | **closed on feat_v1** (conformance/limiter/hierarchy/lim_008_atomic.json) |
 | G-SPEC-10 | agt_001–004 absent | v4 (M1) |
-| G-DOC-01, 03, 09 | ROADMAP_V2 intro overclaims; V2_DESIGN §6.2 heading; HTML/JS nesting bounds unpinned | v2 |
+| G-DOC-01, 03, 09 | ROADMAP_V2 intro overclaims; V2_DESIGN §6.2 heading; HTML/JS nesting bounds unpinned | **closed on feat_v2** (ROADMAP_V2 status table; §6.2 heading; HTML 512 / JS 4000 nesting bounds pinned) |
 | G-DOC-08 | The `catalog` change class needs advisories, which D4 defers | v3 |
 | G-DOC-12, 13 | Stale statements: archtest entries described as missing, puddle "not in go.mod", "every package has OPEN_QUESTIONS", D1 wording, auth README listing signup and reset as missing | **closed on feat_v1** (stale statements fixed) |
 
@@ -230,7 +230,7 @@ assumptions it was written against.
 | G-CST-03 | chunkstore allows one writer per tenant namespace, so the content service must run one replica per tenant set | v3 (writer leases or per-tenant ownership via placement) |
 | G-CST-04 | No re-derive jobs after a normalizer or parser upgrade (V2_DESIGN §12.2): old snapshots keep their old normalized text and features | v2 |
 | G-CST-05 | The §10 "less than 25 % of raw" target: on the tiny SPA fixture all records take 59.8 %, because each version carries about 300 bytes of fixed records | **closed** (the §10 lab, with realistic page sizes, stores raw snapshots at 6.8 % and all records including diffs at 18.4 %; TestLabAcceptance_*) |
-| G-LANG-04 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | v2 (spec Part II) |
+| G-LANG-10 | The spec's standard-library table (spec 7.6) does not list the v2 builtins (`base64_*`, `url_*`, `hex_*`) or the content records | **closed on feat_v2** (spec Part II §36.2-36.3) |
 
 ## Doc and code conflicts to resolve with the fixes
 
@@ -240,7 +240,7 @@ assumptions it was written against.
 4. gateway OPEN_QUESTIONS "groups the engine owns" vs no groups (G-LIM-05).
 5. alerts default rule vs identity events (G-LIM-07).
 6. engine/graphstore/pgstore/migrations notes about archtest entries and puddle (G-DOC-12).
-7. ROADMAP_V2 intro and track D vs README and V2_DESIGN (G-DOC-01/02).
+7. ~~ROADMAP_V2 intro and track D vs README and V2_DESIGN (G-DOC-01/02).~~ Resolved on feat_v2.
 8. ROADMAP_V3 T7 title vs D4 (G-DOC-08).
 9. DECISIONS D1 "later" vs v4 (G-DOC-13).
 10. builtin doc vs VM for `parse_int` (G-LANG-03).

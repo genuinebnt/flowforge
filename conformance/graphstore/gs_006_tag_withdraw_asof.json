@@ -1,0 +1,355 @@
+{
+ "id": "gs_006",
+ "description": "Tag history (V2 3.4, 12.8): a complete capture covering the headers family that no longer reports content-security-policy removes the tag (tag_changed with a root remove); a partial capture never removes one; the header returning is a root add again. GetEntityAsOf reconstructs the tag set at each step.",
+ "order_dependent": true,
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "h1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-h1",
+    "tool": {
+     "name": "collect",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "content-security-policy",
+       "value": "default-src 'self'"
+      }
+     },
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "h2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-h2",
+    "tool": {
+     "name": "collect",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T11:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "partial",
+     "covered_rules": [
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "h3",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-h3",
+    "tool": {
+     "name": "collect",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T12:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "headers"
+     ]
+    }
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "h4",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-h4",
+    "tool": {
+     "name": "collect",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T13:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "P",
+      "asset": {
+       "type": "URL",
+       "url": "https://acme.com/"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "content-security-policy",
+       "value": "default-src *"
+      }
+     },
+     {
+      "target": "P",
+      "property": {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ],
+    "authority": {
+     "source": "P",
+     "profile": "default",
+     "coverage": "complete",
+     "covered_rules": [
+      "headers"
+     ]
+    }
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://acme.com/",
+    "state": "active",
+    "tags": [
+     {
+      "type": "HTTPHeaderProperty",
+      "name": "content-security-policy",
+      "content": {
+       "name": "content-security-policy",
+       "value": "default-src *"
+      }
+     },
+     {
+      "type": "HTTPHeaderProperty",
+      "name": "server",
+      "content": {
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ]
+   }
+  ],
+  "edges": [],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://acme.com/"
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/content-security-policy",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "content-security-policy",
+       "value": "default-src 'self'"
+      }
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/server",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "server",
+       "value": "nginx"
+      }
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/content-security-policy",
+    "patch": [
+     {
+      "op": "remove",
+      "path": ""
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://acme.com/",
+    "tag": "HTTPHeaderProperty/content-security-policy",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "content-security-policy",
+       "value": "default-src *"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "as_of": [
+  {
+   "after_step": 2,
+   "entities": [
+    {
+     "key": "url:https://acme.com/",
+     "exists": true,
+     "tags": [
+      {
+       "type": "HTTPHeaderProperty",
+       "name": "content-security-policy",
+       "content": {
+        "name": "content-security-policy",
+        "value": "default-src 'self'"
+       }
+      },
+      {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "content": {
+        "name": "server",
+        "value": "nginx"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "after_step": 3,
+   "entities": [
+    {
+     "key": "url:https://acme.com/",
+     "exists": true,
+     "tags": [
+      {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "content": {
+        "name": "server",
+        "value": "nginx"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "after_step": 4,
+   "entities": [
+    {
+     "key": "url:https://acme.com/",
+     "exists": true,
+     "tags": [
+      {
+       "type": "HTTPHeaderProperty",
+       "name": "content-security-policy",
+       "content": {
+        "name": "content-security-policy",
+        "value": "default-src *"
+       }
+      },
+      {
+       "type": "HTTPHeaderProperty",
+       "name": "server",
+       "content": {
+        "name": "server",
+        "value": "nginx"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

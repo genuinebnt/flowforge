@@ -1,0 +1,210 @@
+{
+ "id": "gs_002",
+ "description": "Ingest is atomic at the store (spec 6.1, 23.5): a rejected observation (an edge to an unknown local ref, or a label between disallowed types) leaves no entity, edge, tag or change event behind, even when it also carried valid entities; the error is INVALID_ARGUMENT with the oam reason. As-of reads are unaffected.",
+ "order_dependent": true,
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "ok",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-ok",
+    "tool": {
+     "name": "subfinder",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:00:00Z",
+    "confidence": 0.8,
+    "entities": [
+     {
+      "ref": "a",
+      "asset": {
+       "type": "FQDN",
+       "name": "a.acme.com"
+      }
+     }
+    ],
+    "edges": []
+   }
+  },
+  {
+   "error": "unresolved_ref",
+   "observation": {
+    "observation_id": "bad-ref",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-bad-ref",
+    "tool": {
+     "name": "dnsx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:05:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "b",
+      "asset": {
+       "type": "FQDN",
+       "name": "b.acme.com"
+      }
+     },
+     {
+      "ref": "i",
+      "asset": {
+       "type": "IPAddress",
+       "address": "203.0.113.9"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "b",
+      "to": "zz",
+      "relation": {
+       "type": "BasicDNSRelation",
+       "label": "dns_record",
+       "header": {
+        "rr_type": 1,
+        "class": 1,
+        "ttl": 60
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "error": "label_endpoints",
+   "observation": {
+    "observation_id": "bad-label",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-bad-label",
+    "tool": {
+     "name": "dnsx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:06:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "a",
+      "asset": {
+       "type": "FQDN",
+       "name": "a.acme.com"
+      }
+     },
+     {
+      "ref": "i",
+      "asset": {
+       "type": "IPAddress",
+       "address": "203.0.113.9"
+      }
+     }
+    ],
+    "edges": [
+     {
+      "from": "a",
+      "to": "i",
+      "relation": {
+       "type": "SimpleRelation",
+       "label": "contains"
+      }
+     }
+    ],
+    "tags": [
+     {
+      "target": "a",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "note",
+       "value": "x"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "ok2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-ok2",
+    "tool": {
+     "name": "dnsx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:10:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "b",
+      "asset": {
+       "type": "FQDN",
+       "name": "b.acme.com"
+      }
+     }
+    ],
+    "edges": []
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "fqdn:a.acme.com",
+    "state": "active",
+    "sources": {
+     "subfinder": 80
+    },
+    "tags": []
+   },
+   {
+    "key": "fqdn:b.acme.com",
+    "state": "active",
+    "sources": {
+     "dnsx": 90
+    },
+    "tags": []
+   }
+  ],
+  "edges": [],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "fqdn:a.acme.com"
+   },
+   {
+    "type": "entity_added",
+    "entity": "fqdn:b.acme.com"
+   }
+  ]
+ },
+ "as_of": [
+  {
+   "after_step": 3,
+   "entities": [
+    {
+     "key": "fqdn:a.acme.com",
+     "exists": true,
+     "state": "active",
+     "tags": []
+    },
+    {
+     "key": "fqdn:b.acme.com",
+     "exists": false
+    }
+   ]
+  },
+  {
+   "after_step": 4,
+   "entities": [
+    {
+     "key": "fqdn:b.acme.com",
+     "exists": true,
+     "state": "active"
+    }
+   ]
+  }
+ ]
+}

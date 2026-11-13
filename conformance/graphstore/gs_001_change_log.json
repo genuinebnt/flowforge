@@ -1,0 +1,232 @@
+{
+ "id": "gs_001",
+ "description": "Store change log and as-of content (spec 5.7, V2 3.4): an entity's first observation appends entity_added (with its base content) and one tag_changed per new visible tag; a later observation with a newer observed_at appends entity_changed with the effective ops only and tag_changed with field-level ops; a duplicate observation_id appends nothing. Seqs strictly increase. GetEntityAsOf after each step returns the content and tags as they were.",
+ "steps": [
+  {
+   "observation": {
+    "observation_id": "o1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-o1",
+    "tool": {
+     "name": "httpx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "u",
+      "asset": {
+       "type": "URL",
+       "url": "https://api.acme.com/",
+       "options": "x=1"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "u",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "o2",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-o2",
+    "tool": {
+     "name": "katana",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T11:00:00Z",
+    "confidence": 0.6,
+    "entities": [
+     {
+      "ref": "u",
+      "asset": {
+       "type": "URL",
+       "url": "https://api.acme.com/",
+       "options": "x=2"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "u",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme Inc"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "observation": {
+    "observation_id": "o1",
+    "tenant_id": "t",
+    "program_id": "p",
+    "run_id": "r-o1",
+    "tool": {
+     "name": "httpx",
+     "version": "1"
+    },
+    "observed_at": "2026-11-12T10:00:00Z",
+    "confidence": 0.9,
+    "entities": [
+     {
+      "ref": "u",
+      "asset": {
+       "type": "URL",
+       "url": "https://api.acme.com/",
+       "options": "x=1"
+      }
+     }
+    ],
+    "edges": [],
+    "tags": [
+     {
+      "target": "u",
+      "property": {
+       "type": "SimpleProperty",
+       "name": "title",
+       "value": "Acme"
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "expect": {
+  "entities": [
+   {
+    "key": "url:https://api.acme.com/",
+    "asset_type": "URL",
+    "state": "active",
+    "confidence": 0.96,
+    "sources": {
+     "httpx": 90,
+     "katana": 60
+    },
+    "tags": [
+     {
+      "type": "SimpleProperty",
+      "name": "title",
+      "content": {
+       "name": "title",
+       "value": "Acme Inc"
+      }
+     }
+    ]
+   }
+  ],
+  "edges": [],
+  "changes": [
+   {
+    "type": "entity_added",
+    "entity": "url:https://api.acme.com/"
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://api.acme.com/",
+    "tag": "SimpleProperty/title",
+    "patch": [
+     {
+      "op": "add",
+      "path": "",
+      "value": {
+       "name": "title",
+       "value": "Acme"
+      }
+     }
+    ]
+   },
+   {
+    "type": "entity_changed",
+    "entity": "url:https://api.acme.com/",
+    "patch": [
+     {
+      "op": "replace",
+      "path": "/options",
+      "value": "x=2"
+     }
+    ]
+   },
+   {
+    "type": "tag_changed",
+    "entity": "url:https://api.acme.com/",
+    "tag": "SimpleProperty/title",
+    "patch": [
+     {
+      "op": "replace",
+      "path": "/value",
+      "value": "Acme Inc"
+     }
+    ]
+   }
+  ]
+ },
+ "as_of": [
+  {
+   "after_step": 1,
+   "entities": [
+    {
+     "key": "url:https://api.acme.com/",
+     "exists": true,
+     "state": "active",
+     "tags": [
+      {
+       "type": "SimpleProperty",
+       "name": "title",
+       "content": {
+        "name": "title",
+        "value": "Acme"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "after_step": 2,
+   "entities": [
+    {
+     "key": "url:https://api.acme.com/",
+     "exists": true,
+     "state": "active",
+     "tags": [
+      {
+       "type": "SimpleProperty",
+       "name": "title",
+       "content": {
+        "name": "title",
+        "value": "Acme Inc"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "after_step": 3,
+   "entities": [
+    {
+     "key": "url:https://api.acme.com/",
+     "exists": true,
+     "state": "active"
+    }
+   ]
+  }
+ ]
+}
