@@ -247,6 +247,11 @@ type EgressOptions struct {
 	// Decisions is the decision log (in process: the scope service's
 	// repository; standalone: the scope schema through env.DB).
 	Decisions egressproxy.Decisions
+	// NotifyAllowlist are the notifier destinations the proxy's notify path
+	// admits (FF_NOTIFY_ALLOWLIST; egressproxy.Proxy.NotifyAllowlist).
+	NotifyAllowlist []string
+	// Resolver resolves notify destinations (default net.Resolver).
+	Resolver scope.Resolver
 }
 
 // EgressProxy builds the egress proxy (a plain HTTP proxy, not gRPC).
@@ -262,7 +267,10 @@ func EgressProxy(env *Env, o EgressOptions) (*Component, *egressproxy.Proxy, err
 		o.Decisions = scopesvc.DecisionLog{Repo: &scopesvc.PgRepo{DB: env.DB}}
 	}
 	p := &egressproxy.Proxy{Decisions: o.Decisions, Scope: scopesvc.NewClient(pb.NewScopeServiceClient(conn), "egress-proxy"),
-		Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics}
+		Verifier: env.Verifier, Logger: env.Logger, Metrics: env.Metrics, NotifyAllowlist: o.NotifyAllowlist, Resolver: o.Resolver}
+	if p.Resolver == nil {
+		p.Resolver = scopesvc.NetResolver{}
+	}
 	health := platform.NewHealth()
 	admin := health.Mux(env.Metrics.Registry)
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -369,6 +377,9 @@ type NotifierOptions struct {
 	Email                 notifier.EmailSender
 	AllowInsecureLoopback bool
 	ConsoleBaseURL        string
+	// Egress routes webhook and Slack deliveries through the egress proxy
+	// (nil: direct, local development).
+	Egress *notifier.NotifyEgress
 }
 
 // Notifier builds the notifier.
@@ -384,7 +395,8 @@ func Notifier(env *Env, o NotifierOptions) (*Component, *notifier.Service) {
 		o.Email = notifier.LogEmail{Logger: env.Logger}
 	}
 	svc := notifier.NewService(notifier.Options{Repo: repo, Bus: env.Bus, Clock: env.Clock, Logger: env.Logger, Metrics: env.Metrics,
-		Senders: &notifier.Senders{Secrets: o.Secrets, Resolver: o.Resolver, Email: o.Email, AllowInsecureLoopback: o.AllowInsecureLoopback}})
+		Senders: &notifier.Senders{Secrets: o.Secrets, Resolver: o.Resolver, Email: o.Email, AllowInsecureLoopback: o.AllowInsecureLoopback,
+			Egress: o.Egress}})
 	srv := &notifier.Server{S: svc}
 	return &Component{Register: func(g *grpc.Server) { pb.RegisterNotifierServiceServer(g, srv) },
 		Run: []func(context.Context) error{svc.Run}, Ready: repo.Ping}, svc

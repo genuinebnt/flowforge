@@ -247,6 +247,16 @@ func TestRegress_G_OPS_02_ForcedRowLevelSecurity(t *testing.T) {
 		if len(bad) > 0 {
 			t.Errorf("tenant tables without forced RLS: %v", bad)
 		}
+		// Tables of later migrations are picked up from the catalog: role
+		// groups (0015), throttle and digest state and schedules (0017),
+		// pending references (0018).
+		for _, rel := range []string{"identity.role_groups", "identity.role_group_members", "notifier.throttle_windows",
+			"engine.schedules", "engine.run_archives", "graph.pending_observations"} {
+			var forced bool
+			if err := conn.QueryRow(ctx, `SELECT relforcerowsecurity FROM pg_class WHERE oid = to_regclass($1)`, rel).Scan(&forced); err != nil || !forced {
+				t.Errorf("%s: forced RLS %v (%v)", rel, forced, err)
+			}
+		}
 	})
 
 	owner := fmt.Sprintf("ff_owner_%d", testkit.Seed(t)%1_000_000)

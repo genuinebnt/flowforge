@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -139,7 +140,8 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		}
 		return wire.ToolRunner(env, wire.ToolRunnerOptions{ScopeAddr: cfg.ScopeAddr, EgressProxy: cfg.EgressProxy})
 	case "egress-proxy":
-		c, _, err := wire.EgressProxy(env, wire.EgressOptions{ScopeAddr: cfg.ScopeAddr})
+		c, _, err := wire.EgressProxy(env, wire.EgressOptions{ScopeAddr: cfg.ScopeAddr,
+			NotifyAllowlist: splitList(getenv("FF_NOTIFY_ALLOWLIST"))})
 		return c, err
 	case "graph":
 		c, _, err := wire.Graph(env, wire.GraphOptions{ScopeAddr: cfg.ScopeAddr})
@@ -152,10 +154,30 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		// local notifier without Google credentials runs as long as no
 		// channel uses one.
 		secrets := platform.LocalSecrets(getenv, &smsecrets.Store{Project: cfg.SecretProject})
-		c, _ := wire.Notifier(env, wire.NotifierOptions{Secrets: secrets, Email: notifier.SMTPEmail{Secrets: secrets}})
+		// Webhook and Slack deliveries leave through the egress proxy's
+		// notify path (spec 17.1, G-SVC-08); prod has no other way out.
+		if cfg.EgressProxy == "" && cfg.Env == "prod" {
+			return nil, errors.New("FF_EGRESS_PROXY is required in prod")
+		}
+		eg, err := notifier.NewNotifyEgress(cfg.EgressProxy, env.Tokens, env.IDTokens)
+		if err != nil {
+			return nil, err
+		}
+		c, _ := wire.Notifier(env, wire.NotifierOptions{Secrets: secrets, Email: notifier.SMTPEmail{Secrets: secrets}, Egress: eg})
 		return c, nil
 	}
 	return nil, fmt.Errorf("unknown service %q", cfg.Service)
+}
+
+// splitList splits a comma-separated setting, dropping empty entries.
+func splitList(v string) []string {
+	var out []string
+	for _, e := range strings.Split(v, ",") {
+		if e = strings.TrimSpace(e); e != "" {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // drainTimeout reads FF_DRAIN_TIMEOUT (a Go duration; "-1s" disables the

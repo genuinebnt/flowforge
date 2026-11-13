@@ -19,7 +19,7 @@ MODULES = $(shell $(XTASK) list | awk '{print $$1}')
 
 .DEFAULT_GOAL := help
 
-.PHONY: help fmt fmt-check vet lint vuln test race arch proptest fuzz-smoke bench verify \
+.PHONY: local-up local-down local-config help fmt fmt-check vet lint vuln test race arch proptest fuzz-smoke bench verify \
         proto devpg-up devpg-down docker compose-up compose-down \
         tf-fmt tf-validate tf-test policy-test ci \
         gcp-up gcp-plan gcp-pause gcp-resume gcp-down gcp-cost gcp-status gcp-images \
@@ -92,6 +92,15 @@ compose-up: ## start Postgres 16, Redis 7 and the Pub/Sub emulator
 
 compose-down: ## stop the compose stack and delete its volumes
 	$(COMPOSE) down -v
+
+local-up: ## every service in its own container, Postgres bus, local blobs (deploy/compose.local.yml)
+	scripts/local.sh up
+
+local-down: ## stop the local multi-process topology and delete its database
+	scripts/local.sh down
+
+local-config: ## validate deploy/compose.local.yml
+	scripts/local.sh config
 
 tf-fmt: ## terraform fmt check
 	terraform fmt -recursive -check infra

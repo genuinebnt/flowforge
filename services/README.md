@@ -23,15 +23,15 @@ separately and talks to these over gRPC.
    |          |                  | decision log
    +----------|------------------+
               |
-   event bus (bus.Bus): run.events, approval.events (engine outbox), scope.events (scope outbox),
-   graph.changes (graph change_events), auth.events (gateway)
+   event bus (bus.Bus: in process, Postgres or Pub/Sub): run.events, approval.events (engine outbox),
+   scope.events (scope outbox), graph.changes (graph change_events), auth.events (gateway, identity.outbox)
      -> engine (scope.events), notifier (all), similarity (graph.changes)
 ```
 
 | Package | gRPC service | Owns | Publishes / consumes |
 |---------|--------------|------|----------------------|
 | `scope` | ScopeService | programs, scope versions, kill switches, decision log | publishes scope.events |
-| `engine` | EngineService (+ `POST /internal/schedules/{id}:fire`) | workflows, runs, events, approvals | publishes run.events, approval.events; consumes scope.events |
+| `engine` | EngineService (+ the schedule API and `POST /internal/schedules:tick`, see below) | workflows, runs, events, approvals, schedules | publishes run.events, approval.events; consumes scope.events |
 | `toolrunner` | ToolRunnerService | tool adapters | none |
 | `egressproxy` | HTTP CONNECT / forward proxy | nothing (reads the decision log) | none |
 | `graph` | GraphService, GraphAnalytics | entities, edges, tags, change events | publishes graph.changes |
@@ -41,9 +41,33 @@ separately and talks to these over gRPC.
 | `app` | - | entry point of the `cmd/<service>` binaries | |
 | `internal/platform` | - | config, interceptors, errors, tracing, logging, metrics, health, serve | |
 | `internal/convert` | - | every proto <-> domain conversion | |
-| `internal/bus` | - | `Bus` port, in-process bus, outbox relay, inbox | |
+| `internal/bus` | - | `Bus` port; in-process, Postgres (`PgBus`) and Pub/Sub (`pubsubbus`) adapters; `busconfig`; outbox relay; inbox; `bustest` contract | |
+| `internal/blob` | - | blob store selection (memory, local directory, Cloud Storage) and the stored-zstd frame writer | |
+| `maintenance` | - | spec 10.7 retention, partitions, run archival (in process, `migrate maintain`, the tick) | |
 | `internal/wire` | - | builds each service from an `Env` (shared by cmd and devstack) | |
 | `internal/servicetest` | - | test helpers (fresh Postgres DB, counting resolver, webhook receiver) | |
+
+## Profiles
+
+Every cloud dependency sits behind a port with a local adapter
+(docs/GAPS.md, "Deployment profiles"). Three profiles:
+
+| | mem (one process) | local multi-process | gcp |
+|---|---|---|---|
+| Start | `go run ./cmd/flowforge dev` | `make local-up` (deploy/compose.local.yml) or the binaries with the env below | Terraform (`infra/`, `make gcp-lab-up`) |
+| Processes | one: gateway + every service | one per service (containers or OS processes) | one Cloud Run service each; egress proxy on the lab VM |
+| Database | memory, or Postgres with `-db` | Postgres 16 | Postgres on the lab VM, or Cloud SQL |
+| Event bus (`FF_BUS`) | `mem` | `postgres` (migration 0016, LISTEN/NOTIFY) | `pubsub` (`FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX`) |
+| Blobs (raw output, snapshots, archives) | memory | `FF_BLOB_DIR` | `FF_ARTIFACT_BUCKET` (Cloud Storage) |
+| Signing keys | generated per process | `FF_SIGNING_KID` + `FF_SIGNING_KEY_<KID>` from an env file (`deploy/.local/local.env`) | Secret Manager, mounted as env |
+| Schedules and maintenance | in process (engine) | in process (engine), or `migrate maintain` from cron | one Cloud Scheduler job: `POST /internal/schedules:tick` every minute; `FF_MAINTENANCE_INTERVAL=0` |
+| Rate limits | in process | in process, or Redis (`--profile redis`) | Redis on the VM, or Memorystore |
+
+`TestRegress_GOPS21_MultiProcessTopology` (services/gateway/gatewayd)
+runs the multi-process profile without containers: it builds every binary,
+starts each as its own process against one fresh database with the
+Postgres bus, and drives the same REST flow as the one-process end-to-end
+test.
 
 ## Running
 
@@ -115,7 +139,11 @@ Background work uses `platform.AsService(ctx, tenant, "engine")` (actor
 | `FF_SCOPE_ADDR`, `FF_ENGINE_ADDR`, `FF_GRAPH_ADDR`, `FF_TOOL_RUNNER_ADDR`, `FF_NOTIFIER_ADDR`, `FF_SIMILARITY_ADDR` | callers | service addresses |
 | `FF_EGRESS_PROXY` | tool-runner | `http://host:port` or `https://host` of the egress proxy (required in prod) |
 | `FF_ENGINE_WORKERS`, `FF_FUEL_DEFAULT` | engine | worker count, VM fuel |
-| `FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX` | publishers, consumers | reserved for the Pub/Sub adapter (not implemented) |
+| `FF_BUS` | all, gateway | `mem`, `postgres` or `pubsub`; empty: `pubsub` with `FF_PUBSUB_PROJECT`, else `postgres` with `FF_DB_DSN`, else `mem` |
+| `FF_PUBSUB_PROJECT`, `FF_TOPIC_PREFIX`, `FF_PUBSUB_CREATE` | all, gateway | Pub/Sub project, name prefix (`infra` `topic_prefix`), create missing topics and subscriptions (emulator) |
+| `FF_ARTIFACT_BUCKET`, `FF_BLOB_DIR` | tool-runner, graph, engine | blob store: Cloud Storage bucket, else a local directory, else memory (raw_ref objects, snapshot files, run archives) |
+| `FF_MAINTENANCE_INTERVAL` | engine | in-process retention pass interval with Postgres (default `1h`; `0` disables: the tick runs it) |
+| `FF_TICK_OIDC_AUDIENCE`, `FF_TICK_SERVICE_ACCOUNT` | engine | accept Cloud Scheduler's Google ID token on `POST /internal/schedules:tick` (besides internal tokens) |
 
 In dev without `FF_JWKS_URL` and a signing key a binary generates an
 ephemeral key, which only works inside one process (`flowforge dev`).
@@ -124,6 +152,41 @@ TLS (system roots, port 443 by default) and, with ID tokens on, carries a
 Google ID token whose audience is `https://host` next to the internal JWT
 (Cloud Run IAM admits the calling service, the JWT says which tenant and
 actor it acts for); `host:port` and `http://host:port` are h2c.
+
+## Schedules (G-OPS-10)
+
+The gateway exposes `POST/GET /v1/schedules` and `GET/DELETE
+/v1/schedules/{id}` (create and delete need `runs:submit`, analyst and
+above) and forwards them over HTTP to the engine's JSON API on its port
+(`/internal/schedules`, same internal token as gRPC; the proto
+EngineService is unchanged). A schedule is a five-field UTC cron
+expression, a workflow (name, optional version and program) and its input.
+The engine stores schedules (engine.schedules, migration 0017; memory
+without Postgres) and fires due ones every 15 s in process, and on every
+`POST /internal/schedules:tick`. Each firing submits a run with
+idempotency key `schedule:<id>:<fire time>`, so two engines (or the loop
+and a tick) firing the same minute create one run; firings missed while
+no engine ran are coalesced into one. On GCP one Cloud Scheduler job calls
+the tick every minute with an OIDC token (`FF_TICK_OIDC_AUDIENCE`,
+`FF_TICK_SERVICE_ACCOUNT`), so schedules created at runtime need no new
+Cloud Scheduler jobs; the tick also runs a maintenance pass.
+`POST /internal/schedules/{id}:fire` (spec 17) still works for
+operator-made Cloud Scheduler jobs.
+
+## Maintenance (G-OPS-03, G-ENG-04)
+
+`services/maintenance` applies spec 10.7: scope_decisions partitions
+created three months ahead and dropped after 13 months; run_events of runs
+finished more than 400 days ago archived to the blob store as zstd JSON
+Lines (`archives/run_events/<tenant>/<run>.jsonl.zst`, recorded in
+engine.run_archives) and the whole run deleted; snapshots of finished runs
+removed (the engine also deletes them when a run finishes); observations
+after 90 days; auth_audit after 12 months; published outbox rows after
+7 days; processed_events after 30 days; acked and dead Postgres-bus rows;
+ended throttle windows. Every job is idempotent and bounded per pass, and
+passes are serialized by an advisory lock. It runs in the engine
+(`FF_MAINTENANCE_INTERVAL`), as `migrate maintain`, and on each tick.
+Runs are never archived to the in-memory blob store.
 
 ## Errors, deadlines, telemetry
 
@@ -167,13 +230,10 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
 
 ## What is simplified or left undone
 
-* **Event bus**: only the in-process `bus.Mem` exists. There is no Pub/Sub
-  SDK in the module, so a Pub/Sub adapter (one subscription per
-  topic/consumer, ordering key and traceparent as attributes, the
-  subscription's dead-letter policy) is future work behind `bus.Bus`.
-  Standalone binaries therefore run without a bus: outbox rows stay
-  unpublished and consumers are idle; use `flowforge dev` for an
-  end-to-end system.
+* **Event bus**: a standalone binary without `FF_DB_DSN` or
+  `FF_PUBSUB_PROJECT` gets the in-process bus, which reaches only its own
+  process; give the processes a shared database (or Pub/Sub). See
+  `internal/bus/README.md` for the adapters' differences.
 * **Memory mode**: the graph publishes changes inline (no outbox), and the
   engine and scope outboxes are in memory, so a crash loses unpublished
   events (Postgres mode uses the outbox tables and relays).
@@ -181,8 +241,12 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
   program and model; no pgvector, no persistence), and the bundled
   embedder is a deterministic feature-hashing embedder, not a semantic
   model. A Vertex AI / Genkit embedder is future work.
-* **Notifier**: throttle and digest state is in memory per process and
-  restarts when rules change; default operational rules are not installed
+* **Notifier**: throttle windows and open digests are persisted with the
+  alert events (notifier.throttle_windows, notifier.digest_buffers) and
+  restored when a processor is rebuilt (restart or rule change); several
+  notifier replicas each cache their own copy, so two replicas can each
+  fire once for the same window (run one replica, or partition
+  consumers). Default operational rules are not installed
   per tenant; `TestRule` with a historical event id is not supported
   (events are not retained); webhook deliveries go out directly (SSRF
   checked and pinned), not through the egress proxy.
@@ -198,8 +262,13 @@ host, DNS rebinding, userinfo and decimal-IP tricks).
   support may not be imported by services). Runs without a program keep no
   assets (the graph is per program).
 * **Graph analytics** re-build a snapshot in memory when the cached one is
-  older than 30 s or the requested watermark; snapshots are not written to
-  GCS by the service.
+  older than 30 s or the requested watermark; with a blob store each new
+  watermark is also written as a snapshot file (`snapshots/...ffcs`) and
+  catalogued, so `GetSnapshotInfo` reports its URI.
+* **Raw tool output**: with a blob store the tool runner stores each
+  observation as the tool reported it (`raw/<tenant>/<program>/<run>/<obs>.json`)
+  and sets `raw_ref`; adapters do not keep protocol-level raw bytes (HTTP
+  bodies, DNS packets) yet.
 * Services listen in h2c and rely on Cloud Run's front end for TLS
   (callers dial `https://` addresses with TLS); no authorization
   beyond tenant isolation, the global kill switch (owner) and similarity's

@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -92,10 +93,18 @@ func (s *Server) IngestObservations(ctx context.Context, req *pb.IngestRequest) 
 	}
 	res, err := s.o.Store.IngestObservation(ctx, graphstore.IngestRequest{TenantID: id.TenantPublicID(), ProgramID: req.GetProgramId(),
 		RunID: req.GetRunId(), EffectPath: req.GetEffectPath(), ToolName: req.GetToolName(), ToolVersion: req.GetToolVersion(), Observation: obs})
+	if errors.Is(err, oam.ErrPendingLimit) {
+		s.o.Metrics.GraphPending.Inc("rejected")
+	}
 	if err != nil {
 		return nil, err
 	}
 	s.o.Metrics.GraphIngest.Since(start)
+	if res.Pending {
+		s.o.Metrics.GraphPending.Inc("buffered")
+	}
+	s.o.Metrics.GraphPending.Add(float64(len(res.Released)), "released")
+	s.o.Metrics.GraphPending.Add(float64(res.Expired), "expired")
 	s.publish(ctx, res.Changes)
 	out := &pb.IngestResponse{EntitiesCreated: int32(res.EntitiesCreated), EntitiesUpdated: int32(res.EntitiesUpdated),
 		EdgesCreated: int32(res.EdgesCreated), EdgesUpdated: int32(res.EdgesUpdated), RefToEntityId: res.RefToEntityID}

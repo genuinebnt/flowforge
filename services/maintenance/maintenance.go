@@ -169,8 +169,16 @@ func (r *Runner) RunOnce(ctx context.Context) (Report, error) {
 	return rep, errors.Join(errs...)
 }
 
-// Loop runs a pass every interval until ctx is done.
+// Loop runs a pass every interval until ctx is done. The first pass waits
+// min(interval, 5 min): a process starting up (migrations, schema
+// bootstrap, the first requests) should not race the partition DDL, and a
+// short-lived process has `migrate maintain` and the tick instead.
 func (r *Runner) Loop(ctx context.Context, interval time.Duration) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(min(interval, 5*time.Minute)):
+	}
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
