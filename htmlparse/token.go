@@ -1,6 +1,8 @@
 package htmlparse
 
-// TokenKind is the kind of a tokenizer output token (HTML §13.2.5).
+// TokenKind is the kind of a tokenizer output token (HTML §13.2.5: DOCTYPE,
+// start tag, end tag, comment, character, end-of-file, and the 2025
+// processing instruction).
 type TokenKind uint8
 
 // Token kinds.
@@ -14,6 +16,7 @@ const (
 	EOFToken
 )
 
+// tokenKindNames are the html5lib output type names, indexed by kind.
 var tokenKindNames = [...]string{"Character", "StartTag", "EndTag", "Comment", "DOCTYPE", "ProcessingInstruction", "EOF"}
 
 // String returns the html5lib token type name ("StartTag", "DOCTYPE", ...).
@@ -54,7 +57,7 @@ type Token struct {
 
 	Span Span
 
-	atom tagID // interned Name for tags
+	atom tagID // interned Name for tags (tagUnknown for other names)
 }
 
 // TokenizerState names the tokenizer states a caller may start in (the
@@ -96,13 +99,24 @@ type TokenizeOptions struct {
 	CharRefLookup CharRefStrategy
 }
 
-// Default limits.
+// Default limits (spec Part II 26.4, pinned constants of the port).
+//
+// DefaultMaxDepth bounds the stack of open elements. 512 is the depth
+// at which Blink and WebKit stop nesting parser-inserted elements, so
+// real pages that render are not cut short, while the work per token of
+// the stack scans (scope checks, adoption agency) stays bounded.
+// DefaultMaxAttributes bounds the per-tag attribute list and its
+// duplicate check. DefaultMaxInputSize (256 MiB) bounds memory: the
+// arena and the decoded text grow linearly with the input (the content
+// package passes a smaller 8 MiB limit per response).
 const (
 	DefaultMaxDepth      = 512
 	DefaultMaxAttributes = 1024
 	DefaultMaxInputSize  = 256 << 20
 )
 
+// limitOrDefault maps an Options limit to its value: 0 selects def and a
+// negative value means unlimited (the largest int).
 func limitOrDefault(v, def int) int {
 	switch {
 	case v == 0:

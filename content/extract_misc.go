@@ -154,9 +154,11 @@ func jsonString(v diff.Value, key string) string {
 }
 
 // openAPIEndpoints maps paths × operations to schema endpoints (OpenAPI
-// 3.1 §4.8.8 Paths Object; Swagger 2.0 host + basePath). The base is the
-// first absolute servers[].url, the Swagger host, or the document's
-// origin.
+// 3.1 §4.8.8 Paths Object; Swagger 2.0 host + basePath). The base is, in
+// order of precedence: the Swagger host (scheme schemes[0], default https,
+// plus basePath); a basePath without host, resolved against the document;
+// the first servers[].url that resolves against the document; the
+// document's origin.
 func openAPIEndpoints(v diff.Value, docURL string) []Feature {
 	if v.Kind != diff.KindObject {
 		return nil
@@ -297,7 +299,10 @@ func graphqlSchemaFeatures(ops []string, docURL string) []Feature {
 
 // graphqlSDL reads root fields from a GraphQL schema in SDL (October 2021
 // spec §3.3: `type Query { field(...): T ... }`, `schema { query: Q }` is
-// not resolved; the conventional root names are used).
+// not resolved; the conventional root names are used). Only the first
+// definition of each root type is read, and a field counts only when its
+// name starts a line at brace depth 1, so `type Query { me: User }` on one
+// line yields nothing.
 func (x *extraction) graphqlSDL(body []byte) {
 	if !bytes.Contains(body, []byte("type Query")) && !bytes.Contains(body, []byte("type Mutation")) {
 		x.report(ExGraphQLSDL, GradeComplete, "", nil)

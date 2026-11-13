@@ -2,12 +2,23 @@ package htmlparse
 
 import "unicode/utf8"
 
-// state is a tokenizer state. There is exactly one constant per state in
-// HTML §13.2.5 "Tokenization" (including the processing instruction states
-// added in 2025), in the order the standard lists them: 84 in all. The
-// constant stateFooBar is the spec's "foo bar state"; its handler is the
-// method fooBarState (or a shared handler parameterized by state), and
-// stateNames holds the exact spec names.
+// state is a tokenizer state of HTML §13.2.5 "Tokenization", in the order
+// the standard lists them: 84 constants. The constant stateFooBar is the
+// spec's "foo bar state"; its handler is the method fooBarState (or a
+// shared handler parameterized by state), and stateNames holds the exact
+// spec names.
+//
+// The classic list has 80 states (§13.2.5.1 data state ... §13.2.5.80
+// numeric character reference end state); 79 have a constant here. The
+// decimal character reference start state (§13.2.5.77) is folded into
+// numericCharacterReferenceState: its only test (is the next character an
+// ASCII digit?) is made there, with the same error and the same
+// reconsume, so no observable behaviour depends on the extra state. The
+// five processing-instruction states of the 2025 standard follow the
+// CDATA section states and are cited by name. Section numbers cited in
+// the handlers are those of the classic list; the character reference
+// states keep their classic numbers (72-80) even though the PI states
+// now precede them in the standard's order.
 type state uint8
 
 const (
@@ -177,7 +188,11 @@ type Tokenizer struct {
 	in       []byte
 	pos      int // offset of the next input character
 	curStart int // offset of the current input character
-	hwm      int // input-stream errors have been reported below this offset
+	// hwm is the high-water mark of pos: input-stream errors (§13.2.3.5)
+	// have been reported for every character below it, so a character
+	// that is reconsumed (read again after reconsume) is not reported
+	// twice.
+	hwm int
 
 	state       state
 	returnState state
@@ -214,6 +229,9 @@ type Tokenizer struct {
 	maxAttrs     int
 	charRef      CharRefStrategy
 
+	// queue holds tokens emitted by one step. Next steps only when it is
+	// empty, and one step emits at most three tokens (pending character
+	// data, the token, EOF), so four slots never overflow.
 	queue [4]Token
 	qhead int
 	qlen  int
@@ -242,7 +260,9 @@ func NewTokenizer(input []byte, opts TokenizeOptions) *Tokenizer {
 
 // SetState switches the tokenizer to one of the externally selectable
 // states. The tree builder calls it after a start tag token for title,
-// textarea, style, script, plaintext, ... (§13.2.6.2, §13.2.6.4).
+// textarea, style, script, plaintext, ... (§13.2.6.2, §13.2.6.4.7) and
+// the fragment parsing algorithm before the first token (§13.4). An
+// unknown value selects the data state.
 func (t *Tokenizer) SetState(s TokenizerState) {
 	switch s {
 	case RCDATAState:
@@ -260,8 +280,9 @@ func (t *Tokenizer) SetState(s TokenizerState) {
 	}
 }
 
-// SetAllowCDATA tells the markup declaration open state whether there is
-// an adjusted current node that is not in the HTML namespace.
+// SetAllowCDATA tells the markup declaration open state (§13.2.5.42)
+// whether there is an adjusted current node that is not in the HTML
+// namespace, which decides whether "<![CDATA[" opens a CDATA section.
 func (t *Tokenizer) SetAllowCDATA(v bool) { t.allowCDATA = v }
 
 // SetLastStartTag overrides the name of the last emitted start tag.
@@ -297,7 +318,9 @@ func (t *Tokenizer) Next() *Token {
 
 // next consumes and returns the next input character (eofRune at the
 // end), applying newline normalization and reporting input-stream errors
-// the first time each character is read.
+// the first time each character is read (§13.2.3.5; see preprocess.go).
+// A CR LF pair is one character: curStart is the CR and pos moves past
+// the LF.
 func (t *Tokenizer) next() rune {
 	t.curStart = t.pos
 	if t.pos >= len(t.in) {
@@ -317,6 +340,8 @@ func (t *Tokenizer) next() rune {
 		}
 		if t.pos > t.hwm {
 			t.hwm = t.pos
+			// isControlError inlined for the ASCII path (CR was handled
+			// above).
 			if (b < 0x20 && b != 0 && b != '\t' && b != '\n' && b != '\f') || b == 0x7F {
 				t.errAt(ErrControlCharacterInInputStream, t.curStart)
 			}
@@ -350,8 +375,10 @@ func (t *Tokenizer) next() rune {
 // reconsume makes the current input character the next one again.
 func (t *Tokenizer) reconsume() { t.pos = t.curStart }
 
-// skipASCII advances over n already-inspected ASCII bytes (used by the
-// "if the next few characters are" lookahead steps).
+// skipASCII consumes n already-inspected ASCII bytes (the "if the next
+// few characters are" steps and a named reference match), leaving the
+// last of them as the current input character for error positions. The
+// bytes are never CR or a control, so no input-stream check is skipped.
 func (t *Tokenizer) skipASCII(n int) {
 	t.curStart = t.pos + n - 1 // the last consumed character is current
 	t.pos += n
@@ -387,7 +414,10 @@ func (t *Tokenizer) errAt(code ErrorCode, off int) {
 
 // --- emitting ---
 
-// emitRune appends a character to the pending character data.
+// emitRune appends a character to the pending character data. Character
+// tokens are not queued one by one: consecutive characters accumulate in
+// t.text and leave as one CharacterToken when the next token (or EOF) is
+// emitted.
 func (t *Tokenizer) emitRune(c rune) {
 	if c < utf8.RuneSelf {
 		t.text = append(t.text, byte(c))
@@ -413,6 +443,8 @@ func (t *Tokenizer) push(tok Token) {
 }
 
 // flushText queues the pending character data as one character token.
+// Its span ends at textEnd, the end of the last character appended, so
+// bytes consumed after it (the start of a tag) go to the next token.
 func (t *Tokenizer) flushText() {
 	if len(t.text) == 0 {
 		return
@@ -462,7 +494,9 @@ func (t *Tokenizer) startAttribute() {
 }
 
 // leaveAttributeName runs the duplicate-attribute check that the spec
-// attaches to leaving the attribute name state (§13.2.5.33).
+// attaches to leaving the attribute name state (§13.2.5.33): a duplicate
+// is a parse error and is dropped, so the first occurrence wins. The
+// MaxAttributes limit is applied at the same point.
 func (t *Tokenizer) leaveAttributeName() {
 	if !t.attrOpen || t.attrDrop || t.attrAdded {
 		return
@@ -485,6 +519,9 @@ func (t *Tokenizer) leaveAttributeName() {
 	name := internAttrName(t.attrName)
 	t.attrs = append(t.attrs, Attr{Name: name})
 	t.attrAdded = true
+	// A linear scan is cheaper for the usual handful of attributes; past
+	// 16 the lookup switches to a set so a tag with MaxAttributes
+	// attributes stays O(n), not O(n^2).
 	if t.attrIndex != nil {
 		t.attrIndex[name] = struct{}{}
 	} else if len(t.attrs) > 16 {
@@ -539,6 +576,9 @@ func (t *Tokenizer) emitTag() {
 		name = string(t.name)
 	}
 	tok := Token{Kind: t.tagKind, Name: name, Attrs: t.attrs, SelfClosing: t.selfClosing, atom: atom}
+	// §13.2.5 "When an end tag token is emitted with attributes / with its
+	// self-closing flag set, that is a parse error". The errors are
+	// located at the '>' (the current input character).
 	if t.tagKind == StartTagToken {
 		t.lastStartTag = name
 	} else {
@@ -554,7 +594,9 @@ func (t *Tokenizer) emitTag() {
 }
 
 // appropriateEndTag reports whether the current end tag token is an
-// appropriate end tag token.
+// "appropriate end tag token" (§13.2.5): its name equals that of the last
+// start tag this tokenizer emitted. With no start tag emitted yet (an
+// empty lastStartTag) no end tag is appropriate.
 func (t *Tokenizer) appropriateEndTag() bool {
 	return t.lastStartTag != "" && string(t.name) == t.lastStartTag
 }

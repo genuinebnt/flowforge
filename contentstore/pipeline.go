@@ -16,7 +16,7 @@ import (
 type Pipeline struct {
 	// Process derives a capture (nil: content.Process).
 	Process func(*content.Capture, content.ProcessOptions) (*content.Processed, error)
-	// Stamp identifies the derivation (""; DerivationStamp()). Two
+	// Stamp identifies the derivation ("" means DerivationStamp()). Two
 	// pipelines with one stamp must derive identical records.
 	Stamp string
 }
@@ -32,9 +32,10 @@ func (p Pipeline) withDefaults() Pipeline {
 }
 
 // DerivationStamp is the stamp of content.Process as compiled:
-// "content/" + the hex SHA-256 over one line per normalizer
-// ("<name>@<version> <rule table sha256>", content.Normalizers order)
-// and one per extractor ("<name>@<version>", content.Extractors order).
+// "content/" + the hex SHA-256 over lines joined by "\n": one per
+// normalizer ("normalizer <name>@<version> <rule table sha256>",
+// content.Normalizers order), then one per extractor
+// ("extractor <name>@<version>", content.Extractors order).
 // Bumping any normalizer or extractor version, or changing a rule table,
 // changes it.
 func DerivationStamp() string {

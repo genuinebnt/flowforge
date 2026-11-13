@@ -19,9 +19,11 @@ type Module struct {
 	// "node_modules/react/index.js") or "stmt:<n>" for the n-th top-level
 	// statement outside any module table.
 	ID string `json:"id"`
-	// Hash is the hex SHA-256 of the module's canonical token text, with
-	// every locally bound identifier renamed to its positional name ($0,
-	// $1, … by first occurrence), so a minifier's renaming and any
+	// Hash is the hex SHA-256 of the module's canonical tokens
+	// (canonicalTokens) joined by single spaces, with every identifier
+	// whose name the program binds anywhere (bindingNames; names, not
+	// resolved scopes) renamed to its positional name ($0, $1, … by first
+	// occurrence in the module), so a minifier's renaming and any
 	// re-formatting leave it unchanged.
 	Hash string `json:"hash"`
 	// Shape names the bundler shape it was found in: webpack, esbuild or
@@ -356,9 +358,17 @@ func (sp *splitter) tokenRange(start, end int) (int, int) {
 }
 
 // canonicalTokens renders the significant tokens of [start, end) minus
-// holes (sorted, disjoint spans) as canonical text: bound identifiers outside property positions
-// renamed positionally (or all to "$" when anonymous), strings quoted
-// canonically, numbers by value, volatile literals masked.
+// holes (sorted, disjoint spans) as canonical text: bound identifiers
+// renamed positionally (or all to "$" when anonymous) except after "." or
+// "?." and as object keys, strings quoted canonically, numbers by value,
+// volatile strings and numbers in the epoch-millisecond range masked (no
+// integer test here, unlike maskJSLiterals).
+//
+// PORT: strconv.Quote is Go's quoting: \a \b \f \n \r \t \v, \xNN for
+// invalid UTF-8 bytes, \uNNNN or \UNNNNNNNN for runes that Go's
+// strconv.IsPrint rejects (U+00AD and U+2028 among them), every other rune
+// raw. Module hashes and lineage tokens depend on it; reproduce it exactly
+// rather than using Rust's escape_debug.
 func (sp *splitter) canonicalTokens(start, end int, holes [][2]int, anonymous bool) []string {
 	i, j := sp.tokenRange(start, end)
 	toks := sp.prog.Tokens
@@ -419,8 +429,8 @@ func (sp *splitter) canonicalTokens(start, end int, holes [][2]int, anonymous bo
 }
 
 // isObjectKey reports an identifier token k used as an object-literal key
-// or class member name (`{k: v}`, `, k:`): previous significant token "{"
-// or "," and next ":".
+// (`{k: v}`, `, k:`): previous significant token "{" or "," and next ":".
+// A label at the start of a block (`{ k: for ...`) passes the same test.
 func (sp *splitter) isObjectKey(k, limit int) bool {
 	toks := sp.prog.Tokens
 	prev, next := jsparse.TEOF, jsparse.TEOF

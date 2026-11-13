@@ -83,7 +83,10 @@ const (
 )
 
 // isTimestampDigits reports 10 digits of epoch seconds or 13 digits of
-// epoch milliseconds between 2000 and 2100.
+// epoch milliseconds between 2000-01-01 and 2100-01-01 UTC, both ends
+// included. A 13-digit value is tested on its first 10 digits (whole
+// seconds). The digit counts exclude the 9-digit seconds and 12-digit
+// milliseconds of 2000-01-01 to 2001-09-09.
 func isTimestampDigits(s string) bool {
 	if (len(s) != 10 && len(s) != 13) || !isAllDigits(s) {
 		return false
@@ -93,20 +96,6 @@ func isTimestampDigits(s string) bool {
 		v = v*10 + uint64(s[i]-'0')
 	}
 	return v >= minEpochSeconds && v <= maxEpochSeconds
-}
-
-// isTimestampNumber is isTimestampDigits for a numeric literal value.
-func isTimestampNumber(f float64) bool {
-	if f != float64(int64(f)) || f < 0 {
-		return false
-	}
-	switch {
-	case f >= minEpochSeconds && f <= maxEpochSeconds:
-		return true
-	case f >= minEpochSeconds*1000 && f <= maxEpochSeconds*1000:
-		return true
-	}
-	return false
 }
 
 // isISODateTime reports an ISO-8601 / RFC 3339 date-time:

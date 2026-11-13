@@ -5,10 +5,14 @@ import (
 	"slices"
 )
 
-// insertionMode is a tree construction insertion mode (HTML §13.2.4.1).
-// The current standard has no "in select" / "in select in table" modes:
-// they were removed with the customizable <select> parser changes (2025)
-// and select is now handled by the "in body" rules.
+// insertionMode is a tree construction insertion mode (HTML §13.2.4.1),
+// one constant per mode in the order of §13.2.6.4, whose subsections are
+// the modes' rules: §13.2.6.4.1 "initial" ... §13.2.6.4.15 "in cell",
+// then §13.2.6.4.16 "in template" ... §13.2.6.4.21 "after after
+// frameset". The current standard has no "in select" / "in select in
+// table" modes (formerly §13.2.6.4.16-17): they were removed with the
+// customizable <select> parser changes (2025) and select is now handled
+// by the "in body" rules, which renumbered the modes after "in cell".
 type insertionMode uint8
 
 const (
@@ -43,6 +47,7 @@ var modeNames = [numModes]string{
 	"after frameset", "after after body", "after after frameset",
 }
 
+// String returns the spec name of the mode ("in table body", ...).
 func (m insertionMode) String() string {
 	if m < numModes {
 		return modeNames[m]
@@ -50,9 +55,11 @@ func (m insertionMode) String() string {
 	return "mode?"
 }
 
-// stackEntry is one entry of the stack of open elements. The tag,
-// namespace and integration-point flag are cached so the scope checks do
-// not touch the arena.
+// stackEntry is one entry of the stack of open elements (§13.2.4.2). The
+// tag, namespace and integration-point flag are cached so the scope
+// checks do not touch the arena. The annotation-xml flag must be cached:
+// whether it is an HTML integration point depends on the start tag's
+// encoding attribute, which the spec ties to the token, not the element.
 type stackEntry struct {
 	id     NodeID
 	tag    tagID
@@ -62,8 +69,11 @@ type stackEntry struct {
 
 func (e stackEntry) is(tag tagID) bool { return e.ns == HTMLNamespace && e.tag == tag }
 
-// afeEntry is one entry of the list of active formatting elements; a
-// marker has id == None.
+// afeEntry is one entry of the list of active formatting elements
+// (§13.2.4.3); a marker has id == None. The element's token is not kept:
+// reconstruction and the adoption agency clone the existing element's
+// name and attributes, which are the token's (formatting elements are
+// never adjusted).
 type afeEntry struct {
 	id  NodeID
 	tag tagID
@@ -88,20 +98,24 @@ type treeBuilder struct {
 	afe           []afeEntry
 	head, form    NodeID
 	framesetOK    bool
-	foster        bool
+	foster        bool // the foster parenting flag (§13.2.6.1)
 	scripting     bool
 	ack           bool // self-closing flag acknowledged
 
 	fragment bool
 	ctx      stackEntry // fragment context element (when fragment)
 
-	pendingTable      []byte // pending table character tokens
+	pendingTable      []byte // pending table character tokens, concatenated
 	pendingTableSpan  Span
-	pendingTableNonWS bool
-	ignoreLF          bool
+	pendingTableNonWS bool // pendingTable has a character other than ASCII whitespace
+	ignoreLF          bool // drop a leading LF of the next token (pre, listing, textarea)
 	textPushed        bool // the element that started "text" mode was opened
 
-	textBuf map[NodeID][]byte // Text nodes that received more than one piece
+	// textBuf holds the data of Text nodes that received more than one
+	// piece; run copies it into Node.Data at the end. Appending to a Go
+	// string would copy it each time (strings are immutable), making
+	// long text runs built from many tokens quadratic.
+	textBuf map[NodeID][]byte
 
 	// templateHost maps a template contents fragment to its template
 	// element plus one (0: not a template contents fragment).
@@ -109,7 +123,7 @@ type treeBuilder struct {
 
 	maxDepth    int
 	errs        []ParseError
-	metaCharset string // encoding declared by the first <meta charset> in head
+	metaCharset string // encoding declared by the first <meta> the "in head" rules saw that declares one
 
 	sawSelectedContent bool // an HTML selectedcontent element was created
 	maxStack           int  // deepest stack of open elements seen (HTML-INV-06)
@@ -133,7 +147,9 @@ func newTreeBuilder(doc *Document, tz *Tokenizer, opts Options) *treeBuilder {
 	}
 }
 
-// run consumes tokens until EOF.
+// run consumes tokens until EOF. Between tokens it updates the
+// tokenizer's CDATA flag from the adjusted current node, the only
+// tokenizer input that depends on the tree but is not set by a rule.
 func (b *treeBuilder) run() {
 	for {
 		tok := b.tz.Next()
@@ -155,6 +171,8 @@ func (b *treeBuilder) run() {
 	}
 }
 
+// parseError records a tree-construction error at the start of the
+// token being processed.
 func (b *treeBuilder) parseError(code ErrorCode) {
 	off := 0
 	if b.tok != nil {
@@ -165,7 +183,11 @@ func (b *treeBuilder) parseError(code ErrorCode) {
 
 // processToken is the tree construction dispatcher (§13.2.6) plus the
 // "ignore a leading LF after pre/listing/textarea" and self-closing
-// acknowledgement bookkeeping.
+// acknowledgement bookkeeping. The spec ignores the next token if it is
+// an LF character token; tokens here are coalesced runs, so the first
+// character of the run is dropped instead. Any other token kind clears
+// the flag. An unacknowledged self-closing start tag is the
+// non-void-html-element-start-tag-with-trailing-solidus error (§13.2.5).
 func (b *treeBuilder) processToken(tok *Token) {
 	b.tok = tok
 	if b.ignoreLF {
@@ -188,7 +210,9 @@ func (b *treeBuilder) processToken(tok *Token) {
 	}
 }
 
-// dispatch runs the reprocess loop for tok.
+// dispatch runs the reprocess loop for tok: each pass picks the
+// insertion mode or the foreign-content rules afresh, as "reprocess the
+// token" requires.
 func (b *treeBuilder) dispatch(tok *Token) {
 	for range maxReprocess {
 		var again bool
@@ -204,7 +228,9 @@ func (b *treeBuilder) dispatch(tok *Token) {
 }
 
 // useForeignRules implements the dispatcher's choice between the current
-// insertion mode and the rules for parsing tokens in foreign content.
+// insertion mode and the rules for parsing tokens in foreign content
+// (§13.2.6): the conditions are tested in the spec's order, and EOF
+// always goes to the insertion mode.
 func (b *treeBuilder) useForeignRules(tok *Token) bool {
 	if len(b.stack) == 0 {
 		return false
@@ -337,7 +363,7 @@ func isAllSpace(s string) bool {
 	return true
 }
 
-// --- the stack of open elements (§13.2.4.3) ---
+// --- the stack of open elements (§13.2.4.2) ---
 
 func (b *treeBuilder) current() stackEntry {
 	if len(b.stack) == 0 {
@@ -346,7 +372,9 @@ func (b *treeBuilder) current() stackEntry {
 	return b.stack[len(b.stack)-1]
 }
 
-// adjustedCurrent is the adjusted current node.
+// adjustedCurrent is the adjusted current node (§13.2.4.2): the context
+// element when parsing a fragment and only the root html element is
+// open, otherwise the current node.
 func (b *treeBuilder) adjustedCurrent() stackEntry {
 	if b.fragment && len(b.stack) == 1 {
 		return b.ctx
@@ -359,9 +387,11 @@ func (b *treeBuilder) push(e stackEntry) {
 	b.maxStack = max(b.maxStack, len(b.stack))
 }
 
-// pop pops the current node. The root html element is never popped (it
-// is removed only when parsing ends), which keeps the stack non-empty
-// whatever the input.
+// pop pops the current node. The root html element is never popped: no
+// rule pops it while tokens remain (the frameset rules check for it), so
+// refusing here only keeps the stack non-empty whatever the input. The
+// other stack helpers (removeFromStack, popUntil, popUntilNode) likewise
+// never touch index 0.
 func (b *treeBuilder) pop() {
 	if len(b.stack) > 1 {
 		b.stack = b.stack[:len(b.stack)-1]
@@ -385,8 +415,8 @@ func (b *treeBuilder) removeFromStack(id NodeID) {
 	}
 }
 
-// popUntil pops elements until an HTML element with tag has been popped.
-// If there is none on the stack it pops nothing.
+// popUntil pops elements until an HTML element with one of tags has been
+// popped. If there is none above the root it pops nothing.
 func (b *treeBuilder) popUntil(tags ...tagID) {
 	for i := len(b.stack) - 1; i > 0; i-- {
 		e := b.stack[i]
@@ -415,11 +445,17 @@ func (b *treeBuilder) templateOnStack() bool {
 }
 
 // parsingTemplateContents: a template element is on the stack, or the
-// fragment context element is a template.
+// fragment context element is a template. The form rules use it for the
+// spec's "a template element on the stack" test: the expected trees for
+// a template context (template.dat, "<form><form>" and
+// "<table><form></table>" with context template) require the context to
+// count.
 func (b *treeBuilder) parsingTemplateContents() bool {
 	return b.templateOnStack() || (b.fragment && b.ctx.is(tagTemplate))
 }
 
+// scopeKind selects one of the "has an element in ... scope" lists
+// (§13.2.4.2).
 type scopeKind uint8
 
 const (
@@ -430,7 +466,13 @@ const (
 )
 
 // isScopeBoundary reports whether e terminates the "has an element in
-// the specific scope" search for the given scope.
+// the specific scope" search for the given scope. The default scope list
+// is applet, caption, html, table, td, th, marquee, object, template,
+// select (added by the 2025 select changes, which removed select scope),
+// MathML mi/mo/mn/ms/mtext/annotation-xml and SVG
+// foreignObject/desc/title; list item scope adds HTML ol and ul, button
+// scope adds HTML button, and table scope is only html, table and
+// template.
 func isScopeBoundary(e stackEntry, sc scopeKind) bool {
 	switch e.ns {
 	case HTMLNamespace:
@@ -470,7 +512,8 @@ func isScopeBoundary(e stackEntry, sc scopeKind) bool {
 }
 
 // inScope reports whether the stack has an HTML element with one of tags
-// in the given scope.
+// in the given scope. The target test comes before the boundary test, as
+// in the spec, so "table in table scope" finds a table.
 func (b *treeBuilder) inScope(sc scopeKind, tags ...tagID) bool {
 	for i := len(b.stack) - 1; i >= 0; i-- {
 		e := b.stack[i]
@@ -515,7 +558,7 @@ func (b *treeBuilder) nodeInScope(id NodeID) bool {
 	return false
 }
 
-// isSpecial reports the "special" category (§13.2.4.3).
+// isSpecial reports the "special" category (§13.2.4.2).
 func isSpecial(e stackEntry) bool {
 	switch e.ns {
 	case HTMLNamespace:
@@ -547,6 +590,8 @@ func isSpecial(e stackEntry) bool {
 	return false
 }
 
+// isMathMLTextIntegrationPoint reports a MathML mi, mo, mn, ms or mtext
+// element (§13.2.6 "MathML text integration point").
 func isMathMLTextIntegrationPoint(e stackEntry) bool {
 	if e.ns != MathMLNamespace {
 		return false
@@ -558,6 +603,9 @@ func isMathMLTextIntegrationPoint(e stackEntry) bool {
 	return false
 }
 
+// isHTMLIntegrationPoint reports an HTML integration point (§13.2.6): a
+// MathML annotation-xml whose start tag had encoding text/html or
+// application/xhtml+xml, or an SVG foreignObject, desc or title.
 func isHTMLIntegrationPoint(e stackEntry) bool {
 	switch e.ns {
 	case MathMLNamespace:
@@ -568,7 +616,8 @@ func isHTMLIntegrationPoint(e stackEntry) bool {
 	return false
 }
 
-// impliedEndTag reports the elements "generate implied end tags" pops.
+// impliedEndTag reports the elements "generate implied end tags" pops
+// (§13.2.6.3): dd, dt, li, optgroup, option, p, rb, rp, rt, rtc.
 func impliedEndTag(tag tagID) bool {
 	switch tag {
 	case tagDd, tagDt, tagLi, tagOptgroup, tagOption, tagP, tagRb, tagRp, tagRt, tagRtc:
@@ -578,7 +627,8 @@ func impliedEndTag(tag tagID) bool {
 }
 
 // generateImpliedEndTags pops implied-end-tag elements except those named
-// in except (§13.2.6.3).
+// in except (§13.2.6.3). Only HTML elements qualify: a foreign <p> or
+// <option> stops the loop.
 func (b *treeBuilder) generateImpliedEndTags(except ...tagID) {
 	for {
 		c := b.current()
@@ -601,7 +651,9 @@ func (b *treeBuilder) generateImpliedEndTagsExceptName(name string) {
 	}
 }
 
-// generateAllImpliedEndTagsThoroughly (§13.2.6.3).
+// generateAllImpliedEndTagsThoroughly is "generate all implied end tags
+// thoroughly" (§13.2.6.3): the implied-end-tag elements plus caption,
+// colgroup, tbody, td, tfoot, th, thead and tr.
 func (b *treeBuilder) generateAllImpliedEndTagsThoroughly() {
 	for {
 		c := b.current()
@@ -619,7 +671,7 @@ func (b *treeBuilder) generateAllImpliedEndTagsThoroughly() {
 	}
 }
 
-// --- the list of active formatting elements (§13.2.4.4) ---
+// --- the list of active formatting elements (§13.2.4.3) ---
 
 func (b *treeBuilder) afeIndex(id NodeID) int {
 	for i := len(b.afe) - 1; i >= 0; i-- {
@@ -632,7 +684,11 @@ func (b *treeBuilder) afeIndex(id NodeID) int {
 
 func (b *treeBuilder) insertMarker() { b.afe = append(b.afe, afeEntry{id: None}) }
 
-// pushFormatting pushes id onto the list, applying the Noah's Ark clause.
+// pushFormatting pushes id onto the list, applying the Noah's Ark clause
+// (§13.2.4.3): if three entries after the last marker already have the
+// same tag name, namespace and attributes, the earliest of them is
+// removed. The clause runs on every push, so there are never more than
+// three to count.
 func (b *treeBuilder) pushFormatting(id NodeID, tag tagID) {
 	n := &b.doc.Nodes[id]
 	count, earliest := 0, -1
@@ -653,7 +709,10 @@ func (b *treeBuilder) pushFormatting(id NodeID, tag tagID) {
 	b.afe = append(b.afe, afeEntry{id: id, tag: tag})
 }
 
-// sameAttrs compares attribute lists as sets of (namespace, name, value).
+// sameAttrs compares attribute lists as sets of (namespace, name, value),
+// the Noah's Ark notion of "same attributes" (order does not matter).
+// Lists are duplicate-free (the tokenizer drops duplicates), so equal
+// length plus inclusion is set equality.
 func sameAttrs(a, c []Attr) bool {
 	if len(a) != len(c) {
 		return false
@@ -681,9 +740,14 @@ func (b *treeBuilder) clearToLastMarker() {
 	}
 }
 
-// reconstructFormatting reconstructs the active formatting elements.
-// Elements that cannot be opened because of the depth limit stop the
-// reconstruction (they stay in the list).
+// reconstructFormatting is "reconstruct the active formatting elements"
+// (§13.2.4.3): rewind from the last entry to the first one after a marker
+// or an open element, then for each entry from there to the end create
+// a new element for the entry's token (here: a clone of the entry's
+// element, carrying its span), insert it, push it and replace the entry.
+// When the depth limit is reached the reconstruction stops; the remaining
+// entries stay in the list pointing at their old elements and are tried
+// again at the next reconstruction.
 func (b *treeBuilder) reconstructFormatting() {
 	if len(b.afe) == 0 {
 		return
@@ -715,8 +779,18 @@ func (b *treeBuilder) reconstructFormatting() {
 
 // --- creating and inserting nodes (§13.2.6.1) ---
 
-// insertionLocation is "the appropriate place for inserting a node",
-// with an optional override target. It returns (parent, reference child).
+// insertionLocation is "the appropriate place for inserting a node"
+// (§13.2.6.1), with an optional override target (id None: the current
+// node). It returns (parent, reference child); a None reference means
+// "after the parent's last child".
+//
+// With foster parenting on and a table, tbody, tfoot, thead or tr target,
+// the steps are: inside the last template's contents if it is lower on
+// the stack than the last table (or there is no table); inside the root
+// html element if there is no table (fragment case); before the last
+// table if it has a parent; otherwise after the last child of the element
+// just above the last table on the stack. Finally a template element as
+// the location is replaced by its template contents.
 func (b *treeBuilder) insertionLocation(override stackEntry) (NodeID, NodeID) {
 	target := override
 	if target.id == None {
@@ -757,7 +831,9 @@ func (b *treeBuilder) insertionLocation(override stackEntry) (NodeID, NodeID) {
 	return parent, ref
 }
 
-// createElement makes a detached element node.
+// createElement makes a detached element node ("create an element for a
+// token" without the side effects, which the callers apply) and records
+// a template's contents fragment in templateHost.
 func (b *treeBuilder) createElement(name string, tag tagID, ns Namespace, attrs []Attr, span Span) NodeID {
 	id := b.doc.NewElement(ns, name, attrs)
 	b.doc.Nodes[id].Span = span
@@ -771,6 +847,9 @@ func (b *treeBuilder) createElement(name string, tag tagID, ns Namespace, attrs 
 }
 
 // insertAtLocation inserts a created node at the appropriate place.
+// Of the DOM's pre-insert validity checks only "a Document has at most
+// one element child" is kept (defensive: the insertion modes never put a
+// second element there).
 func (b *treeBuilder) insertAtLocation(id NodeID) {
 	parent, ref := b.insertionLocation(stackEntry{id: None})
 	if parent == None {
@@ -844,7 +923,10 @@ func (b *treeBuilder) insertImplied(tag tagID) (NodeID, bool) {
 	return b.insertHTML(&tok)
 }
 
-// insertCharacters is "insert a character" for a run of characters.
+// insertCharacters is "insert a character" (§13.2.6.1) for a run of
+// characters: text at a Document location is dropped, and text right
+// after a Text node is appended to it (HTML-INV-10), including when the
+// location comes from foster parenting.
 func (b *treeBuilder) insertCharacters(s string) {
 	if s == "" {
 		return
@@ -868,7 +950,8 @@ func (b *treeBuilder) insertCharacters(s string) {
 	b.doc.insertBefore(parent, id, ref)
 }
 
-// appendText appends to a Text node's data in amortized O(len(s)).
+// appendText appends to a Text node's data in amortized O(len(s)) and
+// extends the node's span to the end of the current token.
 func (b *treeBuilder) appendText(id NodeID, s string) {
 	if b.textBuf == nil {
 		b.textBuf = map[NodeID][]byte{}
@@ -892,7 +975,8 @@ func (b *treeBuilder) insertComment(tok *Token, parent NodeID) {
 	b.insertNodeAt(id, parent)
 }
 
-// insertPI inserts a processing instruction for tok.
+// insertPI inserts a processing instruction for tok, at the same places
+// as a comment (parent None: the appropriate place).
 func (b *treeBuilder) insertPI(tok *Token, parent NodeID) {
 	id := b.doc.NewNode(ProcessingInstructionNode)
 	n := &b.doc.Nodes[id]
@@ -900,6 +984,8 @@ func (b *treeBuilder) insertPI(tok *Token, parent NodeID) {
 	b.insertNodeAt(id, parent)
 }
 
+// insertNodeAt appends id to parent, or inserts it at the appropriate
+// place when parent is None.
 func (b *treeBuilder) insertNodeAt(id, parent NodeID) {
 	if parent != None {
 		b.doc.insertBefore(parent, id, None)
@@ -913,6 +999,11 @@ func (b *treeBuilder) insertNodeAt(id, parent NodeID) {
 
 // --- resetting the insertion mode (§13.2.4.1) ---
 
+// resetInsertionMode is "reset the insertion mode appropriately": walk the
+// stack from the current node down; the bottom entry stands for the
+// context element in the fragment case ("last" is true there). The 2025
+// standard dropped the select branch with the select modes. Foreign
+// elements match no branch.
 func (b *treeBuilder) resetInsertionMode() {
 	for i := len(b.stack) - 1; i >= 0; i-- {
 		node := b.stack[i]
@@ -978,6 +1069,9 @@ func (b *treeBuilder) resetInsertionMode() {
 	b.mode = modeInBody
 }
 
+// currentTemplateMode is the current template insertion mode (the top of
+// the stack of template insertion modes); in body if the stack is empty
+// (defensive: every template element on the stack pushed a mode).
 func (b *treeBuilder) currentTemplateMode() insertionMode {
 	if n := len(b.templateModes); n > 0 {
 		return b.templateModes[n-1]
@@ -995,6 +1089,8 @@ func (b *treeBuilder) popTemplateMode() {
 
 // startText switches the tokenizer and enters the "text" insertion mode
 // (the generic raw text / RCDATA element parsing algorithms, §13.2.6.2).
+// textPushed records whether the element was opened, so the text mode
+// does not pop an unrelated element when the depth limit kept it closed.
 func (b *treeBuilder) startText(tok *Token, st TokenizerState) {
 	_, b.textPushed = b.insertHTML(tok)
 	b.tz.SetState(st)

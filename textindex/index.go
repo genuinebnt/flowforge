@@ -568,6 +568,7 @@ func (ix *Index) mergeSegs(pick []int) error {
 		}
 	}
 	nextSeg := ix.nextSeg
+	written := ""
 	if len(docs) > 0 {
 		v, err := ix.writeSegment(docs, nextSeg)
 		if err != nil {
@@ -575,9 +576,15 @@ func (ix *Index) mergeSegs(pick []int) error {
 		}
 		nextSeg++
 		next = append(next, v)
+		written = v.name
 	}
 	if err := ix.commit(next, nextSeg); err != nil {
-		_ = ix.dir.Remove(segFileName(nextSeg - 1))
+		// Remove only the segment this merge wrote. When every picked
+		// document was deleted nothing was written, and seg_<nextSeg-1> is
+		// a committed segment that the unchanged commit point still names.
+		if written != "" {
+			_ = ix.dir.Remove(written)
+		}
 		return err
 	}
 	for _, n := range obsolete {

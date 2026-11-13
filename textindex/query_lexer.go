@@ -16,7 +16,7 @@ const (
 	tokEOF    tokKind = iota
 	tokLParen         // "("
 	tokRParen         // ")"
-	tokMinus          // "-" at the start of a clause
+	tokMinus          // "-" where a token starts (inside a word it is a word byte)
 	tokAnd            // bare word "AND"
 	tokOr             // bare word "OR"
 	tokWord           // bare word

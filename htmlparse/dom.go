@@ -2,7 +2,10 @@ package htmlparse
 
 import "iter"
 
-// NodeID indexes Document.Nodes. None (-1) means "no node".
+// NodeID indexes Document.Nodes. None (-1) means "no node". Ids are
+// assigned in creation order and never reused; int32 halves the five
+// links per node (against int) and caps a document at 2^31-1 nodes, far
+// above what the default MaxInputSize can produce.
 type NodeID int32
 
 // None is the null NodeID.
@@ -38,7 +41,8 @@ func (k NodeKind) String() string {
 type Namespace uint8
 
 // Namespaces (Infra "namespaces"). NoNamespace is used for ordinary
-// attributes.
+// attributes. The order is part of the port contract (a Rust enum with
+// the same discriminants).
 const (
 	NoNamespace Namespace = iota
 	HTMLNamespace
@@ -88,7 +92,8 @@ func (m QuirksMode) String() string {
 	return "no-quirks"
 }
 
-// Span is a half-open byte range [Start, End) in the parser input.
+// Span is a half-open byte range [Start, End) in the parser input (the
+// UTF-8 text given to Tokenize/Parse/ParseFragment, after decoding).
 type Span struct {
 	Start, End int
 }
@@ -114,8 +119,10 @@ type Attr struct {
 // built from several character tokens spans from the first token's start
 // to the last token's end. Nodes the parser created without a token
 // (implied html/head/body/tbody...) have an empty span at the position of
-// the token that caused them; the fragment parser's synthetic html root
-// and context element have the empty span at 0.
+// the token that caused them; elements re-created by the reconstruction
+// of active formatting elements or the adoption agency copy the span of
+// the element they clone; the fragment parser's synthetic html root and
+// context element have the empty span at 0.
 type Node struct {
 	Kind      NodeKind
 	Namespace Namespace
@@ -147,6 +154,8 @@ type Document struct {
 }
 
 // Node returns a pointer to the node id, or nil if id is out of range.
+// The pointer goes stale on any call that appends nodes (the arena slice
+// may be reallocated; the old pointer then no longer aliases Nodes).
 func (d *Document) Node(id NodeID) *Node {
 	if id < 0 || int(id) >= len(d.Nodes) {
 		return nil
@@ -195,7 +204,9 @@ func (d *Document) NewComment(data string) NodeID {
 }
 
 // isAncestorOrSelf reports whether a is b or an ancestor of b (template
-// contents count as children of their template for this purpose).
+// contents count as children of their template for this purpose: the
+// DOM's host-including inclusive ancestor, which keeps a move from
+// creating a cycle through a template).
 func (d *Document) isAncestorOrSelf(a, b NodeID) bool {
 	for n := b; n != None; {
 		if n == a {
@@ -221,6 +232,7 @@ func (d *Document) hostOf(frag NodeID) NodeID {
 	return None
 }
 
+// canHaveChildren reports the node kinds that may be parents.
 func (d *Document) canHaveChildren(id NodeID) bool {
 	switch d.Nodes[id].Kind {
 	case DocumentNode, ElementNode, DocumentFragmentNode:
@@ -284,7 +296,11 @@ func (d *Document) ReparentChildren(from, to NodeID) error {
 }
 
 // --- unchecked primitives used by the tree builder ---
+//
+// They assume valid ids and an acyclic result; the parser only calls
+// them where the algorithm guarantees both.
 
+// detach unlinks id from its parent and siblings.
 func (d *Document) detach(id NodeID) {
 	n := &d.Nodes[id]
 	p := n.Parent
@@ -304,6 +320,8 @@ func (d *Document) detach(id NodeID) {
 	n.Parent, n.PrevSibling, n.NextSibling = None, None, None
 }
 
+// insertBefore detaches child and links it under parent before ref (None:
+// last).
 func (d *Document) insertBefore(parent, child, ref NodeID) {
 	d.detach(child)
 	c := &d.Nodes[child]
@@ -331,6 +349,8 @@ func (d *Document) insertBefore(parent, child, ref NodeID) {
 	}
 }
 
+// reparentChildren moves every child of from, in order, to the end of
+// to's children.
 func (d *Document) reparentChildren(from, to NodeID) {
 	for c := d.Nodes[from].FirstChild; c != None; c = d.Nodes[from].FirstChild {
 		d.insertBefore(to, c, None)
@@ -353,30 +373,33 @@ func (d *Document) Children(id NodeID) iter.Seq[NodeID] {
 	}
 }
 
+// Descendants iterates the descendants of id in tree order (pre-order),
+// not including id. A template element's contents are visited after its
+// own children and before its following siblings (parser-built templates
+// have no children of their own, so the contents come right after the
+// template), so extraction sees markup inside templates too.
+//
 // PORT: iter.Seq is a push iterator; in Rust implement Iterator over the
 // same explicit stack.
-//
-// Descendants iterates the descendants of id in tree order (pre-order),
-// not including id. Template contents are visited where the template
-// element is (right after it, before its following siblings), so
-// extraction sees markup inside templates too.
 func (d *Document) Descendants(id NodeID) iter.Seq[NodeID] {
 	return func(yield func(NodeID) bool) {
 		if !d.valid(id) {
 			return
 		}
 		// Explicit stack of "next node to visit"; iterative so deep trees
-		// cannot overflow the call stack.
+		// cannot overflow the call stack. Pushing a node's next sibling,
+		// then its contents' first child, then its own first child makes
+		// the pops come out as children, contents, siblings.
 		var stack []NodeID
 		push := func(n NodeID) {
 			if d.Nodes[n].FirstChild != None {
 				stack = append(stack, d.Nodes[n].FirstChild)
 			}
 		}
-		push(id)
 		if c := d.Nodes[id].Content; c != None {
 			push(c)
 		}
+		push(id)
 		for len(stack) > 0 {
 			n := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -432,7 +455,10 @@ func (d *Document) AttrNS(id NodeID, ns Namespace, name string) (string, bool) {
 }
 
 // TextContent returns the concatenated data of all Text descendants of id
-// (DOM textContent; template contents are not included, as in the DOM).
+// in tree order (DOM textContent; template contents are not included, as
+// in the DOM). For a Text, Comment or processing instruction node it is
+// the node's own data; for a Document it is the concatenation as well
+// (the DOM returns null there).
 func (d *Document) TextContent(id NodeID) string {
 	if !d.valid(id) {
 		return ""

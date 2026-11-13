@@ -120,7 +120,8 @@ type LineageOptions struct {
 }
 
 // FindPredecessor finds the best predecessor of a new script among the
-// page's previous scripts (V2 §5 chunk lineage): first by lineage key
+// page's previous scripts (V2 §5 chunk lineage): a previous script with
+// the same URL wins outright (By "url", distance 0); then by lineage key
 // (URL with hash-like name parts stripped); when exactly one previous
 // script shares the key it is the predecessor. Otherwise (none, or
 // several sharing it) the similarity matcher decides among the candidates

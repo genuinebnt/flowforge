@@ -53,10 +53,11 @@ type IngestResult struct {
 	EventID     core.UUID
 }
 
-// signature is the §12.12 unchanged-re-fetch signature: SHA-256 over the
-// raw body hash, status, media type and the normalized security-header
-// block of the final response and every redirect hop (headers@1 drops
-// the volatile ones: Date, Age, request ids, nonces, cookie values).
+// signature is the §12.12 unchanged-re-fetch signature (spec 34.1):
+// SHA-256 over a version line "ff-content-sig/1", the raw body hash,
+// status, media type and the headers@1 block of the final response, then
+// per redirect hop its status, URL and headers@1 block (headers@1 drops
+// the volatile headers: Date, Age, request ids, nonces, cookie values).
 func signature(c *content.Capture) string {
 	h := sha256.New()
 	body := sha256.Sum256(c.Body)
@@ -240,6 +241,9 @@ func (s *Store) ingestOnce(ctx context.Context, tenant core.UUID, req IngestRequ
 		return IngestResult{}, &core.Error{Kind: core.KindFailedPrecondition, Reason: ReasonOutOfOrder,
 			Message: "capture fetched at " + core.FormatTime(c.FetchedAt) + " is older than the open version (" + core.FormatTime(st.open.ValidFrom) + ")"}
 	}
+	// An unchanged capture no newer than last_seen was already counted (or
+	// is a re-delivery of the one that moved it): a duplicate, not a
+	// re-fetch, so it is neither counted nor re-published.
 	if st.hasOpen && st.open.Signature == sig && !c.FetchedAt.After(st.open.LastSeen) {
 		return IngestResult{Snapshot: st.open, Duplicate: true}, nil
 	}
@@ -763,7 +767,8 @@ func prevIfSameKey(prev *content.Processed, lineage *content.LineageMatch) *cont
 	return prev
 }
 
-// mergeHistory adds ids to a sorted history, bounded by maxHistory.
+// mergeHistory adds ids to a sorted history. Past maxHistory it keeps the
+// smallest ids in sorted order, not the most recent ones.
 func mergeHistory(h, ids []string) []string {
 	out := append(slices.Clone(h), ids...)
 	slices.Sort(out)

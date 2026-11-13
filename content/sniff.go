@@ -80,10 +80,12 @@ const sniffWindow = 16 << 10
 // (binary signatures, the HTML tag list, "<?xml"), extended with the
 // formats Flowforge reads:
 //
-//  1. empty body → text;
-//  2. binary signatures (§7.1 table: images, PDF, archives, fonts, WASM),
-//     a NUL byte in the window, or gzip (a gzip sitemap when the URL or
-//     hint says sitemap) → binary;
+//  1. an empty or all-white-space window → text;
+//  2. binary signatures (§7.1 table: images, PDF, archives, fonts, WASM)
+//     or gzip (a gzip sitemap when the URL or hint says sitemap) → binary;
+//     then a UTF-16 BOM → the hint when it is html, xml or sitemap (their
+//     readers transcode), else text; then a NUL byte in the window →
+//     binary;
 //  3. server-side source at the start (`<?php`, `<?=`, `<%`, a .env
 //     body, a non-node `#!` script) → server_source with Disclosure; a
 //     `<?php` later in the window keeps the kind but sets Disclosure;
@@ -95,7 +97,8 @@ const sniffWindow = 16 << 10
 //  6. robots.txt and security.txt by path or by directive lines;
 //  7. a TypeScript/JSX extension or TS-only syntax → ts_text;
 //  8. a JS-versus-CSS indicator vote; ties go to a js/css hint;
-//  9. valid UTF-8 → text, otherwise binary.
+//  9. valid UTF-8 → the hint when it is js, css or ts_text, else text;
+//     otherwise binary.
 //
 // The media type and URL are hints only; Mismatch records disagreement.
 func Sniff(body []byte, contentType, rawURL string) SniffResult {
@@ -252,8 +255,9 @@ func serverSourceAtStart(s []byte, ext string) (string, bool) {
 }
 
 // isEnvBody reports a dotenv file: at least two KEY=value lines and every
-// non-blank, non-comment line of the window of that shape (an optional
-// "export " prefix allowed).
+// non-blank, non-comment line of the window of that shape, KEY being
+// [A-Z0-9_]+ not starting with a digit (an optional "export " prefix
+// allowed).
 func isEnvBody(s []byte) bool {
 	n := 0
 	for line := range bytes.SplitSeq(s, []byte("\n")) {
@@ -279,9 +283,10 @@ func isEnvBody(s []byte) bool {
 	return n >= 2
 }
 
-// htmlSniffTags is the MIME Sniffing §7.1 list of HTML tag prefixes
-// (each followed by a tag-terminating byte: space or ">"), extended with
-// the elements a page commonly starts with.
+// htmlSniffTags is the MIME Sniffing §7.1 list of HTML tag prefixes,
+// extended with the elements a page commonly starts with. §7.1 requires a
+// tag-terminating byte (space or ">") after the prefix; sniffMarkup also
+// accepts tab, LF, CR, FF and "/" (and anything after "!--").
 var htmlSniffTags = []string{"!doctype html", "html", "head", "script", "iframe", "h1", "div", "font", "table",
 	"a", "style", "title", "b", "body", "br", "p", "!--", "meta", "link", "noscript", "span", "form", "section",
 	"header", "nav", "main", "template", "svg"}
@@ -331,6 +336,12 @@ func sniffMarkup(s []byte, hint Kind) (Kind, string) {
 	return "", ""
 }
 
+// sniffJSON reports whether the whole body is JSON and whether it is a
+// source map.
+//
+// PORT: encoding/json.Valid does not check UTF-8 inside strings (invalid
+// bytes pass), while a Rust parser over &str or serde_json::from_slice
+// rejects them; accept them to sniff the same kind.
 func sniffJSON(body []byte) (Kind, bool) {
 	b := bytes.TrimPrefix(body, []byte("\xEF\xBB\xBF"))
 	b = bytes.TrimLeft(b, " \t\r\n")
@@ -351,6 +362,11 @@ func sniffJSON(body []byte) (Kind, bool) {
 	return KindJSON, true
 }
 
+// looksLikeSourceMap reports a JSON object whose "version" is the literal 3
+// and that has "mappings" or "sections" (ECMA-426).
+//
+// PORT: json.Unmarshal matches the struct's keys case-insensitively
+// ("Version" counts) and, for repeated keys, keeps the last value.
 func looksLikeSourceMap(b []byte) bool {
 	var probe struct {
 		Version  json.RawMessage `json:"version"`

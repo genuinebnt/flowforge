@@ -5,19 +5,28 @@ import "slices"
 // Insertion modes before the body: HTML §13.2.6.4.1-6 ("initial",
 // "before html", "before head", "in head", "in head noscript", "after
 // head") and §13.2.6.4.8 ("text").
+//
+// Every mode method returns true when the token must be reprocessed; the
+// method has already switched b.mode. "Process the token using the rules
+// for X" is a direct call to X's method, which returns X's reprocess
+// result.
 
+// isStart reports a start tag token whose name is one of the atoms tags.
 func isStart(tok *Token, tags ...tagID) bool {
 	return tok.Kind == StartTagToken && slices.Contains(tags, tok.atom)
 }
 
+// isEnd reports an end tag token whose name is one of the atoms tags.
 func isEnd(tok *Token, tags ...tagID) bool {
 	return tok.Kind == EndTagToken && slices.Contains(tags, tok.atom)
 }
 
+// isSpaceToken reports a character token of ASCII whitespace only.
 func isSpaceToken(tok *Token) bool { return tok.Kind == CharacterToken && isAllSpace(tok.Data) }
 
 // quirksPublicPrefixes: a DOCTYPE whose public identifier starts with one
-// of these (ASCII case-insensitively) puts the document in quirks mode.
+// of these (ASCII case-insensitively) puts the document in quirks mode
+// (the prefix list of §13.2.6.4.1, lower-cased).
 var quirksPublicPrefixes = []string{
 	"+//silmaril//dtd html pro v0r11 19970101//",
 	"-//as//dtd html 3.0 aswedit + extensions//",
@@ -77,7 +86,11 @@ var quirksPublicPrefixes = []string{
 }
 
 // doctypeMode determines the document mode from a DOCTYPE token
-// ("initial" insertion mode, §13.2.6.4.1).
+// ("initial" insertion mode, §13.2.6.4.1). This parser never parses an
+// iframe srcdoc document, so the spec's srcdoc exemption does not apply.
+// The HTML 4.01 Frameset/Transitional prefixes depend on whether the
+// system identifier is missing (quirks) or present (limited quirks); an
+// empty quoted system identifier ("") is present.
 func doctypeMode(tok *Token) QuirksMode {
 	pub, sys := tok.PublicID, tok.SystemID
 	switch {
@@ -93,21 +106,22 @@ func doctypeMode(tok *Token) QuirksMode {
 			return Quirks
 		}
 	}
-	sysMissingOrEmpty := !tok.HasSystemID || sys == ""
+	sysMissing := !tok.HasSystemID
 	html401 := hasPrefixFoldASCII(pub, "-//W3C//DTD HTML 4.01 Frameset//") ||
 		hasPrefixFoldASCII(pub, "-//W3C//DTD HTML 4.01 Transitional//")
-	if sysMissingOrEmpty && html401 {
+	if sysMissing && html401 {
 		return Quirks
 	}
 	if hasPrefixFoldASCII(pub, "-//W3C//DTD XHTML 1.0 Frameset//") ||
 		hasPrefixFoldASCII(pub, "-//W3C//DTD XHTML 1.0 Transitional//") ||
-		(!sysMissingOrEmpty && html401) {
+		(!sysMissing && html401) {
 		return LimitedQuirks
 	}
 	return NoQuirks
 }
 
-// initialMode is the "initial" insertion mode (§13.2.6.4.1).
+// initialMode is the "initial" insertion mode (§13.2.6.4.1). A missing
+// DOCTYPE puts the document in quirks mode.
 func (b *treeBuilder) initialMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -238,6 +252,8 @@ func (b *treeBuilder) inHeadMode(tok *Token) bool {
 			return false
 		case tagMeta:
 			b.insertVoid(tok)
+			// The "change the encoding" step; ParseRaw acts on it after
+			// the parse.
 			b.noteMetaCharset(tok)
 			return false
 		case tagTitle:
@@ -258,6 +274,10 @@ func (b *treeBuilder) inHeadMode(tok *Token) bool {
 			b.startText(tok, ScriptDataState)
 			return false
 		case tagTemplate:
+			// The spec inserts the element first; the marker, flag and
+			// mode stacks do not affect the insertion, so the order does
+			// not matter. Declarative shadow roots are not supported, so
+			// the shadowrootmode steps never apply (OPEN_QUESTIONS.md).
 			b.insertMarker()
 			b.framesetOK = false
 			b.mode = modeInTemplate
@@ -290,7 +310,9 @@ func (b *treeBuilder) inHeadMode(tok *Token) bool {
 }
 
 // endTemplate handles an end tag whose tag name is "template" in the "in
-// head" insertion mode.
+// head" insertion mode: close everything up to the template, drop the
+// formatting elements opened inside it, pop its template insertion mode
+// and reset the insertion mode.
 func (b *treeBuilder) endTemplate() {
 	if !b.templateOnStack() {
 		b.parseError(ErrUnexpectedEndTag)
@@ -307,7 +329,9 @@ func (b *treeBuilder) endTemplate() {
 }
 
 // inHeadNoscriptMode is the "in head noscript" insertion mode
-// (§13.2.6.4.5), used when scripting is disabled.
+// (§13.2.6.4.5), used when scripting is disabled. Character tokens arrive
+// split into whitespace / NUL / other segments (processCharacters), so
+// leading whitespace stays in head and the rest closes the noscript.
 func (b *treeBuilder) inHeadNoscriptMode(tok *Token) bool {
 	switch tok.Kind {
 	case DoctypeToken:
@@ -382,6 +406,10 @@ func (b *treeBuilder) afterHeadMode(tok *Token) bool {
 			if b.head == None {
 				return false
 			}
+			// Push head, process with "in head", remove head again (it
+			// need not be the current node by then). The stack is just
+			// [html] in this mode, so the push cannot exceed the depth
+			// limit.
 			b.push(stackEntry{id: b.head, tag: tagHead, ns: HTMLNamespace})
 			again := b.inHeadMode(tok)
 			b.removeFromStack(b.head)
@@ -401,13 +429,19 @@ func (b *treeBuilder) afterHeadMode(tok *Token) bool {
 		}
 	}
 	b.insertImplied(tagBody)
+	// frameset-ok goes back to "ok" with the implied body: a template in
+	// head set it to "not ok", and the expected trees keep a later
+	// frameset (template.dat,
+	// "<head><template></template></head><p><frameset>").
 	b.framesetOK = true
 	b.mode = modeInBody
 	return true
 }
 
 // textMode is the "text" insertion mode (§13.2.6.4.8). Scripts are never
-// executed.
+// executed, so a script end tag only pops the element. Start tags cannot
+// occur: the tokenizer is in RCDATA, RAWTEXT or script data until the
+// matching end tag.
 func (b *treeBuilder) textMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:

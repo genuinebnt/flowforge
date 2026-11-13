@@ -23,9 +23,11 @@ type DecodedBlob struct {
 	Truncated bool `json:"truncated,omitempty"`
 }
 
-// DecodeBlobs finds base64, hex, gzip, zlib and zstd blobs in text and
-// returns the decoded text inside them (codec.DecodeLayers, three levels
-// deep), redacted. It is bounded by the response limits: at most
+// DecodeBlobs finds base64 (standard or URL alphabet), hex, gzip, zlib and
+// zstd blobs in text and returns the decoded text inside them
+// (codec.DecodeLayers at its default depth of three levels), redacted. Spec
+// 33.12 names only base64, base64-then-gzip and hex; the other codec kinds
+// are decoded too. It is bounded by the response limits: at most
 // MaxResponseBytes decoded bytes and MaxInnerDocuments layers. A text
 // layer that is nothing but the encoding of a deeper layer (base64 of
 // base64) is skipped in favour of that layer. A blob that overlaps a
@@ -71,6 +73,10 @@ func DecodeBlobs(text []byte, lim Limits) []DecodedBlob {
 				break
 			}
 		}
+		// A child spanning all of its parent's data makes the parent a mere
+		// wrapper (base64 of base64): only the inner text is returned. This
+		// runs for hidden children too, so a wrapper around a secret is
+		// dropped with it.
 		if n.Parent >= 0 && n.Start == 0 && n.End == len(res.Nodes[n.Parent].Data) {
 			wrapper[n.Parent] = true
 		}

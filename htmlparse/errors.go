@@ -6,11 +6,14 @@ import (
 )
 
 // ErrorCode is a stable parse-error code. Tokenizer and input-stream
-// errors use the WHATWG names from HTML §13.2.2 ("Parse errors"). The
-// standard does not name tree-construction errors, so those use the
-// Flowforge names listed below (the html5lib vocabulary where one exists).
-// Limit errors are Flowforge codes too. The list is closed: the Rust port
-// declares exactly these variants in this order.
+// errors use the WHATWG names from HTML §13.2.2 ("Parse errors"), as do
+// the processing-instruction errors of the 2025 standard and
+// non-void-html-element-start-tag-with-trailing-solidus (named there but
+// raised by tree construction). The standard does not name the other
+// tree-construction errors, so those use the Flowforge names listed below
+// (the html5lib vocabulary where one exists). Limit errors are Flowforge
+// codes too. The list is closed: the Rust port declares exactly these
+// variants in this order.
 type ErrorCode uint8
 
 // Parse-error codes. The String method returns the stable name.
@@ -191,7 +194,8 @@ func (c ErrorCode) String() string {
 	return "error-code-" + strconv.Itoa(int(c))
 }
 
-// ErrorCodeByName returns the code with the given stable name.
+// ErrorCodeByName returns the code with the given stable name (a linear
+// search; it is for tests and tools, not the parse path).
 func ErrorCodeByName(name string) (ErrorCode, bool) {
 	for i, n := range errorCodeNames {
 		if n == name {
@@ -201,9 +205,9 @@ func ErrorCodeByName(name string) (ErrorCode, bool) {
 	return 0, false
 }
 
-// IsTokenizerError reports whether c is one of the WHATWG-named
-// tokenizer or input-stream errors (as opposed to a tree-construction or
-// limit error).
+// IsTokenizerError reports whether c is one of the WHATWG-named errors
+// (the first block of codes), as opposed to a Flowforge tree-construction
+// or limit error. It relies on the declaration order.
 func (c ErrorCode) IsTokenizerError() bool { return c <= ErrUnknownNamedCharacterReference }
 
 // ParseError is one parse error. Offset is a byte offset into the input
@@ -211,9 +215,17 @@ func (c ErrorCode) IsTokenizerError() bool { return c <= ErrUnknownNamedCharacte
 // into raw transport bytes). Line and Col are 1-based; Col counts UTF-16
 // code units (as html5lib and browser developer tools do, so a
 // supplementary-plane character counts 2), a CR LF pair is one line
-// break, and a lone CR is a line break. For end-of-file errors Offset is
-// len(input). The error is located at the input character being consumed
-// when the error was detected.
+// break, and a lone CR is a line break.
+//
+// A tokenizer or input-stream error is located at the input character
+// being consumed when it was detected (len(input) for end-of-file
+// errors); a few are placed just after a construct instead (a missing
+// ';' after a reference, the numeric reference checks), as html5lib
+// locates them. A tree-construction error is located at the start of the
+// token being processed; for the EOF token that is the end of the last
+// emitted token, which precedes len(input) when the input ends inside a
+// tag or processing instruction (those are dropped at EOF, so their bytes
+// belong to the EOF token).
 //
 // PORT: Col is in UTF-16 code units, not bytes or chars.
 type ParseError struct {
@@ -237,7 +249,10 @@ var ErrInvalidNode = errors.New("htmlparse: invalid node")
 var ErrHierarchy = errors.New("htmlparse: hierarchy violation")
 
 // fillPositions computes Line and Col for every error in errs from the
-// input. It runs in O(len(input) + len(errs) log len(errs)).
+// input. It does not reorder errs. It runs in
+// O(len(input) + len(errs) log len(errs)): one sweep over the input in
+// offset order. Ill-formed UTF-8 counts one column per maximal subpart
+// (one U+FFFD), as the tokenizer reads it.
 func fillPositions(input []byte, errs []ParseError) {
 	if len(errs) == 0 {
 		return
@@ -279,7 +294,9 @@ func fillPositions(input []byte, errs []ParseError) {
 				if pos < len(input) && input[pos] == '\n' {
 					if pos == target {
 						// The offset points at the LF of a CR LF pair:
-						// it belongs to the same line break.
+						// it belongs to the same line break, so it gets
+						// the next line's column 1. (break leaves the
+						// switch; pos == target ends the loop.)
 						break
 					}
 					pos++

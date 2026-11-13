@@ -1,10 +1,14 @@
 package htmlparse
 
-// Remaining insertion modes of HTML §13.2.6.4 ("in template", "after
-// body", "in frameset", "after frameset", "after after body", "after
-// after frameset").
+// Remaining insertion modes: HTML §13.2.6.4.16-21 ("in template",
+// "after body", "in frameset", "after frameset", "after after body",
+// "after after frameset"), numbered as in the current standard (see the
+// insertionMode type).
 
-// inTemplateMode is the "in template" insertion mode.
+// inTemplateMode is the "in template" insertion mode (§13.2.6.4.16). The
+// first start tag picks the mode its content needs (in table for
+// caption/colgroup/tbody..., in column group for col, ...), replacing the
+// current template insertion mode, and is reprocessed there.
 func (b *treeBuilder) inTemplateMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken, CommentToken, ProcessingInstructionToken, DoctypeToken:
@@ -37,7 +41,9 @@ func (b *treeBuilder) inTemplateMode(tok *Token) bool {
 		return false
 	case EOFToken:
 		if !b.templateOnStack() {
-			return false // stop parsing (fragment case)
+			// Stop parsing: the fragment case (template context), or a
+			// template the depth limit kept closed.
+			return false
 		}
 		b.parseError(ErrEOFInElement)
 		b.popUntil(tagTemplate)
@@ -49,7 +55,9 @@ func (b *treeBuilder) inTemplateMode(tok *Token) bool {
 	return false
 }
 
-// afterBodyMode is the "after body" insertion mode.
+// afterBodyMode is the "after body" insertion mode (§13.2.6.4.17).
+// Comments go to the root html element; whitespace is processed in body
+// (so it lands in body); anything else reopens "in body" with an error.
 func (b *treeBuilder) afterBodyMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -86,7 +94,7 @@ func (b *treeBuilder) afterBodyMode(tok *Token) bool {
 	return true
 }
 
-// inFramesetMode is the "in frameset" insertion mode.
+// inFramesetMode is the "in frameset" insertion mode (§13.2.6.4.18).
 func (b *treeBuilder) inFramesetMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -138,7 +146,8 @@ func (b *treeBuilder) inFramesetMode(tok *Token) bool {
 	return false
 }
 
-// afterFramesetMode is the "after frameset" insertion mode.
+// afterFramesetMode is the "after frameset" insertion mode
+// (§13.2.6.4.19).
 func (b *treeBuilder) afterFramesetMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -174,7 +183,8 @@ func (b *treeBuilder) afterFramesetMode(tok *Token) bool {
 	return false
 }
 
-// afterAfterBodyMode is the "after after body" insertion mode.
+// afterAfterBodyMode is the "after after body" insertion mode
+// (§13.2.6.4.20). Comments go to the Document.
 func (b *treeBuilder) afterAfterBodyMode(tok *Token) bool {
 	switch tok.Kind {
 	case CommentToken:
@@ -201,7 +211,8 @@ func (b *treeBuilder) afterAfterBodyMode(tok *Token) bool {
 	return true
 }
 
-// afterAfterFramesetMode is the "after after frameset" insertion mode.
+// afterAfterFramesetMode is the "after after frameset" insertion mode
+// (§13.2.6.4.21).
 func (b *treeBuilder) afterAfterFramesetMode(tok *Token) bool {
 	switch tok.Kind {
 	case CommentToken:

@@ -107,6 +107,8 @@ func newEvent(id, tenant, program core.UUID, typ string, at time.Time, p EventPa
 // eventPayload fills the change fields of a payload from a change set.
 func eventPayload(p EventPayload, cs *content.ChangeSet, from, to, diffID string) (EventPayload, error) {
 	if cs == nil {
+		// No change set: an unchanged re-fetch, or a degraded capture of a
+		// key without a predecessor. Both report outcome no_change.
 		p.Cause = oam.CauseTarget
 		p.Outcome = content.DiffNoChange
 		return p, nil
@@ -147,8 +149,8 @@ const (
 // other changed artifacts, each hunk preceded by its doc id the first time,
 // cut at maxExcerptLines lines and maxExcerptBytes bytes (on a line
 // boundary). Hunk lines come from redacted normalized text (V2 §12.11);
-// the result is redacted once more, since a cut can never form a secret
-// but a defensive pass costs little.
+// the result is redacted once more as a defensive pass (spec 34.8), which
+// costs little.
 func Excerpt(cs content.ChangeSet) string {
 	var b strings.Builder
 	lines := 0

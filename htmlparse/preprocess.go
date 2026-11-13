@@ -26,6 +26,13 @@ import "unicode/utf8"
 // PORT: Go strings may hold any bytes; this parser only ever stores valid
 // UTF-8 (ill-formed input and surrogates become U+FFFD), so every string
 // maps to a Rust String. The input itself stays &[u8].
+//
+// PORT: utf8.DecodeRune returns (RuneError, 1) for every ill-formed
+// sequence, whatever its length, and (RuneError, 3) for a real U+FFFD
+// (EF BF BD); hence the w == 3 test, the explicit surrogate check (Go and
+// Rust both reject ED A0..BF as UTF-8) and maximalSubpart for the width.
+// A Rust port decoding with str::from_utf8's error_len gets the same
+// maximal-subpart widths but must keep the surrogate case.
 func decodeRune(b []byte) (rune, int) {
 	c := b[0]
 	if c < utf8.RuneSelf {
@@ -42,7 +49,11 @@ func decodeRune(b []byte) (rune, int) {
 }
 
 // maximalSubpart returns the length of the maximal subpart of an
-// ill-formed UTF-8 sequence starting at b[0] (at least 1).
+// ill-formed UTF-8 sequence starting at b[0] (at least 1): the longest
+// prefix that could still start a well-formed sequence (Unicode §3.9
+// "U+FFFD substitution of maximal subparts", the WHATWG decoder's
+// behaviour). lo/hi narrow the first continuation byte exactly where
+// Table 3-7 does (E0, ED, F0, F4).
 func maximalSubpart(b []byte) int {
 	c := b[0]
 	var need int
@@ -76,7 +87,8 @@ func maximalSubpart(b []byte) int {
 	return n // well-formed; not reached for ill-formed input
 }
 
-// isNoncharacter reports Infra "noncharacter".
+// isNoncharacter reports Infra "noncharacter": U+FDD0..U+FDEF and the
+// last two code points of every plane (U+xxFFFE, U+xxFFFF).
 func isNoncharacter(r rune) bool {
 	return (r >= 0xFDD0 && r <= 0xFDEF) || (r&0xFFFE == 0xFFFE && r <= 0x10FFFF)
 }
@@ -84,9 +96,12 @@ func isNoncharacter(r rune) bool {
 // isSurrogate reports Infra "surrogate".
 func isSurrogate(r rune) bool { return r >= 0xD800 && r <= 0xDFFF }
 
-// isControlError reports an input-stream control-character error: a
-// control (C0 or U+007F..U+009F) other than ASCII whitespace and NULL.
-// CR never reaches this check (it is normalized to LF first).
+// isControlError reports a control (C0 or U+007F..U+009F) other than
+// ASCII whitespace and NULL: the control-character-in-input-stream and
+// control-character-reference condition. CR is ASCII whitespace and
+// returns false; the input stream normalizes it to LF first, and the
+// numeric character reference end state tests 0x0D on its own (the spec
+// lists it explicitly there).
 func isControlError(r rune) bool {
 	switch {
 	case r == 0 || r == '\t' || r == '\n' || r == '\f' || r == '\r':
@@ -114,12 +129,19 @@ var asciiPlain = func() (t [256]bool) {
 	return t
 }()
 
-func isASCIIAlpha(c rune) bool  { return (c|0x20) >= 'a' && (c|0x20) <= 'z' }
-func isASCIIUpper(c rune) bool  { return c >= 'A' && c <= 'Z' }
-func isASCIIDigit(c rune) bool  { return c >= '0' && c <= '9' }
-func isASCIIAlnum(c rune) bool  { return isASCIIAlpha(c) || isASCIIDigit(c) }
-func isASCIIHex(c rune) bool    { return isASCIIDigit(c) || ((c|0x20) >= 'a' && (c|0x20) <= 'f') }
-func isHTMLSpace(c rune) bool   { return c == '\t' || c == '\n' || c == '\f' || c == ' ' }
+func isASCIIAlpha(c rune) bool { return (c|0x20) >= 'a' && (c|0x20) <= 'z' }
+func isASCIIUpper(c rune) bool { return c >= 'A' && c <= 'Z' }
+func isASCIIDigit(c rune) bool { return c >= '0' && c <= '9' }
+func isASCIIAlnum(c rune) bool { return isASCIIAlpha(c) || isASCIIDigit(c) }
+func isASCIIHex(c rune) bool   { return isASCIIDigit(c) || ((c|0x20) >= 'a' && (c|0x20) <= 'f') }
+
+// isHTMLSpace is ASCII whitespace as the tokenizer sees it: CR never
+// reaches the tokenizer states (next normalizes it), so it is omitted.
+func isHTMLSpace(c rune) bool { return c == '\t' || c == '\n' || c == '\f' || c == ' ' }
+
+// isHTMLSpaceB is Infra "ASCII whitespace" for raw bytes and attribute
+// values, which are not newline-normalized, so CR is included (the
+// encoding prescan, labels, the non-negative integer parser).
 func isHTMLSpaceB(c byte) bool  { return c == '\t' || c == '\n' || c == '\f' || c == ' ' || c == '\r' }
 func isASCIIAlnumB(c byte) bool { return isASCIIAlnum(rune(c)) }
 

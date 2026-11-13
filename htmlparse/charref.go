@@ -1,14 +1,15 @@
 package htmlparse
 
-// Character reference states: HTML §13.2.5 "Character reference state"
-// through "Numeric character reference end state", and the named
-// character reference lookup (§13.5).
+// Character reference states: HTML §13.2.5.72 "character reference
+// state" through §13.2.5.80 "numeric character reference end state"
+// (classic numbering; see the state type), and the named character
+// reference lookup over the §13.5 table.
 
 //go:generate sh -c "cd .. && go run ./htmlparse/internal/gen -src \"$(go list -m -f '{{.Dir}}' golang.org/x/net)/html/entity.go\" -go htmlparse/entities_table.go -json conformance/htmlparse/entities.json"
 
 // CharRefStrategy selects the named character reference lookup
 // algorithm. All find the longest name in the WHATWG table that prefixes
-// the input (HTML §13.2.5 "named character reference state") and give
+// the input (HTML §13.2.5.73 "named character reference state") and give
 // identical results (HTML-INV-11, and the html5lib suites run under each);
 // they differ only in speed and table size. docs/ALGORITHMS.md "Named
 // character references" has the measurements.
@@ -48,7 +49,9 @@ func (s CharRefStrategy) String() string {
 	return "unknown"
 }
 
-// lookup dispatches to the strategy's longest-match search.
+// lookup dispatches to the strategy's longest-match search. It returns
+// the length of the matched name (0 for none) and its index in
+// entityNames (-1 for none). Unknown strategy values use the trie.
 func (s CharRefStrategy) lookup(b []byte) (int, int) {
 	switch s {
 	case CharRefSortedSearch:
@@ -60,10 +63,11 @@ func (s CharRefStrategy) lookup(b []byte) (int, int) {
 }
 
 // entityIndex maps each reference name to its index in entityNames. It
-// is built once and never written afterwards.
+// is built once at package initialization and only read afterwards, so
+// concurrent tokenizers may share it.
 //
-// PORT: any hash map works; the lookup order (longest first) alone
-// decides the result, not the map's iteration order.
+// PORT: any hash map works; it is never iterated, and the probe order
+// (longest first) alone decides the result.
 var entityIndex = func() map[string]int16 {
 	m := make(map[string]int16, entityCount)
 	for i, n := range entityNames {
@@ -110,7 +114,10 @@ type entityTrieEdge struct {
 	child uint16
 }
 
-// lookupEntityTrie is lookupEntity over the prefix trie.
+// lookupEntityTrie is lookupEntity over the prefix trie: one binary
+// search over the current node's sorted edges per input byte, remembering
+// the deepest node that ends a name. It stops at the first byte with no
+// edge, so a run of non-name bytes costs one search.
 func lookupEntityTrie(b []byte) (int, int) {
 	node := 0
 	bestLen, best := 0, -1
@@ -198,7 +205,8 @@ func keyAt(i, k int) int {
 	return -1
 }
 
-// characterReferenceState is the character reference state.
+// characterReferenceState is the character reference state
+// (§13.2.5.72). The caller has consumed '&' and set returnState.
 func (t *Tokenizer) characterReferenceState() {
 	t.temp = append(t.temp[:0], '&')
 	c := t.next()
@@ -216,7 +224,9 @@ func (t *Tokenizer) characterReferenceState() {
 	}
 }
 
-// flushCharRef is "flush code points consumed as a character reference".
+// flushCharRef is "flush code points consumed as a character reference":
+// the temporary buffer goes to the current attribute's value when the
+// reference is in an attribute, otherwise to the pending character data.
 func (t *Tokenizer) flushCharRef() {
 	if t.inAttributeValue() {
 		t.attrValue = append(t.attrValue, t.temp...)
@@ -225,7 +235,11 @@ func (t *Tokenizer) flushCharRef() {
 	t.emitBytes(t.temp)
 }
 
-// namedCharacterReferenceState is the named character reference state.
+// namedCharacterReferenceState is the named character reference state
+// (§13.2.5.73). The spec consumes "the maximum number of characters
+// possible" that form a table name; the lookup does that on the raw
+// bytes, which is equivalent because every name is ASCII, so no
+// preprocessing step (CR, invalid UTF-8) can change a matching byte.
 func (t *Tokenizer) namedCharacterReferenceState() {
 	n, idx := t.charRef.lookup(t.in[t.pos:])
 	if n == 0 {
@@ -237,12 +251,17 @@ func (t *Tokenizer) namedCharacterReferenceState() {
 	t.temp = append(t.temp, matched...)
 	t.skipASCII(n)
 	last := matched[n-1]
+	// Historical reasons: in an attribute, a legacy reference without ';'
+	// followed by '=' or an alphanumeric ("?a=1&copy=2") is left as text,
+	// with no error.
 	if t.inAttributeValue() && last != ';' && t.pos < len(t.in) && (t.in[t.pos] == '=' || isASCIIAlnumB(t.in[t.pos])) {
 		t.flushCharRef()
 		t.state = t.returnState
 		return
 	}
 	if last != ';' {
+		// Located after the name, at the character that should have been
+		// ';' (html5lib's position).
 		t.errAt(ErrMissingSemicolonAfterCharacterReference, t.pos)
 	}
 	v := entityValues[idx]
@@ -254,7 +273,9 @@ func (t *Tokenizer) namedCharacterReferenceState() {
 	t.state = t.returnState
 }
 
-// ambiguousAmpersandState is the ambiguous ampersand state.
+// ambiguousAmpersandState is the ambiguous ampersand state (§13.2.5.74):
+// alphanumerics after an unmatched '&' pass through; a ';' ending the run
+// is an unknown-named-character-reference error.
 func (t *Tokenizer) ambiguousAmpersandState() {
 	for {
 		c := t.next()
@@ -276,7 +297,12 @@ func (t *Tokenizer) ambiguousAmpersandState() {
 }
 
 // numericCharacterReferenceState is the numeric character reference
-// state.
+// state (§13.2.5.75), with the decimal character reference start state
+// (§13.2.5.77) folded in: "anything else" there would reconsume in the
+// decimal start state, whose two branches (an ASCII digit: reconsume in
+// the decimal character reference state; otherwise the
+// absence-of-digits error, flush, reconsume in the return state) are the
+// second and third cases below.
 func (t *Tokenizer) numericCharacterReferenceState() {
 	t.refCode = 0
 	c := t.next()
@@ -296,7 +322,7 @@ func (t *Tokenizer) numericCharacterReferenceState() {
 }
 
 // hexadecimalCharacterReferenceStartState is the hexadecimal character
-// reference start state.
+// reference start state (§13.2.5.76).
 func (t *Tokenizer) hexadecimalCharacterReferenceStartState() {
 	c := t.next()
 	t.reconsume()
@@ -311,7 +337,8 @@ func (t *Tokenizer) hexadecimalCharacterReferenceStartState() {
 
 // addDigit accumulates a digit into the character reference code. Once
 // the code exceeds 0x10FFFF it stops growing (the end state maps every
-// such value to U+FFFD), so it cannot overflow.
+// such value to U+FFFD), so it cannot overflow: the largest value ever
+// stored is 0x10FFFF*16+15 < 2^31.
 //
 // PORT: keep this saturation; wrapping arithmetic would turn huge
 // references into valid code points.
@@ -322,7 +349,7 @@ func (t *Tokenizer) addDigit(base, d int32) {
 }
 
 // hexadecimalCharacterReferenceState is the hexadecimal character
-// reference state.
+// reference state (§13.2.5.78).
 func (t *Tokenizer) hexadecimalCharacterReferenceState() {
 	for {
 		c := t.next()
@@ -330,9 +357,9 @@ func (t *Tokenizer) hexadecimalCharacterReferenceState() {
 		case isASCIIDigit(c):
 			t.addDigit(16, c-'0')
 		case c >= 'A' && c <= 'F':
-			t.addDigit(16, c-0x37)
+			t.addDigit(16, c-'A'+10)
 		case c >= 'a' && c <= 'f':
-			t.addDigit(16, c-0x57)
+			t.addDigit(16, c-'a'+10)
 		case c == ';':
 			t.state = stateNumericCharacterReferenceEnd
 			return
@@ -346,7 +373,7 @@ func (t *Tokenizer) hexadecimalCharacterReferenceState() {
 }
 
 // decimalCharacterReferenceState is the decimal character reference
-// state.
+// state (§13.2.5.79).
 func (t *Tokenizer) decimalCharacterReferenceState() {
 	for {
 		c := t.next()
@@ -366,7 +393,8 @@ func (t *Tokenizer) decimalCharacterReferenceState() {
 }
 
 // c1Replacements is the numeric character reference end state's table
-// for 0x80..0x9F (0 means "no replacement").
+// for 0x80..0x9F (0 means "no replacement"): the windows-1252 meanings of
+// those bytes, for pages that wrote &#150; for an en dash.
 var c1Replacements = [32]rune{
 	0x20AC, 0, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
 	0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0, 0x017D, 0,
@@ -375,8 +403,10 @@ var c1Replacements = [32]rune{
 }
 
 // numericCharacterReferenceEndState is the numeric character reference
-// end state. It consumes no input. Errors are reported at the offset
-// just after the reference.
+// end state (§13.2.5.80). It consumes no input. Errors are reported at
+// the offset just after the reference (after its ';' if it had one). The
+// checks run in the spec's order, so a value gets the first matching
+// error only.
 func (t *Tokenizer) numericCharacterReferenceEndState() {
 	code := t.refCode
 	at := t.pos
@@ -392,7 +422,7 @@ func (t *Tokenizer) numericCharacterReferenceEndState() {
 		code = 0xFFFD
 	case isNoncharacter(code):
 		t.errAt(ErrNoncharacterCharacterReference, at)
-	case code == 0x0D || (isControlError(code) && code != 0):
+	case code == 0x0D || isControlError(code):
 		t.errAt(ErrControlCharacterReference, at)
 		if code >= 0x80 && code <= 0x9F {
 			if r := c1Replacements[code-0x80]; r != 0 {

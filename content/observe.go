@@ -216,6 +216,12 @@ func redactString(s string) string {
 	return string(r)
 }
 
+// observationID is "obs-content-" + the first 32 hex digits of SHA-256
+// over URL, profile, body hash and fetch time joined by NUL.
+//
+// PORT: the time is UTC with exactly nine fraction digits
+// ("2006-01-02T15:04:05.000000000Z" is Go's layout notation); Go writes a
+// year outside 0000..9999 with as many digits as it needs.
 func observationID(p *Processed, bodySHA string) string {
 	in := strings.Join([]string{p.URL, p.Profile, bodySHA, p.FetchedAt.UTC().Format("2006-01-02T15:04:05.000000000Z")}, "\x00")
 	return "obs-content-" + sha256Hex([]byte(in))[:32]

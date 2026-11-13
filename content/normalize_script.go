@@ -88,6 +88,9 @@ func maskJSLiterals(prog *jsparse.Program, m *masker) {
 				}
 			}
 		case n.Kind == jsparse.KLiteral && n.Op == jsparse.LitNumber && !keys[id]:
+			// The range test has no digit count, so the 12-digit values of
+			// 2000-01-01 to 2001-09-09 are masked too, although the js@1
+			// rule line says "13-digit".
 			if n.Num >= minEpochSeconds*1000 && n.Num <= maxEpochSeconds*1000 && n.Num == float64(int64(n.Num)) {
 				// An identifier keeps the expression shape; the printer
 				// handles it wherever a numeric literal could stand.
@@ -100,6 +103,8 @@ func maskJSLiterals(prog *jsparse.Program, m *masker) {
 			if !strings.ContainsRune(raw, '/') {
 				if mv := maskText(raw, m); mv != raw {
 					n.Str2 = newStr(mv)
+					// The cooked value gets the same masks; a throwaway
+					// masker keeps each original counted once in the digest.
 					n.Str = newStr(maskText(prog.Strings[n.Str], newMasker()))
 				}
 			}

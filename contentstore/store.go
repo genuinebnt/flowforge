@@ -18,8 +18,8 @@ import (
 type RetentionPolicy struct {
 	KeepLast int
 	KeepFor  time.Duration
-	// OnIngest applies the policy to a key right after each ingest of it
-	// (default true; Disable sets it off, the background sweep still runs).
+	// DisableOnIngest stops applying the policy to a key right after each
+	// new version of it; the background sweep (Retain) still runs.
 	DisableOnIngest bool
 }
 
@@ -64,8 +64,9 @@ type Config struct {
 	MaxRetries int
 	// Codec is the blob codec of new snapshots (default CodecDelta).
 	Codec BlobCodec
-	// KeyframeInterval bounds delta chains: a snapshot whose base is this
-	// many versions from a keyframe is stored as a keyframe (default 16).
+	// KeyframeInterval bounds delta chains: DeltaDepth stays below it, and
+	// a snapshot whose depth would reach it is stored as a keyframe
+	// (default 16).
 	KeyframeInterval int
 	// CacheBytes bounds the decoded-blob cache (default 64 MiB).
 	CacheBytes int
@@ -220,7 +221,8 @@ func rebase(p *content.Processed, url string) *content.Processed {
 	return &q
 }
 
-// hostOf returns the lower-cased host of a URL ("" when unparsable).
+// hostOf returns the lower-cased authority of a URL without userinfo (the
+// port is kept; "" when there is no "://").
 func hostOf(raw string) string {
 	_, rest, ok := strings.Cut(raw, "://")
 	if !ok {

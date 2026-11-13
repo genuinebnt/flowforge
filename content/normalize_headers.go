@@ -142,6 +142,10 @@ type CSPDirective struct {
 // directives split on ';', the first token is the name (lower-cased),
 // the rest are the sources. A repeated directive is ignored, as the
 // specification requires.
+//
+// PORT: strings.TrimSpace and strings.Fields use Unicode White_Space where
+// CSP3 says ASCII whitespace, so NBSP also separates sources here; Rust's
+// str::trim and str::split_whitespace use the same property.
 func ParseCSP(v string) []CSPDirective {
 	var out []CSPDirective
 	seen := map[string]bool{}

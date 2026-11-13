@@ -75,6 +75,11 @@ func (sg *Segment) Size() int { return len(sg.data) }
 func (sg *Segment) FileCRC() uint32 { return sg.fileCRC }
 
 func openSegment(data []byte, s Schema, c *codec) (*Segment, error) {
+	// Order of checks: size, magics, version and codec first (ErrCorrupt),
+	// then the footer CRC, then each section's extent and CRC in id order,
+	// then the structure of each section. A damaged magic or version byte
+	// therefore reports ErrCorrupt, not ErrChecksum, although spec 32.6 and
+	// FORMAT.md name the footer CRC as the first check.
 	minSize := segHeaderSize + 4 + numSections*dirEntrySize + segFooterSize
 	if len(data) < minSize {
 		return nil, corruptf("segment of %d bytes is shorter than %d", len(data), minSize)
@@ -122,6 +127,9 @@ func openSegment(data []byte, s Schema, c *codec) (*Segment, error) {
 		return nil, corruptf("sections do not end at the directory")
 	}
 	sg := &Segment{data: data, fileCRC: fileCRC, schema: s, codec: c, pc: pc}
+	// Sections are parsed in id order because later ones depend on earlier
+	// ones: NORMS needs META's sum_len, TERMDICT validates POSTINGS and
+	// POSITIONS (assigned first, no parser of their own) against NORMS.
 	steps := []func([]byte) error{
 		nil, sg.parseMeta, sg.parseIDs, sg.parseNorms, sg.parseKeywords, sg.parseNumerics,
 		sg.parseTermDict, nil, nil, sg.parseTrigrams, sg.parseStored,
@@ -686,7 +694,7 @@ func (sg *Segment) docFieldsAt(doc uint32, cache *storedCache) (docFields, error
 }
 
 // Documents decodes every document of the segment in id order with its
-// generation (used by tests, merges and tools).
+// generation (tests and tools; merges read documents with docFieldsAt).
 func (sg *Segment) Documents() ([]IndexedDoc, error) {
 	var cache storedCache
 	out := make([]IndexedDoc, 0, sg.n)

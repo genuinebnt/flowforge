@@ -58,7 +58,8 @@ func (t *Tokenizer) endTagOpenState() {
 // tagNameState is the tag name state (§13.2.5.8).
 func (t *Tokenizer) tagNameState() {
 	for {
-		// Fast path: lower-case letters, digits and other plain ASCII.
+		// Fast path: bytes that "anything else" appends unchanged and that
+		// raise no input-stream error (upper case is lowered below).
 		i := t.pos
 		for i < len(t.in) {
 			b := t.in[i]
@@ -213,6 +214,10 @@ func (t *Tokenizer) beforeAttributeValueState() {
 // character reference return state).
 func (t *Tokenizer) attributeValueQuotedState(quote byte, self state) {
 	for {
+		// Fast path: copy bytes that are appended unchanged. It stops at
+		// the quote, '&', CR (newline normalization), NUL and the other
+		// controls (errors), and any non-ASCII byte (decoded by next for
+		// its input-stream checks).
 		i := t.pos
 		for i < len(t.in) {
 			b := t.in[i]

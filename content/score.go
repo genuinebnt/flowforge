@@ -81,8 +81,9 @@ const (
 	returnFactor     = -0.25 // returns at −¼
 )
 
-// boostWords add weight once each when a changed endpoint, form, link,
-// script or parameter mentions them.
+// boostWords add weight once each per change set when the key of an added
+// or modified endpoint, schema endpoint, form, link, script, parameter or
+// GraphQL operation contains one of the words (containsWord).
 var boostWords = []struct {
 	name   string
 	words  []string
@@ -102,9 +103,11 @@ var secHeaderNames = []string{"content-security-policy", "strict-transport-secur
 
 // ScoreChanges scores a change set. Reasons are aggregated by name: each
 // name's weight is the sum of its contributions clamped to [−1, 1] and
-// rounded to 4 decimals, and a reason whose weight rounds to 0 is dropped;
-// the score is the sum of the reason weights in name order, clamped to
-// [0, 1] and rounded to 4 decimals. Reasons are sorted by name.
+// rounded to 4 decimals, and a reason whose weight rounds to 0 is dropped
+// (spec 33.11 does not mention the drop); the score is the sum of the
+// reason weights in name order, clamped to [0, 1] and rounded to 4
+// decimals. Reasons are sorted by name. Within one name, contributions are
+// added in the order of cs, which callers pass sorted.
 func ScoreChanges(cs []ScoreChange) Score {
 	acc := map[string]float64{}
 	add := func(name string, w float64) { acc[name] += w }

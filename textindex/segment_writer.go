@@ -37,7 +37,7 @@ const (
 	triSkipSize      = 8
 	triEntrySize     = 12
 	storedEntrySize  = 20
-	maxKeyBytes      = 1 + 4*MaxTokenBytes
+	maxKeyBytes      = 1 + 4*MaxTokenBytes // field id + folded term; folding may change a rune's UTF-8 length, so 4 bytes per span byte bound it
 	maxStoredRaw     = 64 << 20
 	maxDocBytes      = 16 << 20
 )
@@ -311,8 +311,11 @@ func encodeSegment(s Schema, docs []docFields, c *codec, pc PostingCodec) ([]byt
 	var deltas []uint32
 	for i, t := range terms {
 		postOff, posOff := len(postings), len(positions)
-		// postings blocks of 128, with a skip entry before every block but
-		// the first
+		// Blocks of 128 postings. Block k > 0 gets a skip entry (last doc of
+		// block k-1, offsets of block k); the entries form one table written
+		// ahead of all blocks (FORMAT.md §1.6), so they are collected in
+		// skips while the blocks go to tmp. Deltas continue across blocks:
+		// prev starts at the last doc of the previous block, not at 0.
 		tmp, skips = tmp[:0], skips[:0]
 		pi := 0
 		for b := 0; b < len(t.docs); b += postingsBlock {

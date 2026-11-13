@@ -36,7 +36,10 @@ func keep(snaps []Snapshot, p RetentionPolicy, now core.Clock) (deleted []Snapsh
 // retainKey applies the retention policy to one key. Snapshots outside
 // the deletion set whose delta base is deleted are first rewritten as
 // keyframes (their plain content is unchanged), so no surviving blob
-// depends on a deleted one.
+// depends on a deleted one. The rewrite runs outside the transaction (it
+// writes chunks), so a dependent that appears meanwhile restarts the pass;
+// after MaxRetries restarts the key is left as it is for the next pass.
+// Index documents of the deleted diffs are tombstoned after the commit.
 func (s *Store) retainKey(ctx context.Context, tenant core.UUID, k Key) (RetentionReport, error) {
 	for attempt := 0; ; attempt++ {
 		rep, gone, again, err := s.retainKeyOnce(ctx, tenant, k)

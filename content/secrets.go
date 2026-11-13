@@ -115,8 +115,9 @@ func base64URLChar(c byte) bool       { return alnum(c) || c == '-' || c == '_' 
 // a token, so "XAKIA..." is not an AWS key.
 func boundaryBefore(s string, i int) bool { return i == 0 || !alnumUnderscore(s[i-1]) }
 
-// prefixScan matches prefix + between lo and hi body characters, with a
-// token boundary on both sides.
+// prefixScan matches prefix + between lo and hi body characters, with no
+// letter, digit or '_' before the prefix and no further body character
+// after the match.
 func prefixScan(prefixes []string, lo, hi int, body func(byte) bool) func(string) [][2]int {
 	return func(s string) [][2]int {
 		var out [][2]int
@@ -210,6 +211,10 @@ func assignedValue(s string, j, lo, hi int, body func(byte) bool) (int, int, boo
 	return st, j, true
 }
 
+// slackWebhookScan matches the webhook prefix followed by three
+// '/'-separated alphanumeric segments of any length. The rule description
+// ("T…/B…/" and 24 characters) is narrower than the scan, which checks
+// neither the T and B prefixes nor the length.
 func slackWebhookScan(s string) [][2]int {
 	const p = "https://hooks.slack.com/services/"
 	var out [][2]int
@@ -275,9 +280,10 @@ func sendgridScan(s string) [][2]int {
 	}
 }
 
-// jwtScan matches header.payload.signature where header and payload start
-// with "eyJ" (base64url of `{"`) and the header decodes to JSON naming an
-// "alg".
+// jwtScan matches header.payload.signature: three base64url segments of
+// at least 10 characters each, header and payload starting with "eyJ"
+// (base64url of `{"`), and a header whose decoded bytes contain `"alg"`
+// (a substring test, not a JSON parse).
 func jwtScan(s string) [][2]int {
 	var out [][2]int
 	for off := 0; ; {
@@ -325,8 +331,9 @@ func jwtScan(s string) [][2]int {
 	}
 }
 
-// privateKeyScan matches a PEM private key block, header to footer (or 16
-// KiB when the footer is missing).
+// privateKeyScan matches a PEM private key block from its header to the
+// matching footer, or to the end of the text when the footer is missing,
+// and never more than 16 KiB.
 func privateKeyScan(s string) [][2]int {
 	var out [][2]int
 	for off := 0; ; {
@@ -436,8 +443,8 @@ func genericScan(s string) [][2]int {
 			i += off
 			off = i + 1
 			end := i + len(k)
-			// Whole identifier only (a "token" inside "csrftoken" is a
-			// different key).
+			// Whole identifier, or its last '_' or '-' separated word:
+			// "x_token" matches, "csrftoken" (a different key) does not.
 			if !boundaryBefore(s, i) && s[i-1] != '_' && s[i-1] != '-' || end < len(s) && alnumUnderscore(s[end]) {
 				continue
 			}

@@ -186,6 +186,8 @@ func (x *extraction) report(name string, g Grade, reason string, fs []Feature) {
 		fs[i].Doc = x.in.Doc
 	}
 	x.features = append(x.features, fs...)
+	// Every extractor is at version 1 (Extractors); the suffix must follow
+	// a version bump there.
 	x.grades = append(x.grades, ExtractorGrade{Extractor: name + "@1", Doc: x.in.Doc, Grade: g, Facts: len(fs), Reason: reason})
 }
 
@@ -204,8 +206,9 @@ func (x *extraction) disclosure() {
 }
 
 // secrets runs the named rules over the raw text. Only high-tier findings
-// become features; low-tier (entropy) candidates are kept for redaction
-// and audit but are never a finding on their own (V2 §3.3).
+// become features and findings; low-tier (entropy) candidates are skipped
+// here and never a finding on their own (spec 33.7), though Redact still
+// replaces them.
 func (x *extraction) secrets() {
 	all := ScanSecrets(x.in.Body, x.in.Doc)
 	var fs []Feature

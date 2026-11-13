@@ -270,8 +270,9 @@ func expandRecords(hunks, semantic []byte, prev, cur *content.Processed, opts co
 
 // vendored reports a vendored bundle: a node_modules path, a bundler
 // vendor chunk name (vendor, vendors~, chunk-vendors, framework,
-// polyfills), or a JS artifact whose modules are all vendor or library
-// modules (content module diff).
+// polyfills), or a JS artifact whose module diff has suppressed vendor
+// changes and nothing else: no reported change and no module unchanged in
+// place (moved modules do not count against it).
 func vendored(a content.ArtifactDiff) bool {
 	if vendorURL(a.DocID) {
 		return true

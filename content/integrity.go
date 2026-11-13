@@ -12,8 +12,8 @@ import (
 // IntegrityFlag names one collection-integrity problem (V2 §12.5).
 type IntegrityFlag string
 
-// Integrity flags. Every flag except truncated makes the capture
-// degraded; truncated makes it partial; fetch_failed makes it failed.
+// Integrity flags. fetch_failed makes the capture failed, truncated makes
+// it partial, and every other flag makes it degraded.
 const (
 	FlagFetchFailed       IntegrityFlag = "fetch_failed"
 	FlagTruncated         IntegrityFlag = "truncated"
@@ -137,6 +137,11 @@ var errorTitleWords = []string{"404", "not found", "page not found", "500", "int
 
 // LooksLikeErrorPage reports a 2xx body that is an error page in
 // disguise (a soft 404): its <title> names an HTTP error or maintenance.
+//
+// PORT: bytes.ToLower here and in CheckIntegrity is Unicode-aware (simple
+// mappings, so the Kelvin sign lowers to "k" and U+0130 to "i") and turns
+// each invalid UTF-8 byte into U+FFFD; the ASCII markers then match in
+// text an ASCII-only lowering would miss. Lower the same way.
 func LooksLikeErrorPage(body []byte) bool {
 	lb := bytes.ToLower(body[:min(len(body), 64<<10)])
 	t := htmlTitle(lb)

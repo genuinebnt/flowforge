@@ -78,7 +78,9 @@ func (m *MemDirectory) List() ([]string, error) {
 }
 
 // FSDirectory stores files in an operating-system directory. WriteFile
-// writes a temporary file, syncs it and renames it into place.
+// writes <name>.tmp, syncs it, renames it into place and syncs the
+// directory (spec 32.7). It is not safe for concurrent writers of one name:
+// they share the temporary file.
 type FSDirectory struct{ path string }
 
 // NewFSDirectory creates path if needed and returns a directory over it.
@@ -132,6 +134,9 @@ func (d *FSDirectory) WriteFile(name string, data []byte) error {
 	if err := os.Rename(tmp, p); err != nil {
 		return err
 	}
+	// The directory sync makes the rename durable. Its error is ignored
+	// because some platforms and file systems cannot sync a directory; the
+	// rename itself is already atomic for readers.
 	if dir, err := os.Open(d.path); err == nil {
 		_ = dir.Sync()
 		dir.Close()

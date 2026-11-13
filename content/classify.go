@@ -94,8 +94,9 @@ type DiffOptions struct {
 
 // DiffArtifacts compares two versions of one artifact (V2 §5 change
 // classification): level hash when the bytes differ, text when the
-// normalized texts differ, semantic when the level-3 features (or, for
-// bundles, the non-vendor modules) differ. The text diff goes through
+// normalized texts differ, semantic when the level-3 features differ. For
+// bundles the module diff only refines the outcome (all modules matched:
+// reordered); it never adds a semantic level. The text diff goes through
 // diff.BoundedDiff under the policy, then is presented line by line.
 func DiffArtifacts(old, new *Artifact, opts DiffOptions) (ArtifactDiff, error) {
 	if old.DocID != new.DocID && !opts.Rename || old.Kind != new.Kind {
@@ -274,21 +275,25 @@ type ChangeSet struct {
 	Score    Score `json:"score"`
 	// Changes are the capture-level feature changes, sorted.
 	Changes []FeatureChange `json:"changes,omitempty"`
-	// Summary holds the content_changed summary counts.
+	// Summary holds the content_changed summary counts; zero counts are
+	// left out and an empty summary is nil.
+	//
+	// PORT: encoding/json writes map keys sorted, so the JSON is stable;
+	// a port serializes the keys in sorted order too.
 	Summary map[string]int `json:"summary,omitempty"`
 }
 
-// IsChange reports a change worth a content_changed event: some level
-// differs and the outcome is not one of the counted non-changes.
+// IsChange reports a change worth a content_changed event: the outcome is
+// changed or structural, or the change set is the baseline.
 func (c ChangeSet) IsChange() bool {
 	return c.Outcome == DiffChanged || c.Outcome == DiffStructural || c.Baseline
 }
 
 // Compare diffs every artifact of cur against the same doc id in prev
 // (prev nil: the baseline), and classifies the result: class, newness,
-// cause (target unless both raw bodies are identical and a normalizer or
-// extractor version differs), baseline and score. A degraded current
-// capture gets no diff (V2 §12.5).
+// cause (causeOf), baseline and score. A degraded current capture gets no
+// diff (V2 §12.5). Without prev the result is the baseline when coverage is
+// complete, with outcome changed and every level set either way.
 func Compare(prev, cur *Processed, opts DiffOptions) (ChangeSet, error) {
 	cs := ChangeSet{URL: cur.URL, Profile: cur.Profile, Cause: oam.CauseTarget}
 	if prev != nil && (prev.URL != cur.URL || prev.Profile != cur.Profile) {
@@ -468,9 +473,12 @@ func classOfChanges(cs []FeatureChange) string {
 	return oam.ClassObservation
 }
 
-// causeOf: when every raw body is identical, a difference can only come
-// from the readers: normalizer when a normalizer version differs, parser
-// when an extractor version differs. Otherwise the target changed.
+// causeOf: when every current artifact has a previous one with the same
+// raw body, a difference can only come from the readers: normalizer when a
+// normalizer version or rule table differs, else parser when the extractor
+// set differs. Otherwise the target changed, and so it did when only the
+// number of artifacts differs (a previous artifact is gone) while the
+// readers are the same.
 func causeOf(prev, cur *Processed) string {
 	pb := map[string]*Artifact{}
 	for i := range prev.Artifacts {

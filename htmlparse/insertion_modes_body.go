@@ -6,7 +6,7 @@ import "strings"
 // customizable-<select> rules (select, option, optgroup, hr, input) that
 // replaced the "in select" insertion modes.
 
-// inBodyMode is the "in body" insertion mode.
+// inBodyMode is the "in body" insertion mode (§13.2.6.4.7).
 func (b *treeBuilder) inBodyMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -38,6 +38,8 @@ func (b *treeBuilder) inBodyMode(tok *Token) bool {
 // inBodyCharacters handles any mix of character tokens in "in body": NULs
 // are parse errors and ignored, the rest is inserted after reconstructing
 // the active formatting elements, and non-whitespace clears frameset-ok.
+// Reconstructing once for the whole run is what per-character processing
+// does too: after the first character nothing is left to reconstruct.
 func (b *treeBuilder) inBodyCharacters(s string) {
 	if strings.IndexByte(s, 0) >= 0 {
 		var sb strings.Builder
@@ -60,8 +62,10 @@ func (b *treeBuilder) inBodyCharacters(s string) {
 	}
 }
 
-// checkUnclosedAtEnd reports a parse error if an element other than the
-// ones the end of the body may leave open is still open.
+// checkUnclosedAtEnd reports one parse error if an element other than
+// dd, dt, li, optgroup, option, p, rb, rp, rt, rtc, tbody, td, tfoot, th,
+// thead, tr, body and html (all HTML) is still open: the check of "in
+// body" EOF and of the body and html end tags.
 func (b *treeBuilder) checkUnclosedAtEnd() {
 	for _, e := range b.stack {
 		if e.ns != HTMLNamespace {
@@ -79,7 +83,7 @@ func (b *treeBuilder) checkUnclosedAtEnd() {
 }
 
 // mergeAttrs adds attributes of tok missing on element id (the "html" and
-// "body" start tag rules).
+// "body" start tag rules); existing values are kept.
 func (b *treeBuilder) mergeAttrs(id NodeID, tok *Token) {
 	n := &b.doc.Nodes[id]
 outer:
@@ -93,7 +97,7 @@ outer:
 	}
 }
 
-// closePElement is "close a p element".
+// closePElement is "close a p element" (§13.2.6.4.7).
 func (b *treeBuilder) closePElement() {
 	b.generateImpliedEndTags(tagP)
 	if !b.current().is(tagP) {
@@ -102,12 +106,16 @@ func (b *treeBuilder) closePElement() {
 	b.popUntil(tagP)
 }
 
+// closePInButtonScope is the recurring "if the stack of open elements has
+// a p element in button scope, then close a p element".
 func (b *treeBuilder) closePInButtonScope() {
 	if b.inScope(scopeButton, tagP) {
 		b.closePElement()
 	}
 }
 
+// inBodyStartTag is the start tag part of "in body", one case per entry
+// of the standard, in its order.
 func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 	switch tok.atom {
 	case tagHtml:
@@ -131,6 +139,8 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		if len(b.stack) < 2 || !b.stack[1].is(tagBody) || !b.framesetOK {
 			return false
 		}
+		// Remove the body from its parent and pop everything above the
+		// root html element.
 		b.doc.detach(b.stack[1].id)
 		b.stack = b.stack[:1]
 		b.insertHTML(tok)
@@ -169,6 +179,8 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		}
 		return false
 	case tagLi:
+		// Close an open li unless a special element other than address,
+		// div or p is in the way.
 		b.framesetOK = false
 		for i := len(b.stack) - 1; i >= 0; i-- {
 			node := b.stack[i]
@@ -222,6 +234,9 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		b.framesetOK = false
 		return false
 	case tagA:
+		// An a in the list after the last marker: run the adoption agency
+		// for this token, then make sure that a is gone from the list and
+		// the stack (the algorithm may have left it).
 		for i := len(b.afe) - 1; i >= 0 && b.afe[i].id != None; i-- {
 			if b.afe[i].tag == tagA {
 				existing := b.afe[i].id
@@ -270,6 +285,7 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		b.framesetOK = false
 		return false
 	case tagInput:
+		// The 2025 select rules: an input closes an open select.
 		if b.fragment && b.ctx.is(tagSelect) {
 			b.parseError(ErrUnexpectedStartTag)
 			return false
@@ -299,10 +315,13 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		b.framesetOK = false
 		return false
 	case tagImage:
+		// "Change the token's tag name to img and reprocess it. (Don't
+		// ask.)"
 		b.parseError(ErrUnexpectedStartTag)
 		tok.Name, tok.atom = "img", tagImg
 		return true
 	case tagTextarea:
+		// Like startText, plus the leading-LF rule and frameset-ok.
 		_, b.textPushed = b.insertHTML(tok)
 		b.ignoreLF = true
 		b.tz.SetState(RCDATAState)
@@ -328,6 +347,8 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 			b.startText(tok, RAWTEXTState)
 			return false
 		}
+		// Scripting off: noscript is an ordinary element (falls out of
+		// the switch to "any other start tag").
 	case tagSelect:
 		switch {
 		case b.fragment && b.ctx.is(tagSelect):
@@ -399,6 +420,7 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 		b.parseError(ErrUnexpectedStartTag)
 		return false
 	}
+	// Every case above that does not return falls out here.
 	// Any other start tag.
 	b.reconstructFormatting()
 	b.insertHTML(tok)
@@ -406,7 +428,7 @@ func (b *treeBuilder) inBodyStartTag(tok *Token) bool {
 }
 
 // insertForeignStart inserts a math/svg element from "in body" and pops
-// it again when the tag is self-closing.
+// it again (acknowledging the flag) when the tag is self-closing.
 func (b *treeBuilder) insertForeignStart(tok *Token, ns Namespace) {
 	_, pushed := b.insertElement(tok, ns)
 	if tok.SelfClosing {
@@ -418,8 +440,9 @@ func (b *treeBuilder) insertForeignStart(tok *Token, ns Namespace) {
 }
 
 // insertFormatting inserts a formatting element and pushes it onto the
-// list of active formatting elements (unless the depth limit kept it
-// from being opened).
+// list of active formatting elements, unless the depth limit kept it from
+// being opened: listed, it would be re-created by later reconstructions
+// although it never held content (OPEN_QUESTIONS.md "Depth limit").
 func (b *treeBuilder) insertFormatting(tok *Token) {
 	id, pushed := b.insertHTML(tok)
 	if pushed {
@@ -427,6 +450,7 @@ func (b *treeBuilder) insertFormatting(tok *Token) {
 	}
 }
 
+// removeAFE removes entry i of the list of active formatting elements.
 func (b *treeBuilder) removeAFE(i int) {
 	b.afe = append(b.afe[:i], b.afe[i+1:]...)
 }
@@ -439,6 +463,10 @@ func isHeading(t tagID) bool {
 	return false
 }
 
+// isHiddenInput reports a type attribute that is an ASCII
+// case-insensitive match for "hidden" (the frameset-ok and "in table"
+// input rules). Only the first type attribute counts; the tokenizer
+// already dropped duplicates.
 func isHiddenInput(tok *Token) bool {
 	for _, a := range tok.Attrs {
 		if a.Namespace == NoNamespace && a.Name == "type" {
@@ -448,6 +476,7 @@ func isHiddenInput(tok *Token) bool {
 	return false
 }
 
+// inBodyEndTag is the end tag part of "in body".
 func (b *treeBuilder) inBodyEndTag(tok *Token) bool {
 	switch tok.atom {
 	case tagTemplate:
@@ -475,6 +504,9 @@ func (b *treeBuilder) inBodyEndTag(tok *Token) bool {
 		b.popUntil(tok.atom)
 		return false
 	case tagForm:
+		// Outside template contents the form element pointer decides
+		// (the form may be misnested and is removed from wherever it is
+		// on the stack); inside, the nearest form in scope is closed.
 		if !b.parsingTemplateContents() {
 			node := b.form
 			b.form = None
@@ -501,8 +533,13 @@ func (b *treeBuilder) inBodyEndTag(tok *Token) bool {
 		return false
 	case tagP:
 		if !b.inScope(scopeButton, tagP) {
+			// Insert an empty p and close it at once. At the depth limit
+			// the p is inserted but not opened; closing would then pop up
+			// to some p outside button scope, so stop here.
 			b.parseError(ErrUnexpectedEndTag)
-			b.insertImplied(tagP)
+			if _, pushed := b.insertImplied(tagP); !pushed {
+				return false
+			}
 		}
 		b.closePElement()
 		return false
@@ -555,6 +592,7 @@ func (b *treeBuilder) inBodyEndTag(tok *Token) bool {
 		b.clearToLastMarker()
 		return false
 	case tagBr:
+		// </br> acts as <br> with no attributes.
 		b.parseError(ErrUnexpectedEndTag)
 		br := Token{Kind: StartTagToken, Name: "br", atom: tagBr, Span: tok.Span}
 		b.reconstructFormatting()
@@ -566,7 +604,10 @@ func (b *treeBuilder) inBodyEndTag(tok *Token) bool {
 	return false
 }
 
-// anyOtherEndTag is the "any other end tag" entry of "in body".
+// anyOtherEndTag is the "any other end tag" entry of "in body": walk down
+// the stack to an HTML element with the token's name and pop through it,
+// unless a special element comes first (then the token is ignored). The
+// loop stops above the root, which is special anyway.
 func (b *treeBuilder) anyOtherEndTag(tok *Token) {
 	for i := len(b.stack) - 1; i > 0; i-- {
 		node := b.stack[i]
@@ -586,7 +627,8 @@ func (b *treeBuilder) anyOtherEndTag(tok *Token) {
 	b.parseError(ErrUnexpectedEndTag)
 }
 
-// sameName reports whether stack entry e has the token's tag name.
+// sameName reports whether stack entry e has the token's tag name:
+// atoms compare directly, and two non-atom names compare as strings.
 func (b *treeBuilder) sameName(e stackEntry, tok *Token) bool {
 	if tok.atom != tagUnknown || e.tag != tagUnknown {
 		return e.tag == tok.atom && tok.atom != tagUnknown

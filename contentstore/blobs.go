@@ -317,6 +317,14 @@ const maxHistory = 20000
 
 // encodeFeatures splits p into the record and the main normalized text.
 // p is not modified.
+//
+// PORT: the record goes through encoding/json (core.CanonicalJSON), which
+// replaces invalid UTF-8 in strings by U+FFFD (why textEntry falls back to
+// B64), escapes U+2028 and U+2029 even without HTML escaping, writes
+// []byte as standard base64 with padding and time.Time as RFC 3339 with
+// up to nine fraction digits, and formats float64 in Go's shortest form.
+// A port that must write byte-identical records (shared chunk dedupe,
+// identical manifest ids) reproduces all of it.
 func encodeFeatures(p *content.Processed, history []string) ([]byte, []byte, error) {
 	q := *p
 	q.Artifacts = slices.Clone(p.Artifacts)

@@ -70,8 +70,9 @@ type Processed struct {
 	Redirects []Redirect      `json:"redirects,omitempty"`
 	Integrity IntegrityReport `json:"integrity"`
 	// Coverage and CoveredRules are the authority of this reading (V2
-	// §3.4): complete only when the capture is complete and every
-	// extractor that ran graded complete.
+	// §3.4, spec 33.8): complete only when the integrity outcome and the
+	// body's normalization are complete, every extractor that ran graded
+	// complete and no applicable extractor is canary-disabled.
 	Coverage     oam.Coverage `json:"coverage"`
 	CoveredRules []string     `json:"covered_rules,omitempty"`
 	// SimHash is BodySimHash of the normalized body (pages, JSON, XML
@@ -94,9 +95,10 @@ func (p *Processed) Features() []Feature {
 		}
 		fs = append(fs, a.Features.Features...)
 	}
-	// One fact reported by several documents (a secret in an inline
-	// script is in the page too) is one feature: the first in sorted
-	// order, which is the one with the shortest doc suffix.
+	// One fact reported by several documents with the same content (a
+	// secret in an inline script is in the page too) is one feature: the
+	// first in sorted order, whose doc suffix sorts first (the page's own
+	// "" before any derived document).
 	return slices.CompactFunc(sortFeatures(fs), func(a, b Feature) bool { return a.ID() == b.ID() && a.sameContent(b) })
 }
 

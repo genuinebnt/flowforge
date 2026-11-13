@@ -79,10 +79,8 @@ type Library struct {
 }
 
 // libraryBanners reads library banners from comments: block comments
-// that start with "/*!" or carry @license/@preserve, and leading line
-// comments. The first version token of the comment's text is the
-// version; the closest preceding name-like word (not a skip word) is the
-// name ("/*! jQuery v3.7.1 | (c) OpenJS Foundation" → jquery 3.7.1).
+// that start with "/*!" or carry @license/@preserve, and line comments
+// among the first four comments of the program. parseBanner reads each.
 func libraryBanners(prog *jsparse.Program) []Library {
 	var out []Library
 	for i, c := range prog.Comments {
@@ -104,6 +102,13 @@ func libraryBanners(prog *jsparse.Program) []Library {
 	return out
 }
 
+// parseBanner reads one banner comment. Only its first three lines count.
+// The first word that is a version ("v3.7.1", "3.7.1") gives the version
+// and the closest of the three words before it that is name-like (not a
+// skip word, "(c)" or a URL) gives the name ("/*! jQuery v3.7.1 | (c)
+// OpenJS Foundation" → jquery 3.7.1); a word "name@1.2.3" gives both. A
+// first version without a name ends the search: later versions in the
+// same comment are not tried.
 func parseBanner(text string) (Library, bool) {
 	text = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(text, "/*!"), "/**"), "//")
 	text = strings.TrimSuffix(text, "*/")
@@ -138,9 +143,11 @@ func parseBanner(text string) (Library, bool) {
 	return Library{}, false
 }
 
-// globalVersionKeys are object keys whose string value is a library's
-// version wherever the bundle puts the object (jQuery's prototype keeps
-// `jquery: "3.7.1"`; Vue and Lodash keep `VERSION`).
+// globalVersionKeys maps object keys whose string value is a library's
+// version, wherever the bundle puts the object, to the library name.
+// jQuery's prototype keeps `jquery: "3.7.1"`. Keys such as Vue's and
+// Lodash's `VERSION` are not listed: the key alone does not name the
+// library.
 var globalVersionKeys = map[string]string{"jquery": "jquery"}
 
 // libraryGlobals reads versions from known property keys.

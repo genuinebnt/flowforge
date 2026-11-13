@@ -7,7 +7,9 @@ import "strings"
 // adjustments of §13.2.6.1.
 
 // foreignCharacters handles a character token in foreign content: NUL
-// becomes U+FFFD (a parse error), and non-whitespace clears frameset-ok.
+// becomes U+FFFD (a parse error) and is inserted, and any character other
+// than whitespace and NUL clears frameset-ok. No formatting elements are
+// reconstructed here.
 func (b *treeBuilder) foreignCharacters(tok *Token) {
 	s := tok.Data
 	if strings.IndexByte(s, 0) >= 0 {
@@ -31,7 +33,9 @@ func (b *treeBuilder) foreignCharacters(tok *Token) {
 	b.insertCharacters(s)
 }
 
-// breakoutTag reports the start tags that break out of foreign content.
+// breakoutTag reports the start tags that break out of foreign content
+// (§13.2.6.5): the listed HTML names, and font with a color, face or
+// size attribute.
 func breakoutTag(tok *Token) bool {
 	switch tok.atom {
 	case tagB, tagBig, tagBlockquote, tagBody, tagBr, tagCenter, tagCode, tagDd, tagDiv,
@@ -51,8 +55,9 @@ func breakoutTag(tok *Token) bool {
 }
 
 // foreignContent applies the rules for parsing tokens in foreign content
-// to tok. It returns true when the token must be reprocessed by the
-// dispatcher.
+// (§13.2.6.5) to tok. It returns true when the token must be reprocessed
+// by the dispatcher. The element's namespace is that of the adjusted
+// current node, so a fragment with an svg context starts in SVG.
 func (b *treeBuilder) foreignContent(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -107,8 +112,9 @@ func (b *treeBuilder) foreignContent(tok *Token) bool {
 }
 
 // foreignBreakout pops until an HTML element or integration point is the
-// current node and asks for the token to be reprocessed in the current
-// insertion mode.
+// current node, then processes the token with the current insertion
+// mode's rules (not the dispatcher, which could pick foreign content
+// again at an integration point).
 func (b *treeBuilder) foreignBreakout(tok *Token) bool {
 	b.parseError(ErrUnexpectedStartTag)
 	for len(b.stack) > 1 {
@@ -121,7 +127,11 @@ func (b *treeBuilder) foreignBreakout(tok *Token) bool {
 	return b.processInMode(b.mode, tok)
 }
 
-// foreignEndTag is the "any other end tag" entry of the foreign rules.
+// foreignEndTag is the "any other end tag" entry of the foreign rules:
+// names compare after ASCII-lowercasing the element's (SVG names are
+// camel-cased, tokens are lower case); an unmatched name is an error at
+// the current node; reaching an HTML element hands the token to the
+// insertion mode; the root (index 0) ends the walk (fragment case).
 func (b *treeBuilder) foreignEndTag(tok *Token) bool {
 	i := len(b.stack) - 1
 	if i < 0 {
@@ -146,7 +156,7 @@ func (b *treeBuilder) foreignEndTag(tok *Token) bool {
 	return false
 }
 
-// svgTagNameFixups is the SVG tag name case table of §13.2.6.5.
+// svgTagNameFixups is the "adjust SVG tag name" case table of §13.2.6.5.
 //
 // PORT: this and svgAttrFixups are lookup-only maps (a Rust match or phf
 // map); nothing iterates them.
@@ -190,7 +200,7 @@ var svgAttrFixups = map[string]string{
 	"ychannelselector": "yChannelSelector", "zoomandpan": "zoomAndPan",
 }
 
-// adjustMathMLAttributes is "adjust MathML attributes".
+// adjustMathMLAttributes is "adjust MathML attributes" (§13.2.6.1).
 func adjustMathMLAttributes(tok *Token) {
 	for i := range tok.Attrs {
 		if tok.Attrs[i].Name == "definitionurl" {
@@ -199,7 +209,7 @@ func adjustMathMLAttributes(tok *Token) {
 	}
 }
 
-// adjustSVGAttributes is "adjust SVG attributes".
+// adjustSVGAttributes is "adjust SVG attributes" (§13.2.6.1).
 func adjustSVGAttributes(tok *Token) {
 	for i := range tok.Attrs {
 		if fixed, ok := svgAttrFixups[tok.Attrs[i].Name]; ok {
@@ -208,8 +218,10 @@ func adjustSVGAttributes(tok *Token) {
 	}
 }
 
-// adjustForeignAttributes is "adjust foreign attributes": the xlink:,
-// xml: and xmlns attributes become namespaced attributes.
+// adjustForeignAttributes is "adjust foreign attributes" (§13.2.6.1): the
+// xlink:, xml: and xmlns attributes become namespaced attributes. The
+// prefix is not stored; serialization and Dump derive it from the
+// namespace.
 func adjustForeignAttributes(tok *Token) {
 	for i := range tok.Attrs {
 		a := &tok.Attrs[i]

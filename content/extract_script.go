@@ -233,11 +233,12 @@ func looksLikeURLRef(v string) bool {
 	return true
 }
 
-// looksLikePathLiteral is the js_literal heuristic: a string that starts
-// with "/" followed by a letter (not "//", "/*" or "/ "), made of URL
-// characters, with a letter in some segment, that does not name a static
-// file; or an absolute http(s) URL whose path is an API ("/api", "/v<n>/",
-// "graphql", or an api.* host).
+// looksLikePathLiteral is the js_literal heuristic: 2 to 512 bytes of URL
+// characters that do not name a static file, and either a string that
+// starts with "/" followed by a letter, '{', '$' or ':' and contains no
+// "//" or "*" and does not end in "(", or an absolute http(s) URL with an
+// api.* host or a path containing "/api" or "graphql" or starting with
+// "v<digit>".
 func looksLikePathLiteral(v string) bool {
 	if len(v) < 2 || len(v) > 512 || staticAssetExt(v) {
 		return false

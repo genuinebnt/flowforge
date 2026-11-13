@@ -152,14 +152,18 @@ type FeatureSet struct {
 	Findings []SecretFinding `json:"findings,omitempty"`
 }
 
-// sortFeatures orders features by (kind, key, doc, value) and removes
-// exact duplicates, so outputs never depend on discovery order.
+// sortFeatures orders features by (kind, key, doc, value, attrs, ref) and
+// removes duplicates of (kind, key, doc, value, attrs), so outputs never
+// depend on discovery order. Ref is the last sort key so that, of two
+// features that differ only in Ref (two bundles with one lineage key), the
+// smallest Ref is kept whatever the order of discovery; the comparator is
+// then a total order on what survives, so the unstable sort is safe.
 func sortFeatures(fs []Feature) []Feature {
 	slices.SortFunc(fs, func(a, b Feature) int {
 		return cmp.Or(cmp.Compare(a.Kind, b.Kind), cmp.Compare(a.Key, b.Key), cmp.Compare(a.Doc, b.Doc),
 			cmp.Compare(a.Value, b.Value), slices.CompareFunc(a.Attrs, b.Attrs, func(x, y Attr) int {
 				return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.Value, y.Value))
-			}))
+			}), cmp.Compare(a.Ref, b.Ref))
 	})
 	return slices.CompactFunc(fs, func(a, b Feature) bool {
 		return a.Kind == b.Kind && a.Key == b.Key && a.Doc == b.Doc && a.sameContent(b)

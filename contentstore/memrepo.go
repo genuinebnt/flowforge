@@ -142,7 +142,8 @@ func (r *MemRepo) OutboxEvents() []OutboxEvent {
 	return out
 }
 
-// Dump returns copies of every row the repository holds for tenant, for
+// Dump returns copies of every row the repository holds for tenant, in no
+// particular order (map iteration), for
 // tests that inspect stored data (CSTORE-INV-07: no plaintext secret in
 // any row).
 func (r *MemRepo) Dump(tenant core.UUID) (snaps []Snapshot, diffs []Diff, findings []Finding, vol []VolatilityRow, keys []DataKey) {

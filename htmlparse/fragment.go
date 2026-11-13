@@ -2,6 +2,10 @@ package htmlparse
 
 // The HTML fragment parsing algorithm (HTML §13.4), with a context
 // element described by value (the arena has no document to take it from).
+// The steps in order: document mode from the context, tokenizer state
+// from the context's name, a new html root as the only open element, "in
+// template" pushed for a template context, insertion mode reset, the
+// form element pointer, then parsing; the result is the root's children.
 
 // ContextElement describes the context element of a fragment parse.
 type ContextElement struct {
@@ -16,7 +20,9 @@ type ContextElement struct {
 	// Mode is the document mode of the context element's document.
 	Mode QuirksMode
 	// InForm reports that the context element is, or has an ancestor that
-	// is, a form element (it sets the form element pointer).
+	// is, a form element (it sets the form element pointer). The pointer
+	// then refers to the detached context copy, which is enough: the
+	// rules only test it for None and scope.
 	InForm bool
 }
 
@@ -37,6 +43,8 @@ func ParseFragment(input []byte, context ContextElement, opts Options) (*Documen
 	b.fragment = true
 
 	tag := lookupTagString(context.Name)
+	// The context element is a detached copy: the algorithm only reads
+	// its name, namespace and start tag attributes.
 	ctxID := b.createElement(context.Name, tag, ns, append([]Attr(nil), context.Attrs...), Span{})
 	b.ctx = stackEntry{id: ctxID, tag: tag, ns: ns}
 	if ns == MathMLNamespace && tag == tagAnnotationXml {
@@ -47,6 +55,9 @@ func ParseFragment(input []byte, context ContextElement, opts Options) (*Documen
 			}
 		}
 	}
+	// Step 4: the tokenizer state for HTML contexts. No last start tag is
+	// set, so in RCDATA/RAWTEXT no end tag is appropriate and the whole
+	// input is text.
 	if ns == HTMLNamespace {
 		switch tag {
 		case tagTitle, tagTextarea:
@@ -73,6 +84,8 @@ func ParseFragment(input []byte, context ContextElement, opts Options) (*Documen
 	if context.InForm || b.ctx.is(tagForm) {
 		b.form = ctxID
 	}
+	// run updates the CDATA flag only after each token; the first token
+	// sees the context as the adjusted current node.
 	tz.SetAllowCDATA(ns != HTMLNamespace)
 	b.run()
 

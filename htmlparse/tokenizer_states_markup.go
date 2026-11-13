@@ -2,7 +2,9 @@ package htmlparse
 
 // Markup declaration states: HTML §13.2.5.41-71 (bogus comment, markup
 // declaration open, the comment states, the DOCTYPE states, the CDATA
-// section states) and the processing instruction states.
+// section states) and the five processing instruction states of the 2025
+// standard, which follow the CDATA states and are cited by name (see the
+// state type).
 
 // bogusCommentState is the bogus comment state (§13.2.5.41).
 func (t *Tokenizer) bogusCommentState() {
@@ -37,6 +39,7 @@ func (t *Tokenizer) markupDeclarationOpenState() {
 	case t.peekFold(t.pos, "doctype"):
 		t.skipASCII(7)
 		t.state = stateDOCTYPE
+	// "[CDATA[" is matched case-sensitively, unlike "--" and "DOCTYPE".
 	case len(t.in)-t.pos >= 7 && string(t.in[t.pos:t.pos+7]) == "[CDATA[":
 		t.skipASCII(7)
 		if t.allowCDATA {
@@ -95,7 +98,9 @@ func (t *Tokenizer) commentStartDashState() {
 // commentState is the comment state (§13.2.5.45).
 func (t *Tokenizer) commentState() {
 	for {
-		// Fast path for ordinary comment text.
+		// Fast path: plain ASCII other than '<' and '-' is appended
+		// unchanged ('&' is plain here too, but asciiPlain excludes it and
+		// the slow path appends it the same way).
 		i := t.pos
 		for i < len(t.in) {
 			b := t.in[i]
@@ -354,6 +359,9 @@ func (t *Tokenizer) afterDOCTYPENameState() {
 			t.forceQuirks = true
 			t.emitDoctype()
 			t.emitEOF()
+		// "If the six characters starting from the current input
+		// character are PUBLIC / SYSTEM" (ASCII case-insensitive): rewind
+		// to the current character and consume all six.
 		case t.peekFold(t.curStart, "public"):
 			t.pos = t.curStart
 			t.skipASCII(6)
@@ -620,7 +628,8 @@ func (t *Tokenizer) bogusDOCTYPEState() {
 }
 
 // cdataSectionState is the CDATA section state (§13.2.5.69). NULs are
-// passed through; the foreign-content rules replace them.
+// passed through (the state has no NUL rule); the foreign-content rules
+// for character tokens replace them with U+FFFD.
 func (t *Tokenizer) cdataSectionState() {
 	for {
 		i := t.pos
@@ -674,6 +683,8 @@ func (t *Tokenizer) cdataSectionEndState() {
 			t.emitRune(']')
 			continue
 		case '>':
+			// The section ends; its text stays pending and coalesces with
+			// any character data that follows.
 			t.state = stateData
 		default:
 			t.reconsume()
@@ -684,15 +695,18 @@ func (t *Tokenizer) cdataSectionEndState() {
 	}
 }
 
-// commentFromTemp is "convert the temporary buffer to a comment": a
-// comment token whose data is "?" followed by the temporary buffer.
+// commentFromTemp starts the bogus comment a rejected processing
+// instruction becomes: its data is "?" followed by the temporary buffer
+// (the target characters consumed so far), as the pre-2025 "<?" rule
+// would have produced.
 func (t *Tokenizer) commentFromTemp() {
 	t.data = append(t.data[:0], '?')
 	t.data = append(t.data, t.temp...)
 }
 
 // processingInstructionOpenState is the processing instruction open
-// state.
+// state (§13.2.5, 2025), entered after "<?": a target must start with an
+// ASCII letter or '_'.
 func (t *Tokenizer) processingInstructionOpenState() {
 	c := t.next()
 	switch {
@@ -711,7 +725,9 @@ func (t *Tokenizer) processingInstructionOpenState() {
 }
 
 // processingInstructionTargetState is the processing instruction target
-// state.
+// state (§13.2.5, 2025). The targets "xml" and "xml-stylesheet" (ASCII
+// case-insensitive) and targets with other characters stay bogus
+// comments, as before processing instructions existed.
 func (t *Tokenizer) processingInstructionTargetState() {
 	for {
 		c := t.next()
@@ -748,7 +764,8 @@ func (t *Tokenizer) processingInstructionTargetState() {
 }
 
 // afterProcessingInstructionTargetState is the after processing
-// instruction target state.
+// instruction target state (§13.2.5, 2025): whitespace between target and
+// data is dropped.
 func (t *Tokenizer) afterProcessingInstructionTargetState() {
 	for {
 		c := t.next()
@@ -762,7 +779,8 @@ func (t *Tokenizer) afterProcessingInstructionTargetState() {
 }
 
 // processingInstructionDataState is the processing instruction data
-// state.
+// state (§13.2.5, 2025). A PI ends at the first '>' ("?>" or a bare
+// '>'); there are no character references and no NUL replacement here.
 func (t *Tokenizer) processingInstructionDataState() {
 	for {
 		c := t.next()
@@ -785,7 +803,8 @@ func (t *Tokenizer) processingInstructionDataState() {
 }
 
 // processingInstructionQuestionableState is the processing instruction
-// questionable state.
+// questionable state (§13.2.5, 2025), after a '?' in the data: '>' ends
+// the PI without the '?', anything else keeps it.
 func (t *Tokenizer) processingInstructionQuestionableState() {
 	switch c := t.next(); c {
 	case '>':
@@ -801,6 +820,8 @@ func (t *Tokenizer) processingInstructionQuestionableState() {
 	}
 }
 
+// emitPI emits the processing instruction token: target in Name, data in
+// Data.
 func (t *Tokenizer) emitPI() {
 	t.emitToken(Token{Kind: ProcessingInstructionToken, Name: string(t.name), Data: string(t.data)})
 }

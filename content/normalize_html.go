@@ -301,6 +301,11 @@ func (h *htmlNorm) startTag(tag, name string, n *htmlparse.Node, id htmlparse.No
 	if tag != name {
 		attrs = append(attrs, outAttr{"data-ff-" + name, ""})
 	}
+	// PORT: names are unique (the parser keeps the first of duplicate
+	// attributes) except when a renamed element already carries the
+	// data-ff-<name> marker. That tie is ordered by Go's unstable
+	// slices.SortFunc, which is insertion sort (input order) up to 12
+	// attributes; a stable sort reproduces it for real inputs.
 	slices.SortFunc(attrs, func(a, b outAttr) int { return strings.Compare(a.name, b.name) })
 	var b strings.Builder
 	b.WriteString("<" + tag)
@@ -323,6 +328,9 @@ func (h *htmlNorm) attrValue(tag, attr, v, inputName, typ string) string {
 		h.m.hit(MaskBuildHash, v)
 		return maskPlaceholder(MaskBuildHash)
 	case attr == "class":
+		// PORT: strings.Fields splits on Unicode White_Space (NBSP and
+		// U+0085 included), not only HTML's ASCII whitespace; Rust's
+		// str::split_whitespace uses the same property.
 		cls := strings.Fields(v)
 		slices.Sort(cls)
 		return strings.Join(slices.Compact(cls), " ")

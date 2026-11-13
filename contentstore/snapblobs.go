@@ -129,7 +129,8 @@ func (s *Store) snapshotPlain(ctx context.Context, tc *tenantChunks, snap Snapsh
 }
 
 // encodeDiffBlob encodes a diff record: FFZB without a dictionary under
-// the delta codec (whole-record zstd 19), plain under the chunk codec.
+// the delta codec (the whole record as one zstd frame at chunkstore's delta
+// level, SpeedBetterCompression), plain under the chunk codec.
 // Readers tell them apart by the magic (records are JSON objects).
 func encodeDiffBlob(codec BlobCodec, b []byte) ([]byte, error) {
 	if codec == CodecChunk {

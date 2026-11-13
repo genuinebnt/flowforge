@@ -91,9 +91,11 @@ var featureAttrs = map[string]bool{
 }
 
 // IsFeaturePath reports whether a rule path addresses something a level-3
-// extractor reads: the attributes in featureAttrs (and any attribute of a
-// wildcard tag that is one of them, and event handlers, which become the
-// #handlers document), the OpenAPI "paths" subtree, or a security header.
+// extractor reads: the attributes in featureAttrs (for a "*" tag, any
+// attribute that featureAttrs lists for some tag) and on* event handlers,
+// which become the #handlers document; the OpenAPI "/paths" subtree, the
+// GraphQL introspection "/data/__schema" subtree, and the pointers "/",
+// "/*" and "/*/..." that can reach them; or a security header.
 func IsFeaturePath(p string) bool {
 	kind, rest, _ := strings.Cut(p, ":")
 	switch kind {

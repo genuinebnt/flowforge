@@ -50,10 +50,11 @@ func sameOrigin(a, b string) bool {
 // lineage key and in normalized text.
 const hashPlaceholder = "__FF_HASH__"
 
-// isHashLike reports a file-name part that a bundler generated: at least
-// 8 characters of [0-9a-z] (case-insensitive) that is all hex, or mixes
-// letters and digits (webpack [contenthash], vite base64url-ish hashes,
-// esbuild [hash]).
+// isHashLike reports a file-name part that a bundler generated: 8 to 64
+// characters of [0-9A-Za-z_-] that are all hex with at least one digit,
+// or mix letters and digits (webpack [contenthash], vite base64url-ish
+// hashes, esbuild [hash]). The placeholder itself is not hash-like, which
+// keeps masking idempotent.
 func isHashLike(s string) bool {
 	if len(s) < 8 || len(s) > 64 || s == hashPlaceholder {
 		return false

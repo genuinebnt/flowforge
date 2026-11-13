@@ -4,8 +4,10 @@ package htmlparse
 // text", "in caption", "in column group", "in table body", "in row",
 // "in cell"), including foster parenting.
 
-// clearStackBack pops until the current node is one of tags (HTML) or
-// the root.
+// clearStackBack pops until the current node is an HTML element with one
+// of tags, or the root html element: the "clear the stack back to a
+// table / table body / table row context" steps (each list includes
+// template and html).
 func (b *treeBuilder) clearStackBack(tags ...tagID) {
 	for len(b.stack) > 1 {
 		c := b.current()
@@ -34,6 +36,9 @@ func (b *treeBuilder) clearToTableRowContext() { b.clearStackBack(tagTr, tagTemp
 func (b *treeBuilder) inTableMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
+		// Text directly in a table is collected by "in table text",
+		// which decides between inserting it (all whitespace) and foster
+		// parenting it. Elsewhere it is "anything else".
 		if c := b.current(); c.ns == HTMLNamespace {
 			switch c.tag {
 			case tagTable, tagTbody, tagTemplate, tagTfoot, tagThead, tagTr:
@@ -99,6 +104,10 @@ func (b *treeBuilder) inTableMode(tok *Token) bool {
 				return false
 			}
 		case tagForm:
+			// A form in a table becomes an empty element (inserted and
+			// popped at once); its content goes elsewhere. Inside
+			// template contents it neither consults nor sets the form
+			// element pointer (template.dat, "<template><table><form>").
 			b.parseError(ErrUnexpectedStartTag)
 			parsingTemplate := b.parsingTemplateContents()
 			if b.form != None && !parsingTemplate {
@@ -138,7 +147,9 @@ func (b *treeBuilder) inTableMode(tok *Token) bool {
 }
 
 // fosterInBody processes tok with the "in body" rules with foster
-// parenting enabled.
+// parenting enabled: elements and text whose insertion location would be
+// a table, tbody, tfoot, thead or tr go before the table instead
+// (insertionLocation).
 func (b *treeBuilder) fosterInBody(tok *Token) bool {
 	b.foster = true
 	again := b.inBodyMode(tok)
@@ -147,6 +158,10 @@ func (b *treeBuilder) fosterInBody(tok *Token) bool {
 }
 
 // inTableTextMode is the "in table text" insertion mode (§13.2.6.4.10).
+// Character tokens accumulate (NULs dropped with an error); the first
+// other token flushes them, with one error and foster parenting if any
+// is not whitespace, and is reprocessed in the original mode. The
+// pending run keeps one span from its first to its last character token.
 func (b *treeBuilder) inTableTextMode(tok *Token) bool {
 	if tok.Kind == CharacterToken {
 		s := tok.Data
@@ -184,7 +199,9 @@ func (b *treeBuilder) inTableTextMode(tok *Token) bool {
 	return true
 }
 
-// inCaptionMode is the "in caption" insertion mode (§13.2.6.4.11).
+// inCaptionMode is the "in caption" insertion mode (§13.2.6.4.11). Table
+// structure tags close the caption (and are reprocessed, except
+// </caption>); everything else uses "in body".
 func (b *treeBuilder) inCaptionMode(tok *Token) bool {
 	switch {
 	case isEnd(tok, tagCaption), isEnd(tok, tagTable),
@@ -209,7 +226,8 @@ func (b *treeBuilder) inCaptionMode(tok *Token) bool {
 }
 
 // inColumnGroupMode is the "in column group" insertion mode
-// (§13.2.6.4.12).
+// (§13.2.6.4.12). Character tokens arrive as homogeneous segments, so
+// leading whitespace is inserted and the rest closes the colgroup.
 func (b *treeBuilder) inColumnGroupMode(tok *Token) bool {
 	switch tok.Kind {
 	case CharacterToken:
@@ -336,7 +354,7 @@ func (b *treeBuilder) inRowMode(tok *Token) bool {
 			return false
 		}
 		if !b.inScope(scopeTable, tagTr) {
-			return false
+			return false // no tr in table scope: ignored without an error
 		}
 		b.clearToTableRowContext()
 		b.pop()
@@ -367,7 +385,8 @@ func (b *treeBuilder) inCellMode(tok *Token) bool {
 		return false
 	case isStart(tok, tagCaption, tagCol, tagColgroup, tagTbody, tagTd, tagTfoot, tagTh, tagThead, tagTr):
 		if !b.inScope(scopeTable, tagTd, tagTh) {
-			// Not reachable per the standard's assertion; ignore.
+			// Only the fragment case gets here (a td or th context
+			// element, so no cell is on the stack): ignore the token.
 			b.parseError(ErrUnexpectedStartTag)
 			return false
 		}
@@ -387,7 +406,7 @@ func (b *treeBuilder) inCellMode(tok *Token) bool {
 	return b.inBodyMode(tok)
 }
 
-// closeCell is "close the cell".
+// closeCell is "close the cell" (§13.2.6.4.15).
 func (b *treeBuilder) closeCell() {
 	b.generateImpliedEndTags()
 	if c := b.current(); !c.is(tagTd) && !c.is(tagTh) {
