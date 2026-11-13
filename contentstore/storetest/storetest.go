@@ -268,8 +268,8 @@ func deleteCascades(t *testing.T, r contentstore.Repo) {
 		if err != nil {
 			return err
 		}
-		if len(live) != 14 || len(pinned) != 4 {
-			t.Fatalf("manifests: %d live %d pinned, want 14 and 4", len(live), len(pinned))
+		if len(live) != 16 || len(pinned) != 4 {
+			t.Fatalf("manifests: %d live %d pinned, want 16 and 4", len(live), len(pinned))
 		}
 		return tx.DeleteSnapshots(ctx, []core.UUID{a.ID})
 	})
@@ -471,13 +471,17 @@ func storeFlow(t *testing.T, r contentstore.Repo) {
 			t.Fatalf("re-ingest %s: %+v %v", v, again.Snapshot.ID, err)
 		}
 	}
-	for _, x := range res {
+	for i, x := range res {
 		got, err := s.GetSnapshot(ctx, tenantA, x.Snapshot.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
+		want := x.Snapshot
+		if i+1 < len(res) {
+			want.ValidTo = res[i+1].Snapshot.ValidFrom // closed by the next version
+		}
 		a, _ := core.CanonicalJSON(got)
-		b, _ := core.CanonicalJSON(x.Snapshot)
+		b, _ := core.CanonicalJSON(want)
 		if !bytes.Equal(a, b) {
 			t.Fatalf("stored snapshot differs from the ingest result:\n%s\n%s", a, b)
 		}
@@ -574,4 +578,18 @@ func concurrency(t *testing.T, open func(t *testing.T) contentstore.Repo) {
 		t.Fatalf("stored %d (same capture), admitted %d, refused %d, counted %d; want at most 1 store and exactly 4 counted",
 			stored, admitted, refused, q.Usage.Captures)
 	}
+}
+
+// SeedSnapshot stores one snapshot (and its program) for tenant A and
+// returns its id, for adapter-specific tests.
+func SeedSnapshot(t *testing.T, r contentstore.Repo) core.UUID {
+	t.Helper()
+	s := snap(99, "https://seed.example/", t0, true)
+	inTx(t, r, tenantA, func(tx contentstore.Tx) error {
+		if err := tx.EnsureProgram(context.Background(), programP); err != nil {
+			return err
+		}
+		return tx.InsertSnapshot(context.Background(), s)
+	})
+	return s.ID
 }

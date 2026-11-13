@@ -431,6 +431,16 @@ func Graph(env *Env, o GraphOptions) (*Component, graphstore.Store, error) {
 		store = graphstore.NewMem(cfg)
 	}
 	srv := graphsvc.NewServer(graphsvc.Options{Store: store, Bus: env.Bus, PublishInline: env.DB == nil, Logger: env.Logger, Metrics: env.Metrics, Clock: env.Clock})
+	if env.Bus != nil {
+		// Content events (V2 §6): observations and content_changed.
+		c.Run = append(c.Run, func(ctx context.Context) error {
+			if err := env.Bus.Subscribe(ctx, convert.TopicContentChanges, graphsvc.ContentConsumer, srv.HandleContentEvent); err != nil {
+				return err
+			}
+			<-ctx.Done()
+			return nil
+		})
+	}
 	an := graphsvc.NewAnalytics(store, env.Clock)
 	an.Blobs = env.Blobs
 	an.OnWriteError = func(ctx context.Context, program string, err error) {

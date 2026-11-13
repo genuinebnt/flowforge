@@ -88,6 +88,7 @@ type Config struct {
 	ToolRunnerAddr string // FF_TOOL_RUNNER_ADDR
 	NotifierAddr   string // FF_NOTIFIER_ADDR
 	SimilarityAddr string // FF_SIMILARITY_ADDR
+	ContentAddr    string // FF_CONTENT_ADDR
 
 	FuelDefault int64 // FF_FUEL_DEFAULT
 	Workers     int   // FF_ENGINE_WORKERS
@@ -109,7 +110,7 @@ func ConfigFromEnv(service string, getenv func(string) string) (Config, error) {
 		EgressProxy:         getenv("FF_EGRESS_PROXY"),
 		ScopeAddr:           getenv("FF_SCOPE_ADDR"), EngineAddr: getenv("FF_ENGINE_ADDR"), GraphAddr: getenv("FF_GRAPH_ADDR"),
 		ToolRunnerAddr: getenv("FF_TOOL_RUNNER_ADDR"), NotifierAddr: getenv("FF_NOTIFIER_ADDR"),
-		SimilarityAddr: getenv("FF_SIMILARITY_ADDR"),
+		SimilarityAddr: getenv("FF_SIMILARITY_ADDR"), ContentAddr: getenv("FF_CONTENT_ADDR"),
 	}
 	c.ListenAddr = getenv("FF_LISTEN_ADDR")
 	if c.ListenAddr == "" {

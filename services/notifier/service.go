@@ -21,8 +21,10 @@ import (
 // Consumer is the processed_events consumer name.
 const Consumer = alerts.DefaultConsumer
 
-// Topics the notifier subscribes to (spec 15.1).
-var Topics = []string{convert.TopicGraphChanges, convert.TopicRunEvents, convert.TopicApprovalEvents, convert.TopicAuthEvents}
+// Topics the notifier subscribes to (spec 15.1, plus content.changes of the
+// V2 content service).
+var Topics = []string{convert.TopicGraphChanges, convert.TopicRunEvents, convert.TopicApprovalEvents, convert.TopicAuthEvents,
+	convert.TopicContentChanges}
 
 // Options configure the notifier service.
 type Options struct {
@@ -169,12 +171,41 @@ func EventFromEnvelope(env *pb.EventEnvelope) *alerts.Event {
 			run.Status = string(engine.StatusCancelled)
 		}
 		ev.Run = run
+	case *pb.EventEnvelope_Generic:
+		// Content events (V2 §6) become a content_changed change whose patch
+		// is the event payload without the observation (the graph's copy).
+		if strings.HasPrefix(env.GetType(), "content.") {
+			pl := convert.StructToMap(p.Generic)
+			delete(pl, "observation")
+			ev.Change = &alerts.Change{ID: env.GetEventId(), Type: "content_changed", Patch: pl, At: ev.OccurredAt}
+			if rid, ok := pl["run_id"].(string); ok {
+				ev.Change.RunID = rid
+			}
+			if eid, ok := pl["entity_id"].(string); ok {
+				ev.Change.EntityID = eid
+			}
+		}
 	case *pb.EventEnvelope_ApprovalEvent:
 		a := p.ApprovalEvent
 		ev.Approval = &alerts.Approval{ID: a.GetApprovalId(), RunID: a.GetRunId(), Role: a.GetRole(), Status: a.GetStatus(),
 			Reason: a.GetReason(), ExpiresAt: convert.Time(a.GetExpiresAt())}
 	}
 	return ev
+}
+
+// contentHidden reports a content event that default alerting hides
+// (V2 §12.2, §12.3, §12.13: baselines, non-target causes, pre-existing
+// content and non-changes carry alertable=false).
+func contentHidden(env *pb.EventEnvelope) bool {
+	if !strings.HasPrefix(env.GetType(), "content.") {
+		return false
+	}
+	g, ok := env.GetPayload().(*pb.EventEnvelope_Generic)
+	if !ok {
+		return true
+	}
+	a, _ := convert.StructToMap(g.Generic)["alertable"].(bool)
+	return !a
 }
 
 // HandleEvent is the bus handler: it evaluates the tenant's rules and, in
@@ -184,6 +215,9 @@ func (s *Service) HandleEvent(ctx context.Context, env *pb.EventEnvelope) error 
 	tenant, err := convert.EnvelopeTenant(env)
 	if err != nil || env.GetEventId() == "" {
 		s.o.Logger.WarnContext(ctx, "notifier.bad_envelope", "event_id", env.GetEventId())
+		return nil
+	}
+	if contentHidden(env) {
 		return nil
 	}
 	ev := EventFromEnvelope(env)

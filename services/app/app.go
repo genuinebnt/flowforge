@@ -32,7 +32,7 @@ import (
 )
 
 // Services are the names Main accepts (the cmd/ directory names).
-var Services = []string{"scope", "engine", "tool-runner", "egress-proxy", "graph", "similarity", "notifier"}
+var Services = []string{"scope", "engine", "tool-runner", "egress-proxy", "graph", "similarity", "notifier", "content"}
 
 // Main runs service and exits the process on failure.
 func Main(service string) {
@@ -151,6 +151,13 @@ func build(ctx context.Context, cfg platform.Config, env *wire.Env, getenv func(
 		return c, err
 	case "similarity":
 		return wire.Similarity(env, wire.SimilarityOptions{GraphAddr: cfg.GraphAddr, ScopeAddr: cfg.ScopeAddr})
+	case "content":
+		o, err := wire.ContentConfigFromEnv(getenv, cfg.Env == "prod")
+		if err != nil {
+			return nil, err
+		}
+		c, _, err := wire.Content(env, o)
+		return c, err
 	case "notifier":
 		// env:// and file:// resolve locally; sm:// through Secret Manager
 		// (G-SVC-04). The SM client starts on the first sm:// lookup, so a

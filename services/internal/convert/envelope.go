@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/genuinebnt/flowforge/contentstore"
 	"github.com/genuinebnt/flowforge/core"
 	"github.com/genuinebnt/flowforge/engine"
 	pb "github.com/genuinebnt/flowforge/gen/flowforge/v1"
@@ -18,6 +19,10 @@ const (
 	TopicGraphChanges   = "graph.changes"
 	TopicScopeEvents    = "scope.events"
 	TopicAuthEvents     = "auth.events"
+	// TopicContentChanges carries content events (V2 design §6; producer
+	// the content service, ordering key program_id, consumers graph and
+	// notifier).
+	TopicContentChanges = contentstore.TopicContentChanges
 )
 
 func parseAnyTime(s string) (time.Time, error) { return core.ParseTime(s) }

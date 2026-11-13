@@ -31,8 +31,8 @@ func flowforgeFiles(t *testing.T) []protoreflect.FileDescriptor {
 		}
 		return true
 	})
-	if len(files) != 9 {
-		t.Fatalf("found %d flowforge proto files, want 9", len(files))
+	if len(files) != 10 {
+		t.Fatalf("found %d flowforge proto files, want 10", len(files))
 	}
 	return files
 }
@@ -112,6 +112,12 @@ func TestContract_ServiceRPCs(t *testing.T) {
 		"flowforge.v1.NotifierService": {
 			"PutRule": unary, "GetRule": unary, "ListRules": unary, "DeleteRule": unary, "TestRule": unary,
 			"PutChannel": unary, "ListChannels": unary, "ListAlertEvents": unary,
+		},
+		// V2 design §6-§8 (not in the v1 spec text).
+		"flowforge.v1.ContentService": {
+			"IngestCapture": unary, "GetSnapshot": unary, "ListSnapshots": unary, "DiffSnapshots": unary,
+			"SearchChanges": unary, "FirstAppeared": unary, "PinSnapshot": unary, "UnpinSnapshot": unary,
+			"GetQuotaStatus": unary,
 		},
 		"flowforge.graph.v1.GraphAnalytics": {
 			"RunAnalysis": unary, "GetSnapshotInfo": unary,

@@ -1,0 +1,127 @@
+// V2 design §6-§8, §11 items 13, 14, 18: the content service. It stores
+// captures as versioned snapshots (contentstore), diffs them, keeps
+// secrets encrypted, enforces per-tenant quotas and serves change search.
+// Tenant and actor travel in metadata (spec 11.1), never in messages.
+syntax = "proto3";
+
+package flowforge.v1;
+
+import "flowforge/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/genuinebnt/flowforge/gen/flowforge/v1;flowforgev1";
+
+service ContentService {
+  rpc IngestCapture(IngestCaptureRequest) returns (IngestCaptureResponse);   // idempotent per capture
+  rpc GetSnapshot(GetSnapshotRequest) returns (ContentSnapshot);
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse);
+  rpc DiffSnapshots(DiffSnapshotsRequest) returns (SnapshotDiff);
+  rpc SearchChanges(SearchChangesRequest) returns (SearchChangesResponse);
+  rpc FirstAppeared(FirstAppearedRequest) returns (FirstAppearedResponse);
+  rpc PinSnapshot(PinSnapshotRequest) returns (ContentSnapshot);
+  rpc UnpinSnapshot(UnpinSnapshotRequest) returns (ContentSnapshot);
+  rpc GetQuotaStatus(GetQuotaStatusRequest) returns (QuotaStatus);
+}
+
+message HttpHeader { string name = 1; string value = 2; }
+message RedirectHop { string url = 1; int32 status = 2; repeated HttpHeader headers = 3; }
+// V2 §5 capture profile; credential headers (authorization, cookie) are refused.
+message CaptureProfile {
+  string name = 1; string method = 2; repeated HttpHeader headers = 3; string user_agent = 4; string cookie_jar_ref = 5;
+  bool follow_redirects = 6; string accept = 7;
+}
+// One fetched response as the collector saw it. outcome: complete | partial | failed | degraded.
+message Capture {
+  string url = 1; CaptureProfile profile = 2; int32 status = 3; repeated HttpHeader headers = 4; bytes body = 5;
+  google.protobuf.Timestamp fetched_at = 6; repeated RedirectHop redirect_chain = 7; bool truncated = 8; string outcome = 9;
+}
+
+message IngestCaptureRequest {
+  string program_id = 1; string run_id = 2; string effect_path = 3;
+  string entity_id = 4;  // the graph entity of the URL, when known
+  string page_url = 5;   // the page that loaded this script or style (lineage candidates)
+  Capture capture = 6;
+}
+message IngestCaptureResponse {
+  ContentSnapshot snapshot = 1;
+  string diff_id = 2;                 // the stored diff into snapshot ("" when none)
+  bool duplicate = 3;                 // the exact capture was already stored
+  bool unchanged = 4;                 // an unchanged re-fetch: last_seen moved, no new snapshot
+  ChangeSummary change = 5;           // absent for duplicates and unchanged re-fetches
+  string lineage_parent_url = 6;      // the predecessor of a renamed script
+  string event_id = 7;                // the content.changes event published for the graph and alerts
+}
+
+message ContentScoreFeature { string name = 1; double weight = 2; }
+message FeatureChangeRef { string op = 1; string kind = 2; string key = 3; string newness = 4; string value = 5; }
+// The classification of a change set (V2 §5, §12.2-§12.4, §12.13).
+message ChangeSummary {
+  string outcome = 1;                 // no_change | normalized_equal | masked_only | reordered | structural | changed | degraded
+  repeated string levels = 2;         // hash | text | semantic
+  string class = 3; string newness = 4; string cause = 5; bool baseline = 6;
+  double score = 7; repeated ContentScoreFeature score_features = 8;
+  repeated FeatureChangeRef changes = 9;
+  map<string, int32> summary = 10;
+  bool alertable = 11;
+}
+
+message SecretFindingInfo { string rule_id = 1; string preview = 2; string keyed_hash = 3; }
+message ContentSnapshot {
+  string id = 1; string program_id = 2; string entity_id = 3; string url = 4; string url_template = 5; string profile = 6;
+  string run_id = 7; string effect_path = 8;
+  google.protobuf.Timestamp fetched_at = 9; google.protobuf.Timestamp last_seen = 10;
+  google.protobuf.Timestamp valid_from = 11; google.protobuf.Timestamp valid_to = 12;  // valid_to unset: the open version
+  int32 status = 13; string mime = 14; string kind = 15; string body_sha256 = 16; int64 raw_size = 17; int64 stored_size = 18;
+  string normalizer_version = 19; string parent_id = 20; string lineage_parent_id = 21; string outcome = 22;
+  string coverage = 23; bool degraded = 24; bool pinned = 25; string pin_reason = 26;
+  google.protobuf.Timestamp created_at = 27;
+  // Content, when requested. body is redacted unless body_raw.
+  bytes body = 30; bool body_raw = 31; string normalized = 32; repeated HttpHeader headers = 33;
+  repeated RedirectHop redirect_chain = 34;
+  string features_json = 35;          // the processed capture's features (canonical JSON)
+  repeated SecretFindingInfo findings = 36;
+}
+
+message GetSnapshotRequest {
+  string snapshot_id = 1; bool include_body = 2; bool include_normalized = 3; bool include_features = 4;
+  bool raw = 5;                       // restore redacted secrets (owner and admin only)
+}
+message ListSnapshotsRequest { string program_id = 1; string url = 2; string profile = 3; bool open_only = 4; PageRequest page = 5; }
+message ListSnapshotsResponse { repeated ContentSnapshot snapshots = 1; PageResponse page = 2; }
+
+enum DiffFormat { DIFF_FORMAT_UNSPECIFIED = 0; DIFF_FORMAT_UNIFIED = 1; DIFF_FORMAT_SIDE_BY_SIDE = 2; DIFF_FORMAT_BOTH = 3; }
+message DiffSnapshotsRequest {
+  string from_snapshot_id = 1;        // empty: the stored predecessor of to (parent or lineage), or the baseline
+  string to_snapshot_id = 2;
+  DiffFormat format = 3;              // unspecified: both
+}
+message ArtifactDiffView {
+  string doc_id = 1; string kind = 2; string outcome = 3; repeated string levels = 4; string algorithm = 5;
+  string bound_level = 6; string fallback = 7; int32 inserted = 8; int32 deleted = 9;
+  string unified = 10;                // unified hunks ("@@ ... @@" headers and +/-/space lines)
+  string side_by_side_json = 11;      // diff.SideBySide JSON
+  repeated FeatureChangeRef feature_changes = 12;
+}
+message SnapshotDiff {
+  string from_snapshot_id = 1; string to_snapshot_id = 2; string diff_id = 3; ChangeSummary change = 4;
+  repeated ArtifactDiffView artifacts = 5;
+}
+
+message SearchChangesRequest { string program_id = 1; string query = 2; int32 limit = 3; bool include_vendor = 4; }
+message ChangeHit {
+  double score = 1; google.protobuf.Timestamp at = 2; string diff_id = 3; string snapshot_id = 4; string from_snapshot_id = 5;
+  string url = 6; string doc = 7; string header = 8; string kind = 9; string side = 10; string feature = 11; string mime = 12;
+  string url_template = 13; string class = 14; string newness = 15; string cause = 16; bool vendor = 17; string text = 18;
+  string decoded_from = 19;
+}
+message SearchChangesResponse { repeated ChangeHit hits = 1; int32 total = 2; }
+message FirstAppearedRequest { string program_id = 1; string text = 2; bool include_vendor = 3; }
+message FirstAppearedResponse { bool found = 1; ChangeHit hit = 2; }
+
+message PinSnapshotRequest { string snapshot_id = 1; string reason = 2; }
+message UnpinSnapshotRequest { string snapshot_id = 1; }
+message GetQuotaStatusRequest {}
+message QuotaStatus {
+  int64 captures_per_day = 1; int64 stored_bytes_limit = 2; int64 index_bytes_limit = 3;  // 0: unlimited
+  string day = 4; int64 captures_today = 5; int64 stored_bytes = 6; int64 index_bytes = 7;
+}

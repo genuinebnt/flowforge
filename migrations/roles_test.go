@@ -125,6 +125,7 @@ func TestRegress_G_OPS_01_ServiceRoleGrants(t *testing.T) {
 		{"ff_graph", tenantA, `SELECT count(*) FROM graph.entities`, `SELECT 1 FROM scope.programs`},
 		{"ff_notifier", "", `SELECT count(*) FROM notifier.channels`, `SELECT 1 FROM engine.workflows`},
 		{"ff_similarity", "", `SELECT 1`, `SELECT 1 FROM graph.entities`},
+		{"ff_content", tenantA, `SELECT count(*) FROM content.snapshots`, `SELECT 1 FROM graph.entities`},
 		{"ff_maintenance", "", `SELECT (SELECT count(*) FROM engine.runs) + (SELECT count(*) FROM scope.programs)`, `SELECT 1 FROM public.schema_migrations`},
 	}
 	for _, c := range cases {
@@ -234,7 +235,7 @@ func TestRegress_G_OPS_02_ForcedRowLevelSecurity(t *testing.T) {
 		rows, err := conn.Query(ctx, `SELECT c.oid::regclass::text FROM pg_class c
 			JOIN pg_namespace n ON n.oid = c.relnamespace
 			JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id'
-			WHERE n.nspname IN ('identity','scope','engine','graph','notifier') AND c.relkind IN ('r','p')
+			WHERE n.nspname IN ('identity','scope','engine','graph','notifier','content') AND c.relkind IN ('r','p')
 			  AND NOT (c.relrowsecurity AND c.relforcerowsecurity
 			           AND EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid AND p.polname = 'tenant_isolation'))`)
 		if err != nil {
@@ -251,7 +252,8 @@ func TestRegress_G_OPS_02_ForcedRowLevelSecurity(t *testing.T) {
 		// groups (0015), throttle and digest state and schedules (0017),
 		// pending references (0018).
 		for _, rel := range []string{"identity.role_groups", "identity.role_group_members", "notifier.throttle_windows",
-			"engine.schedules", "engine.run_archives", "graph.pending_observations"} {
+			"engine.schedules", "engine.run_archives", "graph.pending_observations", "content.snapshots", "content.diffs",
+			"content.findings", "content.data_keys", "content.quota_usage"} {
 			var forced bool
 			if err := conn.QueryRow(ctx, `SELECT relforcerowsecurity FROM pg_class WHERE oid = to_regclass($1)`, rel).Scan(&forced); err != nil || !forced {
 				t.Errorf("%s: forced RLS %v (%v)", rel, forced, err)
@@ -344,6 +346,29 @@ func TestRegress_G_OPS_02_ForcedRowLevelSecurity(t *testing.T) {
 		asRole(t, ctx, conn, "ff_graph", "", func(tx pgx.Tx) {
 			if n := count(t, ctx, tx, `SELECT count(*) FROM graph.entities`); n != 0 {
 				t.Errorf("ff_graph without a tenant sees %d entities", n)
+			}
+		})
+		// ff_content is subject to RLS on every content table; only
+		// content.programs (tenant enumeration) is cross-tenant.
+		for _, q := range []string{
+			`INSERT INTO content.programs (tenant_id, program_id) VALUES ('` + tenantA + `', gen_random_uuid()), ('` + tenantB + `', gen_random_uuid())`,
+			`INSERT INTO content.quota_usage (tenant_id) VALUES ('` + tenantA + `'), ('` + tenantB + `')`,
+		} {
+			if _, err := conn.Exec(ctx, q); err != nil {
+				t.Fatal(err)
+			}
+		}
+		asRole(t, ctx, conn, "ff_content", "", func(tx pgx.Tx) {
+			if n := count(t, ctx, tx, `SELECT count(*) FROM content.quota_usage`); n != 0 {
+				t.Errorf("ff_content without a tenant sees %d usage rows", n)
+			}
+			if n := count(t, ctx, tx, `SELECT count(DISTINCT tenant_id) FROM content.programs`); n != 2 {
+				t.Errorf("ff_content sees %d tenants in content.programs, want 2", n)
+			}
+		})
+		asRole(t, ctx, conn, "ff_content", tenantA, func(tx pgx.Tx) {
+			if n := count(t, ctx, tx, `SELECT count(*) FROM content.quota_usage`); n != 1 {
+				t.Errorf("ff_content with tenant A sees %d usage rows, want 1", n)
 			}
 		})
 		var n int

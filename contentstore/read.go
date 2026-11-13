@@ -312,3 +312,17 @@ type ArtifactHunks struct {
 	Hunks  []content.Hunk
 	Vendor bool
 }
+
+// Programs lists the tenant's programs with content.
+func (s *Store) Programs(ctx context.Context, tenant core.UUID) ([]core.UUID, error) {
+	var out []core.UUID
+	err := s.cfg.Repo.InTx(ctx, tenant, func(tx Tx) error {
+		var err error
+		out, err = tx.Programs(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, internal("programs", err)
+	}
+	return out, nil
+}

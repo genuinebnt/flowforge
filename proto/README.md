@@ -14,6 +14,7 @@ transcribed from `docs/spec.txt`, and the generated Go code in `gen/`.
 | `flowforge/v1/graph.proto` | `flowforge.v1` | same | 11.6 (1866-1934) |
 | `flowforge/v1/notifier.proto` | `flowforge.v1` | same | 11.7 (1936-1981) |
 | `flowforge/v1/events.proto` | `flowforge.v1` | same | 11.7 (1983-2002) |
+| `flowforge/v1/content.proto` | `flowforge.v1` | same | V2 design §6-§8 (ContentService; not in the v1 spec text) |
 | `flowforge/graph/v1/analytics.proto` | `flowforge.graph.v1` | `github.com/genuinebnt/flowforge/gen/flowforge/graph/v1` (`graphv1`) | 21.6 (3040-3087) |
 | `flowforge/similarity/v1/similarity.proto` | `flowforge.similarity.v1` | `github.com/genuinebnt/flowforge/gen/flowforge/similarity/v1` (`similarityv1`) | 22.9 (3253-3306) |
 
