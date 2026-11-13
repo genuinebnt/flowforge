@@ -238,7 +238,8 @@ deployment, calibration, drift), not model building for its own sake.
   records what could not be checked.
 * **Chains** are named graph queries that raise priority only. Example:
   new endpoint + missing auth header + an admin word list hit.
-* **Library and advisory matching:**
+* **Library and advisory matching** (**deferred** by D4; the parts above
+  ship without it):
   * Library identification from `includes_library` and module hashes
     (v2 level 2.5).
   * Advisory sources: Retire.js data, OSV, CISA KEV and EPSS.
@@ -317,16 +318,17 @@ and roll into v3 unless pulled forward:
 Carry-overs (T10) are interleaved as capacity allows. A1 (sandbox) should
 come before any tier-1 detection probes ship.
 
-## Decisions needed
+## Decisions
 
-* **DNS and TLS activity class** (V2_DESIGN §12, open decision).
-  Sentinel treats them as active; Flowforge treats public-resolver DNS as
-  passive.
-* **Advisory data sources and licences** for T7 (Retire.js, OSV, KEV,
-  EPSS). Which ones, and through which allowed hosts?
-* **Third-party model use** for T9. Default is none unless a tenant opts
-  in.
-* **Rust port timing.** Sentinel is already Rust and parses JS and TS;
-  the Flowforge Rust port could share parser crates (or adopt oxc)
-  instead of porting `jsparse`. Decide before T1 TypeScript starts, since
-  it changes whether we build a TS parser in Go at all.
+* **D3, decided:** DNS and TLS handshakes are passive (V2_DESIGN §12).
+* **D4, decided:** vulnerability advisory sources (Retire.js, OSV, KEV,
+  EPSS) are deferred. T7 ships the detection tiers, the coverage ledger
+  with canaries, chains and library identification, but no advisory
+  feeds. Revisit with a choice of sources, licences and allowed hosts.
+* **D5, decided:** the TypeScript and JSX parsers are built in Go in
+  `jsparse` (T1), and the Rust port translates them from the Go code
+  rather than adopting oxc or Sentinel's parsers. The project is for
+  learning, so the parsers are part of the point. oxc and swc remain
+  design references and test oracles.
+* **Open:** third-party model use for T9 (default none unless a tenant
+  opts in).

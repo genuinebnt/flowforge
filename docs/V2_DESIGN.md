@@ -460,7 +460,7 @@ locally). Only the redacted preview and keyed hash are searchable.
 | `asn` | `(IpAddress) -> Option<Asn>` | passive | AutonomousSystem, Netblock, `announces` / `contains` edges |
 | `dnsresolve` (extended) | `(Fqdn) -> List<IpAddress>` | passive | adds CNAME, MX, NS, TXT records (DNSRecordProperty for TXT) |
 | `portscan` | `(InScope<Host>, List<Int>) -> List<Int>` | active | Service + `port` PortRelation (supersedes `tcpconnect`, kept as an alias) |
-| `tlscert` | `(InScope<Host>, Int) -> Option<TlsCertificate>` | active | TLSCertificate, `certificate` edge, `common_name` / `san_dns_name` edges |
+| `tlscert` | `(InScope<Host>, Int) -> Option<TlsCertificate>` | passive (D3) | TLSCertificate, `certificate` edge, `common_name` / `san_dns_name` edges |
 | `httpprobe` | unchanged | active | unchanged |
 
 `Snapshot`, `Features`, `ChangeSet` and `ChangeHit` are standard-library
@@ -653,12 +653,12 @@ sections, this section wins. Source references are to
     * hybrid mode ships only if it is at least as good as BM25 on recall@k
       and MRR over a labelled set of change queries.
 
-**Open decision for the operator.** Sentinel classifies DNS lookups and TLS
-handshakes as active (they touch target-controlled infrastructure).
-Flowforge v1 classifies `dnsresolve` as passive. This brief keeps DNS
-through public resolvers as passive and direct-to-authoritative DNS and
-TLS handshakes as active, as spec 6.4 does. Decide explicitly before v2
-ships.
+**Decided (D3).** DNS resolution (public resolvers or directly to
+authoritative servers) and TLS handshakes for certificate collection are
+**passive**. They still require a scope check: the class is passive, the
+decision is recorded and IPs are pinned. Passive only changes which
+windows and program classes allow them. `portscan` and anything that
+sends application payloads stay active.
 
 Not in this brief (remain in `docs/ROADMAP_V2.md`): the A1 sandbox runtime
 (the egress features above are what it will rely on), supply-chain signing
