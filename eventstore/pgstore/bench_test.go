@@ -1,10 +1,14 @@
 package pgstore_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/genuinebnt/flowforge/eventstore"
 	"github.com/genuinebnt/flowforge/eventstore/storetest"
+	"github.com/genuinebnt/flowforge/testkit"
 )
 
 // BenchmarkES01_Append is b_es_01 for Postgres (skipped without
@@ -28,6 +32,38 @@ func BenchmarkES02_LeaseClaim(b *testing.B) {
 	for _, workers := range []int{1, 16, 64} {
 		b.Run(fmt.Sprintf("runs=10000/workers=%d", workers), func(b *testing.B) {
 			storetest.BenchLeaseClaim(b, pgHarness(b), 10_000, workers)
+		})
+	}
+}
+
+// memHarness is the MemStore harness of package eventstore's tests.
+func memHarness() *storetest.Harness {
+	clk := testkit.NewFakeClock(time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC))
+	clk.SetMonotonic(time.Hour)
+	return &storetest.Harness{Store: eventstore.NewMemStore(clk),
+		Now:    func(context.Context) (time.Time, error) { return clk.Now(), nil },
+		Elapse: func(_ context.Context, d time.Duration) error { clk.Advance(d); return nil }}
+}
+
+// BenchmarkESAlgo compares the EventStore implementations (one decision
+// point: where run logs live, spec 23.1) on the b_es_01 and b_es_02
+// workloads; both pass the same conformance suite (storetest.Run in
+// TestES007_AllImplementations and package eventstore). pg needs
+// FF_TEST_PG_DSN:
+//
+//	go test -run '^$' -bench ESAlgo ./eventstore/pgstore
+func BenchmarkESAlgo(b *testing.B) {
+	stores := []struct {
+		name string
+		h    func(b *testing.B) *storetest.Harness
+	}{
+		{"mem", func(*testing.B) *storetest.Harness { return memHarness() }},
+		{"pg", func(b *testing.B) *storetest.Harness { return pgHarness(b) }},
+	}
+	for _, s := range stores {
+		b.Run(s.name+"/append/runs=16/batch=10", func(b *testing.B) { storetest.BenchAppend(b, s.h(b), 16, 10) })
+		b.Run(s.name+"/lease_claim/runs=10000/workers=16", func(b *testing.B) {
+			storetest.BenchLeaseClaim(b, s.h(b), 10_000, 16)
 		})
 	}
 }

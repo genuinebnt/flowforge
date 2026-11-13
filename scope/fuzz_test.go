@@ -50,7 +50,7 @@ func FuzzScopeNormalize(f *testing.F) {
 	if err != nil {
 		f.Fatal(err)
 	}
-	linear, err := Compile(doc, WithResolver(hashResolver{}), withLinearMatcher())
+	linear, err := Compile(doc, WithResolver(hashResolver{}), WithMatcher(MatcherLinear))
 	if err != nil {
 		f.Fatal(err)
 	}

@@ -2,7 +2,6 @@ package csr
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,78 +53,10 @@ func BenchmarkCSR01_Build(b *testing.B) {
 	}
 }
 
-// mapAdjacency is the hash-map adjacency list baseline of b_csr_02.
-type mapAdjacency struct {
-	n        int
-	out, in  map[uint32][]uint32
-	outDeg   map[uint32]int
-	outEdges int
-}
-
-func toMapAdjacency(g *Graph) *mapAdjacency {
-	m := &mapAdjacency{n: g.NumNodes(), out: map[uint32][]uint32{}, in: map[uint32][]uint32{}, outDeg: map[uint32]int{}}
-	for _, e := range g.Edges() {
-		m.out[e.Src] = append(m.out[e.Src], e.Dst)
-		m.in[e.Dst] = append(m.in[e.Dst], e.Src)
-		m.outDeg[e.Src]++
-	}
-	return m
-}
-
-func (m *mapAdjacency) bfs(start uint32) int {
-	seen := map[uint32]bool{start: true}
-	q := []uint32{start}
-	for i := 0; i < len(q); i++ {
-		for _, w := range m.out[q[i]] {
-			if !seen[w] {
-				seen[w] = true
-				q = append(q, w)
-			}
-		}
-	}
-	return len(q)
-}
-
-func (m *mapAdjacency) pageRank(d, tol float64, maxIt int) []float64 {
-	n := float64(m.n)
-	rank := map[uint32]float64{}
-	for v := range m.n {
-		rank[uint32(v)] = 1 / n
-	}
-	for range maxIt {
-		dangling := 0.0
-		for v := range m.n {
-			if m.outDeg[uint32(v)] == 0 {
-				dangling += rank[uint32(v)]
-			}
-		}
-		next := make(map[uint32]float64, m.n)
-		delta := 0.0
-		for v := range m.n {
-			s := 0.0
-			for _, u := range m.in[uint32(v)] {
-				s += rank[u] / float64(m.outDeg[u])
-			}
-			x := (1-d)/n + d*(s+dangling/n)
-			next[uint32(v)] = x
-			delta += math.Abs(x - rank[uint32(v)])
-		}
-		rank = next
-		if delta < tol {
-			break
-		}
-	}
-	out := make([]float64, m.n)
-	for v, x := range rank {
-		out[v] = x
-	}
-	return out
-}
-
 func BenchmarkCSR02_Algorithms(b *testing.B) {
 	const v = 100_000
 	g := benchGraph(b, v)
-	adj := toMapAdjacency(g)
+	adj := NewAdjacencyList(g)
 	b.Run("BFS/csr", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
@@ -137,7 +68,7 @@ func BenchmarkCSR02_Algorithms(b *testing.B) {
 	b.Run("BFS/hashmap", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			adj.bfs(0)
+			_, _ = adj.Reach(0)
 		}
 	})
 	b.Run("PageRank/csr", func(b *testing.B) {
@@ -157,7 +88,7 @@ func BenchmarkCSR02_Algorithms(b *testing.B) {
 	b.Run("PageRank/hashmap", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			adj.pageRank(DefaultDamping, DefaultTolerance, DefaultMaxIterations)
+			_, _ = adj.PageRank(PageRankOptions{})
 		}
 	})
 	b.Run("SCC/csr", func(b *testing.B) {
@@ -207,5 +138,40 @@ func BenchmarkCSR03_ColdOpen(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+// BenchmarkCSRAlgo compares the selectable Representations (one decision
+// point: the analytics layout, spec 21.2) on whole-graph BFS reachability
+// and PageRank at 10,000 and 100,000 nodes (E = 10V, skewed degrees):
+//
+//	go test -run '^$' -bench CSRAlgo ./csr
+func BenchmarkCSRAlgo(b *testing.B) {
+	for _, v := range []int{10_000, 100_000} {
+		g := benchGraph(b, v)
+		adj := NewAdjacencyList(g)
+		algos := map[Representation]map[string]func() error{
+			ReprCSR: {
+				"bfs":      func() error { _, err := BFS(g, 0, BFSOptions{MaxDepth: -1, Direction: DirOut}); return err },
+				"pagerank": func() error { _, err := PageRank(g, PageRankOptions{Workers: 1}); return err },
+			},
+			ReprAdjacencyList: {
+				"bfs":      func() error { _, err := adj.Reach(0); return err },
+				"pagerank": func() error { _, err := adj.PageRank(PageRankOptions{}); return err },
+			},
+		}
+		for _, r := range Representations() {
+			for _, algo := range []string{"bfs", "pagerank"} {
+				run := algos[r][algo]
+				b.Run(fmt.Sprintf("%s/%s/V=%d", r, algo, v), func(b *testing.B) {
+					b.ReportAllocs()
+					for b.Loop() {
+						if err := run(); err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
+			}
+		}
 	}
 }

@@ -132,7 +132,7 @@ func runDecideCases(t *testing.T, sel func(string) bool) int {
 		if err != nil {
 			t.Fatalf("%s: compile: %v", f.Name, err)
 		}
-		linear, err := Compile(file.Scope, WithResolver(res), withLinearMatcher())
+		linear, err := Compile(file.Scope, WithResolver(res), WithMatcher(MatcherLinear))
 		if err != nil {
 			t.Fatalf("%s: compile linear: %v", f.Name, err)
 		}

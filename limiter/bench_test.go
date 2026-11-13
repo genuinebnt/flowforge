@@ -1,6 +1,8 @@
 package limiter
 
 import (
+	"errors"
+	"slices"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -108,6 +110,79 @@ func BenchmarkLim02_Contention(b *testing.B) {
 					}
 				})
 			})
+		}
+	}
+}
+
+// TestLimAlgo_AllCandidatesTested keeps the constructor table of the
+// conformance and property tests (allVariants) equal to Algorithms(), so
+// every selectable candidate runs the same suites.
+func TestLimAlgo_AllCandidatesTested(t *testing.T) {
+	var tested []string
+	for _, v := range allVariants() {
+		tested = append(tested, v.name)
+	}
+	for _, a := range Algorithms() {
+		if !slices.Contains(tested, string(a)) {
+			t.Errorf("algorithm %s is selectable but not in allVariants", a)
+		}
+		if _, err := New(a, all(benchParams)); err != nil {
+			t.Errorf("New(%s): %v", a, err)
+		}
+	}
+	if len(tested) != len(Algorithms()) {
+		t.Errorf("allVariants %v vs Algorithms %v", tested, Algorithms())
+	}
+	if _, err := New("nope"); !errors.Is(err, ErrUnknownAlgorithm) {
+		t.Errorf("New(nope): %v", err)
+	}
+}
+
+// BenchmarkLimAlgo compares every Algorithm (one decision point: the keyed
+// limiter of spec 14.2) on one key and on 1,000 keys, sequentially (the
+// uncontended check cost of b_lim_01) and with parallel callers (the
+// contention of b_lim_02):
+//
+//	go test -run '^$' -bench LimAlgo ./limiter
+func BenchmarkLimAlgo(b *testing.B) {
+	for _, a := range Algorithms() {
+		for _, nkeys := range []int{1, 1000} {
+			keys := make([]string, nkeys)
+			for i := range keys {
+				keys[i] = "rl:h:prg_1:host" + strconv.Itoa(i) + ".example"
+			}
+			for _, mode := range []string{"serial", "parallel"} {
+				b.Run(string(a)+"/keys="+strconv.Itoa(nkeys)+"/"+mode, func(b *testing.B) {
+					l, err := New(a, all(benchParams))
+					if err != nil {
+						b.Fatal(err)
+					}
+					for _, k := range keys {
+						l.Acquire(k, 1, 0)
+					}
+					b.ReportAllocs()
+					b.ResetTimer()
+					if mode == "serial" {
+						now, i := time.Duration(0), 0
+						for b.Loop() {
+							i++
+							now += time.Microsecond
+							l.Acquire(keys[i%nkeys], 1, now)
+						}
+						return
+					}
+					var seed atomic.Int64
+					b.RunParallel(func(pb *testing.PB) {
+						i := int(seed.Add(7919))
+						now := time.Duration(0)
+						for pb.Next() {
+							i++
+							now += time.Microsecond
+							l.Acquire(keys[i%nkeys], 1, now)
+						}
+					})
+				})
+			}
 		}
 	}
 }
