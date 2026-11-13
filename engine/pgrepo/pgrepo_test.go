@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,22 +94,38 @@ type pgEnv struct {
 // pgHarness empties the engine tables and returns a harness on pgstore and
 // pgrepo.
 func pgHarness(t *testing.T, start time.Time) (*enginetest.Harness, pgEnv) {
+	return pgHarnessAs(t, start, "")
+}
+
+// pgHarnessAs is pgHarness with the repository and store connecting as
+// role (empty: the test DSN's superuser); the tables are emptied as the
+// superuser.
+func pgHarnessAs(t *testing.T, start time.Time, role string) (*enginetest.Harness, pgEnv) {
 	t.Helper()
 	if testDSN == "" {
 		t.Skip("FF_TEST_PG_DSN not set")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, testDSN)
+	dsn := testDSN
+	if role != "" {
+		dsn = withRole(testDSN, role)
+	}
+	admin, err := pgxpool.New(ctx, testDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(admin.Close)
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	if _, err := pool.Exec(ctx, `TRUNCATE engine.run_requests, engine.run_ext, engine.approval_ext, engine.workflow_version_ext,
+	if _, err := admin.Exec(ctx, `TRUNCATE engine.run_requests, engine.run_ext, engine.approval_ext, engine.workflow_version_ext,
   engine.runs, engine.run_events, engine.snapshots, engine.effects, engine.timers, engine.approvals, engine.outbox,
   engine.workflow_versions, engine.workflows, engine.tools CASCADE`); err != nil {
 		t.Fatal(err)
 	}
-	store, err := pgstore.Open(ctx, pgstore.Config{DSN: testDSN, MaxConns: 16, PollInterval: 20 * time.Millisecond})
+	store, err := pgstore.Open(ctx, pgstore.Config{DSN: dsn, MaxConns: 16, PollInterval: 20 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,6 +138,54 @@ func pgHarness(t *testing.T, start time.Time) (*enginetest.Harness, pgEnv) {
 		h.Publisher = pgrepo.NewOutbox(pool)
 	})
 	return h, pgEnv{pool: pool, store: store}
+}
+
+// withRole makes every connection of dsn run as role (the "role" startup
+// parameter is SET ROLE at connect time).
+func withRole(dsn, role string) string {
+	if u, err := url.Parse(dsn); err == nil && (u.Scheme == "postgres" || u.Scheme == "postgresql") {
+		q := u.Query()
+		q.Set("options", "-c role="+role)
+		u.RawQuery = strings.ReplaceAll(q.Encode(), "+", "%20") // libpq wants %20
+		return u.String()
+	}
+	return dsn + " options='-c role=" + role + "'"
+}
+
+// TestRegress_G_OPS_01_EngineAsServiceRole runs the engine on Postgres as
+// ff_engine, the service role of migration 0018 (own schema only, no
+// CREATE, row-level security forced): EnsureSchema must not need CREATE
+// once migration 0013 has run, and a run spanning submit, the scheduler's
+// claim, effects and approvals completes.
+func TestRegress_G_OPS_01_EngineAsServiceRole(t *testing.T) {
+	h, env := pgHarnessAs(t, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), "ff_engine")
+	var user string
+	if err := env.pool.QueryRow(h.Ctx(), `SELECT current_user`).Scan(&user); err != nil || user != "ff_engine" {
+		t.Fatalf("connected as %q (%v), want ff_engine", user, err)
+	}
+	if err := pgrepo.EnsureSchema(h.Ctx(), env.pool); err != nil {
+		t.Fatalf("EnsureSchema as ff_engine: %v", err)
+	}
+	h.Exec.Handle("post", enginetest.Output("id-0"))
+	h.Exec.Handle("block", enginetest.Echo())
+	c := enginetest.Analyst(enginetest.TenantA)
+	h.Register(c, "saga", enginetest.Saga(enginetest.SagaOptions{Approval: true, Steps: 1}), core.Nil)
+	r := h.Submit(c, "saga", core.Nil, map[string]any{"amount": 5}, "k")
+	w := h.Engine.NewWorker("w")
+	if _, err := w.RunOnce(h.Ctx()); err != nil {
+		t.Fatal(err)
+	}
+	approver := enginetest.Approver(enginetest.TenantA)
+	as, _, err := h.Engine.ListApprovals(h.Ctx(), approver, engine.ApprovalFilter{Status: engine.ApprovalPending}, engine.Page{})
+	if err != nil || len(as) != 1 {
+		t.Fatalf("approvals %v %v", as, err)
+	}
+	if _, err := h.Engine.DecideApproval(h.Ctx(), approver, as[0].ID, engine.DecisionApprove, "ok"); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := drive(t, h, w, r.ID, false); st != engine.StatusSucceeded {
+		t.Fatalf("status %s", st)
+	}
 }
 
 func TestEng001_HappyPathPostgres(t *testing.T) {

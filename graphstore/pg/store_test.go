@@ -88,7 +88,11 @@ func template(t testing.TB) string {
 }
 
 // freshPool returns a pool on a new clone of the migrated template.
-func freshPool(t testing.TB) (*pgxpool.Pool, string) {
+func freshPool(t testing.TB) (*pgxpool.Pool, string) { return freshPoolAs(t, "") }
+
+// freshPoolAs is freshPool with every connection running as role (empty:
+// the DSN's superuser), through the "role" startup parameter.
+func freshPoolAs(t testing.TB, role string) (*pgxpool.Pool, string) {
 	t.Helper()
 	tmpl := template(t)
 	ctx := context.Background()
@@ -105,6 +109,9 @@ func freshPool(t testing.TB) (*pgxpool.Pool, string) {
 		t.Fatal(err)
 	}
 	cfg.ConnConfig.Database = name
+	if role != "" {
+		cfg.ConnConfig.RuntimeParams["role"] = role
+	}
 	cfg.MaxConns = 16
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
@@ -263,6 +270,11 @@ func TestGraphPG_RowLevelSecurity(t *testing.T) {
 // publish marks nothing (at least once, never lost).
 func TestGraphPG_Relay(t *testing.T) {
 	pool, _ := freshPool(t)
+	checkRelay(t, pool)
+}
+
+func checkRelay(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
 	ctx := context.Background()
 	s := pg.New(pool, pg.Config{})
 	tenant, prog := storetest.TenantID("relay"), storetest.ProgramID("relay")
@@ -304,6 +316,43 @@ func TestGraphPG_Relay(t *testing.T) {
 	if err := pool.QueryRow(ctx, "SELECT count(*) FROM graph.change_events WHERE published_at IS NULL").Scan(&pending); err != nil || pending != 0 {
 		t.Fatalf("pending after relay: %d %v", pending, err)
 	}
+}
+
+// TestRegress_G_OPS_02_GraphAsServiceRole runs the store suites as
+// ff_graph, the non-owner service role of migration 0018, with row-level
+// security forced on every graph table: graphstore/pg must set
+// app.tenant_id in every transaction, and the cross-tenant relay may only
+// rely on its policy on graph.change_events (it reads entity snapshots per
+// tenant).
+func TestRegress_G_OPS_02_GraphAsServiceRole(t *testing.T) {
+	dsn(t)
+	asGraph := func(t testing.TB, o storetest.Options) graphstore.Store {
+		pool, _ := freshPoolAs(t, "ff_graph")
+		return pg.New(pool, pg.Config{Config: o.Config(), PollInterval: 50 * time.Millisecond})
+	}
+	t.Run("merge", func(t *testing.T) { storetest.MergeConformance(t, asGraph, mergeCases(t), memFactory) })
+	t.Run("idempotent", func(t *testing.T) { storetest.Idempotent(t, asGraph) })
+	t.Run("atomic", func(t *testing.T) { storetest.Atomic(t, asGraph) })
+	t.Run("convergence", func(t *testing.T) {
+		storetest.Convergence(t, asGraph, testkit.Rng(t), 10, memFactory)
+	})
+	t.Run("reads", func(t *testing.T) {
+		storetest.Neighbors(t, asGraph)
+		storetest.Path(t, asGraph)
+		storetest.BlastAndComponents(t, asGraph)
+		storetest.FindEntities(t, asGraph)
+		storetest.Search(t, asGraph)
+		storetest.Diff(t, asGraph)
+	})
+	t.Run("staleness", func(t *testing.T) { storetest.Staleness(t, asGraph) })
+	t.Run("tenant isolation", func(t *testing.T) { storetest.TenantIsolation(t, asGraph) })
+	t.Run("watch", func(t *testing.T) { storetest.WatchResume(t, asGraph) })
+	t.Run("snapshot", func(t *testing.T) { storetest.Snapshot(t, asGraph, memFactory) })
+	t.Run("add tag", func(t *testing.T) { storetest.AddTag(t, asGraph) })
+	t.Run("relay", func(t *testing.T) {
+		pool, _ := freshPoolAs(t, "ff_graph")
+		checkRelay(t, pool)
+	})
 }
 
 // TestGraphPG_SearchTextMaintained checks that search_text follows

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 
 	"github.com/genuinebnt/flowforge/core"
@@ -28,6 +27,7 @@ import (
 	"github.com/genuinebnt/flowforge/services/internal/bus"
 	"github.com/genuinebnt/flowforge/services/internal/convert"
 	"github.com/genuinebnt/flowforge/services/internal/platform"
+	"github.com/genuinebnt/flowforge/services/internal/platform/redisconf"
 	"github.com/genuinebnt/flowforge/services/notifier"
 	scopesvc "github.com/genuinebnt/flowforge/services/scope"
 	"github.com/genuinebnt/flowforge/services/similarity"
@@ -72,8 +72,10 @@ func Scope(env *Env, o ScopeOptions) (*Component, scopesvc.Repo) {
 type EngineOptions struct {
 	ScopeAddr, ToolRunnerAddr, GraphAddr string
 	RedisAddr, RedisAuth                 string
-	Workers                              int
-	Engine                               engine.Config
+	// RedisCA is FF_REDIS_CA (redisconf.Config.CA): set enables TLS.
+	RedisCA string
+	Workers int
+	Engine  engine.Config
 }
 
 // Engine builds the engine service.
@@ -120,7 +122,11 @@ func Engine(ctx context.Context, env *Env, o EngineOptions) (*Component, *engine
 		d.Publisher, d.Outbox, d.Inbox = enginesvc.MemPublisher{Outbox: out}, out, bus.NewMemInbox()
 	}
 	if o.RedisAddr != "" {
-		rc := redis.NewClient(&redis.Options{Addr: o.RedisAddr, Password: o.RedisAuth})
+		// FF_REDIS_CA set means Memorystore TLS (G-OPS-13).
+		rc, err := redisconf.NewClient(redisconf.Config{Addr: o.RedisAddr, Auth: o.RedisAuth, CA: o.RedisCA})
+		if err != nil {
+			return nil, nil, err
+		}
 		rl, err := redislimiter.New(rc, redislimiter.Options{}, enginesvc.DefaultLimitRules()...)
 		if err != nil {
 			return nil, nil, err
